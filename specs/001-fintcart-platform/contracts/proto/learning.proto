@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package fintcart.learning.v1;
+
+import "common.proto";
+
+// Servicio de Aprendizaje (TypeScript + NestJS). Dueño de artículos, versiones,
+// cuestionarios e historial completo de intentos. Productor de eventos RabbitMQ
+// (publicación de contenido) consumidos por Auditoría/Notificación.
+service LearningService {
+  // Curaduría (FR-007): editor crea/edita/versiona borradores y envía a revisión.
+  rpc CreateDraft(CreateDraftRequest) returns (ArticleVersion);
+  rpc UpdateDraft(UpdateDraftRequest) returns (ArticleVersion);
+  rpc SubmitForReview(VersionRef) returns (fintcart.common.v1.OpResult);
+
+  // Aprobación/publicación (FR-008): SOLO coordinador editorial y ≠ editor creador.
+  rpc ApproveAndPublish(ApprovePublishRequest) returns (fintcart.common.v1.OpResult);
+  rpc Archive(VersionRef) returns (fintcart.common.v1.OpResult);
+
+  // Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018).
+  rpc ListPublished(ListPublishedRequest) returns (ListPublishedResponse);
+  rpc GetArticle(ArticleRef) returns (Article);
+
+  // Cuestionarios (FR-009).
+  rpc GetQuiz(QuizRef) returns (Quiz);
+
+  // Calificación (FR-012/FR-016): persiste SIEMPRE el intento; lo invoca la Saga
+  // de calificación (research D-07). Devuelve score y número de intento.
+  rpc GradeAndStoreAttempt(GradeRequest) returns (GradeResponse);
+  rpc ListAttempts(ListAttemptsRequest) returns (ListAttemptsResponse);
+
+  // Saga de anonimización (FR-030): disocia PII de los intentos del usuario.
+  rpc AnonymizeAttempts(UserRef) returns (fintcart.common.v1.OpResult);
+}
+
+message UserRef { string user_id = 1; }
+message ArticleRef { string article_id = 1; }
+message VersionRef { string version_id = 1; string actor_id = 2; }
+message QuizRef { string quiz_id = 1; }
+
+message ArticleVersion {
+  string version_id = 1;
+  string article_id = 2;
+  int32 version_no = 3;
+  string state = 4; // borrador | en_revision | publicado | archivado
+  string created_by = 5;
+  string approved_by = 6; // vacío hasta aprobación; DEBE diferir de created_by
+}
+
+message CreateDraftRequest {
+  string title = 1;
+  string category = 2;
+  string body = 3;
+  string editor_id = 4; // rol editor (FR-006)
+}
+
+message UpdateDraftRequest {
+  string version_id = 1;
+  string body = 2;
+  string editor_id = 3;
+}
+
+message ApprovePublishRequest {
+  string version_id = 1;
+  string coordinator_id = 2; // rol coordinador_editorial; validar ≠ created_by (FR-008)
+}
+
+message ListPublishedRequest {
+  string category = 1;
+  fintcart.common.v1.PageRequest page = 2;
+}
+message ListPublishedResponse {
+  repeated Article items = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}
+
+message Article {
+  string article_id = 1;
+  string title = 2;
+  string category = 3;
+  string body = 4;
+  int32 current_version_no = 5;
+  repeated string quiz_ids = 6;
+}
+
+message Quiz {
+  string quiz_id = 1;
+  string article_id = 2;
+  string title = 3;
+  string pass_threshold = 4; // [decimal]
+  repeated Question questions = 5;
+}
+message Question {
+  string question_id = 1;
+  string prompt = 2;
+  repeated string options = 3;
+  string weight = 4; // [decimal]
+}
+
+message GradeRequest {
+  string user_id = 1;
+  string quiz_id = 2;
+  map<string, string> answers = 3; // question_id -> option_key
+}
+message GradeResponse {
+  string attempt_id = 1;
+  int32 attempt_no = 2;
+  string score = 3; // [decimal]
+  bool passed = 4;
+}
+
+message ListAttemptsRequest {
+  string user_id = 1;
+  string quiz_id = 2;
+  fintcart.common.v1.PageRequest page = 3;
+}
+message ListAttemptsResponse {
+  message Attempt {
+    string attempt_id = 1;
+    int32 attempt_no = 2;
+    string score = 3; // [decimal]
+    string created_at = 4;
+  }
+  repeated Attempt items = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}

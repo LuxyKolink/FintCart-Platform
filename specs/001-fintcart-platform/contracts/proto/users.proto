@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package fintcart.users.v1;
+
+import "common.proto";
+
+// Servicio de Usuarios (Go). Dueño del perfil, roles, preferencias, progreso,
+// historiales y la bandeja in-app (research D-09). Expone gRPC a servicios internos.
+// NO consume eventos RabbitMQ (Principio V): recibe datos por gRPC vía Saga.
+service UsersService {
+  // Saga de registro: crea el perfil en estado pending. Idempotente.
+  rpc CreateProfile(CreateProfileRequest) returns (fintcart.common.v1.OpResult);
+
+  // Marca el correo como verificado (Saga de verificación).
+  rpc MarkEmailVerified(UserRef) returns (fintcart.common.v1.OpResult);
+
+  // Contexto de autorización para poblar claims del JWT (lo invoca Auth en emisión).
+  rpc GetAuthContext(UserRef) returns (AuthContext);
+
+  // Perfil y preferencias (FR-017, FR-029: derecho de consulta/rectificación).
+  rpc GetProfile(UserRef) returns (Profile);
+  rpc UpdateProfile(UpdateProfileRequest) returns (fintcart.common.v1.OpResult);
+
+  // Progreso (FR-014): aplica un puntaje de cuestionario de forma monótona (D-07).
+  rpc ApplyQuizScore(ApplyQuizScoreRequest) returns (ProgressView);
+  rpc GetProgress(UserRef) returns (ProgressView);
+
+  // Historial de artículos vistos (FR-015).
+  rpc RecordArticleView(RecordArticleViewRequest) returns (fintcart.common.v1.OpResult);
+
+  // Bandeja in-app (FR-023): escritura por Saga de actividad; lectura por el usuario.
+  rpc AppendInAppNotification(InAppNotification) returns (fintcart.common.v1.OpResult);
+  rpc ListInAppNotifications(ListInAppRequest) returns (ListInAppResponse);
+  rpc MarkNotificationRead(MarkReadRequest) returns (fintcart.common.v1.OpResult);
+
+  // Reporte estadístico de actividad (FR-018).
+  rpc GetActivityReport(UserRef) returns (ActivityReport);
+
+  // Saga de anonimización (FR-030).
+  rpc AnonymizeProfile(UserRef) returns (fintcart.common.v1.OpResult);
+}
+
+message UserRef { string user_id = 1; }
+
+message CreateProfileRequest {
+  string user_id = 1;
+  string email = 2;
+  string display_name = 3;
+}
+
+message AuthContext {
+  string user_id = 1;
+  repeated string roles = 2; // usuario_final | editor | coordinador_editorial
+  string account_status = 3; // active | anonymized
+  bool email_verified = 4;
+}
+
+message Profile {
+  string user_id = 1;
+  string email = 2;
+  string display_name = 3;
+  bool email_verified = 4;
+  string account_status = 5;
+  map<string, string> preferences = 6;
+  repeated string roles = 7;
+}
+
+message UpdateProfileRequest {
+  string user_id = 1;
+  string display_name = 2;
+  map<string, string> preferences = 3;
+}
+
+message ApplyQuizScoreRequest {
+  string user_id = 1;
+  string quiz_id = 2;
+  string score = 3; // [decimal] calificación del intento
+}
+
+message ProgressView {
+  string user_id = 1;
+  int32 points = 2; // Σ mejor puntaje por cuestionario distinto (FR-014)
+}
+
+message RecordArticleViewRequest {
+  string user_id = 1;
+  string article_id = 2;
+}
+
+message InAppNotification {
+  string user_id = 1;
+  string type = 2; // nuevo_articulo | recordatorio | hito_progreso | resultado_cuestionario
+  string payload_json = 3;
+}
+
+message ListInAppRequest {
+  string user_id = 1;
+  fintcart.common.v1.PageRequest page = 2;
+}
+message ListInAppResponse {
+  message Item {
+    string id = 1;
+    string type = 2;
+    string payload_json = 3;
+    string read_state = 4; // unread | read
+    string created_at = 5; // RFC-3339
+  }
+  repeated Item items = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}
+
+message MarkReadRequest {
+  string user_id = 1;
+  string notification_id = 2;
+}
+
+message ActivityReport {
+  string user_id = 1;
+  int32 points = 2;
+  int64 articles_viewed = 3;
+  int64 quizzes_attempted = 4;
+  int64 simulations_run = 5;
+}

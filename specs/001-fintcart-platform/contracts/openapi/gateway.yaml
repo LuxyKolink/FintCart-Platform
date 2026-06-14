@@ -1,0 +1,259 @@
+openapi: 3.0.3
+info:
+  title: Fintcart API Gateway (borde REST)
+  version: 1.0.0
+  description: >
+    Único punto de entrada REST/HTTP del sistema (Constitución Principio II).
+    Traduce HTTP/REST ↔ gRPC interno. Aplica CORS, rate limiting (Redis) y
+    validación de tokens JWT (blacklist Redis) en cada solicitud.
+    PRECISIÓN: todo monto/tasa se serializa como `string` decimal canónica
+    (Principio VIII). PROHIBIDO número JSON para dinero.
+
+servers:
+  - url: https://api.fintcart.co/v1
+
+components:
+  securitySchemes:
+    oauth2PKCE:
+      type: oauth2
+      description: OAuth2 Authorization Code + PKCE (cliente público SPA).
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.fintcart.co/oauth/authorize
+          tokenUrl: https://auth.fintcart.co/oauth/token
+          scopes:
+            openid: Identidad básica
+            learning: Acceso al módulo de aprendizaje
+            simulator: Acceso a simuladores
+            profile: Gestión de perfil
+  schemas:
+    DecimalString:
+      type: string
+      pattern: '^-?\d+(\.\d+)?$'
+      example: "1500000.00"
+      description: Decimal canónico como string (nunca número JSON).
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+    Progress:
+      type: object
+      properties:
+        user_id: { type: string, format: uuid }
+        points: { type: integer, minimum: 0 }
+    Article:
+      type: object
+      properties:
+        article_id: { type: string, format: uuid }
+        title: { type: string }
+        category: { type: string }
+        body: { type: string }
+        current_version_no: { type: integer }
+    QuizGradeResult:
+      type: object
+      properties:
+        attempt_id: { type: string, format: uuid }
+        attempt_no: { type: integer }
+        score: { $ref: '#/components/schemas/DecimalString' }
+        passed: { type: boolean }
+        points_after: { type: integer }
+    SimulationResult:
+      type: object
+      properties:
+        simulation_id: { type: string, format: uuid }
+        result:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/DecimalString' }
+    InAppNotification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [nuevo_articulo, recordatorio, hito_progreso, resultado_cuestionario] }
+        read_state: { type: string, enum: [unread, read] }
+        created_at: { type: string, format: date-time }
+
+security:
+  - oauth2PKCE: []
+
+paths:
+  # --- Identidad (proxy hacia Autenticación / Saga de registro en Orquestador) ---
+  /auth/register:
+    post:
+      summary: Registro de usuario (inicia Saga de registro)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, display_name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                display_name: { type: string }
+      responses:
+        '202': { description: Registro aceptado; correo de verificación enviado }
+        '409': { description: Correo ya registrado, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/verify-email:
+    post:
+      summary: Verificación de correo (inicia Saga de verificación)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, verification_token]
+              properties:
+                user_id: { type: string, format: uuid }
+                verification_token: { type: string }
+      responses:
+        '200': { description: Correo verificado }
+        '400': { description: Token inválido o expirado }
+
+  /auth/logout:
+    post:
+      summary: Cierre de sesión con revocación inmediata (FR-004)
+      responses:
+        '204': { description: Sesión revocada (jti en blacklist) }
+
+  # --- Aprendizaje ---
+  /catalog/articles:
+    get:
+      summary: Catálogo de artículos publicados (FR-010)
+      parameters:
+        - { name: category, in: query, schema: { type: string } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Article' }
+
+  /catalog/articles/{articleId}:
+    get:
+      summary: Leer artículo publicado (FR-011)
+      parameters:
+        - { name: articleId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Artículo, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        '404': { description: No encontrado }
+
+  /quizzes/{quizId}/attempts:
+    post:
+      summary: Enviar cuestionario (inicia Saga de calificación → progreso → notificar → auditar)
+      parameters:
+        - { name: quizId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                answers:
+                  type: object
+                  additionalProperties: { type: string }
+      responses:
+        '201':
+          description: Intento calificado y registrado (FR-012/FR-016)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizGradeResult' }
+
+  # --- Editorial (roles editor / coordinador, FR-006..FR-008) ---
+  /editorial/articles:
+    post:
+      summary: Crear borrador (rol editor)
+      responses:
+        '201': { description: Borrador creado }
+  /editorial/versions/{versionId}/submit:
+    post:
+      summary: Enviar a revisión (rol editor)
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: En revisión }
+  /editorial/versions/{versionId}/publish:
+    post:
+      summary: Aprobar y publicar (rol coordinador editorial; debe diferir del editor creador)
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Publicado }
+        '403': { description: El coordinador no puede ser el editor creador (FR-008) }
+
+  # --- Simulador (vía Orquestador para auditoría, D-03) ---
+  /simulators/{calcType}/run:
+    post:
+      summary: Ejecutar simulación financiera (FR-019..FR-022)
+      parameters:
+        - { name: calcType, in: path, required: true, schema: { type: string, enum: [ahorro, credito, presupuesto, inversion, colombia_especifica] } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currency: { type: string, default: COP }
+                inputs:
+                  type: object
+                  additionalProperties: { $ref: '#/components/schemas/DecimalString' }
+      responses:
+        '200':
+          description: Resultado de simulación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SimulationResult' }
+  /simulators/history:
+    get:
+      summary: Historial de simulaciones del usuario (FR-022)
+      responses:
+        '200': { description: Lista paginada }
+
+  # --- Perfil, progreso, bandeja in-app, derechos Ley 1581 ---
+  /me/profile:
+    get:
+      summary: Consultar perfil y datos personales (FR-017/FR-029)
+      responses:
+        '200': { description: Perfil }
+    patch:
+      summary: Rectificar perfil/preferencias (FR-017/FR-029)
+      responses:
+        '200': { description: Actualizado }
+  /me/progress:
+    get:
+      summary: Consultar progreso (FR-014)
+      responses:
+        '200': { description: Progreso, content: { application/json: { schema: { $ref: '#/components/schemas/Progress' } } } }
+  /me/notifications:
+    get:
+      summary: Bandeja in-app con estado de lectura (FR-023)
+      responses:
+        '200':
+          description: Lista de notificaciones in-app
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/InAppNotification' }
+  /me/notifications/{id}/read:
+    post:
+      summary: Marcar notificación como leída
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Marcada como leída }
+  /me/account:
+    delete:
+      summary: Solicitar eliminación de cuenta (Saga de anonimización, FR-030)
+      responses:
+        '202': { description: Solicitud aceptada; anonimización en proceso (SLA ≤ 15 días hábiles, SC-011) }

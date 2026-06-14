@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package fintcart.simulator.v1;
+
+import "common.proto";
+
+// Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
+// decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
+// (Principio V); la auditoría de simulaciones la emite el Orquestador (research D-03).
+// Todos los montos/tasas viajan como `string` decimal canónica (Principio VIII / D-10).
+service SimulatorService {
+  // Ejecuta una simulación y persiste el historial (FR-019..FR-022).
+  // Invocada por el Orquestador para permitir el evento de auditoría (D-03).
+  rpc Compute(ComputeRequest) returns (ComputeResponse);
+
+  // Historial de simulaciones por usuario (FR-022).
+  rpc ListHistory(ListHistoryRequest) returns (ListHistoryResponse);
+
+  // Saga de anonimización (FR-030): disocia PII del historial.
+  rpc AnonymizeHistory(UserRef) returns (fintcart.common.v1.OpResult);
+}
+
+message UserRef { string user_id = 1; }
+
+enum CalcType {
+  CALC_TYPE_UNSPECIFIED = 0;
+  AHORRO = 1;
+  CREDITO = 2;
+  PRESUPUESTO = 3;
+  INVERSION = 4;
+  COLOMBIA_ESPECIFICA = 5;
+}
+
+message ComputeRequest {
+  string user_id = 1;
+  CalcType calc_type = 2;
+  string currency = 3;              // default "COP" (FR-020)
+  map<string, string> inputs = 4;   // [decimal] todos los montos/tasas como string
+}
+
+message ComputeResponse {
+  string simulation_id = 1;
+  map<string, string> result = 2;   // [decimal] resultados como string decimal canónica
+  string computed_at = 3;           // RFC-3339
+}
+
+message ListHistoryRequest {
+  string user_id = 1;
+  fintcart.common.v1.PageRequest page = 2;
+}
+message ListHistoryResponse {
+  message Entry {
+    string simulation_id = 1;
+    CalcType calc_type = 2;
+    string currency = 3;
+    map<string, string> inputs = 4;  // [decimal]
+    map<string, string> result = 5;  // [decimal]
+    string created_at = 6;
+  }
+  repeated Entry items = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}

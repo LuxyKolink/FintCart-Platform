@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package fintcart.auth.v1;
+
+import "common.proto";
+
+// Servidor de Autenticación (Go). Autoridad de identidad (Constitución Principio VII).
+// OAuth2 Authorization Code + PKCE (SPA) y Client Credentials (M2M). JWT firmados;
+// revocación vía blacklist en Redis. Expone gRPC SOLO a servicios internos
+// (el flujo OAuth de cara al usuario lo traduce el API Gateway en el borde REST).
+service AuthService {
+  // Paso de la Saga de registro (research D-04): crea la credencial en estado
+  // pending_verification. Idempotente por user_id.
+  rpc CreateCredential(CreateCredentialRequest) returns (fintcart.common.v1.OpResult);
+
+  // Activa la credencial tras verificación de correo (Saga de verificación).
+  rpc ActivateCredential(UserRef) returns (fintcart.common.v1.OpResult);
+
+  // Valida correo+contraseña durante el login del Authorization Code flow.
+  rpc ValidateCredentials(ValidateCredentialsRequest) returns (ValidateCredentialsResponse);
+
+  // Emite un authorization_code (PKCE) tras autenticación exitosa.
+  rpc IssueAuthorizationCode(IssueAuthCodeRequest) returns (IssueAuthCodeResponse);
+
+  // Intercambia authorization_code + code_verifier por tokens.
+  rpc ExchangeCode(ExchangeCodeRequest) returns (TokenResponse);
+
+  // Rota un refresh token (rotación obligatoria, research D-05).
+  rpc RefreshToken(RefreshTokenRequest) returns (TokenResponse);
+
+  // Revoca un token (logout con efecto inmediato, FR-004): añade jti a blacklist.
+  rpc Revoke(RevokeRequest) returns (fintcart.common.v1.OpResult);
+
+  // Introspección usada por el API Gateway para validar tokens entrantes.
+  rpc Introspect(IntrospectRequest) returns (IntrospectResponse);
+
+  // Paso de la Saga de anonimización (FR-030): revoca y anonimiza la credencial.
+  rpc RevokeAndAnonymizeCredential(UserRef) returns (fintcart.common.v1.OpResult);
+}
+
+message UserRef { string user_id = 1; }
+
+message CreateCredentialRequest {
+  string user_id = 1;
+  string email = 2;
+  string password = 3; // se hashea con Argon2id; nunca se persiste/loguea en claro
+}
+
+message ValidateCredentialsRequest {
+  string email = 1;
+  string password = 2;
+}
+message ValidateCredentialsResponse {
+  bool valid = 1;
+  string user_id = 2;
+  bool email_verified = 3;
+  string login_status = 4; // pending_verification | active | anonymized
+}
+
+message IssueAuthCodeRequest {
+  string user_id = 1;
+  string client_id = 2;
+  string redirect_uri = 3;
+  string code_challenge = 4;
+  string code_challenge_method = 5; // "S256"
+  repeated string scopes = 6;
+}
+message IssueAuthCodeResponse { string code = 1; }
+
+message ExchangeCodeRequest {
+  string code = 1;
+  string code_verifier = 2; // PKCE
+  string client_id = 3;
+  string redirect_uri = 4;
+}
+
+message RefreshTokenRequest { string refresh_token = 1; }
+
+message TokenResponse {
+  string access_token = 1;  // JWT firmado
+  string refresh_token = 2; // rotado
+  string token_type = 3;    // "Bearer"
+  int32 expires_in = 4;     // segundos
+}
+
+message RevokeRequest {
+  string token = 1;     // access o refresh
+  string token_type_hint = 2;
+}
+
+message IntrospectRequest { string access_token = 1; }
+message IntrospectResponse {
+  bool active = 1;        // false si está en blacklist o expirado
+  string user_id = 2;
+  repeated string roles = 3;
+  string jti = 4;
+  int64 exp = 5;
+}
