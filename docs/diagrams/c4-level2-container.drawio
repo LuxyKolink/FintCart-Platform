@@ -1,0 +1,256 @@
+<mxfile host="65bd71144e">
+    <diagram id="c4-level2-container" name="C4 Level 2 – Container">
+        <mxGraphModel dx="2171" dy="1144" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3300" pageHeight="2339" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="Fintcart Platform — C4 Level 2: Container Diagram" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="30" width="900" height="60" as="geometry"/>
+                </mxCell>
+                <object placeholders="1" c4Name="Learner" c4Type="Person" c4Description="Studies financial topics, runs simulations, tracks progress via the Fintcart web app." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="3">
+                    <mxCell style="html=1;dashed=0;whitespace=wrap;fillColor=#08427b;strokeColor=none;fontColor=#ffffff;shape=mxgraph.c4.person;align=center;" parent="1" vertex="1">
+                        <mxGeometry x="175" y="60" width="120" height="150" as="geometry"/>
+                    </mxCell>
+                </object>
+                <mxCell id="2" value="Fintcart Platform  [System Boundary]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6B6B6B;strokeWidth=2;dashed=1;verticalAlign=top;fontSize=13;fontStyle=1;align=left;arcSize=2;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="240" width="2480" height="900" as="geometry"/>
+                </mxCell>
+                <object placeholders="1" c4Name="Angular SPA" c4Type="Container" c4Technology="TypeScript / Angular 17" c4Description="Single-page application. Handles OAuth2 PKCE flow. Renders courses, content blocks, and simulation results." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="4">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="90" y="370" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="API Gateway" c4Type="Container" c4Technology="Go" c4Description="Only REST entry point. Validates JWT, enforces rate limits via Redis, routes requests to internal gRPC services." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="5">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="450" y="370" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Auth Server" c4Type="Container" c4Technology="Go" c4Description="OAuth2 Authorization Code + PKCE (SPA) and Client Credentials (M2M). Issues signed JWTs. Manages token blacklist and refresh tokens in Redis." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="6">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="450" y="650" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Orchestrator" c4Type="Container" c4Technology="Go" c4Description="Saga coordinator for multi-service workflows. Holds no domain logic. Issues compensating transactions on failure. Publishes saga events." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="8">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="1010" y="370" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="User Service" c4Type="Container" c4Technology="Go" c4Description="User profiles, roles, permissions, and learning progress tracking. Publishes user domain events." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="9">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="1340" y="290" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Learning Service" c4Type="Container" c4Technology="TypeScript / NestJS" c4Description="Publication management, content blocks, learning session lifecycle. Publishes learning events." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="10">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="1340" y="540" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Simulator Service" c4Type="Container" c4Technology="Rust" c4Description="Financial calculators with arbitrary-precision decimal arithmetic (rust_decimal). Pure computation — no events published." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="11">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="1340" y="790" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Notification Service" c4Type="Container" c4Technology="TypeScript / Node.js" c4Description="RabbitMQ consumer only. Dispatches notifications via email, push, or SMS based on consumed events." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="13">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="2120" y="370" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Audit Service" c4Type="Container" c4Technology="Go" c4Description="RabbitMQ consumer. Appends immutable audit log entries. Exposes read-only log queries via gRPC." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="14">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;align=center;arcSize=5;" parent="1" vertex="1">
+                        <mxGeometry x="2120" y="650" width="240" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Redis 7.4" c4Type="Container" c4Technology="Redis" c4Description="Shared by API Gateway (rate-limit counters) and Auth Server (JWT blacklist + refresh token store)." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="7">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#6C8EBF;strokeColor=none;fontColor=#ffffff;align=center;arcSize=10;" parent="1" vertex="1">
+                        <mxGeometry x="750" y="480" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="RabbitMQ 4.0" c4Type="Container" c4Technology="AMQP 0-9-1" c4Description="Async message broker. Producers: Auth, User, Learning, Orchestrator. Consumers: Notification, Audit." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="12">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#6C8EBF;strokeColor=none;fontColor=#ffffff;align=center;arcSize=10;" parent="1" vertex="1">
+                        <mxGeometry x="1840" y="480" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Auth DB" c4Type="Container" c4Technology="PostgreSQL 16" c4Description="OAuth2 clients, user credentials, refresh token metadata." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="15">
+                    <mxCell style="shape=mxgraph.c4.dataStore;html=1;whiteSpace=wrap;fillColor=#23A2D9;strokeColor=none;fontColor=#ffffff;align=center;" parent="1" vertex="1">
+                        <mxGeometry x="450" y="930" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Orchestrator DB" c4Type="Container" c4Technology="PostgreSQL 16" c4Description="Saga state machines and compensation logs." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="16">
+                    <mxCell style="shape=mxgraph.c4.dataStore;html=1;whiteSpace=wrap;fillColor=#23A2D9;strokeColor=none;fontColor=#ffffff;align=center;" parent="1" vertex="1">
+                        <mxGeometry x="1010" y="650" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="User DB" c4Type="Container" c4Technology="PostgreSQL 16" c4Description="User profiles, roles, permissions, and learning progress." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="17">
+                    <mxCell style="shape=mxgraph.c4.dataStore;html=1;whiteSpace=wrap;fillColor=#23A2D9;strokeColor=none;fontColor=#ffffff;align=center;" parent="1" vertex="1">
+                        <mxGeometry x="1620" y="290" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Learning DB" c4Type="Container" c4Technology="PostgreSQL 16" c4Description="Publications, content blocks, learning session records." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="18">
+                    <mxCell style="shape=mxgraph.c4.dataStore;html=1;whiteSpace=wrap;fillColor=#23A2D9;strokeColor=none;fontColor=#ffffff;align=center;" parent="1" vertex="1">
+                        <mxGeometry x="1620" y="540" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Simulator DB" c4Type="Container" c4Technology="PostgreSQL 16" c4Description="Simulation presets and result history." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="19">
+                    <mxCell style="shape=mxgraph.c4.dataStore;html=1;whiteSpace=wrap;fillColor=#23A2D9;strokeColor=none;fontColor=#ffffff;align=center;" parent="1" vertex="1">
+                        <mxGeometry x="1620" y="790" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Name="Audit DB" c4Type="Container" c4Technology="PostgreSQL 16" c4Description="Append-only audit log. Immutable records." label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div style=&quot;font-size:10px&quot;&gt;%c4Description%&lt;/div&gt;" id="20">
+                    <mxCell style="shape=mxgraph.c4.dataStore;html=1;whiteSpace=wrap;fillColor=#23A2D9;strokeColor=none;fontColor=#ffffff;align=center;" parent="1" vertex="1">
+                        <mxGeometry x="2120" y="930" width="200" height="120" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Uses" c4Technology="HTTPS / Browser" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r01">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="3" target="4" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="API calls" c4Technology="REST / HTTPS" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r02">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="4" target="5" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Validate token" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r03">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="5" target="6" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Rate-limit counters" c4Technology="Redis protocol" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r04">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="5" target="7" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Complex workflows" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r05">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="5" target="8" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Profile queries" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r06">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="5" target="9" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Content queries" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r07">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="5" target="10" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Run simulation" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r08">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="5" target="11" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Blacklist / refresh tokens" c4Technology="Redis protocol" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r09">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="6" target="7" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="User commands" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r10">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="8" target="9" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Learning commands" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r11">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="8" target="10" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Run simulation" c4Technology="gRPC" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r12">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;" parent="1" source="8" target="11" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Publish auth events" c4Technology="AMQP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r13">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;dashed=1;" parent="1" source="6" target="12" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Publish user events" c4Technology="AMQP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r14">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;dashed=1;" parent="1" source="9" target="12" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Publish learning events" c4Technology="AMQP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r15">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;dashed=1;" parent="1" source="10" target="12" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Publish saga events" c4Technology="AMQP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r16">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;dashed=1;" parent="1" source="8" target="12" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Deliver events" c4Technology="AMQP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r17">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;dashed=1;" parent="1" source="12" target="13" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Deliver events" c4Technology="AMQP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r18">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#707070;strokeWidth=2;fontColor=#707070;dashed=1;" parent="1" source="12" target="14" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Reads / writes" c4Technology="SQL / TCP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r19">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#AAAAAA;strokeWidth=1;fontColor=#888888;" parent="1" source="6" target="15" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Reads / writes" c4Technology="SQL / TCP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r20">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#AAAAAA;strokeWidth=1;fontColor=#888888;" parent="1" source="8" target="16" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Reads / writes" c4Technology="SQL / TCP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r21">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#AAAAAA;strokeWidth=1;fontColor=#888888;" parent="1" source="9" target="17" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Reads / writes" c4Technology="SQL / TCP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r22">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#AAAAAA;strokeWidth=1;fontColor=#888888;" parent="1" source="10" target="18" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Reads / writes" c4Technology="SQL / TCP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r23">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#AAAAAA;strokeWidth=1;fontColor=#888888;" parent="1" source="11" target="19" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <object placeholders="1" c4Type="Relationship" c4Description="Appends records" c4Technology="SQL / TCP" label="&lt;div style=&quot;text-align:center&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align:center&quot;&gt;[%c4Technology%]&lt;/div&gt;" id="r24">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#AAAAAA;strokeWidth=1;fontColor=#888888;" parent="1" source="14" target="20" edge="1">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+                <mxCell id="leg0" value="Legend" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="2620" y="380" width="120" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg1" value="Application Container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=none;fontColor=#ffffff;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="2620" y="420" width="210" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg2" value="Infrastructure Container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C8EBF;strokeColor=none;fontColor=#ffffff;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="2620" y="468" width="210" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg3" value="Database (PostgreSQL 16)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#23A2D9;strokeColor=none;fontColor=#ffffff;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="2620" y="516" width="210" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg4a" value="" style="edgeStyle=none;html=1;strokeColor=#707070;strokeWidth=2;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="2620" y="585" as="sourcePoint"/>
+                        <mxPoint x="2830" y="585" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="leg4b" value="Sync (REST / gRPC)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="2620" y="568" width="200" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg5a" value="" style="edgeStyle=none;html=1;strokeColor=#707070;strokeWidth=2;dashed=1;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="2620" y="625" as="sourcePoint"/>
+                        <mxPoint x="2830" y="625" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="leg5b" value="Async (AMQP / RabbitMQ)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="2620" y="608" width="210" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

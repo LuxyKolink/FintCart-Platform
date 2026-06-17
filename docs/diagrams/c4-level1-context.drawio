@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="65bd71144e">
+    <diagram id="c4-level1-fintcart" name="C4 Level 1 — System Context">
+        <mxGraphModel dx="1788" dy="942" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3300" pageHeight="2339" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- ── Title ──────────────────────────────────────────────────── -->
+                <mxCell id="title" value="Fintcart — C4 Level 1: System Context"
+                    style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;
+                           whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;"
+                    vertex="1" parent="1">
+                    <mxGeometry x="380" y="60" width="760" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- ── Persons ────────────────────────────────────────────────── -->
+
+                <!-- Learner -->
+                <object placeholders="1"
+                    c4Name="Learner"
+                    c4Type="Person"
+                    c4Description="Person interested in improving their financial knowledge in the Colombian context. Consumes educational content and uses financial simulators."
+                    label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;%c4Description%&lt;/div&gt;"
+                    id="2">
+                    <mxCell style="html=1;dashed=0;whitespace=wrap;fillColor=#08427b;strokeColor=none;
+                                   fontColor=#ffffff;shape=mxgraph.c4.person;align=center;metaEdit=1;
+                                   points=[[0.5,0,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0]];"
+                        vertex="1" parent="1">
+                        <mxGeometry x="100" y="320" width="130" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Editor -->
+                <object placeholders="1"
+                    c4Name="Editor"
+                    c4Type="Person"
+                    c4Description="Internal staff who authors and versions educational articles, and submits them to the editorial workflow for approval."
+                    label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;%c4Description%&lt;/div&gt;"
+                    id="3">
+                    <mxCell style="html=1;dashed=0;whitespace=wrap;fillColor=#08427b;strokeColor=none;
+                                   fontColor=#ffffff;shape=mxgraph.c4.person;align=center;metaEdit=1;
+                                   points=[[0.5,0,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0]];"
+                        vertex="1" parent="1">
+                        <mxGeometry x="100" y="620" width="130" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Coordinador Editorial -->
+                <object placeholders="1"
+                    c4Name="Coordinador Editorial"
+                    c4Type="Person"
+                    c4Description="Internal staff who reviews articles submitted by editors, and approves or rejects their publication to the public catalogue."
+                    label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;%c4Description%&lt;/div&gt;"
+                    id="4">
+                    <mxCell style="html=1;dashed=0;whitespace=wrap;fillColor=#08427b;strokeColor=none;
+                                   fontColor=#ffffff;shape=mxgraph.c4.person;align=center;metaEdit=1;
+                                   points=[[0.5,0,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0]];"
+                        vertex="1" parent="1">
+                        <mxGeometry x="100" y="920" width="130" height="160" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- ── Fintcart Platform (in scope) ───────────────────────────── -->
+                <object placeholders="1"
+                    c4Name="Fintcart Platform"
+                    c4Type="Software System"
+                    c4Description="Interactive financial education platform for the Colombian market. Delivers educational articles and quizzes with progress tracking, and five financial simulators (savings, credit, budget, investment, and Colombia-specific calculators)."
+                    label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;%c4Description%&lt;/div&gt;"
+                    id="5">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;
+                                   fillColor=#1168BD;fontColor=#ffffff;align=center;arcSize=5;
+                                   strokeColor=none;metaEdit=1;
+                                   points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];"
+                        vertex="1" parent="1">
+                        <mxGeometry x="500" y="500" width="500" height="400" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- ── External System ────────────────────────────────────────── -->
+
+                <!-- Email Service Provider -->
+                <object placeholders="1"
+                    c4Name="Email Service Provider"
+                    c4Type="Software System"
+                    c4Description="External email delivery service. Sends account verification, password reset, security alerts, and activity notification emails to users."
+                    label="&lt;b&gt;%c4Name%&lt;/b&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;%c4Description%&lt;/div&gt;"
+                    id="6">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;
+                                   fillColor=#999999;fontColor=#ffffff;align=center;arcSize=10;
+                                   strokeColor=#8A8A8A;metaEdit=1;
+                                   points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];"
+                        vertex="1" parent="1">
+                        <mxGeometry x="1260" y="630" width="260" height="140" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- ── Relationships ──────────────────────────────────────────── -->
+
+                <!-- Learner → Fintcart Platform -->
+                <object placeholders="1"
+                    c4Type="Relationship"
+                    c4Description="Registers, reads articles, takes quizzes, and runs financial simulators"
+                    label="&lt;div style=&quot;text-align: center;&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;"
+                    id="r01">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;
+                                   strokeColor=#707070;strokeWidth=2;fontColor=#707070;
+                                   metaEdit=1;"
+                        edge="1" parent="1" source="2" target="5">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Editor → Fintcart Platform -->
+                <object placeholders="1"
+                    c4Type="Relationship"
+                    c4Description="Creates, edits and submits educational articles for review"
+                    label="&lt;div style=&quot;text-align: center;&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;"
+                    id="r02">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;
+                                   strokeColor=#707070;strokeWidth=2;fontColor=#707070;
+                                   metaEdit=1;"
+                        edge="1" parent="1" source="3" target="5">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Coordinador Editorial → Fintcart Platform -->
+                <object placeholders="1"
+                    c4Type="Relationship"
+                    c4Description="Reviews, approves and publishes educational content"
+                    label="&lt;div style=&quot;text-align: center;&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;"
+                    id="r03">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;
+                                   strokeColor=#707070;strokeWidth=2;fontColor=#707070;
+                                   metaEdit=1;"
+                        edge="1" parent="1" source="4" target="5">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Fintcart Platform → Email Service Provider -->
+                <object placeholders="1"
+                    c4Type="Relationship"
+                    c4Description="Sends transactional and notification emails"
+                    label="&lt;div style=&quot;text-align: center;&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;"
+                    id="r04">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;
+                                   strokeColor=#707070;strokeWidth=2;fontColor=#707070;
+                                   metaEdit=1;"
+                        edge="1" parent="1" source="5" target="6">
+                        <mxGeometry relative="1" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- ── Legend ─────────────────────────────────────────────────── -->
+                <mxCell id="legend_bg" value=""
+                    style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6B6B6B;
+                           dashed=1;dashPattern=1 2;fontColor=#666666;"
+                    vertex="1" parent="1">
+                    <mxGeometry x="100" y="1180" width="640" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend_title" value="Legend"
+                    style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;
+                           whiteSpace=wrap;rounded=0;fontStyle=1;fontColor=#666666;"
+                    vertex="1" parent="1">
+                    <mxGeometry x="120" y="1190" width="60" height="20" as="geometry"/>
+                </mxCell>
+
+                <!-- Legend: Person -->
+                <object placeholders="1" c4Name="Person" c4Type="Person" c4Description="A human user"
+                    label="&lt;b style=&quot;font-size:9px;&quot;&gt;%c4Name%&lt;/b&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;[%c4Type%]&lt;/div&gt;&lt;br style=&quot;font-size:9px;&quot;&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;%c4Description%&lt;/div&gt;"
+                    id="legend_person">
+                    <mxCell style="html=1;dashed=0;whitespace=wrap;fillColor=#08427b;strokeColor=none;
+                                   fontColor=#ffffff;shape=mxgraph.c4.person;align=center;fontSize=9;"
+                        vertex="1" parent="1">
+                        <mxGeometry x="120" y="1215" width="60" height="80" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Legend: Software System (in scope) -->
+                <object placeholders="1" c4Name="System" c4Type="Software System" c4Description="In scope"
+                    label="&lt;b style=&quot;font-size:9px;&quot;&gt;%c4Name%&lt;/b&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;[%c4Type%]&lt;/div&gt;&lt;br style=&quot;font-size:9px;&quot;&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;%c4Description%&lt;/div&gt;"
+                    id="legend_sys_in">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;
+                                   fillColor=#1168BD;fontColor=#ffffff;align=center;arcSize=5;
+                                   strokeColor=none;fontSize=9;"
+                        vertex="1" parent="1">
+                        <mxGeometry x="210" y="1222" width="120" height="65" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Legend: Software System (external) -->
+                <object placeholders="1" c4Name="System" c4Type="Software System" c4Description="External"
+                    label="&lt;b style=&quot;font-size:9px;&quot;&gt;%c4Name%&lt;/b&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;[%c4Type%]&lt;/div&gt;&lt;br style=&quot;font-size:9px;&quot;&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;%c4Description%&lt;/div&gt;"
+                    id="legend_sys_ext">
+                    <mxCell style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;
+                                   fillColor=#999999;fontColor=#ffffff;align=center;arcSize=10;
+                                   strokeColor=#8A8A8A;fontSize=9;"
+                        vertex="1" parent="1">
+                        <mxGeometry x="350" y="1222" width="120" height="65" as="geometry"/>
+                    </mxCell>
+                </object>
+
+                <!-- Legend: Relationship -->
+                <object placeholders="1" c4Type="Relationship" c4Description="Relationship"
+                    label="&lt;div style=&quot;text-align:center;font-size:9px;&quot;&gt;&lt;b&gt;%c4Description%&lt;/b&gt;&lt;/div&gt;"
+                    id="legend_rel">
+                    <mxCell style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;
+                                   strokeColor=#707070;strokeWidth=2;fontColor=#707070;fontSize=9;"
+                        edge="1" parent="1">
+                        <mxGeometry relative="1" as="geometry">
+                            <mxPoint x="490" y="1255" as="sourcePoint"/>
+                            <mxPoint x="660" y="1255" as="targetPoint"/>
+                        </mxGeometry>
+                    </mxCell>
+                </object>
+
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
