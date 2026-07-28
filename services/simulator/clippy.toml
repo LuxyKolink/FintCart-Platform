@@ -1,0 +1,15 @@
+# Configuración de clippy para el Simulador.
+#
+# La prohibición de `f32`/`f64` (Principio VIII, NON-NEGOTIABLE) se declara en
+# `src/main.rs` con `#![deny(clippy::disallowed_types)]` y la lista de abajo.
+# clippy.toml solo puede declarar los tipos; la severidad va en el crate.
+
+disallowed-types = [
+    { path = "f32", reason = "Principio VIII (NON-NEGOTIABLE): prohibido el punto flotante binario para dinero o tasas. Usar rust_decimal::Decimal." },
+    { path = "f64", reason = "Principio VIII (NON-NEGOTIABLE): prohibido el punto flotante binario para dinero o tasas. Usar rust_decimal::Decimal." },
+]
+
+# Los cálculos financieros encadenan muchos operandos decimales; el umbral por
+# defecto de complejidad cognitiva es demasiado estricto para las fórmulas de
+# amortización sin que ello indique un problema real de diseño.
+cognitive-complexity-threshold = 30

@@ -1,0 +1,21 @@
+version: v2
+
+# Plantilla de generación para los tres destinos TypeScript:
+# services/learning/src/pb, services/notification/src/pb y frontend/src/app/pb.
+# Se invoca una vez por destino con `--output`; `contracts/generate.sh` orquesta.
+#
+#   buf generate --template buf.gen.ts.yaml --output ../services/learning/src/pb
+#
+# `forceLong=string` es OBLIGATORIO (Constitución Principio VIII): los int64 y
+# cualquier campo decimal viajan como `string`; jamás como `number`, que perdería
+# precisión en montos y tasas.
+
+plugins:
+  - remote: buf.build/community/stephenh-ts-proto
+    out: .
+    opt:
+      - outputServices=grpc-js
+      - esModuleInterop=true
+      - forceLong=string
+      - useOptionals=messages
+      - snakeToCamel=false

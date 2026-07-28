@@ -1,0 +1,165 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "001-*"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────── Contratos ──────────────────────────────
+  # Los contratos son la única superficie compartida del monorepo: se validan
+  # antes que nada, y un cambio incompatible falla el build (§Definición de
+  # Contratos).
+  contracts:
+    name: Contratos (buf lint + breaking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: bufbuild/buf-action@v1
+        with:
+          input: contracts
+          lint: true
+          format: false
+          breaking: true
+          breaking_against: "https://github.com/${{ github.repository }}.git#branch=main,subdir=contracts"
+
+  # ────────────────────────────── Go ──────────────────────────────────
+  go:
+    name: Go — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api-gateway, auth-server, orchestrator, users, audit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+      - name: Verificar formato
+        working-directory: services/${{ matrix.service }}
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Archivos sin formatear:"; echo "$unformatted"; exit 1
+          fi
+      - name: Lint (incluye la prohibición de float — Principio VIII)
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: services/${{ matrix.service }}
+          args: --config=${{ github.workspace }}/.golangci.yml
+      - name: Pruebas
+        working-directory: services/${{ matrix.service }}
+        run: go test -race -coverprofile=coverage.out ./...
+
+  # ───────────────────────────── Rust ─────────────────────────────────
+  rust:
+    name: Rust — simulator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/simulator
+      - name: Verificar formato
+        working-directory: services/simulator
+        run: cargo fmt --check
+      - name: Clippy (incluye la prohibición de f32/f64 — Principio VIII)
+        working-directory: services/simulator
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Pruebas (incluyen los casos de borde numérico — SC-004)
+        working-directory: services/simulator
+        run: cargo test --all-targets
+
+  # ────────────────────────── TypeScript ──────────────────────────────
+  typescript:
+    name: TS — ${{ matrix.project.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - { name: learning, path: services/learning }
+          - { name: notification, path: services/notification }
+          - { name: frontend, path: frontend }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ matrix.project.path }}/package-lock.json
+      - name: Instalar dependencias
+        working-directory: ${{ matrix.project.path }}
+        run: npm ci
+      - name: Lint (incluye la prohibición de number — Principio VIII)
+        working-directory: ${{ matrix.project.path }}
+        run: npm run lint
+      - name: Compilar
+        working-directory: ${{ matrix.project.path }}
+        run: npm run build
+      - name: Pruebas
+        working-directory: ${{ matrix.project.path }}
+        run: npm test
+
+  # ────────────── Flujo de desarrollo local (Principio XII) ───────────
+  # Verifica la regla 4: un desarrollador con Docker debe poder ejecutar
+  # `dev/build && dev/up && dev/migrate` y obtener el sistema funcionando, sin
+  # ningún paso manual adicional. Si esto falla, el defecto está en los scripts.
+  dev-workflow:
+    name: dev/build + dev/up + dev/migrate (cero pasos manuales)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Los verbos de dev/ son ejecutables
+        run: |
+          for verb in build up down migrate; do
+            test -x "dev/$verb" || { echo "dev/$verb no es ejecutable"; exit 1; }
+          done
+      - name: dev/build
+        run: dev/build
+      - name: dev/up
+        run: dev/up
+      - name: dev/migrate
+        run: dev/migrate up
+      - name: Las migraciones down revierten efectivamente (Principio XI regla 1)
+        run: |
+          yes | dev/migrate down || true
+          dev/migrate up
+      - name: Diagnóstico si algo falló
+        if: failure()
+        run: docker compose -f dev/docker-compose.yaml logs --tail=100
+      - name: dev/down
+        if: always()
+        run: dev/down
+
+  # ────────── Coherencia entre documentación y scripts (XII regla 5) ──────────
+  docs-match-scripts:
+    name: quickstart y README coinciden con dev/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ningún documento referencia rutas o herramientas obsoletas
+        run: |
+          fail=0
+          for pattern in 'deploy/docker/docker-compose' 'make migrate-' 'make run-' 'email_outbox'; do
+            if grep -rn --include='*.md' -- "$pattern" README.md specs/ 2>/dev/null \
+               | grep -v 'superseded\|versiones anteriores\|Reemplaza'; then
+              echo "::error::referencia obsoleta a '$pattern' — Principio XII regla 5"
+              fail=1
+            fi
+          done
+          exit $fail

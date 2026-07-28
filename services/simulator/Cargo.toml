@@ -1,0 +1,62 @@
+[package]
+name = "fintcart-simulator"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Servicio de Simulador de Fintcart — cinco calculadoras financieras con precisión decimal arbitraria"
+license = "Proprietary"
+publish = false
+
+[[bin]]
+name = "fintcart-simulator"
+path = "src/main.rs"
+
+[dependencies]
+# gRPC — el Simulador expone gRPC y no produce eventos (Principio V, research D-03)
+tonic = "0.12"
+prost = "0.13"
+prost-types = "0.13"
+
+# Precisión decimal arbitraria — Principio VIII (NON-NEGOTIABLE).
+# `f32`/`f64` están PROHIBIDOS para dinero y tasas; clippy lo verifica.
+# `maths` habilita potencias/raíces necesarias para interés compuesto.
+rust_decimal = { version = "1.36", features = ["db-postgres", "maths", "serde-with-str"] }
+rust_decimal_macros = "1.36"
+
+# Persistencia — `simulations` con inputs/result en JSONB de strings decimales
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "json",
+    "macros",
+] }
+
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Envoltura de errores preservando la causa — Principio XI regla 6
+thiserror = "2"
+anyhow = "1"
+
+# Observabilidad estructurada — D-12
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[build-dependencies]
+# Genera los stubs desde contracts/proto en cada `cargo build`.
+# El Simulador no usa buf: tonic-build cubre el caso y evita un prerrequisito más.
+tonic-build = "0.12"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

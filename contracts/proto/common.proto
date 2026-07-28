@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package fintcart.common.v1;
+
+// Convención de precisión (Constitución Principio VIII, decisión research D-10):
+// Todo valor monetario, tasa o porcentaje se transporta como `string` decimal
+// canónica con patrón ^-?\d+(\.\d+)?$ (sin notación científica, sin separadores
+// de miles, punto como separador decimal). PROHIBIDO float/double en gRPC.
+//
+// `DecimalString` se modela como string; el comentario `[decimal]` marca los
+// campos que DEBEN validarse/parsearse con la librería de precisión arbitraria
+// del lenguaje (shopspring/decimal, rust_decimal, decimal.js).
+
+// Dinero: monto decimal + código ISO-4217 (por defecto COP).
+message Money {
+  string amount = 1;   // [decimal] p. ej. "1500000.00"
+  string currency = 2; // p. ej. "COP"
+}
+
+// Paginación estándar para listados de solo lectura.
+message PageRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
+  int64 total_size = 2;
+}
+
+// Marca temporal en RFC-3339 UTC como string para evitar ambigüedad de zona.
+message Timestamp {
+  string rfc3339 = 1; // p. ej. "2026-06-13T15:04:05Z"
+}
+
+// Resultado genérico de una operación de comando.
+message OpResult {
+  bool success = 1;
+  string code = 2;    // código de error de dominio si aplica
+  string message = 3;
+}

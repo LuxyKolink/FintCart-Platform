@@ -1,0 +1,32 @@
+version: v2
+
+# Plantilla de generación para los cinco servicios Go.
+#
+# El prefijo de paquete Go difiere por servicio (cada uno es su propio módulo con
+# su propio `gen/`, según plan.md §Project Structure), por lo que este archivo se
+# invoca una vez por servicio sobreescribiendo el prefijo:
+#
+#   buf generate --template buf.gen.go.yaml \
+#     --output ../services/users/gen \
+#     --config buf.yaml
+#
+# `contracts/generate.sh` orquesta las cinco invocaciones. No editar `out` aquí:
+# lo fija `--output` en cada llamada.
+
+managed:
+  enabled: true
+  override:
+    # Sin este override, protoc-gen-go falla porque los .proto no declaran
+    # go_package. El prefijo real lo reescribe generate.sh por servicio.
+    - file_option: go_package_prefix
+      value: github.com/fintcart/platform/gen
+
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: .
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: .
+    opt:
+      - paths=source_relative
+      - require_unimplemented_servers=false

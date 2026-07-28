@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package fintcart.orchestrator.v1;
+
+import "common.proto";
+
+// Orquestador (Go). Coordina Sagas y compensaciones (Constitución Principio VI).
+// SIN lógica de dominio: solo secuencia pasos gRPC y publica eventos (productor
+// RabbitMQ → Auditoría/Notificación). Invocado por el API Gateway para flujos
+// que cruzan ≥ 2 servicios.
+service OrchestratorService {
+  // Saga de registro (D-04): Users.CreateProfile + Auth.CreateCredential + email.
+  rpc StartRegistration(StartRegistrationRequest) returns (SagaHandle);
+
+  // Saga de verificación de correo: Users.MarkEmailVerified + Auth.ActivateCredential.
+  rpc StartEmailVerification(EmailVerificationRequest) returns (SagaHandle);
+
+  // Saga de calificación (D-07): Learning.GradeAndStoreAttempt + Users.ApplyQuizScore
+  // + eventos QuizGraded(→Audit) y de actividad(→Notificación/in-app).
+  rpc StartQuizGrading(QuizGradingRequest) returns (QuizGradingResult);
+
+  // Simulación mediada para auditoría (D-03): Simulator.Compute + evento SimulationExecuted.
+  rpc StartSimulation(SimulationRequest) returns (SimulationResult);
+
+  // Saga de anonimización (FR-030/D-08): anonimiza Auth/Users/Learning/Simulator;
+  // preserva Auditoría con actor_ref opaco.
+  rpc StartAccountAnonymization(UserRef) returns (SagaHandle);
+
+  // Consulta de estado de una saga.
+  rpc GetSagaStatus(SagaHandle) returns (SagaStatus);
+}
+
+message UserRef { string user_id = 1; }
+
+message SagaHandle { string saga_id = 1; }
+message SagaStatus {
+  string saga_id = 1;
+  string saga_type = 2;
+  string status = 3; // running | completed | compensating | failed
+  int32 current_step = 4;
+}
+
+message StartRegistrationRequest {
+  string email = 1;
+  string password = 2;
+  string display_name = 3;
+}
+
+message EmailVerificationRequest {
+  string user_id = 1;
+  string verification_token = 2;
+}
+
+message QuizGradingRequest {
+  string user_id = 1;
+  string quiz_id = 2;
+  map<string, string> answers = 3;
+}
+message QuizGradingResult {
+  string attempt_id = 1;
+  int32 attempt_no = 2;
+  string score = 3; // [decimal]
+  bool passed = 4;
+  int32 points_after = 5; // progreso resultante
+}
+
+message SimulationRequest {
+  string user_id = 1;
+  int32 calc_type = 2;            // ver simulator.CalcType
+  string currency = 3;
+  map<string, string> inputs = 4; // [decimal]
+}
+message SimulationResult {
+  string simulation_id = 1;
+  map<string, string> result = 2; // [decimal]
+}

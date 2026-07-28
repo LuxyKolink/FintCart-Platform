@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# dev/migrate — aplica las migraciones de los 7 servicios con estado.
+#
+# Constitución Principio XI: `golang-migrate` es la herramienta ÚNICA para los
+# cinco stacks del monorepo, sin importar el lenguaje del servicio. Se ejecuta
+# como contenedor, de modo que no hace falta instalarla en la máquina.
+#
+# Uso:
+#   dev/migrate            aplica todas las migraciones pendientes (up)
+#   dev/migrate up         idem
+#   dev/migrate down       revierte TODAS las migraciones (destructivo, pide confirmación)
+#   dev/migrate up users   aplica solo las de un servicio
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+require_docker
+
+DIRECTION="${1:-up}"
+shift || true
+ONLY=("$@")
+
+case "$DIRECTION" in
+  up|down) ;;
+  *) die "dirección inválida: '$DIRECTION' (usar 'up' o 'down')" ;;
+esac
+
+if [[ "$DIRECTION" == "down" && ${#ONLY[@]} -eq 0 ]]; then
+  warn "'dev/migrate down' revierte TODAS las migraciones de las 7 bases y borra sus datos."
+  read -r -p "  Escribir 'yes' para continuar: " confirm
+  [[ "$confirm" == "yes" ]] || die "cancelado"
+fi
+
+NETWORK="$(compose ps --format '{{.Name}}' | head -1 >/dev/null 2>&1 && echo "fintcart_fintcart" || echo "fintcart_fintcart")"
+
+failed=()
+for entry in "${STATEFUL_SERVICES[@]}"; do
+  IFS=':' read -r svc pg_host db <<< "$entry"
+
+  if [[ ${#ONLY[@]} -gt 0 ]] && [[ ! " ${ONLY[*]} " =~ [[:space:]]${svc}[[:space:]] ]]; then
+    continue
+  fi
+
+  migrations_dir="$ROOT_DIR/services/$svc/migrations"
+  if [[ ! -d "$migrations_dir" ]] || [[ -z "$(ls -A "$migrations_dir" 2>/dev/null)" ]]; then
+    warn "$svc — sin migraciones todavía, omitido"
+    continue
+  fi
+
+  log "$DIRECTION → $svc ($db)"
+  url="postgres://$PG_USER:$PG_PASSWORD@$pg_host:5432/$db?sslmode=disable"
+
+  args=("$DIRECTION")
+  [[ "$DIRECTION" == "down" ]] && args=("down" "-all")
+
+  if ! docker run --rm \
+      --network "$NETWORK" \
+      --volume "$migrations_dir:/migrations:ro" \
+      "$MIGRATE_IMAGE" \
+      -path=/migrations -database "$url" "${args[@]}"; then
+    failed+=("$svc")
+  fi
+done
+
+if [[ ${#failed[@]} -gt 0 ]]; then
+  die "fallaron las migraciones de: ${failed[*]}"
+fi
+
+log "OK — migraciones aplicadas"

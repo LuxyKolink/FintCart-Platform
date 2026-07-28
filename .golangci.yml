@@ -1,0 +1,83 @@
+# Configuración de lint compartida por los cinco servicios Go.
+#
+# La regla central es la prohibición de punto flotante binario para dinero y
+# tasas (Constitución Principio VIII, NON-NEGOTIABLE): su violación es motivo de
+# rechazo automático en revisión, así que se detecta estáticamente y no depende
+# de que un revisor lo note.
+
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck        # errores no comprobados
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - forbidigo       # Principio VIII: prohibición de float
+    - wrapcheck       # Principio XI regla 6: errores envueltos con causa
+    - contextcheck    # Principio XI regla 5: contexto propagado
+    - noctx
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - gosec
+    - misspell
+    - revive
+
+  settings:
+    forbidigo:
+      # ── Principio VIII (NON-NEGOTIABLE) ──────────────────────────────────
+      # Prohibido float32/float64 y las conversiones que los introducen.
+      # Usar github.com/shopspring/decimal para todo monto, tasa o porcentaje.
+      forbid:
+        - pattern: '^float32$'
+          msg: "Principio VIII (NON-NEGOTIABLE): prohibido float32 para dinero o tasas. Usar shopspring/decimal."
+        - pattern: '^float64$'
+          msg: "Principio VIII (NON-NEGOTIABLE): prohibido float64 para dinero o tasas. Usar shopspring/decimal."
+        - pattern: '^strconv\.ParseFloat$'
+          msg: "Principio VIII: parsear decimales con decimal.NewFromString, no con ParseFloat."
+        - pattern: '^strconv\.FormatFloat$'
+          msg: "Principio VIII: serializar decimales con Decimal.String(), no con FormatFloat."
+      analyze-types: true
+
+    wrapcheck:
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - errors.Join(
+        - .Wrap(
+        - .Wrapf(
+
+    revive:
+      rules:
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+          disabled: true
+
+  exclusions:
+    rules:
+      # Los stubs generados desde contracts/proto no se editan a mano y usan
+      # las convenciones de protoc, no las nuestras. Se regeneran, no se lintean.
+      - path: 'gen/'
+        linters: [forbidigo, wrapcheck, staticcheck, revive, gosec, unused]
+      # En pruebas, envolver cada error añade ruido sin valor.
+      - path: '_test\.go'
+        linters: [wrapcheck, gosec, noctx]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/fintcart/platform

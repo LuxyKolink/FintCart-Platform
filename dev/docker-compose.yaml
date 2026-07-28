@@ -1,0 +1,302 @@
+# Topología local completa de Fintcart (Constitución Principio XII).
+#
+# Operar SIEMPRE con los verbos de dev/: `dev/build`, `dev/up`, `dev/migrate`,
+# `dev/down`. No invocar `docker compose` directamente — si algo no se puede
+# hacer con los scripts, eso es un defecto de los scripts.
+#
+# Principio III: una instancia lógica PostgreSQL por servicio con estado (7).
+#   Ningún servicio recibe credenciales de una base ajena.
+# Principio IV: solo auth-server y api-gateway reciben REDIS_ADDR.
+# Principio V:  solo notification y audit consumen de RabbitMQ.
+# Principio X:  toda configuración por variables de entorno; descubrimiento por
+#   hostname (el nombre del servicio en esta red), nunca por IP.
+#
+# Las credenciales de este archivo son de DESARROLLO LOCAL únicamente. En
+# Kubernetes provienen de Secrets (deploy/k8s/overlays/*).
+
+name: fintcart
+
+networks:
+  fintcart:
+    driver: bridge
+
+x-postgres-common: &postgres-common
+  image: postgres:16-alpine
+  networks: [fintcart]
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U fintcart"]
+    interval: 5s
+    timeout: 3s
+    retries: 20
+
+x-service-common: &service-common
+  networks: [fintcart]
+  restart: unless-stopped
+
+services:
+  # ─────────────────────────── Almacenamiento ────────────────────────────
+  # Una base por servicio con estado. Puertos distintos hacia el host para
+  # poder inspeccionar cada una por separado durante el desarrollo.
+
+  postgres-auth:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: auth_db
+    ports: ["5433:5432"]
+    volumes: [pg-auth:/var/lib/postgresql/data]
+
+  postgres-users:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: users_db
+    ports: ["5434:5432"]
+    volumes: [pg-users:/var/lib/postgresql/data]
+
+  postgres-learning:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: learning_db
+    ports: ["5435:5432"]
+    volumes: [pg-learning:/var/lib/postgresql/data]
+
+  postgres-simulator:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: simulator_db
+    ports: ["5436:5432"]
+    volumes: [pg-simulator:/var/lib/postgresql/data]
+
+  postgres-notification:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: notification_db
+    ports: ["5437:5432"]
+    volumes: [pg-notification:/var/lib/postgresql/data]
+
+  postgres-audit:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: audit_db
+    ports: ["5438:5432"]
+    volumes: [pg-audit:/var/lib/postgresql/data]
+
+  postgres-orchestrator:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: orchestrator_db
+    ports: ["5439:5432"]
+    volumes: [pg-orchestrator:/var/lib/postgresql/data]
+
+  # Principio IV: blacklist JWT + refresh (Auth) y rate limiting (Gateway).
+  # Ningún otro servicio recibe REDIS_ADDR.
+  redis:
+    image: redis:7.4-alpine
+    networks: [fintcart]
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Principio V: productores → notification.q y audit.q únicamente.
+  rabbitmq:
+    image: rabbitmq:4.0-management-alpine
+    networks: [fintcart]
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: fintcart
+      RABBITMQ_DEFAULT_PASS: dev_only_password
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # consola de administración
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Captura los emails salientes en desarrollo (quickstart paso 4a).
+  mailhog:
+    image: mailhog/mailhog:latest
+    networks: [fintcart]
+    restart: unless-stopped
+    ports:
+      - "1025:1025"    # SMTP
+      - "8025:8025"    # interfaz web
+    logging:
+      driver: none
+
+  # ──────────────────────────── Servicios ────────────────────────────────
+
+  auth-server:
+    <<: *service-common
+    build: { context: .., dockerfile: services/auth-server/Dockerfile.dev }
+    hostname: auth-server
+    environment:
+      DB_ADDR: "postgres://fintcart:dev_only_password@postgres-auth:5432/auth_db?sslmode=disable"
+      REDIS_ADDR: "redis:6379"
+      AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
+      USERS_SVC_ADDR: "users:9090"
+      JWT_SIGNING_KEY: "dev_only_signing_key_change_in_every_other_environment"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "debug"
+    ports: ["9091:9090"]
+    depends_on:
+      postgres-auth: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  users:
+    <<: *service-common
+    build: { context: .., dockerfile: services/users/Dockerfile.dev }
+    hostname: users
+    environment:
+      DB_ADDR: "postgres://fintcart:dev_only_password@postgres-users:5432/users_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
+      # Fan-out gRPC para GetActivityReport (plan.md N-02): contadores ajenos
+      # se piden por gRPC, NUNCA leyendo la base de otro servicio.
+      LEARNING_SVC_ADDR: "learning:9090"
+      SIMULATOR_SVC_ADDR: "simulator:9090"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "debug"
+    ports: ["9092:9090"]
+    depends_on:
+      postgres-users: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  learning:
+    <<: *service-common
+    build: { context: .., dockerfile: services/learning/Dockerfile.dev }
+    hostname: learning
+    environment:
+      DB_ADDR: "postgres://fintcart:dev_only_password@postgres-learning:5432/learning_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "debug"
+    ports: ["9093:9090"]
+    depends_on:
+      postgres-learning: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  simulator:
+    <<: *service-common
+    build: { context: .., dockerfile: services/simulator/Dockerfile.dev }
+    hostname: simulator
+    environment:
+      DB_ADDR: "postgres://fintcart:dev_only_password@postgres-simulator:5432/simulator_db?sslmode=disable"
+      GRPC_PORT: "9090"
+      RUST_LOG: "debug"
+    ports: ["9094:9090"]
+    depends_on:
+      postgres-simulator: { condition: service_healthy }
+
+  orchestrator:
+    <<: *service-common
+    build: { context: .., dockerfile: services/orchestrator/Dockerfile.dev }
+    hostname: orchestrator
+    environment:
+      DB_ADDR: "postgres://fintcart:dev_only_password@postgres-orchestrator:5432/orchestrator_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
+      AUTH_SVC_ADDR: "auth-server:9090"
+      USERS_SVC_ADDR: "users:9090"
+      LEARNING_SVC_ADDR: "learning:9090"
+      SIMULATOR_SVC_ADDR: "simulator:9090"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "debug"
+    ports: ["9095:9090"]
+    depends_on:
+      postgres-orchestrator: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  # Consumidor puro (Principio V): sin gRPC expuesto. Canal EMAIL únicamente —
+  # la bandeja in-app pertenece a Usuarios (plan.md N-03).
+  notification:
+    <<: *service-common
+    build: { context: .., dockerfile: services/notification/Dockerfile.dev }
+    hostname: notification
+    environment:
+      DB_ADDR: "postgres://fintcart:dev_only_password@postgres-notification:5432/notification_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
+      SMTP_ADDR: "mailhog:1025"
+      SMTP_FROM: "no-reply@fintcart.local"
+      MAX_ATTEMPTS: "3"
+      DISPATCH_INTERVAL_MS: "5000"
+      LOG_LEVEL: "debug"
+    depends_on:
+      postgres-notification: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  # Consumidor puro (Principio V): log inmutable append-only.
+  audit:
+    <<: *service-common
+    build: { context: .., dockerfile: services/audit/Dockerfile.dev }
+    hostname: audit
+    environment:
+      DB_ADDR: "postgres://fintcart:dev_only_password@postgres-audit:5432/audit_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
+      LOG_LEVEL: "debug"
+    depends_on:
+      postgres-audit: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  # Único componente con REST (Principio II). Sin base de datos propia.
+  api-gateway:
+    <<: *service-common
+    build: { context: .., dockerfile: services/api-gateway/Dockerfile.dev }
+    hostname: api-gateway
+    environment:
+      REDIS_ADDR: "redis:6379"
+      AUTH_SVC_ADDR: "auth-server:9090"
+      USERS_SVC_ADDR: "users:9090"
+      LEARNING_SVC_ADDR: "learning:9090"
+      SIMULATOR_SVC_ADDR: "simulator:9090"
+      ORCHESTRATOR_SVC_ADDR: "orchestrator:9090"
+      JWT_SIGNING_KEY: "dev_only_signing_key_change_in_every_other_environment"
+      HTTP_PORT: "8080"
+      RATE_LIMIT_RPM: "600"
+      CORS_ALLOWED_ORIGINS: "http://localhost:4200"
+      LOG_LEVEL: "debug"
+    ports: ["8080:8080"]
+    depends_on:
+      redis: { condition: service_healthy }
+      auth-server: { condition: service_started }
+      users: { condition: service_started }
+      learning: { condition: service_started }
+      simulator: { condition: service_started }
+      orchestrator: { condition: service_started }
+
+  frontend:
+    <<: *service-common
+    build: { context: .., dockerfile: frontend/Dockerfile.dev }
+    hostname: frontend
+    environment:
+      API_BASE_URL: "http://localhost:8080"
+    ports: ["4200:4200"]
+    depends_on:
+      api-gateway: { condition: service_started }
+
+volumes:
+  pg-auth:
+  pg-users:
+  pg-learning:
+  pg-simulator:
+  pg-notification:
+  pg-audit:
+  pg-orchestrator:

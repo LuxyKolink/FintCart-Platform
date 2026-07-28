@@ -1,0 +1,57 @@
+# ─────────────────────────── Universal ───────────────────────────
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.log
+.vscode/
+.idea/
+
+# Secretos: NUNCA versionar (Constitución Principio X).
+# La configuración va por variables de entorno; los secretos reales por
+# Secrets de Kubernetes. dev/docker-compose.yaml contiene credenciales de
+# desarrollo local únicamente y SÍ se versiona.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/testdata/*.key
+
+# ────────────────────────────── Go ───────────────────────────────
+*.exe
+*.exe~
+*.test
+*.out
+vendor/
+# go.work se versiona (define el workspace); go.work.sum no.
+go.work.sum
+
+# ───────────────────────────── Rust ──────────────────────────────
+services/simulator/target/
+**/*.rs.bk
+
+# ────────────────── Node.js / TypeScript / Angular ───────────────
+node_modules/
+dist/
+build/
+coverage/
+.angular/
+*.tsbuildinfo
+.nest/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# ─────────────────────── Kubernetes / Docker ─────────────────────
+*.secret.yaml
+secrets/
+.kube/
+kubeconfig*
+
+# NOTA: los stubs gRPC generados (services/*/gen, services/*/src/pb,
+# frontend/src/app/pb) SÍ se versionan a propósito — compilar un servicio no
+# debe exigir tener buf ni protoc instalados (§Definición de Contratos).

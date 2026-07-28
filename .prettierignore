@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+coverage/
+.angular/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Stubs generados: se regeneran, no se formatean
+services/*/gen/
+services/*/src/pb/
+frontend/src/app/pb/

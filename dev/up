@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# dev/up — levanta la topología completa y espera a que la infraestructura esté sana.
+#
+# Uso:
+#   dev/up            levanta todo y espera health checks
+#   dev/up --logs     además, sigue los logs al terminar
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+require_docker
+
+FOLLOW_LOGS=false
+[[ "${1:-}" == "--logs" ]] && FOLLOW_LOGS=true
+
+log "levantando la topología (7× PostgreSQL, Redis, RabbitMQ, 8 servicios, frontend)"
+compose up -d
+
+# Los servicios de infraestructura declaran healthcheck; `depends_on` con
+# condition ya los espera, pero esperamos aquí también para que dev/migrate
+# pueda ejecutarse inmediatamente después sin carreras.
+log "esperando health checks de la infraestructura"
+deadline=$(( SECONDS + 180 ))
+pending=(postgres-auth postgres-users postgres-learning postgres-simulator
+         postgres-notification postgres-audit postgres-orchestrator redis rabbitmq)
+
+while [[ ${#pending[@]} -gt 0 ]]; do
+  [[ $SECONDS -lt $deadline ]] || die "timeout esperando: ${pending[*]}"
+  remaining=()
+  for svc in "${pending[@]}"; do
+    cid="$(compose ps -q "$svc" 2>/dev/null || true)"
+    if [[ -z "$cid" ]]; then
+      remaining+=("$svc"); continue
+    fi
+    state="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$cid" 2>/dev/null || echo starting)"
+    if [[ "$state" == "healthy" || "$state" == "running" ]]; then
+      printf '    %-24s %s\n' "$svc" "$state"
+    else
+      remaining+=("$svc")
+    fi
+  done
+  pending=("${remaining[@]+"${remaining[@]}"}")
+  [[ ${#pending[@]} -gt 0 ]] && sleep 2
+done
+
+log "OK — infraestructura sana. Siguiente: dev/migrate"
+cat <<'EOF'
+    Borde REST     http://localhost:8080
+    Frontend SPA   http://localhost:4200
+    RabbitMQ       http://localhost:15672   (fintcart / dev_only_password)
+    Mailhog        http://localhost:8025
+EOF
+
+$FOLLOW_LOGS && compose logs -f
+exit 0

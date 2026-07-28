@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# dev/down — detiene y limpia contenedores y red de la composición.
+#
+# Uso:
+#   dev/down            detiene y elimina contenedores y red (CONSERVA los datos)
+#   dev/down --volumes  además, elimina los volúmenes → borra las 7 bases de datos
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+require_docker
+
+if [[ "${1:-}" == "--volumes" || "${1:-}" == "-v" ]]; then
+  warn "Esto elimina los volúmenes: se pierden los datos de las 7 bases."
+  read -r -p "  Escribir 'yes' para continuar: " confirm
+  [[ "$confirm" == "yes" ]] || die "cancelado"
+  log "deteniendo y eliminando contenedores, red y volúmenes"
+  compose down --volumes --remove-orphans
+  log "OK — entorno eliminado por completo. Reconstruir con: dev/build && dev/up && dev/migrate"
+else
+  log "deteniendo y eliminando contenedores y red (los datos se conservan)"
+  compose down --remove-orphans
+  log "OK — entorno detenido. Reanudar con: dev/up"
+fi

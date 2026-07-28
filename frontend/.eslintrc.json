@@ -1,0 +1,71 @@
+{
+  "root": true,
+  "ignorePatterns": ["projects/**/*", "dist/", "node_modules/", "src/app/pb/"],
+  "overrides": [
+    {
+      "files": ["*.ts"],
+      "parserOptions": {
+        "project": ["tsconfig.json"],
+        "createDefaultProgram": true
+      },
+      "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@angular-eslint/recommended",
+        "plugin:@angular-eslint/template/process-inline-templates",
+        "prettier"
+      ],
+      "rules": {
+        "@angular-eslint/directive-selector": [
+          "error",
+          { "type": "attribute", "prefix": "fc", "style": "camelCase" }
+        ],
+        "@angular-eslint/component-selector": [
+          "error",
+          { "type": "element", "prefix": "fc", "style": "kebab-case" }
+        ],
+        "@typescript-eslint/explicit-function-return-type": "error",
+        "@typescript-eslint/no-explicit-any": "error"
+      }
+    },
+    {
+      "//": "Principio VIII (NON-NEGOTIABLE): la SPA muestra y envía montos y tasas. Deben viajar y renderizarse como string decimal; big.js solo para operar.",
+      "files": [
+        "src/app/features/simulators/**/*.ts",
+        "src/app/features/learning/progress/**/*.ts",
+        "src/app/shared/decimal-str.ts"
+      ],
+      "parserOptions": { "project": ["tsconfig.json"] },
+      "rules": {
+        "@typescript-eslint/no-restricted-types": [
+          "error",
+          {
+            "types": {
+              "number": {
+                "message": "Principio VIII (NON-NEGOTIABLE): prohibido `number` para montos, tasas o calificaciones. Usar Big (big.js) para operar y `string` decimal canónica para transportar y renderizar."
+              }
+            }
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          { "name": "parseFloat", "message": "Principio VIII: usar new Big(str), no parseFloat." },
+          { "name": "Number", "message": "Principio VIII: usar new Big(str), no Number()." }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "Math",
+            "property": "round",
+            "message": "Principio VIII: redondear con Big.round y modo half-even, no con Math.round."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["*.html"],
+      "extends": ["plugin:@angular-eslint/template/recommended"],
+      "rules": {}
+    }
+  ]
+}

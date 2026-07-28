@@ -1,0 +1,30 @@
+version: v2
+
+# Contratos versionados de Fintcart — única superficie compartida del monorepo
+# (Constitución Principio I). Los `.proto` NO declaran `go_package`: la ruta de
+# paquete por lenguaje se inyecta con `managed mode` en cada `buf.gen.*.yaml`,
+# de modo que un mismo contrato genera stubs para Go, Rust y TypeScript sin
+# acoplarse a ninguno.
+
+modules:
+  - path: proto
+
+lint:
+  use:
+    - STANDARD
+  except:
+    # Los servicios exponen RPC con tipos de `common.v1` (Money, OpResult,
+    # PageRequest/PageResponse) en lugar de un par request/response dedicado
+    # por RPC. Es deliberado: `common.v1` es forma de mensaje, no regla de
+    # negocio, y evita duplicar OpResult en seis paquetes.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+  disallow_comment_ignores: true
+
+breaking:
+  use:
+    - FILE
+  # Un cambio incompatible exige versionado explícito del paquete
+  # (fintcart.<svc>.v2) y migración coordinada de consumidores
+  # (§Definición de Contratos).

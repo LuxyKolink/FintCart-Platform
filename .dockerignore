@@ -1,0 +1,35 @@
+# Las imágenes se construyen con `context: ..` (raíz del monorepo) para poder
+# copiar contracts/ junto al servicio. Este archivo mantiene el contexto pequeño.
+
+.git/
+.github/
+.claude/
+.specify/
+docs/
+specs/
+deploy/
+
+# Dependencias y artefactos: se instalan/compilan dentro de la imagen
+node_modules/
+dist/
+build/
+coverage/
+.angular/
+services/simulator/target/
+vendor/
+
+# Nunca copiar secretos a una imagen
+.env
+.env.*
+*.pem
+*.key
+
+# Ruido
+**/.DS_Store
+**/Thumbs.db
+**/*.log
+**/*.tmp
+.vscode/
+.idea/
+test-results/
+playwright-report/
