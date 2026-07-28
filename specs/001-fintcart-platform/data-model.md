@@ -16,11 +16,11 @@ El modelo respeta **database-per-service** (Principio III): cada tabla pertenece
 | Usuario (perfil) + Progreso | **Usuarios** | `profiles`, `roles_assignment`, `preferences`, `progress`, `quiz_best_score`, `article_views`, `inapp_notifications` |
 | Artículo Educativo · Cuestionario · Resultado de Cuestionario | **Aprendizaje** | `articles`, `article_versions`, `quizzes`, `questions`, `quiz_attempts`, `article_stats` |
 | Simulación Financiera | **Simulador** | `simulations` |
-| Notificación (email) | **Notificación** | `email_outbox` |
+| Notificación (email) | **Notificación** | `notification_events_queue`, `notification_states` |
 | Registro de Auditoría | **Auditoría** | `audit_log` |
 | Estado de Saga | **Orquestador** | `saga_state` |
 
-> La **bandeja in-app** (`inapp_notifications`) es propiedad de **Usuarios** (decisión D-09: Notificación es consumidor puro sin gRPC y no puede servir lecturas al usuario). Notificación posee únicamente el canal **email** (`email_outbox`).
+> La **bandeja in-app** (`inapp_notifications`) es propiedad de **Usuarios** (decisión D-09: Notificación es consumidor puro sin gRPC y no puede servir lecturas al usuario). Notificación posee únicamente el canal **email**, implementado como cola persistente con estado (`notification_events_queue` + `notification_states`).
 
 ---
 
@@ -162,8 +162,42 @@ Se persiste **todo** intento (incluso por debajo del mejor histórico, FR-016). 
 
 ## Servicio de Notificación (PostgreSQL: `notification_db`)
 
-### `email_outbox` (canal email, FR-023/FR-024)
-`id UUID PK`, `recipient TEXT`, `template TEXT` (`verificacion`, `cambio_password`, `alerta_seguridad`), `payload JSONB`, `status TEXT` (`pending`\|`sent`\|`failed`\|`dead`), `attempts INT`, `last_error TEXT NULL`, `created_at`, `sent_at NULL`. Reintentos con backoff + dead-letter (FR-024). Consumidor puro de eventos de seguridad/identidad (Principio V).
+Canal **email** únicamente. La bandeja in-app NO vive aquí: es propiedad del Servicio de Usuarios (`inapp_notifications`, D-09), porque Notificación es consumidor puro sin gRPC y no puede servir lecturas al usuario.
+
+La entrega se implementa como **cola persistente con estado** (Constitución §"Entrega de Notificaciones: Cola Persistente con Estado"), con dos tablas: la cola guarda lo pendiente y el estado **sobrevive al desencolado**, quedando como registro consultable de lo ocurrido. Reemplaza la tabla única `email_outbox` de versiones anteriores de este documento.
+
+### `notification_events_queue` (cola de pendientes, FR-024)
+| Campo | Tipo | Reglas |
+|-------|------|--------|
+| `id` | UUID PK | |
+| `event_id` | UUID UNIQUE | Identificador del evento de origen; garantiza entrega idempotente |
+| `recipient` | TEXT | Destinatario del email |
+| `template` | TEXT | `verificacion` \| `cambio_password` \| `alerta_seguridad` |
+| `payload` | JSONB | Datos de la plantilla |
+| `attempts` | INT | Contador de intentos; se incrementa en cada fallo reintentable |
+| `created_at` | TIMESTAMPTZ | Orden de despacho (el despachador lista por este campo) |
+
+Se **desencola** (borra) al alcanzar un desenlace terminal: éxito, o fallo con `attempts ≥ MAX_ATTEMPTS`. `MAX_ATTEMPTS` es configurable por entorno (Principio X) y su valor por defecto se documenta.
+
+### `notification_states` (estado persistente, sobrevive al desencolado)
+| Campo | Tipo | Reglas |
+|-------|------|--------|
+| `id` | UUID PK | |
+| `event_id` | UUID UNIQUE | Correlaciona con el evento de origen |
+| `state` | TEXT | `not_sent` \| `sent` \| `failed` |
+| `attempts` | INT | Intentos totales consumidos |
+| `last_error` | TEXT NULL | Último error observado |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+**Transiciones** (los tres desenlaces, cada uno con prueba obligatoria):
+```
+encolado                      → notification_states.state = not_sent
+éxito                         → dequeue + state = sent
+fallo, attempts < MAX         → attempts += 1 (permanece en cola, siguiente ronda)
+fallo, attempts ≥ MAX         → dequeue + state = failed
+```
+
+Consumidor puro de eventos de seguridad/identidad (Principio V): `auth.password_changed`, `auth.security_alert`, `user.registered`.
 
 ---
 

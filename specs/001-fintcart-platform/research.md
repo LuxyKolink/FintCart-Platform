@@ -2,7 +2,9 @@
 
 **Feature**: Plataforma Fintcart | **Branch**: `001-fintcart-platform` | **Date**: 2026-06-13
 
-Este documento consolida las decisiones técnicas que resuelven el Technical Context del plan. La asignación de lenguajes, almacenamiento y topología de comunicación está **fijada por la Constitución de Fintcart (v1.0.0)** y el marco tecnológico (`technology.md`); por tanto no existen incógnitas (`NEEDS CLARIFICATION`) sobre el stack. El research concreta versiones, librerías y patrones de implementación que la constitución deja abiertos.
+Este documento consolida las decisiones técnicas que resuelven el Technical Context del plan. La asignación de lenguajes, almacenamiento y topología de comunicación está **fijada por la Constitución de Fintcart (v1.1.1)** y el marco tecnológico (`technology.md`); por tanto no existen incógnitas (`NEEDS CLARIFICATION`) sobre el stack. El research concreta versiones, librerías y patrones de implementación que la constitución deja abiertos.
+
+> **Nota de vigencia (2026-07-27)**: la enmienda constitucional v1.1.0 añadió los Principios IX–XII (capas y mapeo, entrypoints y configuración, migraciones y acceso a datos, flujo de desarrollo local). Una decisión de este documento quedó **superseded** por esa enmienda: **D-11** (herramienta de migraciones por stack). El resto de las decisiones permanece vigente.
 
 ---
 
@@ -149,13 +151,17 @@ Este documento consolida las decisiones técnicas que resuelven el Technical Con
 
 ---
 
-## D-11 — Migraciones y aislamiento de datos
+## D-11 — Migraciones y aislamiento de datos ⚠️ SUPERSEDED (parcialmente) por el Principio XI
 
-**Decisión**: cada servicio gestiona sus propias migraciones versionadas (`golang-migrate` para Go; TypeORM migrations para NestJS; `sqlx::migrate!` para Rust) contra su instancia lógica PostgreSQL exclusiva, con usuario/credencial propios. Pooling por servicio (pgx pool / TypeORM pool / sqlx pool). Réplicas de lectura habilitables para Usuarios y Aprendizaje (catálogo/progreso de alta lectura, SC-003/SC-005).
+> **Estado**: la parte de *aislamiento de datos* sigue vigente; la parte de *herramienta de migración por stack* queda **superseded** por la Constitución v1.1.0, Principio XI, que exige `golang-migrate` como herramienta **única para los cinco stacks**, ejecutada como contenedor contra la base de cada servicio, con migraciones emparejadas `<YYYYMMDDHHMMSS>_<nombre>.{up,down}.sql`, y que **prohíbe** el auto-sincronizado de esquema por ORM (`synchronize: true` de TypeORM y equivalentes) en cualquier entorno. Ver `plan.md` §Notas de Diseño N-05.
 
-**Rationale**: Principio III (soberanía de datos). Migraciones por servicio evitan esquema compartido y acoplamiento de despliegue.
+**Decisión vigente**: cada servicio gestiona sus propias migraciones versionadas contra su instancia lógica PostgreSQL exclusiva, con usuario/credencial propios, aplicadas con **`golang-migrate` uniforme** desde `dev/migrate` (Principio XI/XII). Pooling por servicio (pgx pool / TypeORM pool / sqlx pool). Réplicas de lectura habilitables para Usuarios y Aprendizaje (catálogo/progreso de alta lectura, SC-003/SC-005).
 
-**Alternativas consideradas**: una instancia PostgreSQL con esquemas separados → viola "ni esquemas compartidos ni credenciales reutilizadas".
+**Decisión original (superseded)**: `golang-migrate` para Go; TypeORM migrations para NestJS; `sqlx::migrate!` para Rust.
+
+**Rationale**: Principio III (soberanía de datos) motiva las migraciones por servicio. El Principio XI añade el motivo de la uniformidad: en un monorepo de cinco stacks, una única herramienta permite levantar y revertir cualquier servicio con el mismo procedimiento, y hace que `dev/migrate` sea un script trivial en lugar de un despachador por lenguaje.
+
+**Alternativas consideradas**: una instancia PostgreSQL con esquemas separados → viola "ni esquemas compartidos ni credenciales reutilizadas". Herramienta nativa por stack → descartada por el Principio XI (fricción de incorporación y divergencia de procedimiento operativo).
 
 ---
 
@@ -206,7 +212,7 @@ Este documento consolida las decisiones técnicas que resuelven el Technical Con
 | Anonimización Ley 1581 + auditoría inmutable | Resuelta | D-08 |
 | Canales de notificación y lectura de bandeja in-app | Resuelta | D-09 |
 | Representación de Decimal en contratos | Resuelta | D-10 |
-| Migraciones / aislamiento de datos | Resuelta | D-11 |
+| Migraciones / aislamiento de datos | Resuelta | D-11 (herramienta: superseded por Principio XI → `golang-migrate` uniforme) |
 | Observabilidad / SLO | Resuelta | D-12 |
 | Estrategia de pruebas | Resuelta | D-13 |
 | Moneda COP / multimoneda | Resuelta | D-14 |

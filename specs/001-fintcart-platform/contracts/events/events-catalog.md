@@ -54,7 +54,7 @@ Consumo **idempotente** (clave de idempotencia = `event_id`).
 ```json
 { "user_id": "uuid", "email": "string", "verification_token": "string" }
 ```
-Consumo Notificación → envía email de verificación (`email_outbox`).
+Consumo Notificación → encola el email de verificación en `notification_events_queue` y registra su estado en `notification_states`.
 Consumo Auditoría → `operation = user.registered`.
 
 ### `auth.password_changed`
