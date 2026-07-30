@@ -33,6 +33,10 @@ check_tool buf                 "go install github.com/bufbuild/buf/cmd/buf@v1.47
 check_tool protoc-gen-go       "go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11"
 check_tool protoc-gen-go-grpc  "go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1"
 check_tool protoc-gen-ts_proto "npm install --prefix contracts"
+# El Simulador genera con tonic-build, que sí necesita el `protoc` del sistema
+# (prost-build dejó de empaquetarlo) además de la cadena de Rust.
+check_tool protoc               "descargar de https://github.com/protocolbuffers/protobuf/releases y añadir su bin/ al PATH"
+check_tool cargo                "instalar la cadena de Rust con rustup (https://rustup.rs)"
 
 if [[ ${#missing[@]} -gt 0 ]]; then
   echo "error: faltan herramientas de generación:" >&2
@@ -87,8 +91,21 @@ for out in "${TS_MESSAGE_TARGETS[@]}"; do
 done
 
 # --- Rust ------------------------------------------------------------------
-# El Simulador genera sus stubs con tonic-build desde services/simulator/build.rs,
-# que lee contracts/proto directamente en cada `cargo build`. No requiere buf.
-echo "==> rust: generado por services/simulator/build.rs durante cargo build"
+# El Simulador no usa buf: genera con tonic-build desde services/simulator/build.rs.
+# Esa generación es OPT-IN mediante FINTCART_REGEN_PROTO y aquí se activa.
+#
+# Es opt-in porque tonic-build no trae su propio protoc y lo exige en el PATH: si
+# generara en cada `cargo build`, compilar el Simulador requeriría protoc pese a
+# tener los stubs versionados, y el job de Rust en CI fallaría (no instala protoc).
+# Ver la cabecera de services/simulator/build.rs.
+#
+# El valor es un timestamp, no un `1` fijo, y eso es deliberado: cargo solo vuelve
+# a ejecutar un build script si alguna entrada declarada cambió, y `build.rs`
+# declara `rerun-if-env-changed=FINTCART_REGEN_PROTO`. Con un valor constante, la
+# segunda invocación seguida de este script no regeneraría nada (cargo reutiliza
+# la salida cacheada). `build.rs` solo comprueba que la variable ESTÉ definida, así
+# que un valor distinto en cada ejecución fuerza la regeneración de verdad.
+echo "==> rust: services/simulator/src/pb"
+( cd "$ROOT/services/simulator" && FINTCART_REGEN_PROTO="$(date +%s)" cargo build )
 
 echo "OK — stubs regenerados. Commitear en un commit separado de la lógica."

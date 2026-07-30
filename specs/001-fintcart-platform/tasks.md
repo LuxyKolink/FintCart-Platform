@@ -98,10 +98,21 @@ notificaciones.
 - [X] T017 [P] Generar y versionar los stubs gRPC de Go desde `contracts/proto/` hacia `services/{api-gateway,auth-server,orchestrator,users,audit}/gen/` (los stubs generados se commitean, §Definición de Contratos)
   - 11 ficheros por servicio; los cinco módulos compilan (`go build ./gen/...`). Cero
     ocurrencias de `float32`/`float64` en los stubs y `Money.amount` es `string` (Principio VIII).
-- [ ] T018 [P] Generar y versionar los stubs gRPC de Rust desde `contracts/proto/` hacia `services/simulator/src/pb/`
-  - PENDIENTE Y NO VERIFICADO: `build.rs` está actualizado a las rutas canónicas
-    (`fintcart/<svc>/v1/…`), pero no se pudo ejecutar `cargo build` porque **cargo no está
-    instalado en esta máquina**. Requiere la cadena de Rust para cerrarse.
+- [X] T018 [P] Generar y versionar los stubs gRPC de Rust desde `contracts/proto/` hacia `services/simulator/src/pb/`
+  - Los stubs salen ahora a `src/pb/` (versionado), no a `OUT_DIR`, y la generación es
+    **opt-in** (`FINTCART_REGEN_PROTO`): `tonic-build` no empaqueta `protoc`, así que generar
+    en cada `cargo build` habría exigido `protoc` para compilar —contradiciendo los stubs
+    versionados— y habría dejado rojo el job de Rust de CI, que no instala `protoc`.
+  - Verificado en ejecución: `cargo build` **sin `protoc` en el entorno** compila los stubs
+    versionados; `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` y
+    `cargo test --all-targets` pasan los tres (exit 0); regenerar no produce diff (idempotente).
+  - Principio VIII: cero ocurrencias de `f32`/`f64` en los stubs. Además el gate de clippy se
+    probó de verdad introduciendo un `f64` temporal → clippy falla con el motivo declarado en
+    `clippy.toml`. Antes no verificaba nada: `clippy.toml` solo declara los tipos y la
+    severidad debe estar en la raíz del crate, que no existía.
+  - `src/main.rs` es un **marcador de posición** (solo lints del crate y `mod pb;`) porque
+    `Cargo.toml` declara `[[bin]]` y sin él cargo no llega a ejecutar `build.rs`. El wiring
+    real sigue siendo de **T037**.
 - [X] T019 [P] Generar y versionar los stubs gRPC de TypeScript desde `contracts/proto/` hacia `services/learning/src/pb/`, `services/notification/src/pb/` y `frontend/src/app/pb/`
   - Dos plantillas: Aprendizaje recibe stubs de servicio (sirve gRPC); Notificación y Frontend
     reciben **solo tipos de mensaje**, porque los stubs de servicio arrastran `@grpc/grpc-js`,

@@ -19,7 +19,8 @@ Refleja las restricciones de la **Constitución v1.1.1** y del marco tecnológic
 | Rust | 1.85+ (stable) | desarrollo fuera de contenedor |
 | Node.js | 22 LTS | desarrollo fuera de contenedor |
 | Angular CLI | 19 | desarrollo del frontend |
-| `buf` | reciente | regenerar stubs al cambiar un `.proto` |
+| `buf` | reciente | regenerar stubs al cambiar un `.proto` (Go y TypeScript) |
+| `protoc` | 25+ | regenerar los stubs de Rust (`tonic-build` no lo empaqueta) |
 
 Los stubs gRPC están **versionados en el repositorio** (§Definición de Contratos), de modo que
 compilar cualquier servicio NO exige tener `buf` ni `protoc` instalados. Solo se necesitan al
@@ -73,10 +74,34 @@ go install github.com/bufbuild/buf/cmd/buf@v1.47.2
 go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 npm install --prefix contracts        # protoc-gen-ts_proto, fijado en contracts/package.json
+# `protoc` del sistema y la cadena de Rust: los necesita tonic-build (ver más abajo).
+# protoc: https://github.com/protocolbuffers/protobuf/releases → añadir su bin/ al PATH
 ```
 
 `generate.sh` los verifica antes de empezar y, si falta alguno, indica el comando exacto.
 Compilar un servicio **no** requiere ninguno de ellos: los stubs están versionados.
+
+### El Simulador (Rust) genera con `tonic-build`, y es opt-in
+
+El Simulador no usa `buf`: sus stubs los produce `services/simulator/build.rs` con
+`tonic-build`, hacia `services/simulator/src/pb/` (versionado, igual que `gen/` en Go).
+La generación **no ocurre en cada `cargo build`**, sino solo con la variable puesta:
+
+```bash
+FINTCART_REGEN_PROTO=1 cargo build   # regenera src/pb/
+cargo build                          # usa los stubs versionados
+```
+
+El motivo es que `tonic-build` no trae su propio `protoc` —`prost-build` dejó de
+empaquetarlo— y lo exige en el PATH. Si generase en cada compilación, compilar el
+Simulador requeriría `protoc` pese a tener los stubs versionados, y el job de Rust en
+CI fallaría, porque el workflow no instala `protoc`. `contracts/generate.sh` activa la
+variable por su cuenta, así que el flujo normal no cambia.
+
+`src/pb/mod.rs` se escribe a mano y **no** es generado: declara la jerarquía
+`fintcart::<servicio>::v1` que `prost` da por supuesta en sus referencias entre
+paquetes, y trae los ficheros con `include!` (lo que además mantiene el código
+generado fuera del alcance de `cargo fmt`).
 
 ### Disposición de los `.proto`
 
