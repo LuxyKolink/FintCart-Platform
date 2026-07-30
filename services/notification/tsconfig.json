@@ -1,7 +1,13 @@
 {
   "compilerOptions": {
-    "module": "ES2022",
-    "moduleResolution": "bundler",
+    // `NodeNext` y NO `bundler`. El paquete declara `"type": "module"` y arranca con
+    // `node dist/main.js`, sin bundler de por medio: la resolución de Node en ESM
+    // exige la extensión en los imports relativos (`./errors.js`), mientras que
+    // `bundler` los acepta sin ella. La combinación anterior typechequeaba y fallaba
+    // al ARRANCAR con `ERR_MODULE_NOT_FOUND`, que es la peor variante posible — el
+    // error no aparece en CI, aparece en el primer despliegue.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "ES2023",
     "lib": ["ES2023"],
     "outDir": "./dist",

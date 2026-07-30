@@ -6,7 +6,7 @@
 
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { PageRequest, PageResponse } from "../../common/v1/common";
+import { PageRequest, PageResponse } from "../../common/v1/common.js";
 
 export const protobufPackage = "fintcart.learning.v1";
 

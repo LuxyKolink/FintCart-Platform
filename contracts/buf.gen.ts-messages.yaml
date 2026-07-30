@@ -35,3 +35,16 @@ plugins:
       - forceLong=string
       - useOptionals=messages
       - snakeToCamel=false
+      # Extensión explícita en los imports relativos entre stubs generados
+      # (`./common.js` y no `./common`).
+      #
+      # Lo exige Notificación, que es un paquete ESM (`"type": "module"`) y arranca con
+      # `node dist/main.js`, sin bundler: la resolución de Node en ESM NO completa
+      # extensiones, así que un `from "../../common/v1/common"` da
+      # `ERR_MODULE_NOT_FOUND` al arrancar. Sin esta opción el fallo no aparece en
+      # CI —el typecheck con `moduleResolution: bundler` lo acepta— y se manifiesta en
+      # el primer despliegue.
+      #
+      # El Frontend, que comparte esta plantilla, usa un bundler y resuelve `./x.js`
+      # hacia `./x.ts` sin problema, así que la opción es inocua para él.
+      - importSuffix=.js

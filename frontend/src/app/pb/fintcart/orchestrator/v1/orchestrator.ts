@@ -6,7 +6,7 @@
 
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { CalcType, calcTypeFromJSON, calcTypeToJSON } from "../../simulator/v1/simulator";
+import { CalcType, calcTypeFromJSON, calcTypeToJSON } from "../../simulator/v1/simulator.js";
 
 export const protobufPackage = "fintcart.orchestrator.v1";
 
