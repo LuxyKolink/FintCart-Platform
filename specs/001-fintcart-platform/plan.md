@@ -117,11 +117,16 @@ Monorepo poliglota de microservicios. `contracts/` es la **única** dependencia 
 
 ```text
 contracts/                      # Contratos versionados — única superficie compartida
-├── proto/                      # common, auth, users, learning, simulator, orchestrator
+├── proto/fintcart/<svc>/v1/     # ruta canónica de buf: paquete ≡ directorio
+│                               #   common, auth, users, learning, simulator, orchestrator
 ├── events/                     # esquemas de los 11 eventos RabbitMQ
 ├── openapi/                    # OpenAPI del borde REST
 ├── buf.yaml
-└── buf.gen.yaml
+├── buf.gen.go.yaml             # plugins LOCALES (el esquema no se sube a buf.build)
+├── buf.gen.ts.yaml             # TS con stubs de servicio → solo Aprendizaje (sirve gRPC)
+├── buf.gen.ts-messages.yaml    # TS solo-mensajes → Notificación y Frontend (sin grpc-js)
+├── package.json                # fija protoc-gen-ts_proto
+└── generate.sh
 
 dev/                            # Interfaz de desarrollo local uniforme (Principio XII)
 ├── docker-compose.yaml         # 7× PostgreSQL, Redis, RabbitMQ, 8 servicios, frontend

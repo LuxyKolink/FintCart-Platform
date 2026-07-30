@@ -95,9 +95,21 @@ notificaciones.
 
 ### Stubs de contrato y precisión decimal
 
-- [ ] T017 [P] Generar y versionar los stubs gRPC de Go desde `contracts/proto/` hacia `services/{api-gateway,auth-server,orchestrator,users,audit}/gen/` (los stubs generados se commitean, §Definición de Contratos)
+- [X] T017 [P] Generar y versionar los stubs gRPC de Go desde `contracts/proto/` hacia `services/{api-gateway,auth-server,orchestrator,users,audit}/gen/` (los stubs generados se commitean, §Definición de Contratos)
+  - 11 ficheros por servicio; los cinco módulos compilan (`go build ./gen/...`). Cero
+    ocurrencias de `float32`/`float64` en los stubs y `Money.amount` es `string` (Principio VIII).
 - [ ] T018 [P] Generar y versionar los stubs gRPC de Rust desde `contracts/proto/` hacia `services/simulator/src/pb/`
-- [ ] T019 [P] Generar y versionar los stubs gRPC de TypeScript desde `contracts/proto/` hacia `services/learning/src/pb/`, `services/notification/src/pb/` y `frontend/src/app/pb/`
+  - PENDIENTE Y NO VERIFICADO: `build.rs` está actualizado a las rutas canónicas
+    (`fintcart/<svc>/v1/…`), pero no se pudo ejecutar `cargo build` porque **cargo no está
+    instalado en esta máquina**. Requiere la cadena de Rust para cerrarse.
+- [X] T019 [P] Generar y versionar los stubs gRPC de TypeScript desde `contracts/proto/` hacia `services/learning/src/pb/`, `services/notification/src/pb/` y `frontend/src/app/pb/`
+  - Dos plantillas: Aprendizaje recibe stubs de servicio (sirve gRPC); Notificación y Frontend
+    reciben **solo tipos de mensaje**, porque los stubs de servicio arrastran `@grpc/grpc-js`,
+    exclusivo de Node, a un consumidor puro de RabbitMQ y a un SPA de navegador (Principio II).
+  - `forceLong=string` verificado en ejecución: los `int64` llegan a TS como `string`.
+  - `tsc --noEmit` limpio en `services/learning` y `services/notification` con su propio
+    tsconfig. El Frontend aún no tiene `tsconfig.json` (llega con la fase de Angular), así que
+    sus stubs no se han podido comprobar con el compilador todavía.
 - [ ] T020 [P] Implementar el helper `DecimalString` de Go (parseo/serialización canónica `^-?\d+(\.\d+)?$` con `shopspring/decimal`, rechazo de overflow y de notación científica) en `services/users/internal/decimalstr/decimalstr.go` (D-10, Principio VIII)
 - [ ] T021 [P] Implementar el helper `DecimalString` de Rust con `rust_decimal::Decimal` en `services/simulator/src/domain/decimal_str.rs` (D-10, Principio VIII)
 - [ ] T022 [P] Implementar el helper `DecimalString` de TypeScript con `decimal.js` en `services/learning/src/common/decimal-str.ts` y `frontend/src/app/shared/decimal-str.ts` (D-10, Principio VIII)

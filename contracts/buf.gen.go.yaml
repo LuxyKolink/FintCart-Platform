@@ -21,11 +21,16 @@ managed:
     - file_option: go_package_prefix
       value: github.com/fintcart/platform/gen
 
+# Plugins LOCALES, no remotos. Un plugin remoto obliga a subir la imagen del
+# esquema (servicios, RPC, campos y comentarios) al servicio alojado de buf.build
+# para ejecutarlo allí; los contratos de una plataforma financiera no salen de la
+# máquina. Como efecto secundario la generación funciona sin red y es reproducible.
+# Instalación de los binarios: contracts/generate.sh los verifica y documenta.
 plugins:
-  - remote: buf.build/protocolbuffers/go
+  - local: protoc-gen-go
     out: .
     opt: paths=source_relative
-  - remote: buf.build/grpc/go
+  - local: protoc-gen-go-grpc
     out: .
     opt:
       - paths=source_relative

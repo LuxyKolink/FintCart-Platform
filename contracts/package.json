@@ -1,0 +1,12 @@
+{
+  "name": "@fintcart/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Herramientas de generacion de stubs desde contracts/proto. No es un paquete publicable ni una dependencia de ningun servicio: solo fija la version del plugin protoc-gen-ts_proto para que la generacion sea reproducible.",
+  "scripts": {
+    "generate": "./generate.sh"
+  },
+  "devDependencies": {
+    "ts-proto": "2.6.1"
+  }
+}

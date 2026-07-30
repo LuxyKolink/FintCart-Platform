@@ -16,6 +16,7 @@
     "test:cov": "jest --coverage"
   },
   "dependencies": {
+    "@bufbuild/protobuf": "^2.13.0",
     "amqplib": "^0.10.5",
     "nodemailer": "^6.9.16",
     "pg": "^8.13.0",
@@ -42,11 +43,20 @@
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
-    "extensionsToTreatAsEsm": [".ts"],
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
-    "collectCoverageFrom": ["src/**/*.ts", "!src/pb/**"],
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/pb/**"
+    ],
     "coverageDirectory": "coverage",
     "testEnvironment": "node"
   }

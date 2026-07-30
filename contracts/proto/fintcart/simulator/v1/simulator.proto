@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package fintcart.simulator.v1;
 
-import "common.proto";
+import "fintcart/common/v1/common.proto";
 
 // Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
 // decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
@@ -22,13 +22,17 @@ service SimulatorService {
 
 message UserRef { string user_id = 1; }
 
+// Las cinco calculadoras del alcance (FR-019). Los valores DEBEN llevar el
+// prefijo del nombre del enum: en proto3 los valores de enum comparten el
+// espacio de nombres del paquete, no el del enum, así que `AHORRO` a secas
+// colisionaría con cualquier otro enum del paquete que lo declarara.
 enum CalcType {
   CALC_TYPE_UNSPECIFIED = 0;
-  AHORRO = 1;
-  CREDITO = 2;
-  PRESUPUESTO = 3;
-  INVERSION = 4;
-  COLOMBIA_ESPECIFICA = 5;
+  CALC_TYPE_AHORRO = 1;
+  CALC_TYPE_CREDITO = 2;
+  CALC_TYPE_PRESUPUESTO = 3;
+  CALC_TYPE_INVERSION = 4;
+  CALC_TYPE_COLOMBIA_ESPECIFICA = 5;
 }
 
 message ComputeRequest {

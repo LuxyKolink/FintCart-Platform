@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package fintcart.learning.v1;
 
-import "common.proto";
+import "fintcart/common/v1/common.proto";
 
 // Servicio de Aprendizaje (TypeScript + NestJS). Dueño de artículos, versiones,
 // cuestionarios e historial completo de intentos. Productor de eventos RabbitMQ

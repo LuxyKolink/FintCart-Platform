@@ -1,0 +1,37 @@
+version: v2
+
+# Plantilla TypeScript SOLO-MENSAJES (sin stubs de servicio).
+#
+# Destinos: services/notification/src/pb y frontend/src/app/pb.
+#
+# Por qué existe una segunda plantilla en lugar de reutilizar buf.gen.ts.yaml:
+# con `outputServices=grpc-js`, ts-proto emite `import ... from "@grpc/grpc-js"`
+# en cada fichero. `@grpc/grpc-js` es una librería EXCLUSIVA de Node —usa net,
+# http2 y dns—, y meterla donde no corresponde rompe dos reglas de la
+# constitución:
+#
+#   * Frontend (Angular): Principio II — el SPA habla REST contra el API Gateway
+#     y NO participa en el plano gRPC interno. Además `@grpc/grpc-js` no funciona
+#     en un navegador; el bundle fallaría o exigiría polyfills de Node.
+#   * Notificación: es CONSUMIDOR PURO de RabbitMQ, sin superficie gRPC ni de
+#     cliente ni de servidor (plan.md N-03). Solo necesita la FORMA de los
+#     mensajes para tipar los payloads de los eventos que consume.
+#
+# Ambos siguen necesitando los tipos de mensaje, y en particular que los campos
+# decimales lleguen como `string` (Principio VIII), de ahí `forceLong=string`.
+#
+# El único destino que sí sirve gRPC es services/learning (NestJS), que usa
+# buf.gen.ts.yaml.
+
+plugins:
+  - local: protoc-gen-ts_proto
+    out: .
+    opt:
+      # Sin stubs de servicio: esto es lo que elimina la dependencia de grpc-js.
+      - outputServices=false
+      - esModuleInterop=true
+      # OBLIGATORIO (Principio VIII): int64 y campos decimales como `string`,
+      # nunca `number`, que perdería precisión en montos y tasas.
+      - forceLong=string
+      - useOptionals=messages
+      - snakeToCamel=false

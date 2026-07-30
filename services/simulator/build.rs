@@ -14,9 +14,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .canonicalize()
         .expect("no se encontró contracts/proto — ¿se movió el directorio de contratos?");
 
+    // Rutas canónicas de buf: `<raíz>/fintcart/<servicio>/v1/<servicio>.proto`,
+    // que es la disposición que exigen las reglas STANDARD de lint
+    // (el paquete debe coincidir con el directorio).
     let protos = [
-        contracts.join("common.proto"),
-        contracts.join("simulator.proto"),
+        contracts.join("fintcart/common/v1/common.proto"),
+        contracts.join("fintcart/simulator/v1/simulator.proto"),
     ];
 
     tonic_build::configure()

@@ -10,8 +10,11 @@ version: v2
 # cualquier campo decimal viajan como `string`; jamás como `number`, que perdería
 # precisión en montos y tasas.
 
+# Plugin LOCAL (ver la nota de buf.gen.go.yaml): el esquema no se sube a
+# buf.build. `ts-proto` se fija como devDependency en contracts/package.json y
+# generate.sh añade contracts/node_modules/.bin al PATH.
 plugins:
-  - remote: buf.build/community/stephenh-ts-proto
+  - local: protoc-gen-ts_proto
     out: .
     opt:
       - outputServices=grpc-js

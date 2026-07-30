@@ -2,7 +2,10 @@ syntax = "proto3";
 
 package fintcart.orchestrator.v1;
 
-import "common.proto";
+// El Orquestador no expone tipos de `common.v1`: sus RPC devuelven handles y
+// estados de saga propios, nunca un OpResult genérico. Sí depende del contrato
+// del Simulador para reutilizar `CalcType` en lugar de un entero sin tipo.
+import "fintcart/simulator/v1/simulator.proto";
 
 // Orquestador (Go). Coordina Sagas y compensaciones (Constitución Principio VI).
 // SIN lógica de dominio: solo secuencia pasos gRPC y publica eventos (productor
@@ -66,7 +69,11 @@ message QuizGradingResult {
 
 message SimulationRequest {
   string user_id = 1;
-  int32 calc_type = 2;            // ver simulator.CalcType
+  // Reutiliza el enum del contrato del Simulador en lugar de un `int32` con el
+  // tipo indicado en un comentario: si CalcType gana un valor, un entero suelto
+  // seguiría aceptando cualquier número y el desajuste solo aparecería en
+  // ejecución. El cambio es compatible a nivel de cable (ambos son varint).
+  fintcart.simulator.v1.CalcType calc_type = 2;
   string currency = 3;
   map<string, string> inputs = 4; // [decimal]
 }

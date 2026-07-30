@@ -56,11 +56,45 @@ Frontend en `http://localhost:4200`; borde REST en `http://localhost:8080`.
 Solo necesario al modificar `contracts/proto/`:
 
 ```bash
-buf lint contracts/proto
-buf generate contracts/proto   # genera los stubs de Go, Rust/tonic y TypeScript
+contracts/generate.sh          # lint + stubs de Go, TypeScript y (vía build.rs) Rust
 ```
 
-Los stubs regenerados se commitean en un **commit separado** del cambio de lógica de negocio.
+El script hace `buf lint` y luego genera hacia los diez destinos. Los stubs regenerados se
+commitean en un **commit separado** del cambio de lógica de negocio.
+
+### Prerrequisitos de generación (solo para regenerar, no para compilar)
+
+Los plugins de protoc se ejecutan **en local**, no en el servicio alojado de buf.build: la
+imagen del esquema —servicios, RPC, campos y comentarios— no sale de la máquina. A cambio hay
+que tener los binarios instalados:
+
+```bash
+go install github.com/bufbuild/buf/cmd/buf@v1.47.2
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+npm install --prefix contracts        # protoc-gen-ts_proto, fijado en contracts/package.json
+```
+
+`generate.sh` los verifica antes de empezar y, si falta alguno, indica el comando exacto.
+Compilar un servicio **no** requiere ninguno de ellos: los stubs están versionados.
+
+### Disposición de los `.proto`
+
+Ruta canónica de buf, `<paquete>` ≡ `<directorio>`, exigida por las reglas `STANDARD` de lint:
+
+```text
+contracts/proto/fintcart/<servicio>/v1/<servicio>.proto
+```
+
+Los imports entre contratos usan esa misma ruta desde la raíz del módulo, p. ej.
+`import "fintcart/common/v1/common.proto";`.
+
+### Dos plantillas de TypeScript
+
+Solo **Aprendizaje** (NestJS) sirve gRPC y recibe stubs de servicio (`buf.gen.ts.yaml`).
+**Notificación** (consumidor puro de RabbitMQ) y **Frontend** (habla REST contra el Gateway,
+Principio II) reciben solo tipos de mensaje (`buf.gen.ts-messages.yaml`), porque los stubs de
+servicio arrastran `@grpc/grpc-js`, que es exclusivo de Node y no funciona en un navegador.
 
 ## 3. Migraciones
 

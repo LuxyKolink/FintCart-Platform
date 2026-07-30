@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package fintcart.users.v1;
 
-import "common.proto";
+import "fintcart/common/v1/common.proto";
 
 // Servicio de Usuarios (Go). Dueño del perfil, roles, preferencias, progreso,
 // historiales y la bandeja in-app (research D-09). Expone gRPC a servicios internos.

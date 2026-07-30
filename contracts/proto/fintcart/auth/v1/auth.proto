@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package fintcart.auth.v1;
 
-import "common.proto";
+import "fintcart/common/v1/common.proto";
 
 // Servidor de Autenticación (Go). Autoridad de identidad (Constitución Principio VII).
 // OAuth2 Authorization Code + PKCE (SPA) y Client Credentials (M2M). JWT firmados;
