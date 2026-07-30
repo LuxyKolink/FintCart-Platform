@@ -133,7 +133,18 @@ notificaciones.
 - [X] T043 [P] Crear las migraciones de Notificación en `services/notification/migrations/<ts>_init_notification.{up,down}.sql`: `notification_events_queue` (con `event_id UNIQUE` y `attempts`) y `notification_states` (`not_sent`|`sent`|`failed`, sobrevive al desencolado) — data-model §Notificación
 - [X] T044 [P] Crear las migraciones de Auditoría en `services/audit/migrations/<ts>_init_audit.{up,down}.sql`: `audit_log` append-only con `REVOKE UPDATE, DELETE` sobre la tabla (FR-025/FR-031)
 - [X] T045 [P] Crear las migraciones del Orquestador en `services/orchestrator/migrations/<ts>_init_orchestrator.{up,down}.sql`: `saga_state` y la tabla de outbox transaccional (D-07)
-- [ ] T046 Verificar que TODAS las migraciones de T039–T045 tienen un `.down.sql` que revierte efectivamente, ejecutando `dev/migrate up && dev/migrate down && dev/migrate up` (Principio XI regla 1)
+- [X] T046 Verificar que TODAS las migraciones de T039–T045 tienen un `.down.sql` que revierte efectivamente, ejecutando `dev/migrate up && dev/migrate down && dev/migrate up` (Principio XI regla 1)
+  - Verificado contra PostgreSQL 16 real en las 7 bases: `up → down → up` deja un esquema
+    IDÉNTICO (561 objetos: tablas, índices, constraints, funciones y triggers). El `down`
+    se ejecutó con datos y claves foráneas presentes y no dejó residuo (0 tablas,
+    0 funciones propias). Invariantes de esquema comprobados en ejecución, no solo por
+    revisión: `jsonb_has_no_numbers` rechaza números JSON en raíz, en sub-objetos y dentro
+    de arrays; los triggers de `audit_log` rechazan UPDATE y DELETE aun conectándose como
+    propietario de la tabla; `article_versions` rechaza que el autor apruebe su propia
+    versión (FR-008); el índice único parcial de `profiles` admite varias cuentas
+    anonimizadas y sigue rechazando correos duplicados con distinta caja vía CITEXT
+    (FR-030); `notification_states` conserva el estado tras desencolar. `NUMERIC` devolvió
+    `87.65` exacto (Principio VIII).
 
 ### Identidad OAuth2 (Principio VII) — requerida por las cuatro historias
 

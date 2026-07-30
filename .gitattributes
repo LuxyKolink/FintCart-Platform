@@ -1,0 +1,44 @@
+# Normalización de fin de línea.
+#
+# El monorepo se desarrolla en Windows, Linux y macOS, y `core.autocrlf=true` es
+# habitual en las instalaciones de Git para Windows. Sin este archivo, un clon
+# nuevo en Windows convertiría a CRLF ficheros que DEBEN conservar LF, y fallarían
+# en ejecución con errores del tipo `$'\r': command not found` — un fallo confuso
+# y difícil de atribuir. Se fija el fin de línea explícitamente en lugar de
+# depender de la configuración local de cada máquina.
+
+# Por defecto: Git normaliza a LF en el repositorio y decide en el working copy.
+* text=auto
+
+# ── Deben ser LF SIEMPRE, en cualquier sistema operativo ───────────────────────
+
+# Verbos de dev/ (Principio XII) y scripts de contratos: los interpreta bash,
+# tanto en Git Bash como dentro de contenedores Linux.
+dev/build          text eol=lf
+dev/up             text eol=lf
+dev/down           text eol=lf
+dev/migrate        text eol=lf
+dev/common.sh      text eol=lf
+*.sh               text eol=lf
+
+# Se copian a imágenes Linux o las consume software que no tolera CRLF.
+Dockerfile*        text eol=lf
+*.yaml             text eol=lf
+*.yml              text eol=lf
+
+# Migraciones: las lee golang-migrate dentro de un contenedor Linux.
+*.sql              text eol=lf
+
+# Contratos y stubs generados: la generación es determinista y un cambio de fin
+# de línea produciría diffs espurios en `gen/`.
+*.proto            text eol=lf
+
+# ── Binarios: nunca normalizar ────────────────────────────────────────────────
+*.png              binary
+*.jpg              binary
+*.jpeg             binary
+*.gif              binary
+*.ico              binary
+*.pdf              binary
+*.woff             binary
+*.woff2            binary

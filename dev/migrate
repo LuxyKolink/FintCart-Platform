@@ -30,7 +30,12 @@ if [[ "$DIRECTION" == "down" && ${#ONLY[@]} -eq 0 ]]; then
   [[ "$confirm" == "yes" ]] || die "cancelado"
 fi
 
-NETWORK="$(compose ps --format '{{.Name}}' | head -1 >/dev/null 2>&1 && echo "fintcart_fintcart" || echo "fintcart_fintcart")"
+# Red de Compose: `<name del compose>_<clave de networks>` → fintcart_fintcart.
+# El contenedor de migrate se une a ella para resolver los hostnames de Postgres
+# (Principio X: descubrimiento por hostname, no por IP ni puerto publicado).
+NETWORK="fintcart_fintcart"
+docker network inspect "$NETWORK" >/dev/null 2>&1 \
+  || die "la red '$NETWORK' no existe. Ejecutar 'dev/up' antes de 'dev/migrate'."
 
 failed=()
 for entry in "${STATEFUL_SERVICES[@]}"; do
@@ -52,7 +57,13 @@ for entry in "${STATEFUL_SERVICES[@]}"; do
   args=("$DIRECTION")
   [[ "$DIRECTION" == "down" ]] && args=("down" "-all")
 
-  if ! docker run --rm \
+  # MSYS_NO_PATHCONV=1: en Git Bash sobre Windows, MSYS reescribe todo argumento
+  # que parezca una ruta POSIX antes de que el proceso lo reciba, y convierte
+  # `-path=/migrations` en `-path=C:/Program Files/Git/migrations`. La variable
+  # desactiva esa traducción solo para esta invocación; en Linux y macOS no
+  # existe y es inocua. NO ponerla en common.sh: `docker compose -f` sí necesita
+  # la ruta convertida a formato Windows.
+  if ! MSYS_NO_PATHCONV=1 docker run --rm \
       --network "$NETWORK" \
       --volume "$migrations_dir:/migrations:ro" \
       "$MIGRATE_IMAGE" \
