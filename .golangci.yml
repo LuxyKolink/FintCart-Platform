@@ -60,6 +60,14 @@ linters:
         - errors.Join(
         - .Wrap(
         - .Wrapf(
+        # `status.Error`/`status.Errorf` CREAN el error de la frontera gRPC, no lo
+        # propagan: son el punto donde un error de dominio se traduce al código de
+        # estado del contrato. Envolverlos sería justo lo contrario de lo que hay
+        # que hacer — el mensaje que sale al cliente tiene que estar saneado,
+        # porque la causa envuelta puede llevar nombres de tabla, fragmentos de SQL
+        # o el detalle del driver. La causa completa va al log, no en la respuesta.
+        - status.Error(
+        - status.Errorf(
 
     revive:
       rules:

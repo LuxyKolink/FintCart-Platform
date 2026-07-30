@@ -13,3 +13,4 @@
 
 pub mod domain;
 pub mod pb;
+pub mod repo;

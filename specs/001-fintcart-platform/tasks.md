@@ -155,14 +155,61 @@ notificaciones.
 
 ### Esqueletos de capas (Principio IX) y acceso a datos (Principio XI)
 
-- [ ] T024 [P] Crear el esqueleto de capas del Servicio de Usuarios: `services/users/internal/handler/{handler.go,middleware.go,types.go,mapping.go}`, `services/users/internal/server/{server.go,mapping.go,profile.go,progress.go,inapp.go,report.go,anonymize.go}` (stubs vacíos por dominio) y `services/users/internal/storer/{storer.go,storer_postgres.go,progress.go,preferences.go,types.go}`, con `Storer` como interfaz explícita y `NewPostgresStorer(db)`
-- [ ] T025 [P] Crear el esqueleto de capas del Servidor de Autenticación en `services/auth-server/internal/handler/`, `services/auth-server/internal/server/{server.go,mapping.go,oauth.go,credentials.go,client_credentials.go,password.go,anonymize.go}` y `services/auth-server/internal/storer/{storer.go,storer_postgres.go,redis_store.go,types.go}`
-- [ ] T026 [P] Crear el esqueleto de capas del Orquestador en `services/orchestrator/internal/{handler,server,storer,outbox,events}/`, incluyendo `internal/server/steps/` con un archivo stub por saga
-- [ ] T027 [P] Crear el esqueleto del Servicio de Auditoría en `services/audit/internal/handler/consumer.go` y `services/audit/internal/storer/storer_postgres.go` (consumidor puro: transporte AMQP, sin capa `server` gRPC — `plan.md` N-01)
-- [ ] T028 [P] Crear el esqueleto del API Gateway en `services/api-gateway/internal/handler/{handler.go,routes.go,middleware.go,types.go,mapping.go,auth.go,learning.go,simulators.go,me.go,editorial.go}` (stubs por área de ruta), `internal/grpcclient/` y `internal/ratelimit/` — sin capas `server` ni `storer` (`plan.md` N-01)
-- [ ] T029 [P] Implementar el helper de transacción `execTx(ctx, fn)` centralizado en `services/users/internal/storer/storer_postgres.go`, `services/auth-server/internal/storer/storer_postgres.go`, `services/orchestrator/internal/storer/storer_postgres.go` y `services/audit/internal/storer/storer_postgres.go` (Principio XI regla 4)
-- [ ] T030 [P] Implementar el equivalente de `execTx` en `services/simulator/src/repo/tx.rs`, `services/learning/src/common/tx.ts` y `services/notification/src/repo/tx.ts`
-- [ ] T031 [P] Definir la convención de envoltura de errores con causa preservada en `services/users/internal/storer/errors.go`, `services/simulator/src/domain/error.rs` y `services/learning/src/common/errors.ts` (Principio XI regla 6)
+- [X] T024 [P] Crear el esqueleto de capas del Servicio de Usuarios: `services/users/internal/handler/{handler.go,middleware.go,types.go,mapping.go}`, `services/users/internal/server/{server.go,mapping.go,profile.go,progress.go,inapp.go,report.go,anonymize.go}` (stubs vacíos por dominio) y `services/users/internal/storer/{storer.go,storer_postgres.go,progress.go,preferences.go,types.go}`, con `Storer` como interfaz explícita y `NewPostgresStorer(db)`
+- [X] T025 [P] Crear el esqueleto de capas del Servidor de Autenticación en `services/auth-server/internal/handler/`, `services/auth-server/internal/server/{server.go,mapping.go,oauth.go,credentials.go,client_credentials.go,password.go,anonymize.go}` y `services/auth-server/internal/storer/{storer.go,storer_postgres.go,redis_store.go,types.go}`
+- [X] T026 [P] Crear el esqueleto de capas del Orquestador en `services/orchestrator/internal/{handler,server,storer,outbox,events}/`, incluyendo `internal/server/steps/` con un archivo stub por saga
+- [X] T027 [P] Crear el esqueleto del Servicio de Auditoría en `services/audit/internal/handler/consumer.go` y `services/audit/internal/storer/storer_postgres.go` (consumidor puro: transporte AMQP, sin capa `server` gRPC — `plan.md` N-01)
+- [X] T028 [P] Crear el esqueleto del API Gateway en `services/api-gateway/internal/handler/{handler.go,routes.go,middleware.go,types.go,mapping.go,auth.go,learning.go,simulators.go,me.go,editorial.go}` (stubs por área de ruta), `internal/grpcclient/` y `internal/ratelimit/` — sin capas `server` ni `storer` (`plan.md` N-01)
+- [X] T029 [P] Implementar el helper de transacción `execTx(ctx, fn)` centralizado en `services/users/internal/storer/storer_postgres.go`, `services/auth-server/internal/storer/storer_postgres.go`, `services/orchestrator/internal/storer/storer_postgres.go` y `services/audit/internal/storer/storer_postgres.go` (Principio XI regla 4)
+- [X] T030 [P] Implementar el equivalente de `execTx` en `services/simulator/src/repo/tx.rs`, `services/learning/src/common/tx.ts` y `services/notification/src/repo/tx.ts`
+- [X] T031 [P] Definir la convención de envoltura de errores con causa preservada en `services/users/internal/storer/errors.go`, `services/simulator/src/domain/error.rs` y `services/learning/src/common/errors.ts` (Principio XI regla 6)
+
+**Notas de T024–T031**:
+
+- **Verificado en ejecución**, no por inspección: `go build` + `gofmt` + `golangci-lint run`
+  con **0 issues en los 5 módulos Go**; `cargo build` + `cargo fmt --check` +
+  `cargo clippy --all-targets -D warnings` limpios; `tsc --noEmit` y
+  `eslint --max-warnings 0` limpios en Aprendizaje y Notificación, 56 tests en verde.
+- Las interfaces las declara el **consumidor**, no el implementador: `handler.Service`
+  enumera lo que el transporte usa de `server`. Declararla junto a `*server.Server` la
+  convertiría en una copia de su lista de métodos que hay que mantener a mano.
+- `server` **re-exporta** `ErrNotFound`/`ErrConflict` como alias de los de `storer` para
+  que `handler` no importe `storer`. Saltarse una capa —aunque sea hacia abajo— acopla el
+  transporte a la persistencia.
+- Los stubs devuelven un `ErrNotImplemented` explícito, nunca el valor cero: un stub que
+  devolviera `Progress{}, nil` es indistinguible de un dato legítimo, y el fallo
+  aparecería como «el progreso siempre es 0» en lugar de como un error. En Auth la
+  cuestión es de seguridad, no de ergonomía.
+- `execTx` es **el único lugar** por servicio donde se abre/confirma/revierte una
+  transacción, y el `*sqlx.Tx` NO aparece en la interfaz `Storer`: si `server` pudiera
+  abrir transacciones, la capa de aplicación acabaría decidiendo el alcance de un bloqueo
+  de base de datos. `AdvanceSaga` del Orquestador recibe los eventos como parámetro por lo
+  mismo — hace imposible escribir el avance sin su evento (D-07).
+- **`.golangci.yml`**: `status.Error`/`status.Errorf` añadidos a `wrapcheck.ignore-sigs`.
+  CREAN el error de la frontera gRPC, no lo propagan; envolverlos sería lo contrario de
+  lo correcto, porque el mensaje que sale al cliente tiene que estar saneado.
+- Los interceptores gRPC (`middleware.go`) están **duplicados** en los cuatro servicios
+  Go que sirven gRPC. Es deliberado: `contracts/` es la única superficie compartida y
+  contiene contratos, no código. Un paquete común de utilidades acoplaría el despliegue de
+  ocho servicios a un cambio en una función de log.
+- **Defecto real corregido en Notificación**: su `tsconfig.json` combinaba
+  `"type": "module"` con `moduleResolution: bundler`, que typechequea y falla al ARRANCAR
+  con `ERR_MODULE_NOT_FOUND`. Al pasarlo a `NodeNext` quedó a la vista la causa de fondo —
+  los stubs de ts-proto emitían imports relativos sin extensión—, resuelta con
+  `importSuffix=.js` en `buf.gen.ts-messages.yaml` y regeneración. El Frontend comparte
+  esa plantilla y sigue typechequeando (usa bundler, que resuelve `./x.js` → `./x.ts`).
+- **Dos discrepancias de artefactos detectadas, no resueltas aquí**:
+  1. `plan.md` §Source Code enumera cinco archivos en `internal/server/steps/` y omite la
+     saga de **actividad**, que sí existe en el CHECK `saga_state_type_valid` y en N-03. Se
+     creó `activity.go` (el esquema y N-03 son la fuente más específica); conviene corregir
+     la lista de `plan.md`.
+  2. `contracts/openapi/gateway.yaml` declara los endpoints OAuth2
+     `authorizationUrl`/`tokenUrl` en el host `auth.fintcart.co`, **fuera de `paths:`**.
+     Pero el Principio II reserva REST para el Gateway y Auth solo expone gRPC, así que
+     esos dos endpoints tienen que atenderse en el Gateway o la SPA no puede completar
+     PKCE. Además T055 habla de «18 rutas» y el esquema tiene 16 rutas / 17 operaciones.
+     Añadirlos es un cambio de contrato: queda señalado para T055 en lugar de inventar
+     superficie.
 
 ### Entrypoints y configuración (Principio X)
 
