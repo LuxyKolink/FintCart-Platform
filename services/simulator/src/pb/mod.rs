@@ -4,7 +4,9 @@
 //! `tonic-build` y están versionados (§Definición de Contratos), igual que
 //! `services/*/gen` en Go y `src/pb` en TypeScript. Para regenerarlos:
 //!
-//!     FINTCART_REGEN_PROTO=1 cargo build
+//! ```text
+//! FINTCART_REGEN_PROTO=1 cargo build
+//! ```
 //!
 //! o bien `contracts/generate.sh`, que lo hace para todos los stacks.
 //!

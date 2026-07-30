@@ -7,6 +7,14 @@ description = "Servicio de Simulador de Fintcart — cinco calculadoras financie
 license = "Proprietary"
 publish = false
 
+# El dominio vive en una librería y el binario es una cáscara sobre ella
+# (Principio X: entrypoint delgado). No es solo estilo: las pruebas de
+# integración de `tests/` solo pueden importar un target de librería, así que sin
+# `[lib]` no habría forma de escribir `tests/decimal_str.rs` (T023).
+[lib]
+name = "fintcart_simulator"
+path = "src/lib.rs"
+
 [[bin]]
 name = "fintcart-simulator"
 path = "src/main.rs"

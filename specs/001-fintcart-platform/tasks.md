@@ -119,12 +119,39 @@ notificaciones.
     exclusivo de Node, a un consumidor puro de RabbitMQ y a un SPA de navegador (Principio II).
   - `forceLong=string` verificado en ejecución: los `int64` llegan a TS como `string`.
   - `tsc --noEmit` limpio en `services/learning` y `services/notification` con su propio
-    tsconfig. El Frontend aún no tiene `tsconfig.json` (llega con la fase de Angular), así que
-    sus stubs no se han podido comprobar con el compilador todavía.
-- [ ] T020 [P] Implementar el helper `DecimalString` de Go (parseo/serialización canónica `^-?\d+(\.\d+)?$` con `shopspring/decimal`, rechazo de overflow y de notación científica) en `services/users/internal/decimalstr/decimalstr.go` (D-10, Principio VIII)
-- [ ] T021 [P] Implementar el helper `DecimalString` de Rust con `rust_decimal::Decimal` en `services/simulator/src/domain/decimal_str.rs` (D-10, Principio VIII)
-- [ ] T022 [P] Implementar el helper `DecimalString` de TypeScript con `decimal.js` en `services/learning/src/common/decimal-str.ts` y `frontend/src/app/shared/decimal-str.ts` (D-10, Principio VIII)
-- [ ] T023 [P] Escribir pruebas unitarias del helper decimal en `services/simulator/tests/decimal_str.rs`, `services/learning/test/decimal-str.spec.ts` y `services/users/internal/decimalstr/decimalstr_test.go` cubriendo montos extremos, escala máxima, notación científica rechazada y overflow
+    tsconfig. El Frontend aún no tiene `tsconfig.json` (llega con la fase de Angular), pero
+    sus stubs **sí** se comprobaron: `tsc --strict` invocado directamente sobre los ficheros
+    de `frontend/src/app/pb` pasa (cerrado durante T022).
+- [X] T020 [P] Implementar el helper `DecimalString` de Go (parseo/serialización canónica `^-?\d+(\.\d+)?$` con `shopspring/decimal`, rechazo de overflow y de notación científica) en `services/users/internal/decimalstr/decimalstr.go` (D-10, Principio VIII)
+- [X] T021 [P] Implementar el helper `DecimalString` de Rust con `rust_decimal::Decimal` en `services/simulator/src/domain/decimal_str.rs` (D-10, Principio VIII)
+- [X] T022 [P] Implementar el helper `DecimalString` de TypeScript con `decimal.js` en `services/learning/src/common/decimal-str.ts` y `frontend/src/app/shared/decimal-str.ts` (D-10, Principio VIII)
+- [X] T023 [P] Escribir pruebas unitarias del helper decimal en `services/simulator/tests/decimal_str.rs`, `services/learning/test/decimal-str.spec.ts` y `services/users/internal/decimalstr/decimalstr_test.go` cubriendo montos extremos, escala máxima, notación científica rechazada y overflow
+
+**Notas de T020–T023** (misma API en los tres lenguajes: `parse`, `parseNumeric`,
+`parseMoney`/`parseRate`/`parseScore`, `format`, `formatFixed`, `roundHalfEven`):
+
+- Los límites no son inventados: salen de data-model.md §Convenciones —
+  `NUMERIC(19,2)` montos, `NUMERIC(9,6)` tasas, `NUMERIC(6,2)` calificaciones—, así que
+  un valor que la frontera acepta cabe en su columna y no falla recién en el INSERT.
+- La escala se mide sobre decimales **significativos**: `"1.500"` cuenta como escala 1.
+  Rechazar el relleno de un emisor a ancho fijo sería un falso positivo.
+- `formatFixed` **falla** si el valor tiene más decimales de los pedidos, en lugar de
+  redondear: una pérdida silenciosa de precisión es justo lo que prohíbe el Principio VIII.
+  Redondear exige `roundHalfEven` (half-even, D-14), que es explícito.
+- **Verificado en ejecución**, no por inspección: 59 subtests Go, 10 tests Rust y 56 tests
+  TypeScript en verde; `golangci-lint` 0 issues, `cargo clippy -D warnings` 0,
+  `eslint --max-warnings 0` 0, `gofmt`/`cargo fmt`/`tsc --noEmit` limpios.
+- Los tres gates del Principio VIII se probaron **introduciendo una violación a propósito**
+  y comprobando que fallan: `float64` en Go (forbidigo), `f64` en Rust
+  (`clippy::disallowed_types`) y el tipo `number` en TS (`no-restricted-types`). Antes de
+  T018 el gate de Rust no verificaba nada (ver la nota de T018).
+- El Frontend usa **`decimal.js`, no `big.js`** como declaraba su `package.json`. `plan.md`
+  admite ambas, pero dos implementaciones distintas de una regla NON-NEGOTIABLE —una de
+  ellas sin pruebas todavía— es peor riesgo que el tamaño del bundle. El helper del Frontend
+  es copia byte a byte del de Aprendizaje salvo la cabecera que documenta la duplicación.
+- `frontend/` todavía no tiene `tsconfig.json` (llega con la fase Angular), así que su copia
+  se comprobó con `tsc --strict` invocado directamente sobre el fichero. De paso queda
+  cerrada la salvedad de T019: `frontend/src/app/pb` **sí** typechequea.
 
 ### Esqueletos de capas (Principio IX) y acceso a datos (Principio XI)
 

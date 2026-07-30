@@ -26,8 +26,15 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - gosec
-    - misspell
     - revive
+
+  # `misspell` está DESHABILITADO a propósito. Solo trae un diccionario de
+  # inglés, y los comentarios de este repositorio están en español, así que
+  # marca como error cualquier palabra que se parezca a una inglesa mal escrita:
+  # "columnas" → "columns", "conversiones" → "conversions". Son falsos positivos
+  # que crecen con cada comentario nuevo, y silenciarlos uno a uno con
+  # `ignore-words` es una lista interminable. Un linter que solo produce ruido
+  # entrena al equipo a ignorar la salida del lint, que es peor que no tenerlo.
 
   settings:
     forbidigo:
