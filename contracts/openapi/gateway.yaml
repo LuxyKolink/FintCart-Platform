@@ -16,11 +16,18 @@ components:
   securitySchemes:
     oauth2PKCE:
       type: oauth2
-      description: OAuth2 Authorization Code + PKCE (cliente público SPA).
+      description: >
+        OAuth2 Authorization Code + PKCE (cliente público SPA).
+        Los dos endpoints los sirve ESTE Gateway y no un host aparte: el
+        Principio II reserva toda la superficie REST al borde y el Servidor de
+        Autenticación solo expone gRPC. Ver `/oauth/authorize` y `/oauth/token`
+        en `paths:`, y la desviación documentada respecto de RFC 6749 §3.1
+        (el endpoint de autorización es JSON, no una redirección de navegador,
+        porque no existe ningún componente que pueda servir la página de login).
       flows:
         authorizationCode:
-          authorizationUrl: https://auth.fintcart.co/oauth/authorize
-          tokenUrl: https://auth.fintcart.co/oauth/token
+          authorizationUrl: https://api.fintcart.co/v1/oauth/authorize
+          tokenUrl: https://api.fintcart.co/v1/oauth/token
           scopes:
             openid: Identidad básica
             learning: Acceso al módulo de aprendizaje
@@ -77,6 +84,75 @@ security:
   - oauth2PKCE: []
 
 paths:
+  # --- OAuth2 (Principio VII). Públicas: sirven para OBTENER el token. ---
+  /oauth/authorize:
+    post:
+      summary: Autenticar y emitir un authorization_code ligado al code_challenge (PKCE)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, client_id, redirect_uri, code_challenge, code_challenge_method]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                client_id: { type: string }
+                redirect_uri: { type: string, format: uri }
+                code_challenge: { type: string }
+                code_challenge_method: { type: string, enum: [S256] }
+                scopes: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: Código de un solo uso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: string }
+                  redirect_uri: { type: string, format: uri }
+        '400': { description: PKCE ausente o `code_challenge_method` distinto de S256 }
+        '401': { description: Credenciales inválidas (mismo mensaje que cuenta inexistente) }
+        '403': { description: Falta verificar el correo (FR-002) }
+
+  /oauth/token:
+    post:
+      summary: Canjear authorization_code + code_verifier, o rotar un refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type: { type: string, enum: [authorization_code, refresh_token] }
+                code: { type: string }
+                code_verifier: { type: string }
+                client_id: { type: string }
+                redirect_uri: { type: string, format: uri }
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: Par de tokens; el refresh SIEMPRE se rota (research D-05)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  token_type: { type: string, enum: [Bearer] }
+                  # Segundos enteros: es el único número JSON del borde, y se
+                  # permite porque no es un monto ni una tasa (Principio VIII).
+                  expires_in: { type: integer }
+        '400': { description: grant_type no soportado o parámetros incompletos }
+        '401': { description: Código o refresh token inválido, caducado o reutilizado }
+
   # --- Identidad (proxy hacia Autenticación / Saga de registro en Orquestador) ---
   /auth/register:
     post:

@@ -18,15 +18,21 @@ import (
 // listado repartido por diez archivos es donde se cuela una ruta editorial sin
 // comprobación de rol.
 //
-// Las rutas siguen `contracts/openapi/gateway.yaml` — 16 rutas, 17 operaciones.
+// Las rutas siguen `contracts/openapi/gateway.yaml`: **18 rutas y 19 operaciones**.
 //
-// SALVEDAD PENDIENTE (no la resuelve T028): el esquema OpenAPI declara los endpoints
-// OAuth2 `authorizationUrl`/`tokenUrl` en el host `auth.fintcart.co`, fuera de
-// `paths:`. Pero el Principio II reserva REST para el Gateway y el Servidor de
-// Autenticación solo expone gRPC, así que esos dos endpoints tienen que atenderse
-// AQUÍ. Sin ellos la SPA no puede completar el flujo Authorization Code + PKCE.
-// Añadirlos es un cambio de contrato, así que se deja señalado para T055 en lugar de
-// inventar superficie.
+// Los dos números conviene desglosarlos porque el contrato, tal como estaba escrito,
+// no los daba directamente. `paths:` declara 16 rutas y 17 operaciones —`/me/profile`
+// admite GET y PATCH—. Las dos que faltaban hasta 18 son los endpoints OAuth2, que el
+// esquema declaraba como `authorizationUrl`/`tokenUrl` en el host `auth.fintcart.co`,
+// FUERA de `paths:`.
+//
+// Ese host no puede existir: el Principio II reserva toda la superficie REST al Gateway
+// y el Servidor de Autenticación solo expone gRPC. Sin `/oauth/authorize` y
+// `/oauth/token` atendidos aquí, la SPA no tiene forma de obtener un token y la
+// plataforma no tiene login. T055 los incorpora y el OpenAPI se actualiza en
+// consecuencia; ver la nota de T055–T059 en `tasks.md` y el encabezado OAuth2 de
+// `auth.go`, donde se documenta la desviación respecto de RFC 6749 §3.1 que impone
+// esta arquitectura.
 
 // Deps son las dependencias transversales del router.
 //
@@ -60,10 +66,22 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	// El rate limiting va antes de la autenticación: verificar una firma JWT cuesta
-	// CPU, así que limitar después dejaría abierta una vía de agotamiento con tokens
-	// basura. Como consecuencia, las rutas públicas se limitan por IP (ver `clientIP`).
-	r.Use(RateLimit(deps.Limiter, h.logger))
+	// El rate limiting por IP va antes de la autenticación: verificar una firma JWT
+	// cuesta CPU, así que limitar después dejaría abierta una vía de agotamiento con
+	// tokens basura. El límite por USUARIO se aplica más abajo, dentro del grupo
+	// autenticado, que es el primer punto donde existe una identidad; ver
+	// [RateLimitByUser] para por qué hacen falta los dos.
+	r.Use(RateLimitByIP(deps.Limiter, h.logger))
+
+	// ── OAuth2 (públicas por definición: sirven para OBTENER el token) ──────
+	//
+	// Son las dos rutas más atacadas del sistema —relleno de credenciales contra
+	// `/oauth/authorize`, canje de códigos robados contra `/oauth/token`— y las únicas
+	// protegidas solo por el rate limiting por IP que ya aplica el middleware global.
+	r.Route("/oauth", func(r chi.Router) {
+		r.Post("/authorize", h.Authorize)
+		r.Post("/token", h.Token)
+	})
 
 	// ── Identidad (públicas: no hay token todavía) ──────────────────────────
 	r.Route("/auth", func(r chi.Router) {
@@ -76,6 +94,7 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 	// ── Rutas autenticadas ─────────────────────────────────────────────────
 	r.Group(func(r chi.Router) {
 		r.Use(Authenticate(deps.Verifier, deps.Blacklist, h.logger))
+		r.Use(RateLimitByUser(deps.Limiter, h.logger))
 
 		// Catálogo y cuestionarios: cualquier usuario autenticado.
 		r.Get("/catalog/articles", h.ListArticles)

@@ -12,8 +12,10 @@
 package grpcclient
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -85,7 +87,16 @@ func Dial(cfg Config) (*Clients, error) {
 		// red interna del clúster y el cifrado lo aporta la malla de servicio. El borde
 		// expuesto —el que atiende `handler`— sí es TLS. Poner TLS también entre pods
 		// duplicaría la terminación sin añadir una frontera de confianza nueva.
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(addr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			// Balanceo entre TODAS las réplicas del destino. El valor por defecto de
+			// gRPC es `pick_first`: se queda con la primera dirección que resuelve el
+			// DNS y no vuelve a mirar, así que con los ≥ 2 réplicas que exige D-12/SC-012
+			// una sola recibiría el 100 % del tráfico del Gateway y el autoescalado no
+			// serviría de nada.
+			grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`),
+			grpc.WithChainUnaryInterceptor(timeoutInterceptor(defaultCallTimeout)),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("abrir conexión gRPC con %s: %w", addr, err)
 		}
@@ -120,6 +131,42 @@ func Dial(cfg Config) (*Clients, error) {
 	c.Simulator = simulatorv1.NewSimulatorServiceClient(simulatorConn)
 	c.Orchestrator = orchestratorv1.NewOrchestratorServiceClient(orchestratorConn)
 	return c, nil
+}
+
+// defaultCallTimeout acota cuánto espera el Gateway a un servicio interno.
+//
+// Es holgado a propósito: la llamada más lenta del borde es la saga de calificación,
+// que encadena Aprendizaje y Usuarios en una sola petición síncrona. Lo que importa no
+// es el valor exacto sino que EXISTA — sin plazo, un servicio colgado retiene una
+// goroutine y una conexión del Gateway por cada petición entrante, y el borde se agota
+// aunque el resto de la plataforma esté sana.
+//
+// Queda por debajo del `WriteTimeout` del `http.Server` (30 s) para que el cliente
+// reciba un 504 explicativo en lugar de una conexión cortada sin respuesta.
+const defaultCallTimeout = 20 * time.Second
+
+// timeoutInterceptor pone un plazo a toda llamada que no traiga uno más estricto.
+//
+// RESPETA el plazo del llamante: si el contexto de la petición HTTP ya vence antes
+// —porque el cliente cerró la conexión, por ejemplo—, se deja el más corto. Imponer el
+// plazo del Gateway por encima haría que una petición abandonada siguiera consumiendo
+// un servicio interno durante veinte segundos más.
+func timeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply any,
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
+			return invoker(ctx, method, req, reply, cc, opts...) //nolint:wrapcheck // interceptor: envolver aquí duplicaría el mensaje que `handler.writeGRPCError` ya traduce por código gRPC.
+		}
+		ctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return invoker(ctx, method, req, reply, cc, opts...) //nolint:wrapcheck // ídem.
+	}
 }
 
 // Close cierra todas las conexiones abiertas.

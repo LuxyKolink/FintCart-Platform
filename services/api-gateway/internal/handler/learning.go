@@ -2,24 +2,50 @@ package handler
 
 import (
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
+	learningv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/learning/v1"
+	orchestratorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/orchestrator/v1"
 )
 
 // Rutas de aprendizaje: `/catalog/*` y `/quizzes/*`.
 
 // ListArticles ≡ `GET /catalog/articles` (FR-010, SC-009: ≥ 5 categorías temáticas).
+//
+// `ListPublished` solo devuelve versiones PUBLICADAS. El filtro está en el nombre del
+// RPC y no en un parámetro que el Gateway pudiera olvidar: un borrador visible en el
+// catálogo sería una fuga de contenido editorial sin aprobar (FR-008).
 func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
-	// T059: `Learning.ListPublished` con el filtro de categoría y la paginación de la
-	// query string. Solo devuelve versiones PUBLICADAS: un borrador visible en el
-	// catálogo sería una fuga de contenido editorial sin aprobar (FR-008).
-	h.writeGRPCError(w, r, errNotImplemented)
+	resp, err := h.clients.Learning.ListPublished(r.Context(), &learningv1.ListPublishedRequest{
+		Category: r.URL.Query().Get("category"),
+		Page:     pageRequestFrom(r),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	items := make([]Article, 0, len(resp.GetItems()))
+	for _, a := range resp.GetItems() {
+		items = append(items, articleToDTO(a))
+	}
+	writeJSON(w, http.StatusOK, pageOf(items, resp.GetPage()))
 }
 
-// GetArticle ≡ `GET /catalog/articles/{articleId}` (FR-010).
+// GetArticle ≡ `GET /catalog/articles/{articleId}` (FR-011).
+//
+// El propio RPC incrementa los agregados de `article_stats` (research D-06); el Gateway
+// no cuenta nada, porque contar lecturas es del dominio de Aprendizaje.
 func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
-	// T059: `Learning.GetArticle` + `articleToDTO`. El propio RPC incrementa los
-	// agregados de `article_stats` (research D-06); el Gateway no cuenta nada, porque
-	// contar lecturas es del dominio de Aprendizaje.
-	h.writeGRPCError(w, r, errNotImplemented)
+	resp, err := h.clients.Learning.GetArticle(r.Context(), &learningv1.ArticleRef{
+		ArticleId: chi.URLParam(r, "articleId"),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, articleToDTO(resp))
 }
 
 // SubmitQuizAttempt ≡ `POST /quizzes/{quizId}/attempts` (FR-012, FR-016).
@@ -30,11 +56,35 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 // `Users.ApplyQuizScore` dejaría, ante un fallo del segundo, un intento calificado que
 // nunca suma puntos y a nadie encargado de arreglarlo.
 //
-// La respuesta lleva `score` como `string` decimal (`quizGradeToDTO`), nunca como número
-// JSON (Principio VIII).
+// Es una saga SÍNCRONA —se devuelve el resultado y no un `saga_id`— porque el usuario
+// está esperando su nota delante de la pantalla.
+//
+// La respuesta lleva `score` como `string` decimal, nunca como número JSON
+// (Principio VIII); ver `quizGradeToDTO`.
 func (h *Handler) SubmitQuizAttempt(w http.ResponseWriter, r *http.Request) {
-	// T059: decodificar las respuestas y llamar a `Orchestrator.StartQuizGrading`. Es
-	// una saga SÍNCRONA: el usuario está esperando su nota, así que se devuelve el
-	// resultado y no un `saga_id`.
-	h.writeGRPCError(w, r, errNotImplemented)
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	var body SubmitAttemptRequest
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	resp, err := h.clients.Orchestrator.StartQuizGrading(r.Context(), &orchestratorv1.QuizGradingRequest{
+		// El usuario sale del TOKEN. Si viniera del cuerpo, cualquiera podría acumular
+		// puntos de progreso en la cuenta de otra persona.
+		UserId:  claims.UserID,
+		QuizId:  chi.URLParam(r, "quizId"),
+		Answers: body.Answers,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, quizGradeToDTO(resp))
 }

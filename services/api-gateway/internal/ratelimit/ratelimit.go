@@ -20,8 +20,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// ErrNotImplemented marca lo que llega con T057.
-var ErrNotImplemented = errors.New("ratelimit: no implementado")
+// ErrInvalidKey rechaza una clave de límite vacía.
+//
+// Una clave vacía haría que TODO el tráfico sin identificar compartiera un mismo
+// contador: bastarían unas pocas peticiones anónimas para agotar la cuota de todas
+// las demás. Es un error de programación del llamante, no una condición de carrera.
+var ErrInvalidKey = errors.New("ratelimit: clave vacía")
+
+// ErrBackendUnavailable indica que Redis no respondió y la política es fail closed.
+var ErrBackendUnavailable = errors.New("ratelimit: el backend no está disponible")
 
 // Decision es el resultado de consultar el límite.
 //
@@ -71,25 +78,97 @@ func NewRedisLimiter(client redis.UniversalClient, cfg Config) *RedisLimiter {
 // prefijo de las claves de rate limiting.
 const keyPrefix = "ratelimit:"
 
-// Allow incrementa el contador de la ventana y decide.
+// allowScript incrementa el contador de la ventana y devuelve `{cuenta, ttl}`.
 //
-// T057 lo implementa con `INCR` + `EXPIRE` en una sola ida y vuelta (pipeline o script
-// Lua). Los dos comandos DEBEN ir juntos: si el proceso muere entre el `INCR` y el
-// `EXPIRE`, la clave queda sin TTL y el cliente afectado se queda bloqueado para
-// siempre —el contador nunca vuelve a cero.
+// Es un script y no un `INCR` seguido de un `EXPIRE` por una razón concreta: entre los
+// dos comandos el proceso puede morir, la red puede cortarse o Redis puede reiniciarse,
+// y la clave quedaría SIN TTL. Un contador sin caducidad no vuelve nunca a cero, así
+// que el cliente afectado quedaría bloqueado de forma permanente —un fallo transitorio
+// convertido en una expulsión definitiva, y silenciosa.
+//
+// El TTL se pone solo en el primer incremento (`== 1`). Renovarlo en cada petición
+// convertiría la ventana fija en una ventana deslizante *hacia adelante*: quien siguiera
+// pidiendo mantendría su propio contador vivo indefinidamente y nunca recuperaría cuota.
+//
+// Devuelve también el TTL para poder responder `Retry-After` sin una segunda ida y
+// vuelta. El `-1` que Redis devuelve para «sin caducidad» se normaliza aquí, en el
+// mismo sitio donde se garantiza que no puede pasar.
+const allowScript = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+  return {count, tonumber(ARGV[1])}
+end
+local ttl = redis.call('TTL', KEYS[1])
+if ttl < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`
+
+// script compilado una sola vez. `redis.NewScript` usa EVALSHA y solo cae a EVAL si el
+// servidor no tiene el script en caché, así que el cuerpo no viaja en cada petición.
+var script = redis.NewScript(allowScript)
+
+// Allow incrementa el contador de la ventana y decide.
 //
 // La ventana fija es deliberada frente a una deslizante: permite hasta el doble del
 // límite en el cruce de dos ventanas, y a cambio cuesta un contador por clave en lugar
 // de un sorted set con una entrada por petición. Para proteger de abuso, la
 // aproximación sobra; si hiciera falta precisión, la decisión habría que revisarla.
+//
+// Cuenta SIEMPRE, también cuando la petición se rechaza. Lo contrario —no incrementar
+// una vez superado el límite— dejaría que un cliente bloqueado recuperase cuota en
+// cuanto expirara la ventana aunque no hubiera dejado de martillear, y elimina el
+// incentivo a parar.
 func (r *RedisLimiter) Allow(ctx context.Context, key string) (Decision, error) {
 	if key == "" {
-		return Decision{}, fmt.Errorf("%w: clave vacía", ErrNotImplemented)
+		return Decision{}, ErrInvalidKey
 	}
-	_ = keyPrefix + key
-	_ = r.client
-	_ = r.cfg
-	return Decision{}, ErrNotImplemented
+
+	windowSeconds := int64(r.cfg.Window.Seconds())
+	if windowSeconds < 1 {
+		// Redis mide los TTL de `EXPIRE` en segundos enteros y trata el 0 como error.
+		// Una ventana sub-segundo se redondea al mínimo representable en lugar de
+		// producir claves inmortales.
+		windowSeconds = 1
+	}
+
+	res, err := script.Run(ctx, r.client, []string{keyPrefix + key}, windowSeconds).Int64Slice()
+	if err != nil {
+		return r.onBackendFailure(err)
+	}
+	if len(res) != 2 {
+		return r.onBackendFailure(fmt.Errorf("respuesta inesperada del script: %d valores", len(res)))
+	}
+
+	count, ttlSeconds := res[0], res[1]
+	remaining := max(r.cfg.Limit-count, 0)
+
+	if count > r.cfg.Limit {
+		return Decision{
+			Allowed:    false,
+			Remaining:  0,
+			RetryAfter: time.Duration(ttlSeconds) * time.Second,
+		}, nil
+	}
+	return Decision{Allowed: true, Remaining: remaining}, nil
+}
+
+// onBackendFailure aplica la política de [Config.FailOpen].
+//
+// La decisión se toma AQUÍ y no en el middleware por una razón de diseño: quien conoce
+// la política configurada es este paquete, y dejar que el borde interprete un error de
+// Redis repartiría la misma decisión de seguridad por cada sitio que consulte el
+// límite.
+func (r *RedisLimiter) onBackendFailure(cause error) (Decision, error) {
+	if r.cfg.FailOpen {
+		// Se deja pasar, pero NO en silencio: `Remaining` a cero hace visible en las
+		// cabeceras que el límite no se está aplicando de verdad.
+		return Decision{Allowed: true, Remaining: 0}, nil
+	}
+	return Decision{}, fmt.Errorf("%w: %w", ErrBackendUnavailable, cause)
 }
 
 // Comprobación en tiempo de compilación del implementador.

@@ -2,11 +2,11 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -143,17 +143,47 @@ func RequireRole(roles ...string) func(http.Handler) http.Handler {
 	}
 }
 
-// RateLimit aplica el límite por identidad o, si no hay, por IP (Principio IV).
-func RateLimit(limiter Limiter, logger *slog.Logger) func(http.Handler) http.Handler {
+// RateLimitByIP limita por dirección de origen (Principio IV).
+//
+// Va como middleware GLOBAL y por delante de [Authenticate]. El orden importa:
+// verificar una firma JWT cuesta CPU, así que limitar después dejaría abierta una vía
+// de agotamiento con tokens basura, y las rutas públicas —registro, `/oauth/token`—
+// quedarían sin ninguna protección, que son justamente las más atacadas.
+func RateLimitByIP(limiter Limiter, logger *slog.Logger) func(http.Handler) http.Handler {
+	return rateLimit(limiter, logger, func(r *http.Request) (string, bool) {
+		return clientIP(r), true
+	})
+}
+
+// RateLimitByUser limita por identidad autenticada.
+//
+// Es un SEGUNDO límite y no un sustituto del anterior, y son necesarios los dos: con
+// solo el de IP, todos los usuarios detrás de un mismo NAT —una oficina, una
+// universidad— comparten cuota y se bloquean entre ellos; con solo el de usuario, no
+// hay nada que proteja lo que ocurre antes de tener un token.
+//
+// DEBE montarse DESPUÉS de [Authenticate]: sin claims en el contexto no hay identidad
+// que usar, y en ese caso este middleware no hace nada —el límite por IP ya se aplicó
+// más arriba—. Que el orden sea obligatorio y no una preferencia es la razón de que
+// esto sean dos funciones con nombre y no un parámetro.
+func RateLimitByUser(limiter Limiter, logger *slog.Logger) func(http.Handler) http.Handler {
+	return rateLimit(limiter, logger, func(r *http.Request) (string, bool) {
+		claims, ok := ClaimsFrom(r.Context())
+		if !ok {
+			return "", false
+		}
+		return "user:" + claims.UserID, true
+	})
+}
+
+// rateLimit es el cuerpo común de los dos anteriores.
+func rateLimit(limiter Limiter, logger *slog.Logger, keyOf func(*http.Request) (string, bool)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// La clave es el usuario cuando está autenticado y la IP cuando no. Usar solo
-			// la IP dejaría a todos los usuarios detrás de un mismo NAT compartiendo
-			// cuota; usar solo el usuario dejaría las rutas públicas —registro, login—
-			// sin protección, que son justo las que más interesa proteger.
-			key := clientIP(r)
-			if claims, ok := ClaimsFrom(r.Context()); ok {
-				key = "user:" + claims.UserID
+			key, ok := keyOf(r)
+			if !ok {
+				next.ServeHTTP(w, r)
+				return
 			}
 
 			decision, err := limiter.Allow(r.Context(), key)
@@ -166,8 +196,12 @@ func RateLimit(limiter Limiter, logger *slog.Logger) func(http.Handler) http.Han
 				writeError(w, http.StatusServiceUnavailable, "unavailable", "servicio no disponible")
 				return
 			}
+			// Las cabeceras informativas se publican SIEMPRE, no solo al rechazar: un
+			// cliente bien escrito frena al ver que le queda poca cuota, y solo puede
+			// hacerlo si el dato le llega antes del 429.
+			w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(decision.Remaining, 10))
 			if !decision.Allowed {
-				w.Header().Set("Retry-After", fmt.Sprintf("%d", int(decision.RetryAfter.Seconds())))
+				w.Header().Set("Retry-After", strconv.Itoa(int(decision.RetryAfter.Seconds())))
 				writeError(w, http.StatusTooManyRequests, "rate_limited", "demasiadas peticiones")
 				return
 			}
@@ -270,6 +304,3 @@ func clientIP(r *http.Request) string {
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, ErrorBody{Code: code, Message: message})
 }
-
-// errNotImplemented marca los handlers del esqueleto (T028).
-var errNotImplemented = errors.New("handler: no implementado")

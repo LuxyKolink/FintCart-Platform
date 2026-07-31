@@ -357,11 +357,81 @@ notificaciones.
 
 ### Borde REST — API Gateway (Principio II)
 
-- [ ] T055 Implementar el router `chi` y el registro de las 18 rutas de `contracts/openapi/gateway.yaml` en `services/api-gateway/internal/handler/routes.go` (solo enrutamiento)
-- [ ] T056 Implementar los middlewares en `services/api-gateway/internal/handler/middleware.go`: validación de firma JWT, consulta de blacklist en Redis, y middlewares de autorización por rol (`usuario_final`, `editor`, `coordinador_editorial`) — Principio VII
-- [ ] T057 Implementar el rate limiting distribuido sobre Redis en `services/api-gateway/internal/ratelimit/ratelimit.go` (Principio IV, único otro uso permitido de Redis)
-- [ ] T058 Implementar los clientes gRPC hacia los seis servicios internos en `services/api-gateway/internal/grpcclient/clients.go`, direccionados por hostname vía env (Principio X regla 3)
-- [ ] T059 Implementar el mapeo REST↔gRPC y los DTO del borde en `services/api-gateway/internal/handler/{mapping.go,types.go}`, serializando TODO monto/tasa como `string` decimal canónica y nunca como número JSON (Principio VIII + Principio IX regla 3)
+- [X] T055 Implementar el router `chi` y el registro de las 18 rutas de `contracts/openapi/gateway.yaml` en `services/api-gateway/internal/handler/routes.go` (solo enrutamiento)
+- [X] T056 Implementar los middlewares en `services/api-gateway/internal/handler/middleware.go`: validación de firma JWT, consulta de blacklist en Redis, y middlewares de autorización por rol (`usuario_final`, `editor`, `coordinador_editorial`) — Principio VII
+- [X] T057 Implementar el rate limiting distribuido sobre Redis en `services/api-gateway/internal/ratelimit/ratelimit.go` (Principio IV, único otro uso permitido de Redis)
+- [X] T058 Implementar los clientes gRPC hacia los seis servicios internos en `services/api-gateway/internal/grpcclient/clients.go`, direccionados por hostname vía env (Principio X regla 3)
+- [X] T059 Implementar el mapeo REST↔gRPC y los DTO del borde en `services/api-gateway/internal/handler/{mapping.go,types.go}`, serializando TODO monto/tasa como `string` decimal canónica y nunca como número JSON (Principio VIII + Principio IX regla 3)
+
+**Notas de T055–T059** (borde REST completo; `go build` + `gofmt` + `golangci-lint` sin
+incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, `ratelimit`,
+`handler`— en verde):
+
+- **Las «18 rutas» de T055 resueltas, no inventadas.** `paths:` declaraba 16 rutas y 17
+  operaciones; las dos que faltaban son `/oauth/authorize` y `/oauth/token`, que el
+  esquema ponía en el host `auth.fintcart.co`, FUERA de `paths:`. Ese host no puede
+  existir: el Principio II reserva toda la superficie REST al Gateway y Auth solo habla
+  gRPC. Sin esos dos endpoints la SPA no obtiene token y la plataforma no tiene login.
+  Se incorporan al borde y `contracts/openapi/gateway.yaml` se actualiza en
+  consecuencia. Total: **18 rutas, 19 operaciones**.
+- **Desviación consciente de RFC 6749 §3.1, y conviene tenerla escrita.** El endpoint de
+  autorización es JSON y no una redirección de navegador, porque bajo estas restricciones
+  no existe ningún componente capaz de servir la página de login. Consecuencia real: la
+  SPA recoge la contraseña, que es justo lo que Authorization Code evita cuando el
+  cliente es de terceros. Aquí es de primera parte. PKCE sigue aportando —liga el código
+  a la instancia que lo pidió— pero no sustituye a la separación de credenciales.
+- **DEFECTO REAL CORREGIDO: el límite por usuario era código inalcanzable.** El
+  `RateLimit` del esqueleto (T028) leía los claims del contexto para construir la clave,
+  pero se montaba como middleware GLOBAL, es decir, ANTES de `Authenticate`: `ClaimsFrom`
+  nunca devolvía nada y la clave era siempre la IP. El comentario afirmaba lo contrario.
+  Corregido partiéndolo en `RateLimitByIP` (global, protege lo que ocurre antes de tener
+  token) y `RateLimitByUser` (dentro del grupo autenticado). Hacen falta LOS DOS: solo IP
+  hace que una oficina entera comparta cuota; solo usuario deja `/oauth/token` sin
+  protección. `TestRateLimitAppliesPerUserOnceAuthenticated` fija el orden.
+- **El rate limiting es un script Lua y no `INCR` + `EXPIRE`.** Si el proceso muere entre
+  los dos comandos, la clave queda sin TTL, el contador no vuelve nunca a cero y el
+  cliente afectado queda bloqueado para siempre — un fallo transitorio convertido en
+  expulsión permanente. El TTL se pone solo en el primer incremento: renovarlo en cada
+  petición haría que quien no dejara de martillear mantuviera vivo su propio contador.
+- **Fail CLOSED** tanto en el limitador como en la consulta de blacklist. Tratar un fallo
+  de Redis como «adelante» convertiría una caída en la reactivación simultánea de todas
+  las sesiones revocadas, incluidas las de cuentas anonimizadas.
+- **Defensas contra confusión de algoritmo en el verificador** (`WithValidMethods`,
+  `WithIssuer`, `WithAudience`, `WithExpirationRequired`), con prueba para `alg: none` y
+  para la degradación RS256→HS256 firmando con la clave pública como secreto HMAC. Se
+  rechazan además `sub` y `jti` vacíos: el primero llegaría al dominio como «el usuario
+  cuyo id es la cadena vacía»; el segundo haría la sesión IMPOSIBLE de revocar (FR-004).
+- **El actor sale SIEMPRE del token**, nunca del cuerpo ni de la URL, en las tres rutas
+  editoriales, en el envío de cuestionario, en la bandeja y en la simulación. Es la pieza
+  sin la cual el invariante `approved_by ≠ created_by` de Aprendizaje no comprueba nada.
+- **Principio VIII probado sobre el JSON en bruto**, no sobre un struct decodificado:
+  `"score":"85.55"` con comillas, `"1500000.00"` conservando los ceros a la derecha. Una
+  aserción sobre un struct pasaría con el error dentro si el campo fuera numérico.
+- **`unsupported_grant_type` para `client_credentials` (hueco de contrato).**
+  `server.ClientCredentialsToken` existe desde T052 pero NO está expuesto en
+  `contracts/proto/fintcart/auth/v1/auth.proto`, así que el Gateway no tiene por dónde
+  invocarlo. No hay tokens M2M por el borde hasta que se añada el RPC.
+- **`users.v1.UpdateProfileRequest` no tiene máscara de campos.** El DTO del borde usa
+  punteros para distinguir «ausente» de «vacío», pero lo único transmisible por gRPC es
+  el vacío. Queda establecida la convención «campo vacío ⇒ no cambiar», que el Servicio
+  de Usuarios debe respetar al implementarse (US1).
+- **`InAppNotification` extiende el contrato con `payload`**, reemitido como JSON anidado
+  y omitido si viene corrupto. Una bandeja que muestra el tipo pero no el contenido no
+  cumple FR-023; queda anotado para la revisión del OpenAPI.
+- **Alcance adelantado**: los handlers de simulación (T130) y de baja de cuenta (T164)
+  quedan implementados aquí porque su superficie gRPC ya existe y dejarlos en 501 habría
+  obligado a un segundo paso por los mismos archivos. Su lógica de servicio sigue
+  pendiente en las tareas originales.
+- **Añadidos al Gateway**: tope de 1 MiB por cuerpo (`http.MaxBytesReader`), rechazo de
+  un segundo valor JSON en el mismo cuerpo, `Cache-Control: no-store` en todo lo que
+  transporte tokens (RFC 6749 §5.1), plazo de 20 s por llamada gRPC saliente y balanceo
+  `round_robin` — sin esto último, `pick_first` mandaría el 100 % del tráfico a una sola
+  réplica y el autoescalado de D-12/SC-012 no serviría de nada.
+- Dependencia nueva: `miniredis/v2` en el módulo del Gateway (solo pruebas), para
+  ejercitar el script Lua de verdad en lugar de afirmar sobre los argumentos de `Eval`.
+- **Sigue pendiente el par asimétrico** (HS256 → RS256). El verificador ya acepta los dos
+  y `NewJWTVerifier` interpreta el PEM al arrancar; falta generar el par y cambiar
+  `dev/docker-compose.yaml`.
 
 ### Saga, auditoría, notificaciones y observabilidad
 

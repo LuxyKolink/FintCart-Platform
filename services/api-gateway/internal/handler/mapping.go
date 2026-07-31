@@ -13,33 +13,213 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	commonv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/common/v1"
+	learningv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/learning/v1"
+	orchestratorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/orchestrator/v1"
+	simulatorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/simulator/v1"
 	usersv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/users/v1"
 )
 
 // ── proto → DTO ─────────────────────────────────────────────────────────────
+//
+// Obsérvese que en NINGUNA de estas funciones aparece un `strconv.ParseFloat`, un
+// `decimal.NewFromString` ni un reformateo. `score`, `inputs` y `result` se copian
+// tal cual llegan. Es la regla 1 del encabezado y es lo único que garantiza que el
+// valor que ve el usuario sea byte a byte el que quedó auditado.
 
 func progressToDTO(p *usersv1.ProgressView) Progress {
 	return Progress{UserID: p.GetUserId(), Points: p.GetPoints()}
 }
 
-// Los convertidores de perfil, artículo, calificación, simulación y bandeja llegan con
-// T055/T059, junto con los handlers que los llaman. No se declaran por adelantado a
-// propósito: una función sin llamadas es código muerto que el lint marca, y un
-// convertidor a medio escribir es peor que no tenerlo porque parece disponible.
+func profileToDTO(p *usersv1.Profile) Profile {
+	return Profile{
+		UserID:        p.GetUserId(),
+		Email:         p.GetEmail(),
+		DisplayName:   p.GetDisplayName(),
+		EmailVerified: p.GetEmailVerified(),
+		AccountStatus: p.GetAccountStatus(),
+		Preferences:   p.GetPreferences(),
+		Roles:         p.GetRoles(),
+	}
+}
+
+func articleToDTO(a *learningv1.Article) Article {
+	return Article{
+		ArticleID:        a.GetArticleId(),
+		Title:            a.GetTitle(),
+		Category:         a.GetCategory(),
+		Body:             a.GetBody(),
+		CurrentVersionNo: a.GetCurrentVersionNo(),
+	}
+}
+
+func versionToDTO(v *learningv1.ArticleVersion) ArticleVersion {
+	return ArticleVersion{
+		VersionID:  v.GetVersionId(),
+		ArticleID:  v.GetArticleId(),
+		VersionNo:  v.GetVersionNo(),
+		State:      v.GetState(),
+		CreatedBy:  v.GetCreatedBy(),
+		ApprovedBy: v.GetApprovedBy(),
+	}
+}
+
+// quizGradeToDTO copia `score` SIN tocarlo (Principio VIII).
+func quizGradeToDTO(g *orchestratorv1.QuizGradingResult) QuizGradeResult {
+	return QuizGradeResult{
+		AttemptID:   g.GetAttemptId(),
+		AttemptNo:   g.GetAttemptNo(),
+		Score:       g.GetScore(),
+		Passed:      g.GetPassed(),
+		PointsAfter: g.GetPointsAfter(),
+	}
+}
+
+func simulationToDTO(s *orchestratorv1.SimulationResult) SimulationResult {
+	return SimulationResult{
+		SimulationID: s.GetSimulationId(),
+		Result:       s.GetResult(),
+	}
+}
+
+func historyEntryToDTO(e *simulatorv1.ListHistoryResponse_Entry) SimulationHistoryEntry {
+	return SimulationHistoryEntry{
+		SimulationID: e.GetSimulationId(),
+		CalcType:     calcTypePathName(e.GetCalcType()),
+		Currency:     e.GetCurrency(),
+		Inputs:       e.GetInputs(),
+		Result:       e.GetResult(),
+		CreatedAt:    e.GetCreatedAt(),
+	}
+}
+
+// inAppToDTO convierte un elemento de la bandeja (FR-023).
 //
-// Cuando lleguen, la regla que deben respetar es la del encabezado de este archivo y
-// está ya codificada en los DTO de `types.go`: `QuizGradeResult.Score` y los mapas de
-// `SimulationResult.Result` son `string`, igual que en el contrato gRPC y en
-// `components.schemas.DecimalString` del OpenAPI. Los tres niveles coinciden a
-// propósito — en cuanto uno fuera numérico, el valor pasaría por un `float64` en el
-// único punto del sistema que el usuario ve.
+// `payload_json` se reemite como JSON anidado y no como una cadena con JSON dentro:
+// obligar al cliente a un segundo `JSON.parse` es una fuente conocida de errores. Se
+// valida antes de incrustarlo — un payload corrupto haría inválida TODA la respuesta,
+// convirtiendo un dato malo en una página en blanco, así que en ese caso se omite.
+//
+// El campo extiende `components.schemas.InAppNotification` del OpenAPI, que solo
+// declara id/type/read_state/created_at. Se añade porque una bandeja que muestra el
+// tipo pero no el contenido no cumple FR-023; queda anotado para la revisión del
+// contrato.
+func inAppToDTO(item *usersv1.ListInAppResponse_Item) InAppNotification {
+	dto := InAppNotification{
+		ID:        item.GetId(),
+		Type:      item.GetType(),
+		ReadState: item.GetReadState(),
+		CreatedAt: item.GetCreatedAt(),
+	}
+	if raw := item.GetPayloadJson(); raw != "" && json.Valid([]byte(raw)) {
+		dto.Payload = json.RawMessage(raw)
+	}
+	return dto
+}
+
+func opToDTO(op *commonv1.OpResult) OpAck {
+	return OpAck{Success: op.GetSuccess(), Code: op.GetCode(), Message: op.GetMessage()}
+}
+
+// ── traducción del enum de cálculo ──────────────────────────────────────────
+
+// calcTypeByPath traduce el segmento `{calcType}` de la URL al enum del contrato.
+//
+// La tabla es explícita en lugar de derivarse del nombre del enum. Derivarla
+// —quitar el prefijo `CALC_TYPE_` y pasar a minúsculas— acoplaría la URL PÚBLICA al
+// nombre interno del símbolo: renombrar un valor del enum cambiaría en silencio una
+// ruta que ya está en producción.
+var calcTypeByPath = map[string]simulatorv1.CalcType{
+	"ahorro":              simulatorv1.CalcType_CALC_TYPE_AHORRO,
+	"credito":             simulatorv1.CalcType_CALC_TYPE_CREDITO,
+	"presupuesto":         simulatorv1.CalcType_CALC_TYPE_PRESUPUESTO,
+	"inversion":           simulatorv1.CalcType_CALC_TYPE_INVERSION,
+	"colombia_especifica": simulatorv1.CalcType_CALC_TYPE_COLOMBIA_ESPECIFICA,
+}
+
+// calcTypeFromPath resuelve el tipo de cálculo o falla con 400.
+//
+// Un valor desconocido DEBE ser un error del borde. Si se dejara pasar como el valor
+// cero del enum, el Simulador recibiría `CALC_TYPE_UNSPECIFIED` y, en el mejor de los
+// casos, devolvería un error confuso; en el peor, alguna implementación futura lo
+// interpretaría como «el primero de la lista» y el usuario obtendría el resultado de
+// una calculadora que no pidió.
+func calcTypeFromPath(segment string) (simulatorv1.CalcType, error) {
+	calcType, ok := calcTypeByPath[segment]
+	if !ok {
+		return simulatorv1.CalcType_CALC_TYPE_UNSPECIFIED,
+			fmt.Errorf("%w: tipo de cálculo desconocido: %q", errBadRequest, segment)
+	}
+	return calcType, nil
+}
+
+// calcTypePathName es la inversa, para las respuestas del historial.
+func calcTypePathName(calcType simulatorv1.CalcType) string {
+	for name, value := range calcTypeByPath {
+		if value == calcType {
+			return name
+		}
+	}
+	return ""
+}
+
+// ── paginación ──────────────────────────────────────────────────────────────
+
+// defaultPageSize y maxPageSize acotan los listados.
+//
+// El tope existe para que el tamaño de página no sea un vector de amplificación: sin
+// él, `?page_size=1000000` haría que una petición barata para el cliente costara una
+// consulta enorme al servicio interno.
+const (
+	defaultPageSize int32 = 20
+	maxPageSize     int32 = 100
+)
+
+// pageRequestFrom traduce `?page_size=&page_token=` al `PageRequest` del contrato.
+//
+// Un `page_size` ilegible o fuera de rango se AJUSTA en silencio en lugar de dar 400:
+// la paginación es un detalle de presentación y rechazar la petición entera por un
+// parámetro cosmético empeora la experiencia sin proteger nada. La contrapartida —que
+// el cliente reciba una página de tamaño distinto al pedido— es visible en la propia
+// respuesta.
+func pageRequestFrom(r *http.Request) *commonv1.PageRequest {
+	size := defaultPageSize
+	if raw := r.URL.Query().Get("page_size"); raw != "" {
+		if parsed, err := strconv.ParseInt(raw, 10, 32); err == nil && parsed > 0 {
+			size = min(int32(parsed), maxPageSize)
+		}
+	}
+	return &commonv1.PageRequest{
+		PageSize:  size,
+		PageToken: r.URL.Query().Get("page_token"),
+	}
+}
+
+// pageOf arma la envoltura paginada de una respuesta.
+//
+// `items` se normaliza a un slice vacío y nunca se deja en `nil`: `json.Marshal` de un
+// slice nil produce `null`, y un cliente que haga `data.items.map(...)` sobre `null`
+// falla. Una lista vacía es `[]`.
+func pageOf[T any](items []T, page *commonv1.PageResponse) Page[T] {
+	if items == nil {
+		items = []T{}
+	}
+	return Page[T]{
+		Items:         items,
+		NextPageToken: page.GetNextPageToken(),
+		TotalSize:     page.GetTotalSize(),
+	}
+}
 
 // ── error → respuesta HTTP ──────────────────────────────────────────────────
 
@@ -57,9 +237,6 @@ func (h *Handler) writeGRPCError(w http.ResponseWriter, r *http.Request, err err
 		return
 	case errors.Is(err, errUnauthorized):
 		writeError(w, http.StatusUnauthorized, "unauthenticated", "no autenticado")
-		return
-	case errors.Is(err, errNotImplemented):
-		writeError(w, http.StatusNotImplemented, "not_implemented", "ruta no implementada todavía")
 		return
 	}
 

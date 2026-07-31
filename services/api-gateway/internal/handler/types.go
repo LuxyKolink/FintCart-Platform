@@ -49,6 +49,65 @@ type VerifyEmailRequest struct {
 	VerificationToken string `json:"verification_token"`
 }
 
+// ── DTO de OAuth2 (Principio VII) ───────────────────────────────────────────
+
+// AuthorizeRequest ≡ `POST /oauth/authorize`.
+//
+// El endpoint de autorización es JSON y no una redirección de navegador. La desviación
+// respecto de RFC 6749 §3.1 es forzada por la arquitectura y conviene tenerla escrita:
+// el Principio II reserva TODA la superficie REST al Gateway, el Servidor de
+// Autenticación solo habla gRPC, y por tanto no existe ningún componente que pueda
+// servir la página de login del flujo estándar. La SPA es cliente de primera parte y
+// recoge las credenciales ella misma.
+//
+// Consecuencia que hay que asumir: la contraseña pasa por el cliente, que es
+// justamente lo que Authorization Code evita cuando el cliente es de terceros. PKCE
+// sigue aportando —liga el código a la instancia concreta que lo pidió, de modo que
+// interceptarlo no basta para canjearlo—, pero no sustituye a la separación de
+// credenciales. Ver la nota de T055 en `tasks.md`.
+type AuthorizeRequest struct {
+	Email               string   `json:"email"`
+	Password            string   `json:"password"`
+	ClientID            string   `json:"client_id"`
+	RedirectURI         string   `json:"redirect_uri"`
+	CodeChallenge       string   `json:"code_challenge"`
+	CodeChallengeMethod string   `json:"code_challenge_method"`
+	Scopes              []string `json:"scopes"`
+}
+
+// AuthorizeResponse devuelve el authorization_code de un solo uso.
+type AuthorizeResponse struct {
+	Code        string `json:"code"`
+	RedirectURI string `json:"redirect_uri"`
+}
+
+// TokenRequest ≡ `POST /oauth/token`, con los dos grants que el borde admite.
+//
+// Un único struct para los dos grants —y no dos endpoints— porque así lo define
+// RFC 6749 §4.1.3 y §6: `grant_type` discrimina, y los campos que no aplican se
+// ignoran. Cuál es obligatorio en cada caso lo comprueba el handler.
+type TokenRequest struct {
+	GrantType    string `json:"grant_type"`
+	Code         string `json:"code,omitempty"`
+	CodeVerifier string `json:"code_verifier,omitempty"`
+	ClientID     string `json:"client_id,omitempty"`
+	RedirectURI  string `json:"redirect_uri,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+}
+
+// TokenResponse ≡ la respuesta de `POST /oauth/token` (RFC 6749 §5.1).
+//
+// `ExpiresIn` es el ÚNICO número de todo el borde que se serializa como número JSON, y
+// se puede porque son segundos enteros y no una cantidad de dinero: el Principio VIII
+// habla de montos, tasas y calificaciones. Los nombres de campo son los del RFC y no los
+// del proto para que cualquier librería OAuth2 estándar los entienda sin adaptador.
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int32  `json:"expires_in"`
+}
+
 // SagaAccepted es la respuesta de un flujo asíncrono: el handle con el que consultar
 // el estado.
 type SagaAccepted struct {
@@ -79,6 +138,47 @@ type QuizGradeResult struct {
 	PointsAfter int32  `json:"points_after"`
 }
 
+// ── DTO editoriales ─────────────────────────────────────────────────────────
+
+// CreateDraftRequest ≡ `POST /editorial/articles` (FR-007).
+//
+// No lleva `editor_id`: el autor sale del token verificado. Si viniera en el cuerpo,
+// cualquier editor podría crear un borrador a nombre de otro y `created_by` dejaría de
+// ser confiable — y con él, el invariante `approved_by ≠ created_by` de FR-008.
+type CreateDraftRequest struct {
+	Title    string `json:"title"`
+	Category string `json:"category"`
+	Body     string `json:"body"`
+}
+
+// ArticleVersion ≡ la respuesta de creación de borrador.
+type ArticleVersion struct {
+	VersionID  string `json:"version_id"`
+	ArticleID  string `json:"article_id"`
+	VersionNo  int32  `json:"version_no"`
+	State      string `json:"state"`
+	CreatedBy  string `json:"created_by"`
+	ApprovedBy string `json:"approved_by,omitempty"`
+}
+
+// OpAck es el acuse de una operación de comando sin recurso que devolver.
+type OpAck struct {
+	Success bool   `json:"success"`
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// ── DTO de aprendizaje (envío de cuestionario) ──────────────────────────────
+
+// SubmitAttemptRequest ≡ `POST /quizzes/{quizId}/attempts`.
+//
+// `Answers` es `map[string]string` (pregunta → opción elegida) tal como lo declara el
+// contrato gRPC. El Gateway no las interpreta: qué opción es correcta y cuánto pesa
+// cada pregunta es dominio de Aprendizaje.
+type SubmitAttemptRequest struct {
+	Answers map[string]string `json:"answers"`
+}
+
 // ── DTO de simuladores ──────────────────────────────────────────────────────
 
 // SimulationRequest ≡ `POST /simulators/{calcType}/run`.
@@ -97,6 +197,21 @@ type SimulationResult struct {
 	Result       map[string]string `json:"result"`
 }
 
+// SimulationHistoryEntry ≡ un elemento de `GET /simulators/history` (FR-022).
+//
+// `CalcType` sale como el nombre en minúsculas de la ruta (`ahorro`, `credito`, …) y no
+// como el entero del enum: el número es un detalle del transporte gRPC, y publicarlo
+// obligaría al cliente a mantener su propia tabla de equivalencias que se desincroniza
+// en cuanto el enum crezca.
+type SimulationHistoryEntry struct {
+	SimulationID string            `json:"simulation_id"`
+	CalcType     string            `json:"calc_type"`
+	Currency     string            `json:"currency"`
+	Inputs       map[string]string `json:"inputs"`
+	Result       map[string]string `json:"result"`
+	CreatedAt    string            `json:"created_at"`
+}
+
 // ── DTO de perfil ───────────────────────────────────────────────────────────
 
 // Profile ≡ `GET /me/profile`.
@@ -111,9 +226,21 @@ type Profile struct {
 }
 
 // UpdateProfileRequest ≡ `PATCH /me/profile`.
+//
+// Los campos son PUNTEROS porque un PATCH tiene tres estados por campo y no dos:
+// ausente («no lo toques»), presente con valor y presente vacío. Con `string` a secas,
+// los dos primeros son indistinguibles —ambos llegan como `""`— y actualizar solo las
+// preferencias borraría el nombre para mostrar.
+//
+// LIMITACIÓN DEL CONTRATO, y hay que conocerla: `users.v1.UpdateProfileRequest` no
+// tiene máscara de campos, así que lo único que el Gateway puede transmitir es «vacío».
+// La convención que queda establecida —y que el Servicio de Usuarios debe respetar al
+// implementarse (US1)— es «campo vacío ⇒ no cambiar». El efecto práctico es que el
+// nombre para mostrar no se puede vaciar por esta ruta, lo cual es correcto: es
+// obligatorio.
 type UpdateProfileRequest struct {
-	DisplayName string            `json:"display_name"`
-	Preferences map[string]string `json:"preferences"`
+	DisplayName *string            `json:"display_name,omitempty"`
+	Preferences *map[string]string `json:"preferences,omitempty"`
 }
 
 // Progress ≡ `components.schemas.Progress`.
@@ -122,12 +249,16 @@ type Progress struct {
 	Points int32  `json:"points"`
 }
 
-// InAppNotification ≡ `components.schemas.InAppNotification`.
+// InAppNotification ≡ `components.schemas.InAppNotification` más `payload`.
+//
+// Ver `inAppToDTO` en `mapping.go` para por qué se añade el payload y por qué se
+// reemite como JSON anidado en lugar de como cadena.
 type InAppNotification struct {
-	ID        string `json:"id"`
-	Type      string `json:"type"`
-	ReadState string `json:"read_state"`
-	CreatedAt string `json:"created_at"`
+	ID        string          `json:"id"`
+	Type      string          `json:"type"`
+	ReadState string          `json:"read_state"`
+	CreatedAt string          `json:"created_at"`
+	Payload   json.RawMessage `json:"payload,omitempty"`
 }
 
 // Page envuelve un listado paginado con su token de continuación.
@@ -164,11 +295,39 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 // el servidor ignora en silencio es un fallo que se descubre en producción («guardé mis
 // preferencias y no se guardaron»). Rechazarlo lo convierte en un 400 inmediato y
 // legible.
-func decodeJSON(r *http.Request, dst any) error {
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	// Tope de tamaño ANTES de decodificar. Sin él, `json.Decoder` leería en memoria
+	// todo lo que el cliente quisiera enviar: un cuerpo de un gigabyte contra una ruta
+	// pública sin autenticar tumba la réplica sin necesidad de credenciales.
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
 		return fmt.Errorf("%w: cuerpo JSON ilegible: %w", errBadRequest, err)
 	}
+
+	// Un segundo valor JSON en el mismo cuerpo se rechaza. `{"a":1}{"b":2}` decodifica
+	// el primero y descarta el resto en silencio, que es una forma sutil de que el
+	// cliente crea haber enviado algo que el servidor nunca vio.
+	if dec.More() {
+		return fmt.Errorf("%w: el cuerpo contiene más de un valor JSON", errBadRequest)
+	}
 	return nil
+}
+
+// maxRequestBodyBytes acota el cuerpo de cualquier petición del borde.
+//
+// 1 MiB es holgado para el mayor cuerpo real del contrato —un borrador de artículo— y
+// suficientemente pequeño para que no sirva de vector de agotamiento.
+const maxRequestBodyBytes int64 = 1 << 20
+
+// noStore prohíbe cachear la respuesta (RFC 6749 §5.1).
+//
+// Obligatorio en las respuestas de token: sin él, un proxy intermedio o el propio
+// navegador pueden guardar en disco un `access_token` y servirlo después a otra
+// petición o a otro usuario del mismo equipo.
+func noStore(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 }
