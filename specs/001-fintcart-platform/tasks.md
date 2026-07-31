@@ -213,13 +213,65 @@ notificaciones.
 
 ### Entrypoints y configuración (Principio X)
 
-- [ ] T032 [P] Implementar el entrypoint delgado del Servicio de Usuarios en `services/users/cmd/users/main.go`: leer env (`DB_ADDR`, `AMQP_ADDR`, `GRPC_PORT`, `LEARNING_SVC_ADDR`, `SIMULATOR_SVC_ADDR`), abrir conexiones, ensamblar `storer → server → handler`, servir gRPC y apagado ordenado — sin lógica de negocio
-- [ ] T033 [P] Implementar el entrypoint del Servidor de Autenticación en `services/auth-server/cmd/auth/main.go` (env: `DB_ADDR`, `REDIS_ADDR`, `AMQP_ADDR`, `JWT_SIGNING_KEY`, `USERS_SVC_ADDR`)
-- [ ] T034 [P] Implementar el entrypoint del Orquestador en `services/orchestrator/cmd/orchestrator/main.go` (env: `DB_ADDR`, `AMQP_ADDR`, direcciones gRPC de los servicios participantes)
-- [ ] T035 [P] Implementar el entrypoint del API Gateway en `services/api-gateway/cmd/gateway/main.go` (env: `REDIS_ADDR`, `*_SVC_ADDR` por servicio, `JWT_PUBLIC_KEY`, `HTTP_PORT`)
-- [ ] T036 [P] Implementar el entrypoint del Servicio de Auditoría en `services/audit/cmd/audit/main.go` (env: `DB_ADDR`, `AMQP_ADDR`)
-- [ ] T037 [P] Implementar los entrypoints de `services/simulator/src/main.rs`, `services/learning/src/main.ts` y `services/notification/src/main.ts` siguiendo la misma regla de wiring-only
-- [ ] T038 [P] Crear `Dockerfile` (producción, multi-stage) y `Dockerfile.dev` (desarrollo) para los 8 servicios y el frontend en `services/*/` y `frontend/`
+- [X] T032 [P] Implementar el entrypoint delgado del Servicio de Usuarios en `services/users/cmd/users/main.go`: leer env (`DB_ADDR`, `AMQP_ADDR`, `GRPC_PORT`, `LEARNING_SVC_ADDR`, `SIMULATOR_SVC_ADDR`), abrir conexiones, ensamblar `storer → server → handler`, servir gRPC y apagado ordenado — sin lógica de negocio
+- [X] T033 [P] Implementar el entrypoint del Servidor de Autenticación en `services/auth-server/cmd/auth/main.go` (env: `DB_ADDR`, `REDIS_ADDR`, `AMQP_ADDR`, `JWT_SIGNING_KEY`, `USERS_SVC_ADDR`)
+- [X] T034 [P] Implementar el entrypoint del Orquestador en `services/orchestrator/cmd/orchestrator/main.go` (env: `DB_ADDR`, `AMQP_ADDR`, direcciones gRPC de los servicios participantes)
+- [X] T035 [P] Implementar el entrypoint del API Gateway en `services/api-gateway/cmd/gateway/main.go` (env: `REDIS_ADDR`, `*_SVC_ADDR` por servicio, `JWT_PUBLIC_KEY`, `HTTP_PORT`)
+- [X] T036 [P] Implementar el entrypoint del Servicio de Auditoría en `services/audit/cmd/audit/main.go` (env: `DB_ADDR`, `AMQP_ADDR`)
+- [X] T037 [P] Implementar los entrypoints de `services/simulator/src/main.rs`, `services/learning/src/main.ts` y `services/notification/src/main.ts` siguiendo la misma regla de wiring-only
+- [X] T038 [P] Crear `Dockerfile` (producción, multi-stage) y `Dockerfile.dev` (desarrollo) para los 8 servicios y el frontend en `services/*/` y `frontend/`
+
+**Notas de T032–T038**:
+
+- **Verificado en ejecución** para todo lo compilable: `go build` + `gofmt -l` +
+  `golangci-lint run` con **0 issues en los 5 módulos Go**; `cargo build` + `cargo fmt
+  --check` + `cargo clippy --all-targets -D warnings` limpios; `tsc --noEmit` y
+  `eslint --max-warnings 0` limpios en Aprendizaje y Notificación.
+- **T038 NO se ha verificado construyendo las imágenes**: el demonio de Docker no está
+  levantado en esta máquina (`docker version` falla al conectar con
+  `dockerDesktopLinuxEngine`). Los 18 ficheros están escritos y son coherentes con las
+  rutas y el `context: ..` de `dev/docker-compose.yaml`, pero **`dev/build` sigue sin
+  ejecutarse ni una vez**. Es lo primero que hay que hacer cuando haya Docker.
+- Todos los entrypoints comparten la misma forma: `run() error` con el apagado ordenado
+  en `defer`, y `main()` reducido a reportar y `os.Exit(1)`. `os.Exit` SALTA los `defer`,
+  así que meter la lógica en `main` cerraría el proceso con las conexiones abiertas.
+- **Las variables ausentes se reportan TODAS juntas**, no la primera. Con ocho
+  servicios, fallar de una en una convierte un despliegue mal configurado en una tarde
+  de reinicios. La lista se ordena porque el recorrido de un mapa en Go es aleatorio y
+  dos arranques iguales darían mensajes distintos.
+- **Constantes frente a entorno**: es configurable lo que CAMBIA entre entornos
+  (direcciones, credenciales, nivel de log). Plazos de apagado, tamaño de pool o
+  intervalo del outbox son decisiones de diseño y quedan como constantes; exponerlas
+  multiplicaría la superficie de configuración sin que nadie las tocara.
+- Piezas nuevas que el wiring exigía y que **son esqueletos**, con el cuerpo en su tarea:
+  `auth-server/internal/util/password.go` (Argon2id, T047),
+  `auth-server/internal/token/{jwt_maker.go,claims.go}` (T048),
+  `api-gateway/internal/authn/authn.go` (verificador JWT + blacklist Redis, T056) y
+  `simulator/src/grpc/{mod.rs,service.rs}` (T130–T133, T163). Se implementó de verdad
+  `orchestrator/internal/events/publisher.go`, porque `DeliveryMode: Persistent` es
+  justo la línea que sostiene la garantía del outbox (D-07) y no debía quedar en stub.
+- **`events.Declare` sigue devolviendo `ErrNotImplemented` (T062)** y el Orquestador lo
+  llama al arrancar, así que **hoy no arranca**. Es deliberado: declarar la topología en
+  un solo sitio, antes de servir, elimina la carrera de publicar en una cola que aún no
+  existe; degradarlo a un aviso escondería que la topología no está. Consecuencia
+  conocida: Auditoría y Notificación tampoco encontrarán su cola hasta T062.
+- **`JWT_PUBLIC_KEY` frente a `JWT_SIGNING_KEY`**: T035 nombra la primera y
+  `dev/docker-compose.yaml` pasa la segunda al Gateway. El Gateway acepta las dos, y el
+  ALGORITMO lo decide cuál está presente (`JWT_PUBLIC_KEY` → RS256,
+  `JWT_SIGNING_KEY` → HS256), nunca el `alg` del token — aceptarlo del token es el
+  ataque clásico de degradar a `none` o de usar la clave pública como secreto HMAC. La
+  salvedad de fondo queda anotada en `authn.JWTVerifier`: con HS256, quien verifica
+  puede FIRMAR, así que el Gateway —el componente expuesto— podría emitir tokens de
+  administrador. Migrar a un par asimétrico es T048/T056 y toca también el compose.
+- `services/learning` necesitaba `nest-cli.json` (ausente) para que `npm run build`
+  funcionara, y `app.module.ts` para tener un grafo que arrancar. El transporte gRPC de
+  NestJS carga los `.proto` en EJECUCIÓN, así que la imagen copia `contracts/proto` y
+  fija `PROTO_DIR`; los stubs generados no bastan.
+- El Frontend no puede leer variables de entorno una vez compilado. En lugar de hornear
+  `API_BASE_URL` en el build —que daría una imagen distinta por entorno, y entonces lo
+  desplegado no sería lo probado—, `frontend/Dockerfile` escribe `config.js` al arrancar
+  el contenedor. `angular.json` todavía no existe, así que la ruta de salida
+  (`dist/*/browser` en Angular 17+) se resuelve en el build en vez de codificarse.
 
 ### Migraciones base (Principio XI)
 

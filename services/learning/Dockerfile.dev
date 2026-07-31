@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1.7
+# Imagen de DESARROLLO del Servicio de Aprendizaje (NestJS).
+#
+# Se diferencia de `Dockerfile` en tres cosas, todas deliberadas:
+#
+#   1. Instala TAMBIÉN las dependencias de desarrollo, para poder ejecutar
+#      `npm test`, `npm run lint` o el CLI de Nest con `docker compose exec`.
+#   2. No hay multi-stage: el árbol de fuentes se queda en la imagen.
+#   3. Se ejecuta como root, porque en desarrollo se escriben ficheros dentro del
+#      contenedor y pelearse con permisos no aporta nada aquí.
+#
+# NUNCA usar esta imagen fuera de desarrollo.
+
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-alpine
+WORKDIR /app
+
+ENV NODE_ENV=development
+ENV PROTO_DIR=/app/contracts/proto
+
+COPY services/learning/package.json services/learning/package-lock.json ./
+RUN npm ci
+
+COPY services/learning/ ./
+COPY contracts/proto ./contracts/proto
+
+RUN npm run build
+
+EXPOSE 9090
+
+ENTRYPOINT ["node", "dist/main.js"]

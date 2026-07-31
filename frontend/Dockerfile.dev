@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1.7
+# Imagen de DESARROLLO del Frontend (SPA Angular).
+#
+# Se diferencia de `Dockerfile` en lo esencial: aquí NO se compila a estáticos ni hay
+# nginx. Se ejecuta el servidor de desarrollo de Angular, que recompila al vuelo y
+# recarga el navegador. Sin él, cada cambio de una plantilla costaría un `dev/build`
+# completo.
+#
+# NUNCA usar esta imagen fuera de desarrollo: sirve código sin optimizar, con mapas de
+# fuentes, y expone el servidor de desarrollo de Angular.
+
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-alpine
+WORKDIR /app
+
+ENV NODE_ENV=development
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+
+EXPOSE 4200
+
+# `--host 0.0.0.0` lo fija el script `start` de `package.json`. Es imprescindible:
+# el servidor de Angular escucha por defecto en `localhost`, y dentro de un contenedor
+# eso lo hace inalcanzable desde el host — el síntoma es «conexión rechazada» en
+# `http://localhost:4200` con el proceso perfectamente arrancado.
+ENTRYPOINT ["npm", "run", "start"]

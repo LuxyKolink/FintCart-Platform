@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.7
+# Imagen de DESARROLLO del Servicio de Auditoría: consumidor puro de RabbitMQ, sin puerto expuesto (Principio V).
+#
+# Se diferencia de `Dockerfile` en tres cosas, y las tres son deliberadas:
+#
+#   1. La imagen final CONSERVA el toolchain de Go. En desarrollo hace falta poder
+#      entrar con `docker compose exec` y ejecutar `go test` o `dlv` sobre el mismo
+#      árbol que se está ejecutando.
+#   2. El binario NO se despoja de símbolos (`-s -w`), para que un panic dé una traza
+#      con nombres de función y un depurador pueda engancharse.
+#   3. Se ejecuta como root, porque en desarrollo se escriben ficheros dentro del
+#      contenedor (perfiles, volcados) y pelearse con permisos no aporta nada aquí.
+#
+# NUNCA usar esta imagen fuera de desarrollo: sin el multi-stage lleva compilador,
+# shell y todo el árbol de fuentes.
+
+ARG GO_VERSION=1.25
+
+FROM golang:${GO_VERSION}-alpine
+WORKDIR /src
+
+# `git` lo necesita `go mod download` para dependencias servidas por VCS.
+RUN apk add --no-cache git
+
+COPY services/audit/go.mod services/audit/go.sum ./
+RUN go mod download
+
+COPY services/audit/ ./
+
+RUN go build -o /usr/local/bin/audit ./cmd/audit
+
+# Sin EXPOSE: no escucha en ningún puerto. Consume de RabbitMQ y escribe en
+# PostgreSQL, las dos conexiones SALIENTES.
+
+ENTRYPOINT ["/usr/local/bin/audit"]

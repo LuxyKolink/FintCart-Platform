@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+# Imagen de DESARROLLO del Servicio de Notificación (Node, ESM).
+#
+# Se diferencia de `Dockerfile` en tres cosas, todas deliberadas:
+#
+#   1. Instala TAMBIÉN las dependencias de desarrollo, para poder ejecutar
+#      `npm test` o `npm run lint` con `docker compose exec`.
+#   2. No hay multi-stage: el árbol de fuentes se queda en la imagen.
+#   3. Se ejecuta como root, porque en desarrollo se escriben ficheros dentro del
+#      contenedor y pelearse con permisos no aporta nada aquí.
+#
+# NUNCA usar esta imagen fuera de desarrollo.
+
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-alpine
+WORKDIR /app
+
+ENV NODE_ENV=development
+
+COPY services/notification/package.json services/notification/package-lock.json ./
+RUN npm ci
+
+COPY services/notification/ ./
+
+RUN npm run build
+
+ENTRYPOINT ["node", "dist/main.js"]

@@ -12,5 +12,6 @@
 #![deny(clippy::disallowed_types)]
 
 pub mod domain;
+pub mod grpc;
 pub mod pb;
 pub mod repo;

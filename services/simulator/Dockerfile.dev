@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1.7
+# Imagen de DESARROLLO del Servicio Simulador (Rust).
+#
+# Se diferencia de `Dockerfile` en tres cosas, todas deliberadas:
+#
+#   1. Compila en perfil `dev` (sin `--release`). El perfil de release del
+#      `Cargo.toml` activa LTO y `codegen-units = 1`, que multiplican por varios
+#      minutos cada recompilación — inaceptable en el ciclo de desarrollo.
+#   2. La imagen final CONSERVA el toolchain, para poder entrar con
+#      `docker compose exec` y ejecutar `cargo test` o `cargo clippy`.
+#   3. Se ejecuta como root, porque en desarrollo se escriben ficheros dentro del
+#      contenedor y pelearse con permisos no aporta nada aquí.
+#
+# NUNCA usar esta imagen fuera de desarrollo.
+
+ARG RUST_VERSION=1.85
+
+FROM rust:${RUST_VERSION}-slim-bookworm
+WORKDIR /src
+
+COPY services/simulator/Cargo.toml services/simulator/Cargo.lock ./
+RUN mkdir -p src \
+    && echo 'fn main() {}' > src/main.rs \
+    && echo '' > src/lib.rs \
+    && cargo build \
+    && rm -rf src
+
+COPY services/simulator/ ./
+
+RUN touch src/main.rs src/lib.rs && cargo build
+
+EXPOSE 9090
+
+ENTRYPOINT ["/src/target/debug/fintcart-simulator"]
