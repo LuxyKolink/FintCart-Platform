@@ -36,6 +36,7 @@ import (
 
 	usersv1 "github.com/fintcart/platform/services/auth-server/gen/fintcart/users/v1"
 	"github.com/fintcart/platform/services/auth-server/internal/handler"
+	"github.com/fintcart/platform/services/auth-server/internal/observability"
 	"github.com/fintcart/platform/services/auth-server/internal/server"
 	"github.com/fintcart/platform/services/auth-server/internal/storer"
 	"github.com/fintcart/platform/services/auth-server/internal/token"
@@ -55,7 +56,7 @@ func run() error {
 		return err
 	}
 
-	logger := newLogger(cfg.LogLevel)
+	logger := observability.NewLogger(cfg.LogLevel)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -119,8 +120,25 @@ func run() error {
 	)
 	h := handler.New(svc)
 
-	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(handler.UnaryInterceptors(logger)...))
+	// El interceptor de métricas va DESPUÉS del de log en la cadena para medir también
+	// lo que este último añade.
+	interceptors := append(handler.UnaryInterceptors(logger), observability.UnaryServerInterceptor())
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
 	h.Register(grpcServer)
+
+	// La readiness comprueba las DOS dependencias, y las dos son obligatorias por
+	// motivos distintos: sin PostgreSQL no se pueden verificar credenciales, y sin
+	// Redis no se puede consultar la blacklist — un Auth que emitiera tokens sin poder
+	// saber cuáles están revocados sería peor que uno caído.
+	go observability.NewProbes(cfg.HealthPort, logger, func(probeCtx context.Context) error {
+		if err := db.PingContext(probeCtx); err != nil {
+			return fmt.Errorf("auth_db no responde: %w", err)
+		}
+		if err := redisClient.Ping(probeCtx).Err(); err != nil {
+			return fmt.Errorf("no hay conexión con Redis: %w", err)
+		}
+		return nil
+	}).Run(ctx)
 
 	return serve(ctx, logger, grpcServer, cfg.GRPCPort)
 }
@@ -180,12 +198,13 @@ const (
 )
 
 type config struct {
-	DBAddr    string
-	RedisAddr string
-	AMQPAddr  string
-	UsersAddr string
-	GRPCPort  string
-	LogLevel  string
+	DBAddr     string
+	RedisAddr  string
+	AMQPAddr   string
+	UsersAddr  string
+	GRPCPort   string
+	HealthPort string
+	LogLevel   string
 
 	// JWTSigningKey es un SECRETO. No se registra, no se devuelve en ningún error y
 	// no tiene valor por defecto: un servidor de autenticación que arranca con una
@@ -202,8 +221,13 @@ func loadConfig() (config, error) {
 		AMQPAddr:      os.Getenv("AMQP_ADDR"),
 		UsersAddr:     os.Getenv("USERS_SVC_ADDR"),
 		GRPCPort:      os.Getenv("GRPC_PORT"),
+		HealthPort:    os.Getenv("HEALTH_PORT"),
 		LogLevel:      os.Getenv("LOG_LEVEL"),
 		JWTSigningKey: os.Getenv("JWT_SIGNING_KEY"),
+	}
+
+	if cfg.HealthPort == "" {
+		cfg.HealthPort = observability.DefaultHealthPort
 	}
 
 	missing := make([]string, 0, 6)
@@ -227,14 +251,6 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("%w: %s", errMissingEnv, strings.Join(missing, ", "))
 	}
 	return cfg, nil
-}
-
-func newLogger(level string) *slog.Logger {
-	var lvl slog.Level
-	if err := lvl.UnmarshalText([]byte(level)); err != nil {
-		lvl = slog.LevelInfo
-	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 }
 
 func dialService(addr string) (*grpc.ClientConn, error) {

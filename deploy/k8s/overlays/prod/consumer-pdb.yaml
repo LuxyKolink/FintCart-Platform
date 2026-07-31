@@ -1,0 +1,25 @@
+# Presupuestos de interrupción de los dos consumidores puros.
+#
+# Existen solo en producción porque solo aquí tienen dos réplicas. Sin PDB, drenar un
+# nodo puede retirar las dos a la vez: la cola no pierde nada —los mensajes sin
+# confirmar vuelven—, pero durante ese hueco no se envía ningún correo ni se registra
+# ninguna entrada de auditoría, y el retraso cuenta contra SC-007.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: audit
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: audit

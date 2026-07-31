@@ -1,0 +1,63 @@
+# Overlay de DESARROLLO.
+#
+# Ajusta lo que cambia en un clúster de desarrollo —menos recursos, más log— y NADA
+# más. En concreto, **no baja de dos réplicas los cinco servicios de la ruta crítica**
+# (Gateway, Auth, Usuarios, Aprendizaje, Simulador): ese mínimo es constitucional
+# (D-12 / SC-012), y un overlay que lo relajara «solo en dev» haría que el escenario que
+# se prueba a diario fuera precisamente el que producción no usa. Los fallos de
+# concurrencia entre réplicas aparecerían por primera vez en producción.
+#
+# Lo que sí baja a una réplica es el Orquestador, cuyo segundo pod solo sirve para el
+# rescate de sagas huérfanas — un caso que en desarrollo se provoca a mano.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fintcart
+nameSuffix: -dev
+
+resources:
+  - ../../base
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/environment: dev
+
+# Etiqueta de imagen fija por entorno. `latest` en la base es un marcador: aquí se
+# apunta a la etiqueta que produce el pipeline de desarrollo.
+images:
+  - name: fintcart/api-gateway
+    newTag: dev
+  - name: fintcart/auth
+    newTag: dev
+  - name: fintcart/users
+    newTag: dev
+  - name: fintcart/learning
+    newTag: dev
+  - name: fintcart/simulator
+    newTag: dev
+  - name: fintcart/orchestrator
+    newTag: dev
+  - name: fintcart/notification
+    newTag: dev
+  - name: fintcart/audit
+    newTag: dev
+
+replicas:
+  - name: orchestrator
+    count: 1
+
+configMapGenerator:
+  - name: fintcart-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=debug
+      - RUST_LOG=debug,sqlx=info
+      # Barrido más frecuente para no esperar cinco segundos por cada correo mientras
+      # se prueba a mano.
+      - DISPATCH_INTERVAL_MS=1000
+
+patches:
+  - path: resources.yaml
+    target:
+      kind: Deployment

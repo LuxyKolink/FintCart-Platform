@@ -435,15 +435,87 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 ### Saga, auditoría, notificaciones y observabilidad
 
-- [ ] T060 Implementar el motor de Saga (secuenciación, persistencia de estado en `saga_state`, ejecución de compensaciones, reanudación) en `services/orchestrator/internal/server/saga.go` — sin lógica de dominio (Principio VI)
-- [ ] T061 Implementar el outbox transaccional de publicación de eventos en `services/orchestrator/internal/outbox/outbox.go` (D-07)
-- [ ] T062 Declarar la topología RabbitMQ (exchange topic, colas `notification.q` y `audit.q`, y los bindings de los 11 eventos de `contracts/events/events-catalog.md`) en `services/orchestrator/internal/events/topology.go`, con consumidores restringidos a Notificación y Auditoría (Principio V)
-- [ ] T063 Implementar el consumidor de eventos y el escritor append-only de Auditoría en `services/audit/internal/handler/consumer.go` y `services/audit/internal/storer/storer_postgres.go` (solo `INSERT`, `actor_ref` opaco)
-- [ ] T064 Implementar la cola persistente con estado de Notificación en `services/notification/src/repo/queue.ts`: encolar en `notification_events_queue`, registrar `not_sent` en `notification_states`, y las tres transiciones (éxito → dequeue + `sent`; fallo con `attempts < MAX_ATTEMPTS` → incrementar contador; fallo con `attempts ≥ MAX_ATTEMPTS` → dequeue + `failed`), con `MAX_ATTEMPTS` configurable por entorno
-- [ ] T065 Implementar el despachador concurrente de Notificación en `services/notification/src/email/dispatcher.ts`, listando eventos pendientes ordenados por `created_at` y entregando de forma idempotente respecto al `event_id` de origen
-- [ ] T066 [P] Escribir las pruebas de los tres desenlaces de la cola de notificaciones (éxito, fallo reintentable, fallo terminal) y de la supervivencia del estado tras el desencolado, en `services/notification/test/queue.spec.ts` (§Calidad, obligatorio por constitución)
-- [ ] T067 [P] Implementar logs estructurados JSON, métricas (latencia, tasa de error, throughput) y endpoints `/healthz` y `/readyz` en los 8 servicios (D-12, §Observabilidad)
-- [ ] T068 [P] Escribir los manifiestos base de Kubernetes en `deploy/k8s/base/` (Deployment, Service, HPA, probes) con **mínimo 2 réplicas para Gateway, Auth, Usuarios, Aprendizaje y Simulador** (ruta crítica, D-12/SC-012) y los overlays `deploy/k8s/overlays/{dev,prod}/` con configuración y secretos por entorno
+- [X] T060 Implementar el motor de Saga (secuenciación, persistencia de estado en `saga_state`, ejecución de compensaciones, reanudación) en `services/orchestrator/internal/server/saga.go` — sin lógica de dominio (Principio VI)
+- [X] T061 Implementar el outbox transaccional de publicación de eventos en `services/orchestrator/internal/outbox/outbox.go` (D-07)
+- [X] T062 Declarar la topología RabbitMQ (exchange topic, colas `notification.q` y `audit.q`, y los bindings de los 11 eventos de `contracts/events/events-catalog.md`) en `services/orchestrator/internal/events/topology.go`, con consumidores restringidos a Notificación y Auditoría (Principio V)
+- [X] T063 Implementar el consumidor de eventos y el escritor append-only de Auditoría en `services/audit/internal/handler/consumer.go` y `services/audit/internal/storer/storer_postgres.go` (solo `INSERT`, `actor_ref` opaco)
+- [X] T064 Implementar la cola persistente con estado de Notificación en `services/notification/src/repo/queue.ts`: encolar en `notification_events_queue`, registrar `not_sent` en `notification_states`, y las tres transiciones (éxito → dequeue + `sent`; fallo con `attempts < MAX_ATTEMPTS` → incrementar contador; fallo con `attempts ≥ MAX_ATTEMPTS` → dequeue + `failed`), con `MAX_ATTEMPTS` configurable por entorno
+- [X] T065 Implementar el despachador concurrente de Notificación en `services/notification/src/email/dispatcher.ts`, listando eventos pendientes ordenados por `created_at` y entregando de forma idempotente respecto al `event_id` de origen
+- [X] T066 [P] Escribir las pruebas de los tres desenlaces de la cola de notificaciones (éxito, fallo reintentable, fallo terminal) y de la supervivencia del estado tras el desencolado, en `services/notification/test/queue.spec.ts` (§Calidad, obligatorio por constitución)
+- [X] T067 [P] Implementar logs estructurados JSON, métricas (latencia, tasa de error, throughput) y endpoints `/healthz` y `/readyz` en los 8 servicios (D-12, §Observabilidad)
+- [X] T068 [P] Escribir los manifiestos base de Kubernetes en `deploy/k8s/base/` (Deployment, Service, HPA, probes) con **mínimo 2 réplicas para Gateway, Auth, Usuarios, Aprendizaje y Simulador** (ruta crítica, D-12/SC-012) y los overlays `deploy/k8s/overlays/{dev,prod}/` con configuración y secretos por entorno
+
+**Notas de T060–T068**
+
+- **Defecto real corregido en la interfaz del storer.** `AdvanceSaga` no recibía el
+  `payload`, así que lo que los pasos se escriben entre sí (`steps.State.Payload`) nunca
+  se habría persistido: una saga reanudada tras un reinicio retomaría el paso correcto
+  sin el `user_id` que el paso anterior dejó, y fallaría de una forma que no se parece a
+  su causa. La firma pasa a `AdvanceSaga(ctx, id, fromStep, toStep, payload,
+  compensations, events)`.
+- **Segundo defecto: `json.Unmarshal` del literal `null` deja el mapa en NIL**, no
+  vacío. Una saga arrancada sin payload entregaba a los pasos un mapa en el que escribir
+  es un pánico. Lo encontró `TestEveryStepIsPersistedBeforeTheNext`.
+- `fromStep` es un **bloqueo optimista** y `toStep` puede ser menor: así se registra
+  también el avance de las compensaciones, que recorren los pasos hacia atrás. El
+  invariante del motor es `len(compensations) == current_step`, y `stateFromRow` lo
+  comprueba: una fila que no lo cumple no se ejecuta ni se compensa, porque no se sabría
+  qué paso corresponde a qué nombre.
+- La compensación corre con contexto **desacoplado** (`context.WithoutCancel`). La causa
+  más común de que un paso falle es que el contexto se cancelara, y compensar con ese
+  mismo contexto fallaría en la primera llamada — dejando la saga a medias justo en el
+  escenario para el que existe.
+- Una compensación fallida deja la saga en `compensating`, **no** en `failed`: solo ese
+  estado vuelve a intentarse en el barrido de reanudación, y una compensación pendiente
+  no se puede dar por perdida.
+- `ErrConflict` al avanzar **detiene sin compensar**: otra ejecución se adelantó y
+  deshacer arruinaría lo que esa otra está usando.
+- La reanudación es **periódica**, no un barrido único al arrancar (`resumeLoop` en
+  `main.go`). Con un barrido único, una saga abandonada por una réplica que muere
+  esperaría al reinicio de ESA réplica. `ListResumable` reclama con
+  `FOR UPDATE SKIP LOCKED` y un margen de antigüedad.
+- `steps.Event` gana **`ActorRef`**, obligatorio y validado como UUID antes de escribir
+  en el outbox: Auditoría manda a la dead-letter todo sobre cuyo actor no lo sea, y ese
+  descarte ocurre a tres saltos del paso que lo construyó mal.
+- **Migración nueva** `20260730120000_event_outbox_last_error`: `attempts` contaba los
+  fallos de publicación sin decir por qué, y la diferencia decide la respuesta operativa
+  (broker caído vs. topología que nunca se declaró).
+- `ListPendingEvents` **no** lleva `FOR UPDATE SKIP LOCKED`, al contrario de lo que
+  sugería el esqueleto: el bloqueo solo dura su transacción, y publicar y marcar ocurren
+  fuera de ella. La entrega ya es at-least-once por diseño (D-07), así que un duplicado
+  ocasional es aceptable; marcar antes de publicar lo cambiaría por una pérdida
+  silenciosa.
+- **Cambio de contrato documentado (T062).** `BindingsNotification` pasa de seis eventos
+  a **tres**, los que producen un correo, y coincide uno a uno con las tres plantillas
+  del CHECK del esquema. `learning.article_published`, `user.progress_milestone` y
+  `user.activity` se enlazan ahora a `audit.q`. El catálogo los asignaba a Notificación
+  «para la bandeja in-app», asignación anterior a la aclaración N-03 que pasó la bandeja
+  a Usuarios — Notificación es consumidor puro sin gRPC y no puede servir esa lectura.
+  `contracts/events/events-catalog.md` se actualiza con la nota correspondiente.
+  Propiedad que garantiza la nueva topología y que hay una prueba que la fija:
+  **ningún evento del catálogo se queda sin binding** (un evento sin binding se descarta
+  en silencio en el exchange).
+- El `result` de una entrada de auditoría lo declara el **productor** (`"result":
+  "failure"` en el payload) en lugar de una tabla de excepciones en Auditoría: en el
+  momento en que este servicio decidiera por su cuenta que cierto evento «es un fallo»,
+  tendría una opinión sobre el dominio de otro servicio.
+- La cola de Notificación **reclama e incrementa el contador en la misma sentencia**
+  (`UPDATE ... FOR UPDATE SKIP LOCKED ... RETURNING`). Reclamar y contar por separado
+  abriría la ventana en la que dos réplicas envían el mismo correo. `finalizeExhausted`
+  cierra las filas que agotaron intentos y siguen encoladas, el hueco que deja un proceso
+  que muere entre el último envío fallido y su `markFailed`.
+- **T067 sin dependencias nuevas salvo `prometheus/client_golang`** en los cinco módulos
+  Go. Rust y los dos TypeScript exponen el formato de texto de Prometheus escrito a mano;
+  en Rust las latencias se acumulan en **microsegundos enteros** para no pedir una
+  excepción al `clippy::disallowed_types` que veta `f64` (Principio VIII).
+- Las sondas van en un **puerto aparte** (9090) en los ocho servicios. `/healthz` no
+  consulta dependencias: si lo hiciera, una caída de PostgreSQL reiniciaría todas las
+  réplicas a la vez.
+- **T068**: los cinco de la ruta crítica mantienen dos réplicas **también en el overlay
+  de dev**. Relajarlo «solo en desarrollo» haría que el escenario probado a diario fuera
+  el que producción no usa. Los dos overlays se validan con `kubectl kustomize`.
+- Los manifiestos **no despliegan PostgreSQL, Redis ni RabbitMQ** ni contienen ningún
+  Secret (Principio X); `deploy/k8s/README.md` documenta cómo se crean fuera del árbol.
 
 **Checkpoint**: Un usuario puede autenticarse, el Gateway enruta, el Orquestador ejecuta sagas, Auditoría registra y Notificación entrega. Las historias pueden comenzar en paralelo.
 

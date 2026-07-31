@@ -1,0 +1,18 @@
+# Recursos de producción.
+#
+# Parche JSON 6902 y no `strategic merge`: el merge empareja contenedores POR NOMBRE,
+# así que un parche genérico sobre los ocho Deployments añadiría un contenedor en lugar
+# de modificar el que hay. Por índice funciona sin nombrar cada servicio.
+#
+# `requests` marca lo que el planificador reserva y `limits` solo acota la memoria: NO
+# se pone `limits.cpu`. Un límite de CPU en Kubernetes es estrangulamiento por cuota, y
+# aplicado a un servicio en la ruta crítica convierte un pico de tráfico en latencia de
+# cola sostenida — justo lo que SC-002 mide.
+- op: replace
+  path: /spec/template/spec/containers/0/resources
+  value:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 1Gi

@@ -24,8 +24,6 @@ import (
 var (
 	ErrNotFound = errors.New("storer: no encontrado")
 	ErrConflict = errors.New("storer: conflicto con el estado actual")
-	// ErrNotImplemented marca los métodos del esqueleto (T026).
-	ErrNotImplemented = errors.New("storer: no implementado")
 )
 
 // wrap añade la operación conservando la causa (Principio XI regla 6).
@@ -44,9 +42,31 @@ type Storer interface {
 	// GetSaga lee el estado actual (lo consulta `GetSagaStatus`).
 	GetSaga(ctx context.Context, sagaID uuid.UUID) (SagaRow, error)
 
-	// AdvanceSaga registra el avance a `step`, actualiza las compensaciones
-	// pendientes y encola los eventos producidos, TODO en una transacción (D-07).
-	AdvanceSaga(ctx context.Context, sagaID uuid.UUID, step int32, compensations []byte, events []OutboxRow) error
+	// AdvanceSaga mueve el puntero de la saga de `fromStep` a `toStep`, guarda el
+	// payload y las compensaciones pendientes, y encola los eventos producidos,
+	// TODO en una transacción (D-07).
+	//
+	// `fromStep` es un bloqueo optimista, no un dato redundante: la escritura solo
+	// se aplica si la fila sigue en ese paso. Dos ejecuciones de la misma saga —una
+	// reanudación que se solapa con el flujo original— no pueden así avanzar el
+	// paso dos veces; la segunda recibe [ErrConflict] y se detiene.
+	//
+	// `toStep` puede ser MENOR que `fromStep`: así se registra el avance de las
+	// compensaciones, que recorren los pasos hacia atrás. Un método aparte para
+	// deshacer habría duplicado la escritura transaccional por la única razón de que
+	// el número baja en lugar de subir.
+	//
+	// `payload` se persiste en cada movimiento porque es lo que los pasos se pasan
+	// entre sí (`steps.State.Payload`). Sin guardarlo, una saga reanudada tras un
+	// reinicio retomaría el paso correcto sin el `user_id` que el paso anterior
+	// dejó escrito, y fallaría de una forma que no se parece en nada a su causa.
+	AdvanceSaga(
+		ctx context.Context,
+		sagaID uuid.UUID,
+		fromStep, toStep int32,
+		payload, compensations []byte,
+		events []OutboxRow,
+	) error
 
 	// MarkStatus mueve la saga a un estado terminal o a `compensating`,
 	// registrando el motivo en `last_error` cuando lo haya.

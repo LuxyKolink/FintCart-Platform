@@ -1,0 +1,9 @@
+# Techo de autoescalado en producción.
+#
+# Solo se toca `maxReplicas`. `minReplicas` se deja como está en la base porque ahí es
+# donde vive el mínimo constitucional de dos réplicas (D-12 / SC-012): repetirlo aquí
+# daría dos declaraciones del mismo invariante, y la que se olvidaría de actualizar
+# sería siempre la equivocada.
+- op: replace
+  path: /spec/maxReplicas
+  value: 20

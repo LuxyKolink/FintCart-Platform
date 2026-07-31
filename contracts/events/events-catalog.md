@@ -39,12 +39,28 @@ Consumo **idempotente** (clave de idempotencia = `event_id`).
 | `auth.password_changed` | Autenticación | Notificación, Auditoría | Email de cambio/restablecimiento (FR-005); auditar |
 | `auth.security_alert` | Autenticación | Notificación, Auditoría | Alertas de seguridad (p. ej. logins fallidos repetidos) |
 | `auth.session_revoked` | Autenticación | Auditoría | Auditar logout/revocación (FR-004) |
-| `learning.article_published` | Aprendizaje | Notificación, Auditoría | In-app "nuevo artículo"; auditar publicación (FR-008) |
+| `learning.article_published` | Aprendizaje | Auditoría | Auditar publicación (FR-008); in-app: ver nota N-03 abajo |
 | `learning.quiz_graded` | Orquestador | Auditoría | Auditar calificación (FR-012/FR-025) |
-| `user.progress_milestone` | Orquestador | Notificación | Hito de progreso → bandeja in-app (FR-023) |
-| `user.activity` | Orquestador | Notificación | Eventos de actividad → bandeja in-app |
+| `user.progress_milestone` | Orquestador | Auditoría | Hito de progreso (bandeja in-app: ver nota N-03 abajo) |
+| `user.activity` | Orquestador | Auditoría | Actividad del usuario (bandeja in-app: ver nota N-03 abajo) |
 | `simulation.executed` | Orquestador | Auditoría | Auditar simulación (FR-025/SC-006); Simulador NO produce (D-03) |
 | `account.anonymized` | Orquestador | Auditoría | Auditar supresión/anonimización (FR-030) |
+
+> **Nota N-03 — la bandeja in-app NO llega por evento.** Tres eventos
+> (`learning.article_published`, `user.progress_milestone`, `user.activity`) tenían
+> asignada Notificación como consumidor «para materializar la bandeja in-app». Esa
+> asignación es anterior a la aclaración N-03 de `plan.md`, que pasó la bandeja al
+> **Servicio de Usuarios**: Notificación es consumidor puro **sin gRPC** y no puede
+> servir la lectura de una bandeja de la que fuera dueño. Hoy la bandeja se alimenta
+> con `Users.AppendInAppNotification`, llamado desde el paso de la saga.
+>
+> Los tres eventos siguen produciéndose y se enlazan a `audit.q`, no a
+> `notification.q`. Notificación solo recibe los **tres** eventos que producen un
+> correo (`user.registered`, `auth.password_changed`, `auth.security_alert`), que son
+> exactamente las tres plantillas que admite su esquema. Un binding sin plantilla
+> entregaría mensajes que el consumidor solo puede descartar, y una cola que recibe y
+> tira en silencio es indistinguible de una que funciona. Ver
+> `services/orchestrator/internal/events/topology.go`.
 
 ---
 
@@ -79,8 +95,10 @@ Invariante auditable: `approved_by != created_by` (separación de responsabilida
 ```json
 { "user_id": "uuid", "type": "hito_progreso", "payload": { "points": 320 } }
 ```
-Notificación materializa la bandeja in-app vía `Users.AppendInAppNotification` cuando
-corresponde (research D-09).
+La bandeja in-app la materializa el **Orquestador** llamando a
+`Users.AppendInAppNotification` desde el paso de la saga, no Notificación por evento
+(ver la nota N-03 de arriba; sustituye a lo que decía research D-09). Estos dos eventos
+se consumen en Auditoría.
 
 ### `simulation.executed`
 ```json

@@ -40,6 +40,7 @@ import (
 	learningv1 "github.com/fintcart/platform/services/users/gen/fintcart/learning/v1"
 	simulatorv1 "github.com/fintcart/platform/services/users/gen/fintcart/simulator/v1"
 	"github.com/fintcart/platform/services/users/internal/handler"
+	"github.com/fintcart/platform/services/users/internal/observability"
 	"github.com/fintcart/platform/services/users/internal/server"
 	"github.com/fintcart/platform/services/users/internal/storer"
 )
@@ -61,7 +62,7 @@ func run() error {
 		return err
 	}
 
-	logger := newLogger(cfg.LogLevel)
+	logger := observability.NewLogger(cfg.LogLevel)
 
 	// El contexto se cancela con SIGINT/SIGTERM. SIGTERM es el que manda el
 	// orquestador de contenedores al retirar un pod, y atenderlo es lo que separa un
@@ -124,8 +125,22 @@ func run() error {
 	)
 	h := handler.New(svc)
 
-	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(handler.UnaryInterceptors(logger)...))
+	// El interceptor de métricas va DESPUÉS del de log en la cadena para medir también
+	// lo que este último añade: una métrica que excluyera el propio middleware
+	// describiría un servicio que no existe.
+	interceptors := append(handler.UnaryInterceptors(logger), observability.UnaryServerInterceptor())
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
 	h.Register(grpcServer)
+
+	// Las sondas viven en su propio puerto y en su propia goroutine: si compartieran
+	// el del servicio, retirar tráfico del pod por `/readyz` también dejaría a
+	// Kubernetes sin poder consultarlo.
+	go observability.NewProbes(cfg.HealthPort, logger, func(probeCtx context.Context) error {
+		if err := db.PingContext(probeCtx); err != nil {
+			return fmt.Errorf("users_db no responde: %w", err)
+		}
+		return nil
+	}).Run(ctx)
 
 	return serve(ctx, logger, grpcServer, cfg.GRPCPort)
 }
@@ -201,6 +216,7 @@ type config struct {
 	GRPCPort      string
 	LearningAddr  string
 	SimulatorAddr string
+	HealthPort    string
 	LogLevel      string
 }
 
@@ -214,12 +230,17 @@ func loadConfig() (config, error) {
 		GRPCPort:      os.Getenv("GRPC_PORT"),
 		LearningAddr:  os.Getenv("LEARNING_SVC_ADDR"),
 		SimulatorAddr: os.Getenv("SIMULATOR_SVC_ADDR"),
+		HealthPort:    os.Getenv("HEALTH_PORT"),
 		LogLevel:      os.Getenv("LOG_LEVEL"),
 	}
 
 	// Se comprueban TODAS y se reportan juntas. Fallar en la primera obliga a
 	// reiniciar el contenedor una vez por variable ausente, y con siete servicios
 	// eso convierte un despliegue mal configurado en una tarde entera.
+	if cfg.HealthPort == "" {
+		cfg.HealthPort = observability.DefaultHealthPort
+	}
+
 	missing := make([]string, 0, 5)
 	for name, value := range map[string]string{
 		"DB_ADDR":            cfg.DBAddr,
@@ -240,21 +261,6 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("%w: %s", errMissingEnv, strings.Join(missing, ", "))
 	}
 	return cfg, nil
-}
-
-// newLogger construye el logger estructurado en JSON (D-12, §Observabilidad).
-//
-// JSON y no texto porque los logs se agregan: un formato legible por humanos en la
-// consola obliga a reparsear con expresiones regulares aguas abajo, y la primera
-// coma dentro de un mensaje rompe el parseo.
-func newLogger(level string) *slog.Logger {
-	var lvl slog.Level
-	// Un nivel mal escrito NO detiene el arranque: cae a `info`. Negarse a arrancar
-	// por un `LOG_LEVEL: debgu` sería un fallo desproporcionado a su causa.
-	if err := lvl.UnmarshalText([]byte(level)); err != nil {
-		lvl = slog.LevelInfo
-	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 }
 
 // dialService abre una conexión gRPC saliente hacia otro servicio.

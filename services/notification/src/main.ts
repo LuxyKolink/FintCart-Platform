@@ -21,7 +21,13 @@
 import amqplib from 'amqplib';
 import { Pool } from 'pg';
 
+import { QueueConsumer } from './amqp/consumer.js';
 import { loadConfig, type Config } from './config.js';
+import { Dispatcher } from './email/dispatcher.js';
+import { SMTPMailer } from './email/smtp.js';
+import { JSONLogger, type Logger } from './logger.js';
+import { Metrics, startProbeServer } from './observability.js';
+import { PostgresNotificationQueue } from './repo/queue.js';
 
 /**
  * Prefetch: cuántos mensajes sin confirmar acepta el canal a la vez.
@@ -37,6 +43,7 @@ const MAX_BACKOFF_MS = 30_000;
 
 async function main(): Promise<void> {
   const config = loadConfig();
+  const logger = new JSONLogger(config.logLevel, 'notification');
 
   const pool = new Pool({
     connectionString: config.dbAddr,
@@ -51,11 +58,45 @@ async function main(): Promise<void> {
   await pool.query('SELECT 1');
 
   const controller = new AbortController();
-  installSignalHandlers(controller, config);
+  installSignalHandlers(controller, logger);
+
+  const queue = new PostgresNotificationQueue(pool);
+  const mailer = new SMTPMailer({ addr: config.smtpAddr, from: config.smtpFrom });
+  const metrics = new Metrics();
+
+  // La readiness comprueba la BASE, que es de lo que depende poder aceptar un evento.
+  // No comprueba el SMTP a propósito: un proveedor de correo caído no debe sacar de
+  // servicio al consumidor, porque seguir ENCOLANDO durante esa caída es exactamente
+  // lo que permite entregar todo lo pendiente cuando vuelva.
+  const probes = startProbeServer(
+    config.healthPort,
+    metrics,
+    async () => {
+      await pool.query('SELECT 1');
+      return true;
+    },
+    logger,
+  );
+
+  // El despachador corre en paralelo al consumo durante toda la vida del proceso, no
+  // dentro del handler del mensaje: ver la cabecera de este archivo.
+  const dispatcher = new Dispatcher(queue, mailer, logger, metrics, {
+    maxAttempts: config.maxAttempts,
+    batchSize: config.dispatchBatchSize,
+    concurrency: config.dispatchConcurrency,
+    intervalMs: config.dispatchIntervalMs,
+  });
+  const dispatching = dispatcher.run(controller.signal);
 
   try {
-    await consumeForever(pool, config, controller.signal);
+    await consumeForever(pool, config, logger, controller.signal);
   } finally {
+    // El despachador se espera ANTES de cerrar el pool: un envío a medio registrar
+    // perdería su desenlace si la base se cerrara bajo sus pies, y el evento quedaría
+    // con un intento gastado y sin estado.
+    await dispatching;
+    mailer.close();
+    probes.close();
     await pool.end();
   }
 }
@@ -67,21 +108,27 @@ async function main(): Promise<void> {
  * nadie se entere: el proceso sigue «arriba», la cola crece y el hueco se descubre
  * cuando alguien pregunta por qué no le llegó el correo de verificación.
  */
-async function consumeForever(pool: Pool, config: Config, signal: AbortSignal): Promise<void> {
+async function consumeForever(
+  pool: Pool,
+  config: Config,
+  logger: Logger,
+  signal: AbortSignal,
+): Promise<void> {
   let backoff = INITIAL_BACKOFF_MS;
 
   while (!signal.aborted) {
     try {
-      await consumeOnce(pool, config, signal);
+      await consumeOnce(pool, config, logger, signal);
       // Una vuelta limpia significa que el apagado fue ordenado.
       return;
     } catch (err) {
       if (signal.aborted) {
         return;
       }
-      process.stderr.write(
-        `notification: consumo interrumpido (${messageOf(err)}); se reintenta en ${backoff} ms\n`,
-      );
+      logger.error('consumo interrumpido; se reintentará', {
+        error: messageOf(err),
+        retry_in_ms: backoff,
+      });
       await sleep(backoff, signal);
       // Retroceso exponencial acotado: sin tope, una caída larga del broker llevaría la
       // espera a horas y el servicio tardaría en recuperarse mucho después que RabbitMQ.
@@ -91,7 +138,12 @@ async function consumeForever(pool: Pool, config: Config, signal: AbortSignal): 
 }
 
 /** Abre conexión y canal, consume, y devuelve el control cuando algo termina. */
-async function consumeOnce(pool: Pool, config: Config, signal: AbortSignal): Promise<void> {
+async function consumeOnce(
+  pool: Pool,
+  config: Config,
+  logger: Logger,
+  signal: AbortSignal,
+): Promise<void> {
   const connection = await amqplib.connect(config.amqpAddr);
   try {
     const channel = await connection.createChannel();
@@ -103,12 +155,9 @@ async function consumeOnce(pool: Pool, config: Config, signal: AbortSignal): Pro
     // equivalencia, y encontrar por qué cuesta mucho más que centralizarla.
     await channel.checkQueue(config.queue);
 
-    // T063 registra aquí el consumidor (`channel.consume`) con el encolado
-    // transaccional en `notification_events_queue` + `notification_states`, y T064
-    // arranca el despachador con `config.dispatchIntervalMs` y `config.maxAttempts`.
-    // Los dos reciben `pool` y `config` por parámetro: este archivo no los construye
-    // porque no le corresponde decidir cómo se envía un correo.
-    void pool;
+    const consumer = new QueueConsumer(new PostgresNotificationQueue(pool), logger);
+    await consumer.consume(channel, config.queue);
+    logger.info('consumidor registrado', { queue: config.queue });
 
     await waitForAbort(signal);
     await channel.close();
@@ -125,11 +174,9 @@ async function consumeOnce(pool: Pool, config: Config, signal: AbortSignal): Pro
  * y sin cerrar el canal — y un mensaje sin ack vuelve a la cola, así que el correo se
  * enviaría dos veces.
  */
-function installSignalHandlers(controller: AbortController, config: Config): void {
+function installSignalHandlers(controller: AbortController, logger: Logger): void {
   const stop = (): void => {
-    if (config.logLevel !== 'silent') {
-      process.stdout.write('notification: señal de parada recibida; apagado ordenado\n');
-    }
+    logger.info('señal de parada recibida; apagado ordenado');
     controller.abort();
   };
   process.once('SIGTERM', stop);

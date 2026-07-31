@@ -28,8 +28,12 @@ import (
 	"github.com/fintcart/platform/services/orchestrator/internal/storer"
 )
 
-// ErrNotImplemented marca lo que llega con T061.
-var ErrNotImplemented = errors.New("outbox: no implementado")
+// ErrPublishFailed envuelve el fallo de entrega de un evento concreto.
+//
+// El evento NO se pierde cuando esto ocurre: sigue en `event_outbox` sin
+// `published_at`, así que el siguiente barrido lo reintenta. Lo que el error
+// interrumpe es el LOTE, no el mecanismo.
+var ErrPublishFailed = errors.New("outbox: fallo al publicar un evento")
 
 // Store es lo que el publicador necesita de la persistencia.
 //
@@ -113,6 +117,16 @@ func (r *Relay) Run(ctx context.Context) error {
 }
 
 // drainOnce publica un lote de eventos pendientes.
+//
+// Publica en SERIE y en el orden que devuelve la consulta (`created_at`). No es una
+// simplificación pendiente de optimizar: dos eventos de la misma saga entregados
+// fuera de orden dejarían a Auditoría con una secuencia que no ocurrió —una cuenta
+// anonimizada antes de haberse registrado—, y `audit_log` es append-only, así que esa
+// contradicción no se puede corregir después.
+//
+// Por la misma razón, el primer fallo DETIENE el lote. Saltar al siguiente evento
+// publicaría el posterior antes que el anterior, que es exactamente lo que el orden
+// serie evita.
 func (r *Relay) drainOnce(ctx context.Context) error {
 	pending, err := r.store.ListPendingEvents(ctx, r.batchSize)
 	if err != nil {
@@ -120,18 +134,39 @@ func (r *Relay) drainOnce(ctx context.Context) error {
 	}
 
 	for _, ev := range pending {
-		// T061 completa el cuerpo: publicar con `r.publisher.Publish` y, según el
-		// resultado, `MarkEventPublished` o `IncrementEventAttempts`.
-		//
-		// Dos detalles que no son negociables:
-		//   - El orden por `created_at` se respeta y se publica en SERIE, no en
-		//     paralelo. Dos eventos de la misma saga entregados fuera de orden
-		//     dejarían a Auditoría con una secuencia que no ocurrió.
-		//   - El mensaje debe ir con `DeliveryMode: Persistent`. Un evento
-		//     transitorio se pierde al reiniciar el broker, y entonces todo este
-		//     mecanismo no habría servido de nada.
-		_ = ev
-		return ErrNotImplemented
+		// El cuerpo es el sobre completo que el motor serializó al avanzar la saga
+		// (`server.outboxRows`). El relay no lo reconstruye ni lo toca: si volviera a
+		// armarlo aquí, el `event_id` o el `occurred_at` podrían diferir entre el
+		// primer intento y el reintento, y la idempotencia por `event_id` de los
+		// consumidores dejaría de funcionar justo cuando hace falta.
+		if err := r.publisher.Publish(ctx, r.exchange, ev.RoutingKey, ev.Payload); err != nil {
+			// El intento fallido se registra en la FILA antes de salir. Un contador que
+			// solo viviera en memoria se reiniciaría con el proceso, y un evento
+			// sistemáticamente irrentregable parecería un fallo nuevo en cada
+			// despliegue en lugar de uno que lleva mil intentos.
+			if incErr := r.store.IncrementEventAttempts(ctx, ev.ID, err); incErr != nil {
+				r.logger.ErrorContext(ctx, "no se pudo registrar el intento fallido",
+					slog.String("event_id", ev.ID.String()),
+					slog.String("error", incErr.Error()),
+				)
+			}
+			return fmt.Errorf("%w %s (%s): %w", ErrPublishFailed, ev.ID, ev.EventType, err)
+		}
+
+		if err := r.store.MarkEventPublished(ctx, ev.ID); err != nil {
+			// El evento YA salió hacia el broker. Al no poder sellarlo, el próximo
+			// barrido lo publicará otra vez: es la entrega at-least-once que documenta
+			// la cabecera de este archivo, y la razón de que los consumidores tengan
+			// que ser idempotentes por `event_id`. Marcar ANTES de publicar cambiaría
+			// este duplicado por una pérdida silenciosa, que es mucho peor.
+			return fmt.Errorf("sellar el evento %s como publicado: %w", ev.ID, err)
+		}
+
+		r.logger.DebugContext(ctx, "evento publicado",
+			slog.String("event_id", ev.ID.String()),
+			slog.String("event_type", ev.EventType),
+			slog.String("routing_key", ev.RoutingKey),
+		)
 	}
 	return nil
 }

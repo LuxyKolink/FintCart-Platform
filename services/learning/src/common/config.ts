@@ -12,6 +12,8 @@
  */
 import { resolve } from 'node:path';
 
+import { DEFAULT_HEALTH_PORT } from './observability';
+
 /** Configuración completa del proceso. */
 export interface Config {
   /** Cadena de conexión con `learning_db`. */
@@ -20,6 +22,9 @@ export interface Config {
   readonly amqpAddr: string;
   /** Puerto en el que se sirve gRPC. */
   readonly grpcPort: string;
+  /** Nivel de log. */
+  /** Puerto de `/healthz`, `/readyz` y `/metrics` (D-12). */
+  readonly healthPort: number;
   /** Nivel de log. */
   readonly logLevel: string;
   /**
@@ -70,9 +75,34 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dbAddr: required.DB_ADDR as string,
     amqpAddr: required.AMQP_ADDR as string,
     grpcPort: required.GRPC_PORT as string,
+    healthPort: healthPort(env.HEALTH_PORT),
     logLevel: env.LOG_LEVEL ?? 'info',
     // `__dirname` apunta a `dist/common` en ejecución, así que se sube dos niveles
     // hasta la raíz del servicio.
     protoDir: env.PROTO_DIR ?? resolve(__dirname, '..', '..', '..', '..', 'contracts', 'proto'),
   };
+}
+
+/**
+ * Interpreta `HEALTH_PORT`, con valor por defecto.
+ *
+ * Tiene defecto —al contrario que `GRPC_PORT`, que es obligatorio— porque un despliegue
+ * que lo olvide debe quedarse sin sondas, no sin arrancar: negarse a levantar el
+ * servicio por su puerto de DIAGNÓSTICO invertiría la relación entre el servicio y lo
+ * que lo observa.
+ *
+ * Un valor ILEGIBLE sí es un error: `HEALTH_PORT: "ocho mil"` caería al defecto y nadie
+ * notaría que la configuración pretendida se ignoró.
+ *
+ * @throws {ConfigError} si el valor está presente pero no es un puerto válido.
+ */
+function healthPort(raw: string | undefined): number {
+  if (raw === undefined || raw === '') {
+    return DEFAULT_HEALTH_PORT;
+  }
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65_535) {
+    throw new ConfigError(`HEALTH_PORT debe ser un puerto válido, no ${JSON.stringify(raw)}`);
+  }
+  return parsed;
 }

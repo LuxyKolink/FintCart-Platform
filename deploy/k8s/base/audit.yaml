@@ -1,0 +1,108 @@
+# Servicio de Auditoría — consumidor puro, registro append-only (FR-025, Principio V).
+#
+# Una réplica en la base por la misma razón que Notificación: lo no confirmado vuelve a
+# la cola. El overlay de producción sube a dos, y el `ON CONFLICT DO NOTHING` del
+# INSERT hace que una entrega repetida entre réplicas no duplique la entrada.
+#
+# Sin puerto gRPC: es consumidor puro y no expone servicio.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit
+  labels:
+    app.kubernetes.io/name: audit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: audit
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # `maxUnavailable: 0` mantiene la capacidad durante el despliegue.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: audit
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
+    spec:
+      # Mayor que el plazo de apagado ordenado del código (20 s): con un plazo menor,
+      # Kubernetes mataría el proceso a mitad del drenaje.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: audit
+          image: fintcart/audit:latest
+          ports:
+            - name: health
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: fintcart-config
+            - secretRef:
+                name: fintcart-audit-secrets
+          env:
+            # El nombre de la cola es propio de cada consumidor, así que sale del
+            # ConfigMap con la clave que le corresponde y no de una común.
+            - name: AMQP_QUEUE
+              valueFrom:
+                configMapKeyRef:
+                  name: fintcart-config
+                  key: AMQP_QUEUE_AUDIT
+          # Protege el arranque: sin ella, la sonda de vivacidad contaría desde el
+          # segundo cero y un arranque lento reiniciaría el pod en bucle.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            failureThreshold: 30
+            periodSeconds: 2
+          # Vivacidad: NO consulta dependencias. Si comprobara PostgreSQL, una caída de
+          # la base reiniciaría todas las réplicas a la vez.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness: SÍ consulta las dependencias. Un pod que no puede trabajar deja
+          # de recibir tráfico en lugar de responder errores.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit
+  labels:
+    app.kubernetes.io/name: audit
+spec:
+  selector:
+    app.kubernetes.io/name: audit
+  ports:
+    - name: health
+      port: 9090
+      targetPort: health

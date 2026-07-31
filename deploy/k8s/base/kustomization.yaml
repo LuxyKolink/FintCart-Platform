@@ -1,0 +1,40 @@
+# Base de Kustomize: los ocho servicios de la plataforma.
+#
+# La base describe el despliegue COMPLETO y funcional. Los overlays
+# (`../overlays/{dev,prod}`) solo ajustan lo que cambia entre entornos —réplicas,
+# recursos, orígenes CORS—, nunca añaden piezas que falten aquí. Una base incompleta
+# obliga a leer tres directorios para saber qué se despliega, y es donde se cuela un
+# servicio que existe en producción y no en desarrollo.
+#
+# Lo que esta base NO incluye, y es deliberado:
+#
+#   - **PostgreSQL, Redis y RabbitMQ.** Son instancias gestionadas y se referencian por
+#     hostname a través del ConfigMap (Principio X regla 3). Meterlas aquí como
+#     Deployments produciría bases de datos efímeras que se pierden al reprogramar un
+#     pod — aceptable en un portátil, catastrófico en cualquier otro sitio.
+#   - **Los Secrets.** Nunca se versionan (Principio X). Se crean fuera de este árbol y
+#     se referencian por nombre; ver `../README.md`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fintcart
+
+# Etiquetas comunes a todo lo que despliega esta base. `app.kubernetes.io/part-of`
+# permite seleccionar la plataforma entera de una vez, que es lo que hace falta para
+# borrarla o para mirarla en un panel.
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/part-of: fintcart
+
+resources:
+  - namespace.yaml
+  - config.yaml
+  - api-gateway.yaml
+  - auth.yaml
+  - users.yaml
+  - learning.yaml
+  - simulator.yaml
+  - orchestrator.yaml
+  - notification.yaml
+  - audit.yaml

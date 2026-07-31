@@ -25,6 +25,7 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 use fintcart_simulator::grpc::service::Service;
+use fintcart_simulator::observability;
 
 /// Cotas del pool de conexiones.
 ///
@@ -65,14 +66,48 @@ async fn main() -> Result<()> {
 
     info!(port = %config.grpc_port, "simulador escuchando");
 
+    // Una sola señal para los dos servidores, repartida por un canal de difusión: si
+    // cada uno instalara su propio manejador, un SIGTERM pararía el que llegara primero
+    // y el otro seguiría vivo — un pod que ya no atiende gRPC pero sigue diciendo
+    // `ready` es el peor estado posible para un balanceador.
+    let (stop_tx, mut stop_rx) = tokio::sync::broadcast::channel::<()>(1);
+    let grpc_stop = stop_tx.subscribe();
+    tokio::spawn(async move {
+        shutdown_signal().await;
+        let _ = stop_tx.send(());
+    });
+
+    // Las sondas viven en su propio puerto: si compartieran el de gRPC, retirar tráfico
+    // del pod también dejaría a Kubernetes sin poder consultarlas.
+    let probes = tokio::spawn({
+        let pool = pool.clone();
+        let health_port = config.health_port.clone();
+        async move {
+            observability::serve_probes(&health_port, pool, async move {
+                let _ = stop_rx.recv().await;
+            })
+            .await;
+        }
+    });
+
     // `serve_with_shutdown` deja terminar los RPC en vuelo cuando llega la señal. Sin
     // él, un SIGTERM del orquestador de contenedores cortaría las llamadas a mitad y
     // el cliente vería un error de transporte en lugar de una respuesta.
     Server::builder()
         .add_service(Service::new(pool).into_server())
-        .serve_with_shutdown(addr, shutdown_signal())
+        .serve_with_shutdown(addr, {
+            let mut grpc_stop = grpc_stop;
+            async move {
+                let _ = grpc_stop.recv().await;
+            }
+        })
         .await
         .context("servir gRPC")?;
+
+    // Se espera a las sondas antes de salir: si el proceso terminara con la tarea viva,
+    // el puerto quedaría medio cerrado y el reinicio del pod se encontraría con un
+    // `address already in use` que no se parece en nada a su causa.
+    let _ = probes.await;
 
     info!("apagado ordenado completado");
     Ok(())
@@ -117,6 +152,8 @@ async fn shutdown_signal() {
 struct Config {
     db_addr: String,
     grpc_port: String,
+    /// Puerto de `/healthz`, `/readyz` y `/metrics`.
+    health_port: String,
 }
 
 impl Config {
@@ -142,6 +179,12 @@ impl Config {
         Ok(Self {
             db_addr: db_addr.unwrap_or_default(),
             grpc_port: grpc_port.unwrap_or_default(),
+            // Con valor por defecto, al contrario que los dos anteriores: quedarse sin
+            // sondas es degradación; no arrancar por su culpa, una caída.
+            health_port: env::var("HEALTH_PORT")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| observability::DEFAULT_HEALTH_PORT.to_owned()),
         })
     }
 }

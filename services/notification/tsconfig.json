@@ -8,6 +8,11 @@
     // error no aparece en CI, aparece en el primer despliegue.
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    // Exigido por `ts-jest` al compilar módulo a módulo bajo `NodeNext`. Obliga además
+    // a que cada archivo sea comprensible por sí solo —nada de `const enum` ni de
+    // reexportar un tipo sin `export type`—, que es lo que permite compilarlo sin
+    // consultar el resto del programa.
+    "isolatedModules": true,
     "target": "ES2023",
     "lib": ["ES2023"],
     "outDir": "./dist",

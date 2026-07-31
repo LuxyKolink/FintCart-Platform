@@ -72,7 +72,20 @@ type State struct {
 type Event struct {
 	Type       string
 	RoutingKey string
-	Payload    map[string]any
+
+	// ActorRef es el UUID OPACO de quien provocó el evento (`events-catalog.md`).
+	//
+	// Lo declara el PASO y no lo deduce el motor, y esa es la única forma de que el
+	// motor siga sin lógica de dominio (Principio VI): saber que el actor de la saga
+	// de registro es el `user_id` recién creado, y el de la de calificación el
+	// usuario que respondió, es conocimiento del flujo, no de la secuenciación.
+	//
+	// Es obligatorio. Auditoría exige que sea un UUID válido y manda a la
+	// dead-letter lo que no lo sea, así que un paso que lo deje vacío produce un
+	// evento que se pierde sin registrarse — justo lo contrario de auditar.
+	ActorRef string
+
+	Payload map[string]any
 }
 
 // Step es un paso con su compensación.

@@ -30,6 +30,7 @@ import (
 	"github.com/fintcart/platform/services/api-gateway/internal/authn"
 	"github.com/fintcart/platform/services/api-gateway/internal/grpcclient"
 	"github.com/fintcart/platform/services/api-gateway/internal/handler"
+	"github.com/fintcart/platform/services/api-gateway/internal/observability"
 	"github.com/fintcart/platform/services/api-gateway/internal/ratelimit"
 )
 
@@ -46,7 +47,7 @@ func run() error {
 		return err
 	}
 
-	logger := newLogger(cfg.LogLevel)
+	logger := observability.NewLogger(cfg.LogLevel)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -94,6 +95,22 @@ func run() error {
 		Limiter:     limiterAdapter{limiter},
 		CORSOrigins: cfg.CORSOrigins,
 	})
+
+	// Las sondas viven en su propio puerto: si compartieran el del borde, retirar
+	// tráfico del pod por `/readyz` también dejaría a Kubernetes sin poder
+	// consultarlo. Y en el Gateway hay una segunda razón — el puerto del borde está
+	// expuesto al exterior, y las métricas internas no deben estarlo.
+	//
+	// La readiness comprueba Redis porque sin él el borde falla CERRADO: el rate
+	// limiting rechaza todo y la blacklist da por revocada cualquier sesión. Un
+	// Gateway en ese estado responde, pero solo con errores, así que es mejor que deje
+	// de recibir tráfico.
+	go observability.NewProbes(cfg.HealthPort, logger, func(probeCtx context.Context) error {
+		if err := redisClient.Ping(probeCtx).Err(); err != nil {
+			return fmt.Errorf("no hay conexión con Redis: %w", err)
+		}
+		return nil
+	}).Run(ctx)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.HTTPPort,
@@ -199,6 +216,7 @@ type config struct {
 	SimulatorAddr    string
 	OrchestratorAddr string
 	HTTPPort         string
+	HealthPort       string
 	LogLevel         string
 
 	CORSOrigins        []string
@@ -224,6 +242,7 @@ func loadConfig() (config, error) {
 		SimulatorAddr:    os.Getenv("SIMULATOR_SVC_ADDR"),
 		OrchestratorAddr: os.Getenv("ORCHESTRATOR_SVC_ADDR"),
 		HTTPPort:         os.Getenv("HTTP_PORT"),
+		HealthPort:       os.Getenv("HEALTH_PORT"),
 		LogLevel:         os.Getenv("LOG_LEVEL"),
 	}
 
@@ -241,6 +260,10 @@ func loadConfig() (config, error) {
 	default:
 		cfg.JWTKey = os.Getenv("JWT_SIGNING_KEY")
 		cfg.JWTAlgorithm = authn.AlgHS256
+	}
+
+	if cfg.HealthPort == "" {
+		cfg.HealthPort = observability.DefaultHealthPort
 	}
 
 	missing := make([]string, 0, 8)
@@ -284,14 +307,6 @@ func loadConfig() (config, error) {
 	}
 
 	return cfg, nil
-}
-
-func newLogger(level string) *slog.Logger {
-	var lvl slog.Level
-	if err := lvl.UnmarshalText([]byte(level)); err != nil {
-		lvl = slog.LevelInfo
-	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 }
 
 func closeQuietly(logger *slog.Logger, what string, closeFn func() error) {

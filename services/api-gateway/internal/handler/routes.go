@@ -5,6 +5,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+
+	"github.com/fintcart/platform/services/api-gateway/internal/observability"
 )
 
 // Router: el mapa completo de la superficie REST del sistema (Principio II).
@@ -52,9 +54,17 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 
 	// Middlewares globales, en orden de aplicación.
 	//
-	// El log va PRIMERO para que registre también las peticiones que un middleware
-	// posterior rechaza: si fuera el último, un 429 o un 401 no aparecería en el log de
-	// acceso y las métricas de tráfico rechazado no existirían.
+	// Métricas y log van PRIMERO para que cuenten también las peticiones que un
+	// middleware posterior rechaza: si fueran los últimos, un 429 o un 401 no
+	// aparecería ni en el log de acceso ni en las métricas, y el tráfico rechazado
+	// —justo el que hay que vigilar— sería invisible.
+	//
+	// Las métricas van DENTRO del router y no envolviéndolo por fuera: `chi` inyecta su
+	// contexto de ruta al entrar, así que solo desde aquí se puede etiquetar la métrica
+	// con el PATRÓN (`/catalog/articles/{articleId}`) en lugar de con la URL concreta.
+	// Por fuera, ese contexto no existe y cada identificador de artículo crearía una
+	// serie temporal nueva.
+	r.Use(observability.HTTPMiddleware)
 	r.Use(AccessLog(h.logger))
 	r.Use(cors.Handler(cors.Options{
 		// Lista explícita de orígenes, nunca `*`. Con comodín, el navegador no permite

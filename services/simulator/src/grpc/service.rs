@@ -4,9 +4,12 @@
 //! (`AnonymizeHistory`). Lo que ya está fijado aquí es la ESTRUCTURA: qué recibe el
 //! servicio por constructor y cómo se traduce un error de dominio a un `Status`.
 
+use std::time::Instant;
+
 use tonic::{Request, Response, Status};
 
 use crate::domain::error::Error;
+use crate::observability;
 use crate::pb::fintcart::common::v1::OpResult;
 use crate::pb::fintcart::simulator::v1::simulator_service_server::{
     SimulatorService, SimulatorServiceServer,
@@ -61,6 +64,20 @@ fn to_status(err: &Error) -> Status {
     }
 }
 
+/// Registra la latencia y el desenlace de un RPC (§Observabilidad, D-12).
+///
+/// Se llama desde cada método en lugar de instalarse como capa `tower` porque una capa
+/// exigiría dos dependencias más (`tower`, `http`) y un `Service` escrito a mano para
+/// medir tres RPC. La contrapartida es que un método nuevo puede olvidarse de llamarla:
+/// son tres, y la línea va pegada al `return`.
+fn record<T>(operation: &str, started: Instant, result: &Result<Response<T>, Status>) {
+    let code = match result {
+        Ok(_) => "OK".to_owned(),
+        Err(status) => format!("{:?}", status.code()),
+    };
+    observability::observe(operation, &code, started.elapsed());
+}
+
 #[tonic::async_trait]
 impl SimulatorService for Service {
     /// Ejecuta una simulación y persiste el historial (FR-019..FR-022).
@@ -68,8 +85,11 @@ impl SimulatorService for Service {
         &self,
         _request: Request<ComputeRequest>,
     ) -> Result<Response<ComputeResponse>, Status> {
+        let started = Instant::now();
         let _ = &self.pool;
-        Err(to_status(&Error::NotImplemented))
+        let result = Err(to_status(&Error::NotImplemented));
+        record("simulator.Compute", started, &result);
+        result
     }
 
     /// Historial de simulaciones por usuario (FR-022).
@@ -77,7 +97,10 @@ impl SimulatorService for Service {
         &self,
         _request: Request<ListHistoryRequest>,
     ) -> Result<Response<ListHistoryResponse>, Status> {
-        Err(to_status(&Error::NotImplemented))
+        let started = Instant::now();
+        let result = Err(to_status(&Error::NotImplemented));
+        record("simulator.ListHistory", started, &result);
+        result
     }
 
     /// Saga de anonimización (FR-030): disocia la PII del historial.
@@ -85,6 +108,9 @@ impl SimulatorService for Service {
         &self,
         _request: Request<UserRef>,
     ) -> Result<Response<OpResult>, Status> {
-        Err(to_status(&Error::NotImplemented))
+        let started = Instant::now();
+        let result = Err(to_status(&Error::NotImplemented));
+        record("simulator.AnonymizeHistory", started, &result);
+        result
     }
 }

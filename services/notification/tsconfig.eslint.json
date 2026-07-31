@@ -1,0 +1,23 @@
+{
+  // Proyecto SOLO para ESLint.
+  //
+  // `tsconfig.json` excluye `test/` porque las pruebas no se compilan a `dist/`, y con
+  // reglas que requieren información de tipos ESLint necesita que cada archivo que
+  // analiza pertenezca a algún proyecto. Sin este archivo, `npm run lint` falla con
+  // «The file was not found in any of the provided project(s)» y la salida más fácil
+  // —dejar de lintar las pruebas— quitaría la comprobación justo donde es más barato
+  // colar un `any`.
+  //
+  // `rootDir` se anula: aquí no se emite nada, y el de `tsconfig.json` (`./src`) haría
+  // que los archivos de `test/` quedaran fuera del árbol del proyecto.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  // `exclude` se sobrescribe explícitamente: `extends` lo HEREDA, y el del padre
+  // excluye `test/`, así que sin esta línea `include` no bastaría — el archivo seguiría
+  // fuera del proyecto y el error de análisis sería idéntico.
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/**/*", "test/**/*"]
+}

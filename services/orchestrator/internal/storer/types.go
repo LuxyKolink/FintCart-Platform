@@ -77,5 +77,8 @@ type OutboxRow struct {
 	Payload     []byte     `db:"payload"`
 	PublishedAt *time.Time `db:"published_at"`
 	Attempts    int32      `db:"attempts"`
-	CreatedAt   time.Time  `db:"created_at"`
+	// LastError es la causa del último intento fallido de publicación. Puntero
+	// porque «nunca ha fallado» y «falló sin mensaje» son estados distintos.
+	LastError *string   `db:"last_error"`
+	CreatedAt time.Time `db:"created_at"`
 }

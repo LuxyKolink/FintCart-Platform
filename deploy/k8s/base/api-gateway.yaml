@@ -1,0 +1,148 @@
+# API Gateway — el ÚNICO componente con superficie REST (Principio II).
+#
+# Está en la ruta crítica de TODA petición de usuario, así que su mínimo es de dos
+# réplicas (D-12 / SC-012): con una sola, cada despliegue y cada reprogramación de pod
+# corta el servicio entero, no una parte.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    app.kubernetes.io/name: api-gateway
+spec:
+  # MÍNIMO DOS. Ver la cabecera.
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # `maxUnavailable: 0` mantiene la capacidad durante el despliegue: con 2 réplicas
+      # y `maxUnavailable: 1`, media plataforma queda sirviendo el pico con un solo pod.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
+    spec:
+      # SIGTERM llega al proceso y el apagado ordenado drena las peticiones en vuelo;
+      # este plazo tiene que ser MAYOR que el `shutdownTimeout` del código (20 s) o
+      # Kubernetes lo mataría a mitad del drenaje.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: api-gateway
+          image: fintcart/api-gateway:latest
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: health
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: fintcart-config
+            - secretRef:
+                name: fintcart-gateway-secrets
+          # `startupProbe` protege el arranque: sin ella, `livenessProbe` empezaría a
+          # contar desde el segundo cero y un arranque lento —resolver DNS de cinco
+          # servicios, abrir Redis— reiniciaría el pod en bucle.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            failureThreshold: 30
+            periodSeconds: 2
+          # Vivacidad: NO consulta dependencias (ver `internal/observability`). Si
+          # comprobara Redis, una caída de Redis reiniciaría todas las réplicas a la vez.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness: SÍ consulta Redis. Sin él el borde falla cerrado —rechaza todo—,
+          # así que es mejor que deje de recibir tráfico a que responda solo errores.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  labels:
+    app.kubernetes.io/name: api-gateway
+spec:
+  selector:
+    app.kubernetes.io/name: api-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    # El puerto de sondas se expone en el Service para que Prometheus lo descubra por
+    # endpoints. No es superficie de negocio: por ahí no se llega a ninguna ruta REST.
+    - name: health
+      port: 9090
+      targetPort: health
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  # `minReplicas` repite el mínimo constitucional: sin él, el autoscaler bajaría a 1 en
+  # un valle de tráfico y dejaría la plataforma sin redundancia justo antes del pico
+  # siguiente.
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      # Ventana amplia al bajar: reducir en cuanto cae la CPU produce oscilación —bajar,
+      # saturar, subir— y cada ciclo cuesta un arranque en frío.
+      stabilizationWindowSeconds: 300
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway
+spec:
+  # Sin PDB, drenar un nodo puede llevarse las dos réplicas a la vez y el mínimo de dos
+  # solo se cumpliría en el papel.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway

@@ -1,0 +1,118 @@
+# Orquestador de Sagas — única forma de consistencia multi-servicio (Principio VI).
+#
+# Dos réplicas aunque no esté en la lista de ruta crítica, y por una razón propia: el
+# rescate de sagas a medias solo sirve si hay otra réplica viva que las recoja cuando
+# una muere. Con una sola, una saga interrumpida espera al reinicio de ese mismo pod.
+#
+# Sin HPA: escalarlo por CPU no acelera nada —el trabajo lo marcan los participantes—
+# y multiplicaría los barridos del outbox contra la misma tabla.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  labels:
+    app.kubernetes.io/name: orchestrator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orchestrator
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # `maxUnavailable: 0` mantiene la capacidad durante el despliegue.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orchestrator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
+    spec:
+      # Mayor que el plazo de apagado ordenado del código (20 s): con un plazo menor,
+      # Kubernetes mataría el proceso a mitad del drenaje.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: orchestrator
+          image: fintcart/orchestrator:latest
+          ports:
+            - name: grpc
+              containerPort: 50051
+            - name: health
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: fintcart-config
+            - secretRef:
+                name: fintcart-orchestrator-secrets
+          # Protege el arranque: sin ella, la sonda de vivacidad contaría desde el
+          # segundo cero y un arranque lento reiniciaría el pod en bucle.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            failureThreshold: 30
+            periodSeconds: 2
+          # Vivacidad: NO consulta dependencias. Si comprobara PostgreSQL, una caída de
+          # la base reiniciaría todas las réplicas a la vez.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness: SÍ consulta las dependencias. Un pod que no puede trabajar deja
+          # de recibir tráfico en lugar de responder errores.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  labels:
+    app.kubernetes.io/name: orchestrator
+spec:
+  selector:
+    app.kubernetes.io/name: orchestrator
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: grpc
+    - name: health
+      port: 9090
+      targetPort: health
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orchestrator
+spec:
+  # Sin PDB, drenar un nodo puede llevarse las dos réplicas a la vez y el mínimo solo
+  # se cumpliría en el papel.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orchestrator

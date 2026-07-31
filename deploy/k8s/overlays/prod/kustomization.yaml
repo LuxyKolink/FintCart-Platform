@@ -1,0 +1,68 @@
+# Overlay de PRODUCCIÓN.
+#
+# Sube a dos réplicas los dos consumidores puros y amplía el techo de autoescalado.
+# Los cinco servicios de la ruta crítica ya vienen con su mínimo constitucional desde
+# la base (D-12 / SC-012); aquí no se repite, porque un mínimo declarado en dos sitios
+# acaba divergiendo y el sitio equivocado es siempre el que gana.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fintcart
+
+resources:
+  - ../../base
+  # Los consumidores pasan aquí a dos réplicas, así que también necesitan su
+  # presupuesto de interrupción. Son recursos NUEVOS y no un parche: un `patch` solo
+  # modifica lo que ya existe, y en la base estos PDB no existen porque allí los
+  # consumidores tienen una sola réplica.
+  - consumer-pdb.yaml
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/environment: prod
+
+# Sin `newTag` fijo: en producción la etiqueta la inyecta el pipeline con
+# `kustomize edit set image` en cada despliegue. Fijar `latest` aquí haría que dos
+# despliegues del mismo manifiesto sirvieran binarios distintos.
+images:
+  - name: fintcart/api-gateway
+    newTag: PLACEHOLDER
+  - name: fintcart/auth
+    newTag: PLACEHOLDER
+  - name: fintcart/users
+    newTag: PLACEHOLDER
+  - name: fintcart/learning
+    newTag: PLACEHOLDER
+  - name: fintcart/simulator
+    newTag: PLACEHOLDER
+  - name: fintcart/orchestrator
+    newTag: PLACEHOLDER
+  - name: fintcart/notification
+    newTag: PLACEHOLDER
+  - name: fintcart/audit
+    newTag: PLACEHOLDER
+
+replicas:
+  # Dos réplicas para los consumidores puros. La corrección con varias está resuelta en
+  # el código —reclamación con `SKIP LOCKED` en Notificación, `ON CONFLICT DO NOTHING`
+  # en Auditoría—, así que aquí solo se aprovecha.
+  - name: notification
+    count: 2
+  - name: audit
+    count: 2
+
+configMapGenerator:
+  - name: fintcart-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=info
+      - RUST_LOG=info,sqlx=warn
+
+patches:
+  - path: resources.yaml
+    target:
+      kind: Deployment
+  - path: autoscaling.yaml
+    target:
+      kind: HorizontalPodAutoscaler

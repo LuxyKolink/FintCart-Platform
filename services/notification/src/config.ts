@@ -30,6 +30,22 @@ export interface Config {
   readonly maxAttempts: number;
   /** Milisegundos entre barridos de la cola. */
   readonly dispatchIntervalMs: number;
+  /**
+   * Cuántas notificaciones se reclaman por barrido.
+   *
+   * Acota el trabajo de un ciclo: sin tope, el backlog acumulado tras una caída del
+   * SMTP se traería entero a memoria en el primer barrido tras recuperarse.
+   */
+  readonly dispatchBatchSize: number;
+  /**
+   * Envíos simultáneos como máximo.
+   *
+   * Sin tope, un lote de mil eventos abriría mil conexiones SMTP a la vez y el
+   * proveedor cortaría el tráfico por abuso justo cuando más hay que enviar.
+   */
+  readonly dispatchConcurrency: number;
+  /** Puerto de las sondas `/healthz` y `/readyz` y de `/metrics` (D-12). */
+  readonly healthPort: number;
   /** Nivel de log. */
   readonly logLevel: string;
 }
@@ -77,6 +93,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     smtpFrom: required.SMTP_FROM as string,
     maxAttempts: positiveInt(env.MAX_ATTEMPTS, 3, 'MAX_ATTEMPTS'),
     dispatchIntervalMs: positiveInt(env.DISPATCH_INTERVAL_MS, 5_000, 'DISPATCH_INTERVAL_MS'),
+    dispatchBatchSize: positiveInt(env.DISPATCH_BATCH_SIZE, 50, 'DISPATCH_BATCH_SIZE'),
+    dispatchConcurrency: positiveInt(env.DISPATCH_CONCURRENCY, 8, 'DISPATCH_CONCURRENCY'),
+    healthPort: positiveInt(env.HEALTH_PORT, 8080, 'HEALTH_PORT'),
     logLevel: env.LOG_LEVEL ?? 'info',
   };
 }

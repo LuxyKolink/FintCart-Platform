@@ -1,0 +1,42 @@
+# Configuración NO secreta, compartida por los ocho servicios (Principio X regla 2).
+#
+# Todo lo que aquí aparece es una dirección o un parámetro operativo. Las credenciales
+# —cadenas de conexión con usuario y contraseña, `JWT_SIGNING_KEY`, credenciales SMTP—
+# viven en Secrets que NO se versionan; ver `../README.md`.
+#
+# El descubrimiento es por HOSTNAME (Principio X regla 3): `auth.fintcart.svc.cluster.local`
+# lo resuelve el DNS del clúster al Service correspondiente, así que añadir réplicas no
+# obliga a tocar ninguna configuración.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fintcart-config
+data:
+  # ── Puertos ───────────────────────────────────────────────────────────────
+  # El puerto de sondas es el MISMO en los ocho servicios para que un solo
+  # `ServiceMonitor` de Prometheus los recoja todos. Es 9090 y no 8080 porque el
+  # Gateway ya usa el 8080 para su superficie REST.
+  HEALTH_PORT: "9090"
+  GRPC_PORT: "50051"
+  HTTP_PORT: "8080"
+
+  # ── Descubrimiento entre servicios ────────────────────────────────────────
+  AUTH_SVC_ADDR: "auth:50051"
+  USERS_SVC_ADDR: "users:50051"
+  LEARNING_SVC_ADDR: "learning:50051"
+  SIMULATOR_SVC_ADDR: "simulator:50051"
+  ORCHESTRATOR_SVC_ADDR: "orchestrator:50051"
+
+  # ── Colas ─────────────────────────────────────────────────────────────────
+  # Espejan `events.QueueNotification` y `events.QueueAudit` del Orquestador, que es
+  # quien declara la topología al arrancar.
+  AMQP_QUEUE_NOTIFICATION: "notification.q"
+  AMQP_QUEUE_AUDIT: "audit.q"
+
+  # ── Operación ─────────────────────────────────────────────────────────────
+  LOG_LEVEL: "info"
+  # `RUST_LOG` en lugar de `LOG_LEVEL` solo para el Simulador: `EnvFilter` de
+  # `tracing_subscriber` admite filtros por módulo que un nivel global no expresa.
+  RUST_LOG: "info,sqlx=warn"
+  MAX_ATTEMPTS: "3"
+  DISPATCH_INTERVAL_MS: "5000"

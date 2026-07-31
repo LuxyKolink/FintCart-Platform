@@ -45,6 +45,7 @@ import (
 	usersv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/users/v1"
 	"github.com/fintcart/platform/services/orchestrator/internal/events"
 	"github.com/fintcart/platform/services/orchestrator/internal/handler"
+	"github.com/fintcart/platform/services/orchestrator/internal/observability"
 	"github.com/fintcart/platform/services/orchestrator/internal/outbox"
 	"github.com/fintcart/platform/services/orchestrator/internal/server"
 	"github.com/fintcart/platform/services/orchestrator/internal/server/steps"
@@ -64,7 +65,7 @@ func run() error {
 		return err
 	}
 
-	logger := newLogger(cfg.LogLevel)
+	logger := observability.NewLogger(cfg.LogLevel)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -123,10 +124,35 @@ func run() error {
 		steps.AnonymizationDefinition(participants),
 		steps.ActivityDefinition(participants),
 	)
+	// Este defer se registra DESPUÉS de los que cierran la base y las conexiones
+	// gRPC, así que se ejecuta ANTES que ellos (los defer corren en orden inverso).
+	// El orden es la única razón por la que está aquí y no junto al ensamblaje: una
+	// saga en vuelo necesita el pool y los participantes hasta su último paso.
+	defer func() {
+		if !engine.Wait(shutdownTimeout) {
+			logger.Warn("el apagado deja sagas en vuelo; se reanudarán en el próximo arranque",
+				slog.Duration("timeout", shutdownTimeout))
+		}
+	}()
+
 	h := handler.New(server.New(engine))
 
-	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(handler.UnaryInterceptors(logger)...))
+	// El interceptor de métricas va DESPUÉS del de log en la cadena para medir también
+	// lo que este último añade.
+	interceptors := append(handler.UnaryInterceptors(logger), observability.UnaryServerInterceptor())
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
 	h.Register(grpcServer)
+
+	// La readiness comprueba la base, que es de lo que depende poder ARRANCAR una
+	// saga. No comprueba los participantes: que Aprendizaje esté caído no debe sacar
+	// de servicio al Orquestador, porque las sagas que no dependan de él siguen
+	// pudiendo avanzar y las que sí ya tienen su propia compensación.
+	go observability.NewProbes(cfg.HealthPort, logger, func(probeCtx context.Context) error {
+		if err := db.PingContext(probeCtx); err != nil {
+			return fmt.Errorf("orchestrator_db no responde: %w", err)
+		}
+		return nil
+	}).Run(ctx)
 
 	relay := outbox.NewRelay(store, events.NewAMQPPublisher(ch), logger, outbox.Config{
 		Exchange:  events.ExchangeName,
@@ -134,15 +160,17 @@ func run() error {
 		Interval:  outboxInterval,
 	})
 
-	return serve(ctx, logger, grpcServer, relay, cfg.GRPCPort)
+	return serve(ctx, logger, grpcServer, relay, engine, cfg.GRPCPort)
 }
 
-// serve corre el servidor gRPC y el publicador del outbox hasta la señal de parada.
+// serve corre el servidor gRPC, el publicador del outbox y el barrido de reanudación
+// hasta la señal de parada.
 func serve(
 	ctx context.Context,
 	logger *slog.Logger,
 	srv *grpc.Server,
 	relay *outbox.Relay,
+	engine *server.Engine,
 	port string,
 ) error {
 	// `ListenConfig.Listen` y no `net.Listen`: el contexto solo se usa para resolver
@@ -163,6 +191,19 @@ func serve(
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 2)
+
+	// El rescate de sagas a medias es PERIÓDICO y no un barrido único al arrancar.
+	// Con un barrido único, una saga abandonada por una réplica que muere seguiría
+	// parada hasta que ESA réplica volviera; con el barrido periódico la recoge
+	// cualquiera de las que están vivas, que es lo que hace útil tener ≥ 2 (D-12).
+	//
+	// No entra en `errCh`: que el rescate falle una vez no justifica tumbar un
+	// proceso que sigue atendiendo sagas nuevas correctamente.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		resumeLoop(runCtx, logger, engine)
+	}()
 
 	wg.Add(1)
 	go func() {
@@ -217,6 +258,33 @@ func serve(
 	return nil
 }
 
+// resumeLoop reclama periódicamente las sagas que quedaron a medias.
+func resumeLoop(ctx context.Context, logger *slog.Logger, engine *server.Engine) {
+	sweep := func() {
+		if err := engine.Resume(ctx, resumeBatchSize); err != nil {
+			logger.ErrorContext(ctx, "barrido de reanudación fallido",
+				slog.String("error", err.Error()))
+		}
+	}
+
+	// Un primer barrido inmediato: tras un reinicio, lo que quedó a medias lleva ya
+	// esperando todo lo que duró la caída, y hacerle esperar un ciclo más solo alarga
+	// el tiempo que un usuario pasa con el registro sin terminar.
+	sweep()
+
+	ticker := time.NewTicker(resumeInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Info("barrido de reanudación detenido")
+			return
+		case <-ticker.C:
+			sweep()
+		}
+	}
+}
+
 // dialParticipants abre las cuatro conexiones salientes.
 //
 // Devuelve también las conexiones crudas para poder cerrarlas: `steps.Clients` solo
@@ -265,6 +333,16 @@ const (
 	// confirmar una saga y publicar su evento, así que subirlo hace que los correos
 	// tarden más en salir; bajarlo multiplica las consultas al outbox vacío.
 	outboxInterval = 2 * time.Second
+
+	// resumeBatchSize acota cuántas sagas se rescatan por barrido. Tras una caída
+	// larga puede haber miles: traerlas de golpe convertiría la recuperación en una
+	// segunda caída, esta vez provocada por el propio rescate.
+	resumeBatchSize = 50
+	// resumeInterval es la espera entre barridos de rescate. Debe ser mayor que el
+	// margen de antigüedad que exige `storer.ListResumable` para reclamar una saga;
+	// si fuera menor, cada barrido encontraría vacío lo que el anterior acaba de
+	// reclamar y el rescate no avanzaría más rápido, solo consultaría más.
+	resumeInterval = 2 * time.Minute
 )
 
 type config struct {
@@ -275,6 +353,7 @@ type config struct {
 	LearningAddr  string
 	SimulatorAddr string
 	GRPCPort      string
+	HealthPort    string
 	LogLevel      string
 }
 
@@ -289,7 +368,12 @@ func loadConfig() (config, error) {
 		LearningAddr:  os.Getenv("LEARNING_SVC_ADDR"),
 		SimulatorAddr: os.Getenv("SIMULATOR_SVC_ADDR"),
 		GRPCPort:      os.Getenv("GRPC_PORT"),
+		HealthPort:    os.Getenv("HEALTH_PORT"),
 		LogLevel:      os.Getenv("LOG_LEVEL"),
+	}
+
+	if cfg.HealthPort == "" {
+		cfg.HealthPort = observability.DefaultHealthPort
 	}
 
 	missing := make([]string, 0, 7)
@@ -311,14 +395,6 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("%w: %s", errMissingEnv, strings.Join(missing, ", "))
 	}
 	return cfg, nil
-}
-
-func newLogger(level string) *slog.Logger {
-	var lvl slog.Level
-	if err := lvl.UnmarshalText([]byte(level)); err != nil {
-		lvl = slog.LevelInfo
-	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 }
 
 func dialService(addr string) (*grpc.ClientConn, error) {

@@ -22,11 +22,17 @@ import (
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 
+	"github.com/fintcart/platform/services/audit/internal/observability"
 	"github.com/fintcart/platform/services/audit/internal/storer"
 )
 
-// ErrNotImplemented marca lo que llega con T063.
-var ErrNotImplemented = errors.New("handler: no implementado")
+// ErrDeliveriesClosed indica que el broker cerró el canal de entregas.
+//
+// Es un error y no un final ordenado a propósito: el apagado lo señala el contexto,
+// así que un canal cerrado sin contexto cancelado solo puede ser la conexión caída, y
+// `main.go` tiene que reconectar. Tratarlo como final normal dejaría el proceso vivo
+// sin consumir nada —el peor de los estados, porque parece sano.
+var ErrDeliveriesClosed = errors.New("handler: el broker cerró el canal de entregas")
 
 // errMalformedEvent marca un mensaje que no se puede interpretar.
 //
@@ -89,7 +95,7 @@ func (c *Consumer) Run(ctx context.Context, deliveries Deliveries) error {
 				// El canal cerrado significa que el broker cortó la conexión. Se
 				// devuelve error para que `main.go` reconecte: seguir en el bucle con un
 				// canal cerrado consumiría CPU sin procesar nada.
-				return fmt.Errorf("canal de entregas cerrado para la cola %s: %w", c.queue, ErrNotImplemented)
+				return fmt.Errorf("%w (cola %s)", ErrDeliveriesClosed, c.queue)
 			}
 			c.handle(ctx, msg)
 		}
@@ -109,32 +115,66 @@ func (c *Consumer) Run(ctx context.Context, deliveries Deliveries) error {
 // un hipo de red — y `audit_log` es la fuente autoritativa de trazabilidad regulatoria
 // (FR-025), así que un hueco ahí no se puede rellenar después.
 func (c *Consumer) handle(ctx context.Context, msg amqp.Delivery) {
+	// El consumo es la ÚNICA superficie de este servicio: sin medirlo aquí, Auditoría
+	// no tendría ni throughput ni tasa de error, por el mero hecho de no atender
+	// peticiones (§Observabilidad).
+	start := time.Now()
+	outcome := "success"
+	defer func() { observability.Observe("audit.consume", outcome, time.Since(start)) }()
+
 	entry, err := entryFromMessage(msg.Body)
 	if err != nil {
+		outcome = "malformed"
 		c.logger.ErrorContext(ctx, "evento descartado a dead-letter",
 			slog.String("queue", c.queue),
 			slog.String("routing_key", msg.RoutingKey),
 			slog.String("error", err.Error()),
 		)
-		// T063: Nack(requeue=false). Sin requeue: no va a mejorar reintentándolo.
+		// Sin requeue: no va a mejorar reintentándolo, y devolverlo a la cola lo
+		// pondría delante de todos los demás una y otra vez.
+		c.settle(ctx, msg.Nack(false, false), "nack-dead-letter", msg)
 		return
 	}
 
 	if err := c.store.Append(ctx, entry); err != nil {
+		outcome = "write_error"
 		c.logger.ErrorContext(ctx, "fallo al registrar evento de auditoría",
 			slog.String("event_id", entry.ID.String()),
 			slog.String("operation", entry.Operation),
 			slog.String("error", err.Error()),
 		)
-		// T063: Nack(requeue=true). El evento debe volver a intentarse.
+		// Con requeue: el fallo es de la base, no del mensaje. `audit_log` es la fuente
+		// autoritativa de trazabilidad (FR-025) y un hueco no se puede rellenar
+		// después, así que el evento tiene que volver a intentarse.
+		c.settle(ctx, msg.Nack(false, true), "nack-requeue", msg)
 		return
 	}
 
-	// T063: Ack. El ack va DESPUÉS del INSERT confirmado, nunca antes: con ack previo,
-	// un fallo de escritura perdería el evento sin que quedara constancia.
+	// El ack va DESPUÉS del INSERT confirmado, nunca antes: con ack previo, un fallo
+	// de escritura perdería el evento sin que quedara constancia.
+	c.settle(ctx, msg.Ack(false), "ack", msg)
 	c.logger.DebugContext(ctx, "evento auditado",
 		slog.String("event_id", entry.ID.String()),
 		slog.String("operation", entry.Operation),
+	)
+}
+
+// settle registra el fallo de un ack o un nack sin abortar el consumo.
+//
+// Un ack que falla significa casi siempre que el canal ya está muerto; el bucle lo
+// detectará en la siguiente lectura y `main.go` reconectará. Lo que no se puede es
+// pasarlo por alto en silencio: sin ack, el broker reentregará el mensaje al
+// reconectar, y saber que eso va a ocurrir explica el duplicado que aparecerá en el
+// log un minuto después.
+func (c *Consumer) settle(ctx context.Context, err error, action string, msg amqp.Delivery) {
+	if err == nil {
+		return
+	}
+	c.logger.ErrorContext(ctx, "no se pudo confirmar el mensaje al broker",
+		slog.String("queue", c.queue),
+		slog.String("accion", action),
+		slog.Uint64("delivery_tag", msg.DeliveryTag),
+		slog.String("error", err.Error()),
 	)
 }
 
@@ -180,14 +220,28 @@ func entryFromMessage(body []byte) (storer.EntryRow, error) {
 	}
 
 	return storer.EntryRow{
-		ID:        id,
-		ActorRef:  actor,
-		Operation: env.EventType,
-		Context:   contextJSON,
-		// T063 decide el `result` a partir del evento. Por defecto `success`: los
-		// eventos del catálogo describen hechos consumados, y los fallos que hay que
-		// auditar viajan como eventos propios (`auth.security_alert`).
-		Result:     storer.ResultSuccess,
+		ID:         id,
+		ActorRef:   actor,
+		Operation:  env.EventType,
+		Context:    contextJSON,
+		Result:     resultOf(env.Payload),
 		OccurredAt: occurredAt,
 	}, nil
+}
+
+// resultOf deduce el desenlace de la operación auditada.
+//
+// Por defecto `success`: los eventos del catálogo describen hechos CONSUMADOS —una
+// cuenta que se registró, un cuestionario que se calificó—, no intentos.
+//
+// Un productor que necesite auditar un fracaso lo declara con `"result": "failure"`
+// en su payload. Que lo diga el productor y no una tabla de excepciones en Auditoría
+// es deliberado: en el momento en que este servicio decidiera por su cuenta que
+// `auth.security_alert` «es un fallo», tendría una opinión sobre el dominio de otro
+// servicio, y esa opinión envejecería sin que nadie la revisara.
+func resultOf(payload map[string]any) string {
+	if raw, ok := payload["result"].(string); ok && raw == storer.ResultFailure {
+		return storer.ResultFailure
+	}
+	return storer.ResultSuccess
 }

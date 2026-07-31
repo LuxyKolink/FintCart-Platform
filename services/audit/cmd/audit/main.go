@@ -34,6 +34,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/fintcart/platform/services/audit/internal/handler"
+	"github.com/fintcart/platform/services/audit/internal/observability"
 	"github.com/fintcart/platform/services/audit/internal/storer"
 )
 
@@ -50,7 +51,7 @@ func run() error {
 		return err
 	}
 
-	logger := newLogger(cfg.LogLevel)
+	logger := observability.NewLogger(cfg.LogLevel)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -66,6 +67,17 @@ func run() error {
 	db.SetConnMaxLifetime(connMaxLifetime)
 
 	consumer := handler.NewConsumer(storer.NewPostgresStorer(db), logger, cfg.Queue)
+
+	// Auditoría no expone gRPC ni REST (Principio V), pero sí necesita sondas: un
+	// consumidor que perdió la conexión con la base sigue «arriba» para el orquestador
+	// de contenedores y deja de registrar sin que nadie se entere. La readiness es lo
+	// único que convierte ese estado en visible.
+	go observability.NewProbes(cfg.HealthPort, logger, func(probeCtx context.Context) error {
+		if err := db.PingContext(probeCtx); err != nil {
+			return fmt.Errorf("audit_db no responde: %w", err)
+		}
+		return nil
+	}).Run(ctx)
 
 	return consumeForever(ctx, logger, consumer, cfg)
 }
@@ -173,23 +185,29 @@ const (
 )
 
 type config struct {
-	DBAddr   string
-	AMQPAddr string
-	Queue    string
-	LogLevel string
+	DBAddr     string
+	AMQPAddr   string
+	Queue      string
+	HealthPort string
+	LogLevel   string
 }
 
 var errMissingEnv = errors.New("falta una variable de entorno obligatoria")
 
 func loadConfig() (config, error) {
 	cfg := config{
-		DBAddr:   os.Getenv("DB_ADDR"),
-		AMQPAddr: os.Getenv("AMQP_ADDR"),
-		Queue:    os.Getenv("AMQP_QUEUE"),
-		LogLevel: os.Getenv("LOG_LEVEL"),
+		DBAddr:     os.Getenv("DB_ADDR"),
+		AMQPAddr:   os.Getenv("AMQP_ADDR"),
+		Queue:      os.Getenv("AMQP_QUEUE"),
+		HealthPort: os.Getenv("HEALTH_PORT"),
+		LogLevel:   os.Getenv("LOG_LEVEL"),
 	}
 	if cfg.Queue == "" {
 		cfg.Queue = defaultQueue
+	}
+
+	if cfg.HealthPort == "" {
+		cfg.HealthPort = observability.DefaultHealthPort
 	}
 
 	missing := make([]string, 0, 2)
@@ -206,14 +224,6 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("%w: %s", errMissingEnv, strings.Join(missing, ", "))
 	}
 	return cfg, nil
-}
-
-func newLogger(level string) *slog.Logger {
-	var lvl slog.Level
-	if err := lvl.UnmarshalText([]byte(level)); err != nil {
-		lvl = slog.LevelInfo
-	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 }
 
 func closeQuietly(logger *slog.Logger, what string, closeFn func() error) {

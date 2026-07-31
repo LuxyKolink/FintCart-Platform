@@ -1,0 +1,18 @@
+# Recursos reducidos para un clúster de desarrollo.
+#
+# Es un parche JSON 6902 y no un `strategic merge` a propósito: el merge estratégico
+# empareja los contenedores POR NOMBRE, así que un parche genérico aplicado a los ocho
+# Deployments no encontraría el contenedor y AÑADIRÍA uno nuevo llamado como el
+# marcador. El parche por índice apunta al único contenedor de cada pod sin necesidad
+# de nombrarlo, que es lo que permite escribirlo una vez en lugar de ocho.
+#
+# El `limits.memory` se mantiene aunque las peticiones bajen: sin él, una fuga en un
+# servicio se comería la memoria del nodo y arrastraría a los otros siete.
+- op: replace
+  path: /spec/template/spec/containers/0/resources
+  value:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
