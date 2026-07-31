@@ -191,9 +191,7 @@ describe('Principio VIII', () => {
 
     // Un monto grande en COP más un centavo: con `number` el centavo se pierde
     // por falta de dígitos significativos.
-    expect(format(parse('99999999999999.99').plus(parse('0.01')))).toBe(
-      '100000000000000',
-    );
+    expect(format(parse('99999999999999.99').plus(parse('0.01')))).toBe('100000000000000');
 
     // Diez veces 0.1 debe ser exactamente 1.
     let acc = new Decimal(0);

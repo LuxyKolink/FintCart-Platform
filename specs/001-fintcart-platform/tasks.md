@@ -531,7 +531,7 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 > Escribir estas pruebas PRIMERO y verificar que fallan antes de implementar.
 
-- [ ] T069 [P] [US1] Prueba de contrato gRPC de `LearningService` (`ListPublished`, `GetArticle`, `GetQuiz`, `GradeAndStoreAttempt`, `ListAttempts`) en `services/learning/test/learning.contract.spec.ts`
+- [X] T069 [P] [US1] Prueba de contrato gRPC de `LearningService` (`ListPublished`, `GetArticle`, `GetQuiz`, `GradeAndStoreAttempt`, `ListAttempts`) en `services/learning/test/learning.contract.spec.ts`
 - [ ] T070 [P] [US1] Prueba de contrato gRPC de `UsersService` (`CreateProfile`, `MarkEmailVerified`, `GetAuthContext`, `ApplyQuizScore`, `GetProgress`, `RecordArticleView`, `AppendInAppNotification`) en `services/users/internal/server/contract_test.go`
 - [ ] T071 [P] [US1] Prueba de integración de la Saga de registro con inyección de fallo en cada paso y verificación de compensación en `services/orchestrator/internal/server/saga_registration_test.go` (D-04)
 - [ ] T072 [P] [US1] Prueba de integración de la Saga de calificación→progreso→notificar→auditar, verificando idempotencia y monotonía de `ApplyQuizScore` en `services/orchestrator/internal/server/saga_grading_test.go` (D-07, FR-027)
@@ -539,15 +539,61 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 ### Implementación — Servicio de Aprendizaje (NestJS)
 
-- [ ] T074 [P] [US1] Implementar la capa de persistencia de artículos y versiones en `services/learning/src/articles/articles.repository.ts` sobre `articles` y `article_versions`
-- [ ] T075 [P] [US1] Implementar la capa de persistencia de cuestionarios e intentos en `services/learning/src/quizzes/quizzes.repository.ts` sobre `quizzes`, `questions` y `quiz_attempts`
-- [ ] T076 [US1] Implementar `LearningService.ListPublished` y `GetArticle` (catálogo por categorías temáticas, ≥ 5 categorías) en `services/learning/src/articles/articles.service.ts` (FR-010, SC-009)
-- [ ] T077 [US1] Implementar `LearningService.GetQuiz` en `services/learning/src/quizzes/quizzes.service.ts` (FR-011)
-- [ ] T078 [US1] Implementar `LearningService.GradeAndStoreAttempt` en `services/learning/src/grading/grading.service.ts`: calificar con `decimal.js`, persistir SIEMPRE el intento con `attempt_no` incremental dentro de una transacción, devolver `score` y `attemptNumber` (FR-012, FR-016)
-- [ ] T079 [US1] Implementar `LearningService.ListAttempts` (historial completo y paginado de intentos por usuario y cuestionario) en `services/learning/src/grading/grading.service.ts` — ruta de lectura de FR-016 y fuente del historial de cuestionarios exigido por FR-029
-- [ ] T080 [US1] Implementar el incremento de agregados de `article_stats` dentro de `GetArticle` en `services/learning/src/articles/articles.service.ts` (D-06)
-- [ ] T081 [US1] Implementar los controladores gRPC y el mapeo proto↔dominio en `services/learning/src/grpc/learning.controller.ts` y `services/learning/src/grpc/mapping.ts` — los tipos proto no llegan al repositorio (Principio IX regla 1)
-- [ ] T082 [P] [US1] Escribir pruebas de persistencia de Aprendizaje contra driver SQL simulado en `services/learning/test/repositories.spec.ts`
+- [X] T074 [P] [US1] Implementar la capa de persistencia de artículos y versiones en `services/learning/src/articles/articles.repository.ts` sobre `articles` y `article_versions`
+- [X] T075 [P] [US1] Implementar la capa de persistencia de cuestionarios e intentos en `services/learning/src/quizzes/quizzes.repository.ts` sobre `quizzes`, `questions` y `quiz_attempts`
+- [X] T076 [US1] Implementar `LearningService.ListPublished` y `GetArticle` (catálogo por categorías temáticas, ≥ 5 categorías) en `services/learning/src/articles/articles.service.ts` (FR-010, SC-009)
+- [X] T077 [US1] Implementar `LearningService.GetQuiz` en `services/learning/src/quizzes/quizzes.service.ts` (FR-011)
+- [X] T078 [US1] Implementar `LearningService.GradeAndStoreAttempt` en `services/learning/src/grading/grading.service.ts`: calificar con `decimal.js`, persistir SIEMPRE el intento con `attempt_no` incremental dentro de una transacción, devolver `score` y `attemptNumber` (FR-012, FR-016)
+- [X] T079 [US1] Implementar `LearningService.ListAttempts` (historial completo y paginado de intentos por usuario y cuestionario) en `services/learning/src/grading/grading.service.ts` — ruta de lectura de FR-016 y fuente del historial de cuestionarios exigido por FR-029
+- [X] T080 [US1] Implementar el incremento de agregados de `article_stats` dentro de `GetArticle` en `services/learning/src/articles/articles.service.ts` (D-06)
+- [X] T081 [US1] Implementar los controladores gRPC y el mapeo proto↔dominio en `services/learning/src/grpc/learning.controller.ts` y `services/learning/src/grpc/mapping.ts` — los tipos proto no llegan al repositorio (Principio IX regla 1)
+- [X] T082 [P] [US1] Escribir pruebas de persistencia de Aprendizaje contra driver SQL simulado en `services/learning/test/repositories.spec.ts`
+
+**Notas de T069 y T074–T082**
+
+- **Defecto de contrato corregido antes de implementar** (commit aparte, según la
+  convención de `contracts/generate.sh`). `Question.options` era `repeated string`: solo
+  los enunciados. Pero `GradeRequest.answers` mapea `question_id -> option_key`, así que
+  un cliente que recibiera únicamente los textos no tendría con qué responder — el
+  cuestionario era **incontestable** y FR-011 no se podía cumplir. Pasa a
+  `repeated Option {key, text}`, el mismo par que ya guarda `questions.options`.
+- **Segundo defecto, encontrado por la prueba de contrato**: `LearningModule` no
+  importaba el módulo que declara `PG_POOL`. Nest resuelve POR MÓDULO, no globalmente,
+  así que el proceso habría fallado al construir el contenedor —en producción, al
+  arrancar— con un mensaje que señala al repositorio y no a la importación ausente.
+- La configuración y el pool salen de `app.module.ts` a `common/database.module.ts`.
+  Dejarlos en el raíz cerraba el grafo de importaciones sobre sí mismo; con CommonJS eso
+  no siempre falla al compilar, falla en ejecución con un proveedor `undefined`.
+- **El cuestionario y su clave de corrección se leen con métodos distintos.** Podrían
+  ser uno solo omitiendo `correct_key` en el mapeo, pero entonces las respuestas
+  correctas viajarían dentro del objeto que se entrega al transporte, y bastaría un
+  campo nuevo en el contrato para publicar las soluciones. Hay una prueba que lo fija
+  sobre el JSON serializado.
+- Los `NUMERIC` se piden con **`::text` explícito**. Parece redundante —`pg` ya los
+  devuelve como string— y no lo es: un `pg.types.setTypeParser(1700, parseFloat)` en
+  cualquier punto del proceso haría que TODAS las calificaciones pasaran por un `double`
+  sin que nada falle ni avise (Principio VIII).
+- La calificación es **ponderada**, con redondeo half-even UNA sola vez al final, y una
+  pregunta sin responder cuenta como incorrecta sin salir del denominador: excluirla
+  convertiría dejar preguntas en blanco en una estrategia para sacar 100.
+- Los agregados de `article_stats` se **recalculan** desde los intentos en lugar de
+  acumularse: un promedio incremental redondeado en cada paso acaba diciendo algo que
+  los propios intentos desmienten.
+- `attempt_no` se calcula dentro de la transacción y la corrección la garantiza el
+  `UNIQUE (user_id, quiz_id, attempt_no)` más un reintento acotado, no el número de
+  sentencias.
+- Las pruebas corren contra **`pg-mem`** (ya era devDependency): ejecutan el SQL de
+  verdad. Hicieron falta dos registros de función —`gen_random_uuid` marcado `impure` y
+  `round(numeric,int)` con half-even— por huecos del emulador, no del servicio.
+- **Hueco de contrato pendiente, bloquea T105**: no existe ninguna ruta REST para
+  OBTENER un cuestionario. `paths:` solo declara `POST /quizzes/{quizId}/attempts`, y
+  `Article` solo trae `quiz_ids`, así que la SPA puede enviar respuestas pero no puede
+  leer las preguntas. `LearningService.GetQuiz` ya existe por gRPC; falta exponerlo en
+  el Gateway (ámbito de T100).
+- Los RPC del flujo editorial (`CreateDraft`, `SubmitForReview`, `ApproveAndPublish`,
+  `Archive`) y `AnonymizeAttempts` **no se registran** todavía: son US3 y US4. No
+  declararlos hace que gRPC responda `UNIMPLEMENTED` por sí solo, que es exactamente lo
+  que son y se distingue de un fallo del servidor.
 
 ### Implementación — Servicio de Usuarios (Go)
 
