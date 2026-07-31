@@ -7,22 +7,26 @@
 package token
 
 import (
+	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // Claims son los claims de un access token de Fintcart.
 //
-// Embebe `jwt.RegisteredClaims` para heredar `exp`, `iat`, `sub`, `iss` y `jti` con
-// los nombres del RFC 7519 en lugar de inventarlos: un `expires_at` propio no lo
-// valida ninguna librería, y un token sin expiración efectiva es un token eterno.
+// Embebe `jwt.RegisteredClaims` para heredar `exp`, `iat`, `sub`, `iss`, `aud` y
+// `jti` con los nombres del RFC 7519 en lugar de inventarlos. No es cosmético: las
+// librerías validan `exp` y `nbf` automáticamente porque conocen esos nombres, y un
+// `expires_at` propio no lo valida nadie — el resultado sería un token eterno que
+// parece tener caducidad.
 type Claims struct {
 	jwt.RegisteredClaims
 
 	// Roles autoriza en el borde (FR-006). Va DENTRO del token —y no se consulta a
 	// Usuarios en cada petición— para que autorizar no cueste un salto gRPC por
 	// request. La contrapartida es real y hay que asumirla: un cambio de rol no surte
-	// efecto hasta que el token expira o se revoca, y por eso la vida del access
-	// token es corta (ver `accessTokenTTL`).
+	// efecto hasta que el token expira o se revoca, y por eso [AccessTokenTTL] es
+	// corto.
 	Roles []string `json:"roles,omitempty"`
 
 	// Scopes acota lo que el token puede hacer; lo usan sobre todo los tokens de
@@ -40,14 +44,21 @@ const (
 	Audience = "fintcart-api"
 )
 
-// Vidas de los tokens (D-05).
+// AccessTokenTTL es la vida de un access token (D-05).
 //
-// El access token dura poco PRECISAMENTE porque los roles viajan dentro: es el
-// plazo máximo durante el cual un permiso retirado sigue siendo válido. El refresh
-// token dura mucho más, pero se ROTA en cada uso —cada renovación invalida el
-// anterior—, de modo que reutilizar uno ya canjeado delata el robo y permite cortar
-// toda la cadena.
-const (
-	AccessTokenTTL  = 15 * 60           // segundos
-	RefreshTokenTTL = 30 * 24 * 60 * 60 // segundos
-)
+// Dura poco PRECISAMENTE porque los roles viajan dentro: es el plazo máximo durante
+// el cual un permiso retirado sigue siendo válido.
+//
+// La vida del refresh token es `server.RefreshTokenTTL` y no está aquí porque este
+// paquete solo firma access tokens; el refresh es opaco y lo gestiona la capa de
+// aplicación. (Además, `token` importa `server`, así que la constante no podría
+// vivir en los dos sitios sin un ciclo.)
+const AccessTokenTTL = 15 * time.Minute
+
+// SigningMethod es el único algoritmo que este servicio emite y acepta.
+//
+// Se declara como constante y se usa TANTO al firmar como al verificar. La
+// alternativa —leer el `alg` que trae el token— es el fallo clásico de los JWT:
+// permite degradarlo a `none` (sin firma) o, con claves asimétricas, firmar con la
+// clave pública tratándola como secreto HMAC.
+const SigningMethod = "HS256"

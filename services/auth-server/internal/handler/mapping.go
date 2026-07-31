@@ -81,6 +81,15 @@ func grpcError(err error) error {
 		// Mensaje fijo y genérico: no debe distinguir «no existe» de «contraseña
 		// incorrecta» ni de «cuenta no verificada».
 		return status.Error(codes.Unauthenticated, "credenciales inválidas")
+	case errors.Is(err, server.ErrPKCEVerificationFailed),
+		errors.Is(err, server.ErrTokenReuse):
+		// Los dos casos comparten mensaje —y con el del código caducado, que llega
+		// como `ErrConflict`— a propósito. Un fallo de PKCE significa que quien canjea
+		// no inició el flujo, y una reutilización de refresh token que alguien guardó
+		// una copia: en los dos, decirle al cliente cuál de los dos ocurrió le confirma
+		// que su código o su token llegó a ser válido. En el LOG sí se distinguen, que
+		// es donde la diferencia sirve para algo.
+		return status.Error(codes.Unauthenticated, "el canje no es válido")
 	case errors.Is(err, server.ErrNotFound):
 		return status.Error(codes.NotFound, "recurso no encontrado")
 	case errors.Is(err, server.ErrConflict):

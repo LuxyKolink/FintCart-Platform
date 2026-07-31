@@ -46,6 +46,10 @@ var (
 var (
 	ErrNotFound = storer.ErrNotFound
 	ErrConflict = storer.ErrConflict
+	// ErrTokenReuse sube tal cual desde `storer`: el hecho de que un refresh token
+	// se haya reutilizado —y que por eso se haya invalidado la familia entera— es
+	// información que el transporte necesita para elegir el código de estado.
+	ErrTokenReuse = storer.ErrTokenReuse
 )
 
 // Server implementa los flujos de `AuthService`.

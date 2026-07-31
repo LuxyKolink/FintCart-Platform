@@ -297,14 +297,63 @@ notificaciones.
 
 ### Identidad OAuth2 (Principio VII) — requerida por las cuatro historias
 
-- [ ] T047 Implementar el hash Argon2id de contraseñas en `services/auth-server/internal/util/password.go` (nunca en claro ni en logs)
-- [ ] T048 Implementar el emisor/validador JWT y sus claims en `services/auth-server/internal/token/{jwt_maker.go,claims.go}` (D-05)
-- [ ] T049 Implementar el almacén Redis de Auth en `services/auth-server/internal/storer/redis_store.go`: `blacklist:{jti}` con TTL = vida residual y `refresh:{token_id}` con rotación (Principio IV, FR-004)
-- [ ] T050 Implementar `AuthService.IssueAuthorizationCode`, `ExchangeCode` (validando `code_verifier` S256) y `RefreshToken` en `services/auth-server/internal/server/oauth.go` (D-05, Authorization Code + PKCE)
-- [ ] T051 Implementar `AuthService.ValidateCredentials`, `Revoke` e `Introspect` en `services/auth-server/internal/server/credentials.go`
-- [ ] T052 Implementar el flujo Client Credentials para M2M en `services/auth-server/internal/server/client_credentials.go` contra `oauth_clients`
-- [ ] T053 [P] Escribir pruebas de la persistencia de Auth contra driver SQL simulado en `services/auth-server/internal/storer/storer_postgres_test.go` (§Calidad: `go-sqlmock`, sin BD viva)
-- [ ] T054 [P] Escribir pruebas de contrato gRPC de `AuthService` (productor↔consumidor) en `services/auth-server/internal/server/contract_test.go`
+- [X] T047 Implementar el hash Argon2id de contraseñas en `services/auth-server/internal/util/password.go` (nunca en claro ni en logs)
+- [X] T048 Implementar el emisor/validador JWT y sus claims en `services/auth-server/internal/token/{jwt_maker.go,claims.go}` (D-05)
+- [X] T049 Implementar el almacén Redis de Auth en `services/auth-server/internal/storer/redis_store.go`: `blacklist:{jti}` con TTL = vida residual y `refresh:{token_id}` con rotación (Principio IV, FR-004)
+- [X] T050 Implementar `AuthService.IssueAuthorizationCode`, `ExchangeCode` (validando `code_verifier` S256) y `RefreshToken` en `services/auth-server/internal/server/oauth.go` (D-05, Authorization Code + PKCE)
+- [X] T051 Implementar `AuthService.ValidateCredentials`, `Revoke` e `Introspect` en `services/auth-server/internal/server/credentials.go`
+- [X] T052 Implementar el flujo Client Credentials para M2M en `services/auth-server/internal/server/client_credentials.go` contra `oauth_clients`
+- [X] T053 [P] Escribir pruebas de la persistencia de Auth contra driver SQL simulado en `services/auth-server/internal/storer/storer_postgres_test.go` (§Calidad: `go-sqlmock`, sin BD viva)
+- [X] T054 [P] Escribir pruebas de contrato gRPC de `AuthService` (productor↔consumidor) en `services/auth-server/internal/server/contract_test.go`
+
+**Notas de T047–T054**:
+
+- **Verificado en ejecución**: `go build` + `gofmt -l` + `golangci-lint run` con **0 issues**
+  en los 5 módulos Go, y **todas las pruebas de `auth-server` en verde** (`internal/util`,
+  `internal/token`, `internal/storer`, `internal/server`).
+- **Defecto real encontrado y corregido durante T054**: la detección de reutilización de
+  refresh tokens de T049 era *código muerto*. `RefreshToken` consultaba primero y la
+  rotación BORRABA el token viejo, así que presentar uno robado daba «no existe» —
+  indistinguible de uno caducado— y la familia nunca se cortaba. Lo destapó la prueba de
+  contrato, no la unitaria. Corregido cambiando el modelo: la rotación **marca**
+  (`used:{userID}`) en lugar de borrar, `LookupRefreshToken` devuelve
+  `(userID, ErrTokenReuse)` —usuario **y** error a la vez, que es lo que permite
+  reaccionar— y se añadió `TokenStore.InvalidateFamily`. Cortar la familia es decisión de
+  `server`, no del almacén.
+- **Argon2id en formato PHC** (`$argon2id$v=19$m=...,t=...,p=...$sal$clave`): los
+  parámetros de coste viajan DENTRO del hash, así que `Verify` usa los del hash que
+  verifica y las constantes solo afectan a los hashes nuevos. Sin eso, recalibrar el coste
+  invalidaría todas las contraseñas de la base.
+- **Confusión de algoritmo cerrada** en `token.Parse` con
+  `jwt.WithValidMethods([]string{"HS256"})` + `WithIssuer` + `WithAudience` +
+  `WithExpirationRequired`. Hay prueba explícita con `alg: none`.
+- **Ningún oráculo**: correo inexistente ≡ contraseña incorrecta (probado comparando las
+  dos respuestas campo a campo); `client_id` inexistente ≡ secreto incorrecto; código
+  caducado ≡ ya consumido ≡ inexistente; PKCE fallido ≡ refresh reutilizado en el mensaje
+  al cliente, distinguibles solo en el log.
+- **Comparaciones en tiempo constante** donde hay secreto: `subtle.ConstantTimeCompare` en
+  la verificación PKCE y en el hash de contraseña.
+- **El refresh token no se guarda tal cual**: en Redis va su SHA-256. Redis no cifra en
+  reposo y su contenido acaba en volcados, así que guardar el valor presentable
+  convertiría cualquier lectura del almacén en un juego de sesiones utilizables. Sin sal
+  ni KDF caro: el token tiene 256 bits de entropía, no hay diccionario que recorrer.
+- **`authCodeTTL = 45s` y no 60**: el CHECK compara `expires_at` con el `created_at` que
+  pone PostgreSQL, mientras el valor sale del reloj del proceso. Los 15 s de margen
+  absorben la deriva; con 60 exactos el síntoma sería «el login falla a veces».
+- **Dependencias nuevas**: `miniredis/v2` (dev) para probar el script Lua de rotación de
+  verdad, y `lib/pq` **solo** por `pq.Array` — el driver sigue siendo `pgx`; `database/sql`
+  no sabe traducir `TEXT[]` ↔ `[]string`.
+- **`//nolint:gosec` documentados**: G101 se dispara por el NOMBRE de las constantes de
+  consulta («Credential», «Password»), no por su contenido, que es SQL parametrizado;
+  G115 en `password.go` está cubierto por la cota `maxKeyLen` que gosec no propaga.
+- **Alcance ampliado respecto al enunciado**: T050/T051 exigían métodos de `PostgresStorer`
+  que ninguna tarea asignaba explícitamente (`GetOAuthClient`, `InsertAuthCode`,
+  `ConsumeAuthCode`, y los cinco de `credentials`). Se implementaron aquí porque sin ellos
+  los flujos no existen; `ConsumeAuthCode` es `UPDATE … RETURNING` en UNA sentencia, y esa
+  forma es la que cierra la ventana de doble canje.
+- **Sigue pendiente el par asimétrico** (HS256 → RS256/ES256). Con clave simétrica, el
+  Gateway —el componente expuesto— podría FIRMAR tokens de administrador. Anotado en
+  `token.JWTMaker` y en `authn.JWTVerifier`; toca también `dev/docker-compose.yaml`.
 
 ### Borde REST — API Gateway (Principio II)
 

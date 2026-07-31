@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fintcart/platform/services/auth-server/internal/storer"
@@ -37,18 +38,78 @@ type Introspection struct {
 
 // CreateCredential crea la credencial en `pending_verification`. Paso de la saga
 // de registro, idempotente por `user_id` (D-04).
-func (s *Server) CreateCredential(_ context.Context, userID, email, password string) error {
-	if _, err := parseUserID(userID); err != nil {
+//
+// La contraseña en claro no se registra en ningún log y no sobrevive a esta función:
+// entra como parámetro, va al hasher y desaparece. No hay ninguna variable
+// intermedia que la copie ni ningún error que la interpole.
+func (s *Server) CreateCredential(ctx context.Context, userID, email, password string) error {
+	id, err := parseUserID(userID)
+	if err != nil {
 		return err
 	}
+	// La política se comprueba ANTES de derivar el hash. Derivar un Argon2id de una
+	// contraseña que se va a rechazar de todos modos son 64 MiB y varios milisegundos
+	// tirados, y un vector de agotamiento trivial de explotar.
 	if err := ValidatePasswordPolicy(password); err != nil {
 		return err
 	}
-	// T051 implementa la normalización del correo y el `store.CreateCredential`
-	// con el hash de `s.hasher`. La contraseña en claro no se registra en ningún
-	// log ni se guarda en ninguna variable que sobreviva a esta función.
-	_ = email
-	return ErrNotImplemented
+
+	normalized := normalizeEmail(email)
+	if normalized == "" {
+		return fmt.Errorf("%w: correo vacío", ErrInvalidArgument)
+	}
+
+	hash, err := s.hasher.Hash(password)
+	if err != nil {
+		return fmt.Errorf("derivar el hash de la contraseña: %w", err)
+	}
+
+	row := storer.CredentialRow{
+		ID:           id,
+		Email:        normalized,
+		PasswordHash: hash,
+		// Nace SIN verificar (FR-002): el acceso pleno lo desbloquea la saga de
+		// verificación de correo, no el registro.
+		LoginStatus: storer.StatusPendingVerification,
+	}
+	if err := s.store.CreateCredential(ctx, row); err != nil {
+		return fmt.Errorf("crear credencial: %w", err)
+	}
+	return nil
+}
+
+// ChangePasswordHash sustituye la contraseña de una cuenta existente.
+//
+// Valida la política igual que el registro: si solo se validara al crear la cuenta,
+// un cambio de contraseña sería la vía para saltarse la longitud mínima.
+func (s *Server) ChangePasswordHash(ctx context.Context, userID, newPassword string) error {
+	id, err := parseUserID(userID)
+	if err != nil {
+		return err
+	}
+	if err := ValidatePasswordPolicy(newPassword); err != nil {
+		return err
+	}
+
+	hash, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		return fmt.Errorf("derivar el hash de la contraseña: %w", err)
+	}
+	if err := s.store.UpdatePasswordHash(ctx, id, hash); err != nil {
+		return fmt.Errorf("actualizar hash de contraseña: %w", err)
+	}
+	return nil
+}
+
+// normalizeEmail recorta espacios y pasa a minúsculas.
+//
+// La columna es `CITEXT`, así que la base ya compara sin distinguir mayúsculas; esto
+// normaliza lo que se GUARDA para que el valor devuelto en un perfil sea estable y
+// no dependa de cómo lo escribió el usuario el día del registro. Los espacios sí hay
+// que recortarlos aquí: `CITEXT` no los ignora, y « ana@x.co» y «ana@x.co» serían dos
+// cuentas distintas.
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
 }
 
 // ActivateCredential cierra la saga de verificación de correo (FR-002).
@@ -117,12 +178,19 @@ func (s *Server) Revoke(ctx context.Context, token, tokenTypeHint string) error 
 	// primero como access token y, si no parsea, se trata como refresh.
 	claims, err := s.maker.Parse(token)
 	if err != nil {
-		// T051: tratarlo como refresh token (`DeleteRefreshToken`). Un token que no
-		// parsea y tampoco existe como refresh se considera ya revocado y NO es un
-		// error — RFC 7009 lo exige, para que un logout no falle nunca por
-		// presentar un token que ya había caducado.
+		// No es un JWT válido: se trata como refresh token. El `token_type_hint` se
+		// ignora deliberadamente —es una pista del cliente, no una verdad— y probar
+		// los dos tipos cuesta lo mismo que fiarse de él.
+		//
+		// `DeleteRefreshToken` es idempotente, así que un token que tampoco existe
+		// como refresh se considera ya revocado y NO produce error. Lo exige el
+		// RFC 7009 §2.2: un logout no puede fallar por presentar algo que ya no vale,
+		// porque el efecto buscado —que no sirva— ya se cumplió.
 		_ = tokenTypeHint
-		return ErrNotImplemented
+		if err := s.tokens.DeleteRefreshToken(ctx, refreshTokenID(token)); err != nil {
+			return fmt.Errorf("revocar refresh token: %w", err)
+		}
+		return nil
 	}
 
 	ttl := time.Until(claims.ExpiresAt)

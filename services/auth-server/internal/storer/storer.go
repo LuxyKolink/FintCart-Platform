@@ -97,8 +97,22 @@ type TokenStore interface {
 	RotateRefreshToken(ctx context.Context, oldTokenID, newTokenID string, userID uuid.UUID, ttl time.Duration) error
 	// DeleteRefreshToken revoca el refresh token (logout, FR-004).
 	DeleteRefreshToken(ctx context.Context, tokenID string) error
-	// LookupRefreshToken devuelve el usuario dueño del token, o [ErrNotFound].
+	// LookupRefreshToken devuelve el usuario dueño del token.
+	//
+	// Tres resultados posibles, y los tres importan:
+	//   - `(userID, nil)`             el token está vivo.
+	//   - `(uuid.Nil, ErrNotFound)`   no existe o caducó.
+	//   - `(userID, ErrTokenReuse)`   YA se rotó: se devuelve el usuario JUNTO con el
+	//     error, porque es justo lo que hace falta para cortar la familia entera con
+	//     [TokenStore.InvalidateFamily]. Devolver solo el error dejaría la detección
+	//     de reutilización sin forma de actuar.
 	LookupRefreshToken(ctx context.Context, tokenID string) (uuid.UUID, error)
+	// InvalidateFamily borra todos los refresh tokens vivos de un usuario.
+	//
+	// Es la reacción a una reutilización detectada: el legítimo y el ladrón son
+	// indistinguibles a partir de ese punto, así que la única respuesta segura es
+	// obligar a los dos a autenticarse de nuevo.
+	InvalidateFamily(ctx context.Context, userID uuid.UUID) error
 }
 
 // Comprobaciones en tiempo de compilación de los dos implementadores.
