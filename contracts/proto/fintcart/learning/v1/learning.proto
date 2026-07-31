@@ -93,8 +93,20 @@ message Quiz {
 message Question {
   string question_id = 1;
   string prompt = 2;
-  repeated string options = 3;
+  repeated Option options = 3;
   string weight = 4; // [decimal]
+}
+
+// Option es una alternativa de respuesta.
+//
+// Lleva CLAVE y texto, no solo el texto. `GradeRequest.answers` mapea
+// `question_id -> option_key`, así que un cliente que recibiera únicamente los
+// enunciados no tendría con qué responder: el cuestionario sería literalmente
+// incontestable. Es el mismo par que guarda la columna `questions.options`
+// (JSONB `{clave: enunciado}`) del esquema de Aprendizaje.
+message Option {
+  string key = 1;
+  string text = 2;
 }
 
 message GradeRequest {

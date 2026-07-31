@@ -89,9 +89,23 @@ export interface Quiz {
 export interface Question {
   question_id: string;
   prompt: string;
-  options: string[];
+  options: Option[];
   /** [decimal] */
   weight: string;
+}
+
+/**
+ * Option es una alternativa de respuesta.
+ *
+ * Lleva CLAVE y texto, no solo el texto. `GradeRequest.answers` mapea
+ * `question_id -> option_key`, así que un cliente que recibiera únicamente los
+ * enunciados no tendría con qué responder: el cuestionario sería literalmente
+ * incontestable. Es el mismo par que guarda la columna `questions.options`
+ * (JSONB `{clave: enunciado}`) del esquema de Aprendizaje.
+ */
+export interface Option {
+  key: string;
+  text: string;
 }
 
 export interface GradeRequest {
@@ -1234,7 +1248,7 @@ export const Question: MessageFns<Question> = {
       writer.uint32(18).string(message.prompt);
     }
     for (const v of message.options) {
-      writer.uint32(26).string(v!);
+      Option.encode(v!, writer.uint32(26).fork()).join();
     }
     if (message.weight !== "") {
       writer.uint32(34).string(message.weight);
@@ -1270,7 +1284,7 @@ export const Question: MessageFns<Question> = {
             break;
           }
 
-          message.options.push(reader.string());
+          message.options.push(Option.decode(reader, reader.uint32()));
           continue;
         }
         case 4: {
@@ -1294,7 +1308,7 @@ export const Question: MessageFns<Question> = {
     return {
       question_id: isSet(object.question_id) ? globalThis.String(object.question_id) : "",
       prompt: isSet(object.prompt) ? globalThis.String(object.prompt) : "",
-      options: globalThis.Array.isArray(object?.options) ? object.options.map((e: any) => globalThis.String(e)) : [],
+      options: globalThis.Array.isArray(object?.options) ? object.options.map((e: any) => Option.fromJSON(e)) : [],
       weight: isSet(object.weight) ? globalThis.String(object.weight) : "",
     };
   },
@@ -1308,7 +1322,7 @@ export const Question: MessageFns<Question> = {
       obj.prompt = message.prompt;
     }
     if (message.options?.length) {
-      obj.options = message.options;
+      obj.options = message.options.map((e) => Option.toJSON(e));
     }
     if (message.weight !== "") {
       obj.weight = message.weight;
@@ -1323,8 +1337,84 @@ export const Question: MessageFns<Question> = {
     const message = createBaseQuestion();
     message.question_id = object.question_id ?? "";
     message.prompt = object.prompt ?? "";
-    message.options = object.options?.map((e) => e) || [];
+    message.options = object.options?.map((e) => Option.fromPartial(e)) || [];
     message.weight = object.weight ?? "";
+    return message;
+  },
+};
+
+function createBaseOption(): Option {
+  return { key: "", text: "" };
+}
+
+export const Option: MessageFns<Option> = {
+  encode(message: Option, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.text !== "") {
+      writer.uint32(18).string(message.text);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Option {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseOption();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Option {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      text: isSet(object.text) ? globalThis.String(object.text) : "",
+    };
+  },
+
+  toJSON(message: Option): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.text !== "") {
+      obj.text = message.text;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Option>, I>>(base?: I): Option {
+    return Option.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Option>, I>>(object: I): Option {
+    const message = createBaseOption();
+    message.key = object.key ?? "";
+    message.text = object.text ?? "";
     return message;
   },
 };
