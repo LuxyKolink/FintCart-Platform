@@ -532,7 +532,7 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 > Escribir estas pruebas PRIMERO y verificar que fallan antes de implementar.
 
 - [X] T069 [P] [US1] Prueba de contrato gRPC de `LearningService` (`ListPublished`, `GetArticle`, `GetQuiz`, `GradeAndStoreAttempt`, `ListAttempts`) en `services/learning/test/learning.contract.spec.ts`
-- [ ] T070 [P] [US1] Prueba de contrato gRPC de `UsersService` (`CreateProfile`, `MarkEmailVerified`, `GetAuthContext`, `ApplyQuizScore`, `GetProgress`, `RecordArticleView`, `AppendInAppNotification`) en `services/users/internal/server/contract_test.go`
+- [X] T070 [P] [US1] Prueba de contrato gRPC de `UsersService` (`CreateProfile`, `MarkEmailVerified`, `GetAuthContext`, `ApplyQuizScore`, `GetProgress`, `RecordArticleView`, `AppendInAppNotification`) en `services/users/internal/server/contract_test.go`
 - [ ] T071 [P] [US1] Prueba de integración de la Saga de registro con inyección de fallo en cada paso y verificación de compensación en `services/orchestrator/internal/server/saga_registration_test.go` (D-04)
 - [ ] T072 [P] [US1] Prueba de integración de la Saga de calificación→progreso→notificar→auditar, verificando idempotencia y monotonía de `ApplyQuizScore` en `services/orchestrator/internal/server/saga_grading_test.go` (D-07, FR-027)
 - [ ] T073 [P] [US1] Prueba e2e Playwright del recorrido completo de US1 en `frontend/e2e/us1-aprendizaje.spec.ts` (SC-001)
@@ -597,14 +597,69 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 ### Implementación — Servicio de Usuarios (Go)
 
-- [ ] T083 [P] [US1] Implementar la persistencia de `profiles` y `roles_assignment` en `services/users/internal/storer/storer_postgres.go`
-- [ ] T084 [P] [US1] Implementar la persistencia de `progress`, `quiz_best_score`, `article_views` e `inapp_notifications` en `services/users/internal/storer/progress.go`
-- [ ] T085 [US1] Implementar `UsersService.CreateProfile` y `MarkEmailVerified` en `services/users/internal/server/profile.go` (FR-001, FR-002)
-- [ ] T086 [US1] Implementar `UsersService.GetAuthContext` devolviendo rol y estado de verificación para los claims del JWT en `services/users/internal/server/authcontext.go` (D-04)
-- [ ] T087 [US1] Implementar `UsersService.ApplyQuizScore` en `services/users/internal/server/progress.go`: actualizar `quiz_best_score` solo si supera el histórico y recalcular `progress.points`, de forma **idempotente y monótona**, dentro de `execTx` (FR-014, D-07)
-- [ ] T088 [US1] Implementar `UsersService.GetProgress` y `RecordArticleView` en `services/users/internal/server/progress.go` (FR-014, FR-015)
-- [ ] T089 [US1] Implementar `UsersService.AppendInAppNotification` sobre `inapp_notifications` en `services/users/internal/server/inapp.go` (D-09, FR-023, `plan.md` N-03)
-- [ ] T090 [P] [US1] Escribir pruebas de persistencia de Usuarios contra `go-sqlmock` en `services/users/internal/storer/storer_postgres_test.go`, incluyendo el caso de reintento con puntaje inferior que NO modifica los puntos
+- [X] T083 [P] [US1] Implementar la persistencia de `profiles` y `roles_assignment` en `services/users/internal/storer/storer_postgres.go`
+- [X] T084 [P] [US1] Implementar la persistencia de `progress`, `quiz_best_score`, `article_views` e `inapp_notifications` en `services/users/internal/storer/progress.go`
+- [X] T085 [US1] Implementar `UsersService.CreateProfile` y `MarkEmailVerified` en `services/users/internal/server/profile.go` (FR-001, FR-002)
+- [X] T086 [US1] Implementar `UsersService.GetAuthContext` devolviendo rol y estado de verificación para los claims del JWT en `services/users/internal/server/authcontext.go` (D-04)
+- [X] T087 [US1] Implementar `UsersService.ApplyQuizScore` en `services/users/internal/server/progress.go`: actualizar `quiz_best_score` solo si supera el histórico y recalcular `progress.points`, de forma **idempotente y monótona**, dentro de `execTx` (FR-014, D-07)
+- [X] T088 [US1] Implementar `UsersService.GetProgress` y `RecordArticleView` en `services/users/internal/server/progress.go` (FR-014, FR-015)
+- [X] T089 [US1] Implementar `UsersService.AppendInAppNotification` sobre `inapp_notifications` en `services/users/internal/server/inapp.go` (D-09, FR-023, `plan.md` N-03)
+- [X] T090 [P] [US1] Escribir pruebas de persistencia de Usuarios contra `go-sqlmock` en `services/users/internal/storer/storer_postgres_test.go`, incluyendo el caso de reintento con puntaje inferior que NO modifica los puntos
+
+**Notas de T070 y T083–T090**
+
+- **La monotonía de `ApplyQuizScore` vive en el `WHERE` del `ON CONFLICT`**, no en un
+  `if` de Go. Leer el mejor puntaje, comparar en memoria y escribir deja hueco para que
+  otro intento se cuele entre la lectura y la escritura, y el peor de los dos ganaría la
+  carrera. Con la comparación dentro de la sentencia, el reintento con un puntaje
+  inferior no afecta filas y tampoco falla — que es exactamente lo que elimina la
+  compensación destructiva de la saga (D-07, FR-014).
+- **`ApplyBestScore` toma un bloqueo de fila sobre `progress` antes de sumar.** El
+  `ON CONFLICT (user_id) DO UPDATE SET user_id = progress.user_id` no cambia nada: solo
+  `DO UPDATE` bloquea, `DO NOTHING` no. Sin él, dos intentos concurrentes del MISMO
+  usuario en cuestionarios DISTINTOS calculan cada uno una suma que ignora al otro —bajo
+  READ COMMITTED ninguno ve la escritura no confirmada del vecino— y el último en
+  confirmar deja unos puntos a los que le falta un cuestionario entero. El síntoma sería
+  «a veces se pierden puntos», irreproducible y sin rastro en ningún log.
+- Los puntos se **recalculan** (`SUM` sobre `quiz_best_score`) y no se incrementan: un
+  `points = points + delta` aplicado dos veces por una reentrega dejaría un progreso
+  inflado y permanente. Se usa `FLOOR` y no `ROUND` porque redondear hacia arriba
+  regalaría un punto no obtenido; el half-even de D-14 rige para importes, y los puntos
+  no lo son.
+- **`CreateProfile` crea también la fila de `progress`.** Crearla al aplicar el primer
+  puntaje haría que la barra de progreso de una cuenta recién registrada respondiera «no
+  encontrado» en lugar de cero, y FR-014 pide el indicador desde el principio.
+- **El rol inicial no viaja en el contrato.** `CreateProfileRequest` no lo lleva y el
+  servicio fija `usuario_final`. Si entrara por la petición, cualquier cosa capaz de
+  invocar este RPC interno podría crear un coordinador editorial.
+- **`GetAuthContext` devuelve un tipo propio y no `Profile`.** Lo que sale de ese RPC
+  acaba dentro de un JWT firmado que viaja en cada petición y que nadie puede revocar
+  antes de que expire; un correo que se cuele queda expuesto a cualquiera que intercepte
+  el token. Hay una prueba que lo comprueba sobre el mensaje serializado. El archivo
+  propio (`authcontext.go`) existe por lo mismo: hace visible en revisión cualquier
+  campo que se le añada.
+- **El identificador de una notificación in-app se DERIVA de su contenido** (UUIDv5
+  sobre usuario + tipo + payload canonicalizado) en lugar de generarse al azar. La saga
+  entrega at-least-once: con un identificador aleatorio, cada reentrega añadiría una
+  copia visible en la bandeja del usuario y nada permitiría distinguir cuál sobra. La
+  contrapartida es que dos notificaciones byte-idénticas colapsan en una, que para los
+  cuatro tipos admitidos es lo deseable.
+  **Hueco de contrato**: `users.v1.InAppNotification` no tiene `event_id`; con él la
+  deduplicación no dependería del contenido. Anotado, no cambiado.
+- `MarkNotificationRead` lleva `user_id` en el `WHERE` —única barrera contra marcar la
+  notificación de otro conociendo su identificador— y responde `NotFound` tanto si no
+  existe como si es ajena: un error distinto para el segundo caso confirmaría su
+  existencia.
+- `MarkEmailVerified` y `UpdateDisplayName` excluyen `account_status = 'anonymized'`:
+  sin ese filtro, un evento que llegue tarde revertiría parte de la anonimización de
+  FR-030. Cuando no afectan ninguna fila, una segunda consulta separa «perfil ausente»
+  (`NotFound`) de «perfil anonimizado» (`Conflict`), que el operador trata distinto.
+- Las pruebas de persistencia corren contra `go-sqlmock`, que **no ejecuta SQL**. Las
+  propiedades que dependen del motor —el resultado real de un `ON CONFLICT`, los CHECK,
+  `CITEXT`— se fijan comprobando el TEXTO de la consulta, y la verificación de
+  comportamiento corresponde a las pruebas de integración de la saga (T071–T072).
+- `AnonymizeProfile`, `GetProfile` completo, `UpdateProfile` y las preferencias siguen
+  como esqueleto: son T157–T161 (US4), no US1.
 
 ### Implementación — Autenticación (reglas específicas de US1)
 
