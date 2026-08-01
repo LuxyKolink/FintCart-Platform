@@ -25,11 +25,7 @@
 import { Dispatcher, type Mailer, type OutgoingEmail } from '../src/email/dispatcher.js';
 import type { Logger } from '../src/logger.js';
 import type { MetricsSink } from '../src/observability.js';
-import type {
-  ClaimedNotification,
-  NewNotification,
-  NotificationQueue,
-} from '../src/repo/queue.js';
+import type { ClaimedNotification, NewNotification, NotificationQueue } from '../src/repo/queue.js';
 
 // ── doble de las dos tablas ────────────────────────────────────────────────
 
@@ -145,6 +141,7 @@ function newDispatcher(queue: NotificationQueue, mailer: Mailer): Dispatcher {
     batchSize: 10,
     concurrency: 4,
     intervalMs: 1,
+    template: { appBaseUrl: 'https://app.fintcart.co' },
   });
 }
 
@@ -152,7 +149,11 @@ const evento: NewNotification = {
   eventId: '22222222-2222-4222-8222-222222222222',
   recipient: 'persona@ejemplo.co',
   template: 'verificacion',
-  payload: { email: 'persona@ejemplo.co', verification_token: 'tok-123' },
+  payload: {
+    email: 'persona@ejemplo.co',
+    user_id: '3f0f8b2e-2c53-4a2c-9f0a-1d2e3f4a5b6c',
+    verification_token: 'tok-123',
+  },
 };
 
 // ── los tres desenlaces ────────────────────────────────────────────────────

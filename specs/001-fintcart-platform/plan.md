@@ -147,7 +147,7 @@ services/
 ├── auth-server/                # Go — OAuth2 (Auth Code+PKCE, Client Credentials), JWT
 │   ├── cmd/auth/main.go
 │   ├── internal/handler/       # transporte gRPC
-│   ├── internal/server/        # oauth.go, credentials.go, client_credentials.go, password.go, anonymize.go, mapping.go
+│   ├── internal/server/        # oauth.go, credentials.go, verification.go, client_credentials.go, password.go, anonymize.go, mapping.go
 │   ├── internal/storer/        # storer.go (interfaz), storer_postgres.go, redis_store.go, types.go
 │   ├── internal/token/         # jwt_maker.go, claims.go
 │   ├── internal/util/          # password.go (Argon2id)
@@ -199,8 +199,8 @@ services/
 │   └── Dockerfile{,.dev}
 ├── notification/               # TypeScript (Node puro) — consumidor RabbitMQ, canal EMAIL
 │   ├── src/main.ts
-│   ├── src/consumers/          # identity, security, activity (transporte AMQP)
-│   ├── src/email/              # dispatcher.ts, templates/ (aplicación)
+│   ├── src/amqp/               # consumer.ts, mapping.ts (transporte AMQP)
+│   ├── src/email/              # dispatcher.ts, templates.ts, smtp.ts (aplicación)
 │   ├── src/repo/               # queue.ts, tx.ts (persistencia)
 │   ├── src/pb/
 │   ├── migrations/             # notification_events_queue + notification_states

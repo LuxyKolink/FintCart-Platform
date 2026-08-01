@@ -76,6 +76,29 @@ const (
 // único sitio del proceso por el que una contraseña en claro puede pasar.
 const SecretPassword = "password"
 
+// SecretVerificationToken es la clave del token de verificación de correo en
+// [State.Secrets].
+//
+// Va como SECRETO y no en el payload por la misma razón que la contraseña:
+// `saga_state.payload` se escribe en PostgreSQL en cada avance, y quien leyera esa
+// tabla podría activar la cuenta pendiente sin haber tocado el buzón — que es
+// exactamente lo que el token existe para impedir.
+const SecretVerificationToken = "verification_token"
+
+// Claves del payload del evento `user.registered`
+// (`contracts/events/events-catalog.md`).
+//
+// El correo de verificación es el ÚNICO del sistema dirigido a alguien que todavía
+// no tiene sesión, así que el evento tiene que llevar todo lo que hace falta para
+// componerlo: a quién escribir y qué enlace ponerle.
+const (
+	eventKeyUserID            = "user_id"
+	eventKeyEmail             = "email"
+	eventKeyDisplayName       = "display_name"
+	eventKeyVerificationToken = "verification_token"
+	eventKeyVerificationExp   = "verification_expires_at"
+)
+
 // Clients agrupa los clientes gRPC de los servicios participantes.
 //
 // `cmd/orchestrator/main.go` los construye con las direcciones de entorno y los

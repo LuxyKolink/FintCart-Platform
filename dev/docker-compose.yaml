@@ -236,6 +236,9 @@ services:
       AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
       SMTP_ADDR: "mailhog:1025"
       SMTP_FROM: "no-reply@fintcart.local"
+      # Dominio público de la SPA: con él se compone el enlace de verificación del
+      # correo. En local apunta al servidor de desarrollo de Angular.
+      APP_BASE_URL: "http://localhost:4200"
       MAX_ATTEMPTS: "3"
       DISPATCH_INTERVAL_MS: "5000"
       LOG_LEVEL: "debug"

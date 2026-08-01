@@ -116,8 +116,19 @@ func RegistrationDefinition(c Clients) Definition {
 				},
 			},
 			{
-				Name: "emit.user_registered",
-				Do: func(_ context.Context, st *State) ([]Event, error) {
+				// Emitir el token y emitir el evento son UN solo paso, no dos, y es la
+				// única excepción a la regla de «un paso, una cosa» que sigue el resto
+				// de sagas.
+				//
+				// La razón es que el token en claro no puede sobrevivir al paso que lo
+				// pide. Partirlo en dos obligaría a llevarlo del primero al segundo, y
+				// solo hay dos vías: el payload —que se escribe en PostgreSQL en cada
+				// avance, dejando ahí lo que permite activar la cuenta— o los secretos,
+				// que una saga reanudada ya no tiene, de modo que el segundo paso
+				// fallaría y compensaría un registro correcto. Juntos, el token nace y
+				// muere dentro de la misma función.
+				Name: "auth.issue_verification_token_and_emit",
+				Do: func(ctx context.Context, st *State) ([]Event, error) {
 					userID, err := st.String(payloadUserID)
 					if err != nil {
 						return nil, err
@@ -128,8 +139,17 @@ func RegistrationDefinition(c Clients) Definition {
 					}
 					displayName, _ := st.Payload[payloadDisplayName].(string)
 
+					// El token es la prueba de que quien verifique controla el buzón.
+					// Lo genera y lo guarda Auth —hasheado—; aquí solo se transporta.
+					token, err := c.Auth.IssueVerificationToken(ctx, &authv1.UserRef{UserId: userID})
+					if err != nil {
+						return nil, fmt.Errorf("emitir el token de verificación de %s: %w", userID, err)
+					}
+
 					// El paso no publica: DEVUELVE el evento y el motor lo escribe en el
-					// outbox dentro de la transacción del avance (D-07).
+					// outbox dentro de la transacción del avance (D-07). Un reintento del
+					// paso emite un token nuevo que invalida al anterior, así que no
+					// quedan dos enlaces vivos.
 					//
 					// El correo va en el payload y es la ÚNICA excepción a la regla de no
 					// meter datos personales: Notificación necesita una dirección a la que
@@ -137,17 +157,32 @@ func RegistrationDefinition(c Clients) Definition {
 					// correo dirigido a alguien que aún no tiene sesión. `actor_ref` sigue
 					// siendo el UUID opaco, de modo que Auditoría —el otro consumidor—
 					// conserva la traza aunque después se anonimice la cuenta (FR-031).
+					//
+					// El `user_id` se repite DENTRO del payload además de ir en
+					// `actor_ref` porque `POST /auth/verify-email` lo exige junto al
+					// token, así que el enlace del correo tiene que llevarlo y
+					// Notificación solo lee el payload.
+					//
+					// Consecuencia asumida: el token en claro queda en la fila del outbox
+					// hasta que se publica y se poda. Es transitorio y acotado, frente al
+					// hash permanente de `auth_db`; ninguna de las dos copias es evitable
+					// si el correo tiene que llevar un enlace.
 					return []Event{{
 						Type:       events.EventUserRegistered,
 						RoutingKey: events.EventUserRegistered,
 						ActorRef:   userID,
 						Payload: map[string]any{
-							"email":        email,
-							"display_name": displayName,
+							eventKeyUserID:            userID,
+							eventKeyEmail:             email,
+							eventKeyDisplayName:       displayName,
+							eventKeyVerificationToken: token.GetToken(),
+							eventKeyVerificationExp:   token.GetExpiresAt(),
 						},
 					}}, nil
 				},
-				// Sin compensación: un evento publicado no se despublica.
+				// Sin compensación: un evento publicado no se despublica. El token
+				// tampoco se revoca — la compensación del paso 1 anonimiza la credencial,
+				// y sobre una cuenta anonimizada ningún token activa nada.
 				Compensate: nil,
 			},
 		},

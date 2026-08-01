@@ -164,18 +164,6 @@ func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
-// ActivateCredential cierra la saga de verificación de correo (FR-002).
-func (s *Server) ActivateCredential(ctx context.Context, userID string) error {
-	id, err := parseUserID(userID)
-	if err != nil {
-		return err
-	}
-	if err := s.store.ActivateCredential(ctx, id); err != nil {
-		return fmt.Errorf("activar credencial: %w", err)
-	}
-	return nil
-}
-
 // ValidateCredentials comprueba correo y contraseña durante el login.
 //
 // Devuelve `Valid: false` sin error cuando las credenciales no cuadran, y reserva

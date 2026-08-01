@@ -12,6 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/fintcart/platform/services/orchestrator/internal/events"
 	"github.com/fintcart/platform/services/orchestrator/internal/server/steps"
@@ -224,7 +226,7 @@ func TestSagaCompletesAndRecordsEveryStep(t *testing.T) {
 		okStep(tr, "uno"), okStep(tr, "dos"), okStep(tr, "tres"),
 	}}
 
-	payload, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, map[string]any{"email": "a@b.co"}, nil)
+	_, payload, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, map[string]any{"email": "a@b.co"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{"do:uno", "do:dos", "do:tres"}, tr.seen())
 	// El payload que un paso escribe llega al siguiente y sale por el resultado: es
@@ -250,7 +252,7 @@ func TestEveryStepIsPersistedBeforeTheNext(t *testing.T) {
 		okStep(tr, "uno"), okStep(tr, "dos"),
 	}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, 2, store.advances, "debe haber una escritura por paso")
 }
@@ -270,7 +272,7 @@ func TestFailureCompensatesInReverseOrder(t *testing.T) {
 		okStep(tr, "uno"), okStep(tr, "dos"), failingStep(tr, "tres"),
 	}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.ErrorIs(t, err, ErrSagaFailed)
 	require.ErrorIs(t, err, errStepFailed, "la causa original debe seguir accesible")
 
@@ -298,7 +300,7 @@ func TestTheFailingStepIsNotCompensated(t *testing.T) {
 		okStep(tr, "uno"), failingStep(tr, "dos"),
 	}}
 
-	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil, nil)
 	require.Error(t, err)
 	require.NotContains(t, tr.seen(), "undo:dos")
 	require.Contains(t, tr.seen(), "undo:uno")
@@ -322,7 +324,7 @@ func TestStepsWithoutCompensationAreSkipped(t *testing.T) {
 		okStep(tr, "uno"), sinCompensacion, failingStep(tr, "tres"),
 	}}
 
-	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil, nil)
 	require.Error(t, err)
 	require.Equal(t, []string{
 		"do:uno", "do:solo_lectura", "do:tres", "undo:uno",
@@ -357,7 +359,7 @@ func TestCompensationSurvivesTheCallersCancellation(t *testing.T) {
 	}
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{primero, pasoQueCancela}}
 
-	_, err := newTestEngine(newMemStore(), def).Execute(ctx, testSagaType, nil, nil)
+	_, _, err := newTestEngine(newMemStore(), def).Execute(ctx, testSagaType, nil, nil)
 	require.Error(t, err)
 	require.Equal(t, []string{"undo:primero"}, tr.seen())
 	require.NoError(t, compensationCtxErr, "la compensación no puede heredar la cancelación")
@@ -379,7 +381,7 @@ func TestFailedCompensationLeavesTheSagaRetryable(t *testing.T) {
 	}}
 
 	store := newMemStore()
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.ErrorIs(t, err, errUndo)
 
 	for id := range store.sagas {
@@ -398,7 +400,7 @@ func TestConflictStopsWithoutCompensating(t *testing.T) {
 	store.advanceFail, store.advanceErr = 1, storer.ErrConflict
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{okStep(tr, "uno"), okStep(tr, "dos")}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.ErrorIs(t, err, storer.ErrConflict)
 	require.Equal(t, []string{"do:uno"}, tr.seen(), "no se compensa lo que la base no registró")
 }
@@ -477,7 +479,7 @@ func TestInconsistentRowIsNotExecuted(t *testing.T) {
 func TestUnknownSagaTypeIsRejected(t *testing.T) {
 	t.Parallel()
 	def := steps.Definition{Type: testSagaType}
-	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), "inexistente", nil, nil)
+	_, _, err := newTestEngine(newMemStore(), def).Execute(context.Background(), "inexistente", nil, nil)
 	require.ErrorIs(t, err, ErrUnknownSagaType)
 }
 
@@ -508,7 +510,7 @@ func TestEventCarriesTheCatalogEnvelope(t *testing.T) {
 	store := newMemStore()
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{emitStep("emite", testActor)}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, store.events, 1)
 
@@ -534,7 +536,7 @@ func TestEventWithoutValidActorIsRejectedBeforeTheOutbox(t *testing.T) {
 
 	for _, actor := range []string{"", "no-es-un-uuid"} {
 		def := steps.Definition{Type: testSagaType, Steps: []steps.Step{emitStep("emite", actor)}}
-		_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
+		_, _, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 		require.ErrorIs(t, err, ErrInvalidEvent, "actor_ref %q", actor)
 	}
 	require.Empty(t, store.events, "un evento inválido no puede llegar al outbox")
@@ -549,7 +551,7 @@ func TestEventsAreWrittenWithTheAdvance(t *testing.T) {
 	store.advanceFail, store.advanceErr = 1, errors.New("la base falló al confirmar")
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{emitStep("emite", testActor)}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
+	_, _, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.Error(t, err)
 	require.Empty(t, store.events, "sin avance confirmado no puede quedar evento encolado")
 }
@@ -636,4 +638,87 @@ func TestResumedSagasHaveNoSecrets(t *testing.T) {
 	require.True(t, engine.Wait(2*time.Second))
 	require.NotNil(t, seen)
 	require.Empty(t, seen.Secrets)
+}
+
+// TestStartEmailVerificationNeverPersistsTheToken es la misma prueba de seguridad que
+// la de la contraseña, sobre el otro secreto de la plataforma.
+//
+// El token de verificación es lo ÚNICO que impide activar la cuenta de otra persona
+// conociendo su `user_id` —que viaja en el `actor_ref` de cada evento de auditoría—.
+// Escrito en `saga_state.payload` quedaría en claro en PostgreSQL, y quien pudiera
+// leer esa tabla podría verificar cuentas ajenas sin tocar ningún buzón.
+func TestStartEmailVerificationNeverPersistsTheToken(t *testing.T) {
+	t.Parallel()
+	const token = "token-de-verificacion-del-correo"
+
+	store := newMemStore()
+	tr := &tracker{}
+	def := steps.Definition{Type: storer.SagaVerificacionEmail, Steps: []steps.Step{okStep(tr, "uno")}}
+	svc := New(newTestEngine(store, def))
+
+	id, err := svc.StartEmailVerification(context.Background(), testActor, token)
+	require.NoError(t, err)
+
+	sagaID, err := uuid.Parse(id)
+	require.NoError(t, err)
+	row := store.row(t, sagaID)
+	require.NotContains(t, string(row.Payload), token)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(row.Payload, &payload))
+	require.Equal(t, testActor, payload["user_id"])
+}
+
+// La verificación se ejecuta EN LÍNEA, no en segundo plano: quien valida el token es
+// el primer paso, así que un arranque asíncrono respondería «aceptado» a un enlace
+// caducado y el usuario esperaría un correo verificado que nunca llega.
+func TestStartEmailVerificationReportsAFailingStep(t *testing.T) {
+	t.Parallel()
+	def := steps.Definition{Type: storer.SagaVerificacionEmail, Steps: []steps.Step{{
+		Name: "auth.activate_credential",
+		Do: func(context.Context, *steps.State) ([]steps.Event, error) {
+			return nil, errors.New("el enlace de verificación no es válido o caducó")
+		},
+	}}}
+	svc := New(newTestEngine(newMemStore(), def))
+
+	_, err := svc.StartEmailVerification(context.Background(), testActor, "token-equivocado")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no es válido")
+}
+
+// Un token rechazado por Auth tiene que llegar al borde como error del CLIENTE.
+//
+// Sin la traducción, el error del paso cae en el `default` del handler y sale como
+// 500: quien tiene un enlace caducado ve «error interno» y lo reintenta en lugar de
+// pedir uno nuevo.
+func TestStartEmailVerificationTranslatesAParticipantRejection(t *testing.T) {
+	t.Parallel()
+	def := steps.Definition{Type: storer.SagaVerificacionEmail, Steps: []steps.Step{{
+		Name: "auth.activate_credential",
+		Do: func(context.Context, *steps.State) ([]steps.Event, error) {
+			return nil, status.Error(codes.InvalidArgument, "el enlace de verificación no es válido o caducó")
+		},
+	}}}
+	svc := New(newTestEngine(newMemStore(), def))
+
+	_, err := svc.StartEmailVerification(context.Background(), testActor, "token-equivocado")
+	require.ErrorIs(t, err, ErrInvalidArgument)
+}
+
+// Y lo que NO se propaga: un fallo interno de un participante sigue siendo interno.
+// Convertirlo en respuesta del borde filtraría qué servicio falló y por qué.
+func TestStartEmailVerificationKeepsAParticipantFailureInternal(t *testing.T) {
+	t.Parallel()
+	def := steps.Definition{Type: storer.SagaVerificacionEmail, Steps: []steps.Step{{
+		Name: "auth.activate_credential",
+		Do: func(context.Context, *steps.State) ([]steps.Event, error) {
+			return nil, status.Error(codes.Unavailable, "auth-server no responde")
+		},
+	}}}
+	svc := New(newTestEngine(newMemStore(), def))
+
+	_, err := svc.StartEmailVerification(context.Background(), testActor, "token")
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrInvalidArgument)
 }

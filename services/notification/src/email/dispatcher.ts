@@ -21,7 +21,7 @@ import type { Logger } from '../logger.js';
 import type { MetricsSink } from '../observability.js';
 import type { ClaimedNotification, NotificationQueue } from '../repo/queue.js';
 
-import { render } from './templates.js';
+import { render, type TemplateContext } from './templates.js';
 
 /** Correo listo para el transporte. */
 export interface OutgoingEmail {
@@ -51,6 +51,8 @@ export interface DispatcherOptions {
   readonly concurrency: number;
   /** Milisegundos entre barridos. */
   readonly intervalMs: number;
+  /** Contexto de despliegue que necesitan las plantillas (el dominio de la SPA). */
+  readonly template: TemplateContext;
 }
 
 /** Motivo con el que se cierran las filas que quedaron colgadas en el máximo. */
@@ -123,7 +125,7 @@ export class Dispatcher {
   private async deliver(item: ClaimedNotification): Promise<void> {
     const startedAt = Date.now();
     try {
-      const { subject, body } = render(item.template, item.payload);
+      const { subject, body } = render(item.template, item.payload, this.options.template);
       await this.mailer.send({ to: item.recipient, subject, body });
       this.metrics.observe('email_dispatch', 'success', elapsed(startedAt));
     } catch (err) {

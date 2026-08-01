@@ -26,7 +26,8 @@ import (
 // real del servicio.
 type Service interface {
 	CreateCredential(ctx context.Context, userID, email, password string) error
-	ActivateCredential(ctx context.Context, userID string) error
+	IssueVerificationToken(ctx context.Context, userID string) (server.VerificationToken, error)
+	ActivateCredential(ctx context.Context, userID, verificationToken string) error
 	ValidateCredentials(ctx context.Context, email, password string) (server.CredentialCheck, error)
 	IssueAuthorizationCode(
 		ctx context.Context,

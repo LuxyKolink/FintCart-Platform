@@ -25,6 +25,11 @@ import (
 var (
 	ErrNotFound = errors.New("storer: no encontrado")
 	ErrConflict = errors.New("storer: conflicto con el estado actual")
+	// ErrVerificationTokenInvalid cubre INDISTINGUIBLEMENTE el token equivocado,
+	// el ya usado, el caducado y el `user_id` inexistente. Separarlos convertiría
+	// `/auth/verify-email` en un oráculo: probando identificadores al azar se
+	// sabría cuáles corresponden a cuentas reales pendientes de verificar.
+	ErrVerificationTokenInvalid = errors.New("storer: token de verificación inválido o caducado")
 	// ErrNotImplemented marca los métodos del esqueleto (T025). Es explícito para
 	// que la ausencia de implementación falle de forma ruidosa: en un servicio de
 	// autenticación, un stub que devolviera «válido» por omisión sería un agujero
@@ -47,8 +52,20 @@ type Storer interface {
 	// CreateCredential inserta la credencial en `pending_verification`. Paso de la
 	// saga de registro, y por tanto idempotente por `id` (D-04).
 	CreateCredential(ctx context.Context, c CredentialRow) error
-	// ActivateCredential mueve `pending_verification` → `active`.
-	ActivateCredential(ctx context.Context, userID uuid.UUID) error
+	// SetVerificationToken guarda el hash del token de verificación y su
+	// caducidad, sustituyendo al anterior si lo había. Devuelve [ErrConflict] si
+	// la cuenta no está en `pending_verification`: no hay nada que verificar en
+	// una cuenta ya activa, y una anonimizada no debe poder revivir.
+	SetVerificationToken(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error
+	// ActivateCredential mueve `pending_verification` → `active` comprobando el
+	// token en la MISMA sentencia.
+	//
+	// Que la comprobación viaje aquí y no se haga antes con un `Get` no es un
+	// detalle de estilo: separarlas dejaría una ventana en la que dos peticiones
+	// concurrentes con el mismo token —el usuario que hace doble clic en el
+	// enlace— pasarían las dos la validación. Con un solo UPDATE, la segunda no
+	// encuentra fila porque la primera ya borró el token.
+	ActivateCredential(ctx context.Context, userID uuid.UUID, tokenHash string) error
 	// GetCredentialByEmail es la lectura del login. Devuelve [ErrNotFound] si el
 	// correo no existe; quien llame DEBE tratar «no existe» y «contraseña
 	// incorrecta» de forma indistinguible hacia el cliente, para no convertir el

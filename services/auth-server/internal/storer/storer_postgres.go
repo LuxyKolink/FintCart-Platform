@@ -93,27 +93,85 @@ func (s *PostgresStorer) CreateCredential(ctx context.Context, c CredentialRow) 
 	return nil
 }
 
-// activateCredentialQuery aplica la transición `pending_verification → active`.
+// setVerificationTokenQuery guarda el hash del token y su caducidad.
+//
+// El WHERE exige `pending_verification`: emitir un token para una cuenta ya activa
+// no tendría efecto útil, y para una anonimizada sería una vía de resurrección
+// (FR-030 la deja inutilizable de forma PERMANENTE).
+//
+//nolint:gosec // G101 falso positivo: consulta SQL, no credencial.
+const setVerificationTokenQuery = `
+UPDATE credentials
+SET verification_token_hash = $2, verification_token_expires_at = $3, updated_at = now()
+WHERE id = $1 AND login_status = $4`
+
+// SetVerificationToken guarda el token de verificación, reemplazando al anterior.
+//
+// El reemplazo es intencional y es lo que hace correcto el reenvío del correo: si
+// los tokens se acumularan, un enlace de un correo antiguo —o interceptado— seguiría
+// activando la cuenta después de que el usuario pidiera uno nuevo.
+func (s *PostgresStorer) SetVerificationToken(
+	ctx context.Context,
+	userID uuid.UUID,
+	tokenHash string,
+	expiresAt time.Time,
+) error {
+	res, err := s.db.ExecContext(ctx, setVerificationTokenQuery,
+		userID, tokenHash, expiresAt, StatusPendingVerification)
+	if err != nil {
+		return wrap("guardar token de verificación", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return wrap("guardar token de verificación", err)
+	}
+	if n == 0 {
+		return wrap("guardar token de verificación", ErrConflict)
+	}
+	return nil
+}
+
+// activateCredentialQuery aplica la transición `pending_verification → active`
+// comprobando el token en la misma sentencia.
 //
 // El estado de origen va en el WHERE y no se comprueba después de leer: así la
 // transición es atómica y una cuenta ya `anonymized` no puede volver a `active` por
 // un evento de verificación que llegue tarde (FR-030 la deja inutilizable de forma
 // permanente).
 //
+// Las dos ramas del OR no son redundantes:
+//
+//   - La primera exige token válido y no caducado. Es la verificación de verdad.
+//     Al aplicarse, los dos campos vuelven a NULL: el token es de UN SOLO USO, así
+//     que un enlace reenviado por el usuario a un tercero ya no sirve.
+//   - La segunda acepta la cuenta YA activa sin mirar el token. Sin ella, el
+//     reintento del paso de la saga —cuya entrega es at-least-once (D-07)— fallaría
+//     sobre una cuenta que él mismo acaba de activar, y la saga compensaría un
+//     registro correcto. El precio es que quien ya conozca un `user_id` activo puede
+//     confirmar que lo está; lo mismo que ya revela el login, y muy por debajo de
+//     poder activarla.
+//
 //nolint:gosec // G101 falso positivo: consulta SQL, no credencial.
 const activateCredentialQuery = `
 UPDATE credentials
-SET login_status = $2, updated_at = now()
-WHERE id = $1 AND login_status IN ($2, $3)`
+SET login_status = $2,
+    updated_at = now(),
+    verification_token_hash = NULL,
+    verification_token_expires_at = NULL
+WHERE id = $1
+  AND ( (login_status = $3
+         AND verification_token_hash = $4
+         AND verification_token_expires_at > now())
+     OR login_status = $2 )`
 
-// ActivateCredential mueve `pending_verification` → `active`.
+// ActivateCredential mueve `pending_verification` → `active` si el token cuadra.
 //
-// Es IDEMPOTENTE: `login_status IN (active, pending_verification)` acepta también la
-// cuenta ya activa, porque el evento de verificación puede entregarse dos veces
-// (la entrega de RabbitMQ es at-least-once, D-07) y el segundo intento no debe
-// fallar.
-func (s *PostgresStorer) ActivateCredential(ctx context.Context, userID uuid.UUID) error {
-	res, err := s.db.ExecContext(ctx, activateCredentialQuery, userID, StatusActive, StatusPendingVerification)
+// Devuelve [ErrVerificationTokenInvalid] para todo lo que no active: token
+// equivocado, ya usado, caducado, cuenta anonimizada o `user_id` inexistente. La
+// indistinción es deliberada — ver el centinela.
+func (s *PostgresStorer) ActivateCredential(ctx context.Context, userID uuid.UUID, tokenHash string) error {
+	res, err := s.db.ExecContext(ctx, activateCredentialQuery,
+		userID, StatusActive, StatusPendingVerification, tokenHash)
 	if err != nil {
 		return wrap("activar credencial", err)
 	}
@@ -122,10 +180,7 @@ func (s *PostgresStorer) ActivateCredential(ctx context.Context, userID uuid.UUI
 		return wrap("activar credencial", err)
 	}
 	if n == 0 {
-		// Ni existe ni está en un estado activable. `ErrConflict` y no `ErrNotFound`
-		// porque el caso dominante es el estado equivocado (anonimizada), no la
-		// ausencia.
-		return wrap("activar credencial", ErrConflict)
+		return wrap("activar credencial", ErrVerificationTokenInvalid)
 	}
 	return nil
 }

@@ -49,8 +49,23 @@ func (h *Handler) CreateCredential(ctx context.Context, req *authv1.CreateCreden
 	return okResult(), nil
 }
 
-func (h *Handler) ActivateCredential(ctx context.Context, req *authv1.UserRef) (*commonv1.OpResult, error) {
-	if err := h.svc.ActivateCredential(ctx, req.GetUserId()); err != nil {
+// IssueVerificationToken devuelve el token EN CLARO, y es el único RPC del servicio
+// que lo hace.
+//
+// Igual que `CreateCredential` con la contraseña, depende de que el interceptor de
+// log de `middleware.go` no vuelque los mensajes: un log de acceso que registrara la
+// respuesta dejaría un enlace de verificación utilizable durante toda la retención
+// de logs.
+func (h *Handler) IssueVerificationToken(ctx context.Context, req *authv1.UserRef) (*authv1.VerificationToken, error) {
+	out, err := h.svc.IssueVerificationToken(ctx, req.GetUserId())
+	if err != nil {
+		return nil, grpcError(err)
+	}
+	return verificationTokenToProto(out), nil
+}
+
+func (h *Handler) ActivateCredential(ctx context.Context, req *authv1.ActivateCredentialRequest) (*commonv1.OpResult, error) {
+	if err := h.svc.ActivateCredential(ctx, req.GetUserId(), req.GetVerificationToken()); err != nil {
 		return nil, grpcError(err)
 	}
 	return okResult(), nil

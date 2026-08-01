@@ -152,11 +152,17 @@ func (e *Engine) Start(
 	return sagaID, nil
 }
 
-// Execute crea la saga y espera su resultado, devolviendo el payload final.
+// Execute crea la saga y espera su resultado, devolviendo su identificador y el
+// payload final.
 //
-// Lo usan los flujos síncronos (calificación, simulación): el usuario está esperando
-// su nota o el resultado de la simulación, y devolver un handle para que el Gateway
-// sondee convertiría una interacción inmediata en un bucle de espera.
+// Lo usan los flujos síncronos (calificación, simulación, verificación de correo):
+// el usuario está esperando su nota, el resultado de la simulación o la confirmación
+// de que su enlace valía, y devolver un handle para que el Gateway sondee
+// convertiría una interacción inmediata en un bucle de espera.
+//
+// El identificador se devuelve JUNTO al resultado y no solo en caso de éxito: es lo
+// único con lo que se puede rastrear después una ejecución que falló, que es
+// precisamente cuando hace falta.
 //
 // A diferencia de [Engine.Start], los pasos hacia delante SÍ corren con el contexto
 // del llamador: si quien espera se marcha, no tiene sentido seguir gastando llamadas
@@ -167,18 +173,19 @@ func (e *Engine) Execute(
 	sagaType string,
 	payload map[string]any,
 	secrets map[string]string,
-) (map[string]any, error) {
+) (uuid.UUID, map[string]any, error) {
 	def, sagaID, err := e.create(ctx, sagaType, payload)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, nil, err
 	}
 
 	row, err := e.store.GetSaga(ctx, sagaID)
 	if err != nil {
-		return nil, fmt.Errorf("releer la saga %s recién creada: %w", sagaID, err)
+		return sagaID, nil, fmt.Errorf("releer la saga %s recién creada: %w", sagaID, err)
 	}
 
-	return e.run(ctx, def, row, secrets)
+	final, err := e.run(ctx, def, row, secrets)
+	return sagaID, final, err
 }
 
 // create valida el tipo y persiste la saga en su estado inicial.

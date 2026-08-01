@@ -412,6 +412,17 @@ func randomSecret() (string, error) {
 // bits de entropía: no hay diccionario que recorrer ni tabla que precalcular, y un
 // KDF costoso solo añadiría latencia a cada renovación.
 func refreshTokenID(token string) string {
-	sum := sha256.Sum256([]byte(token))
+	return sha256Hex(token)
+}
+
+// sha256Hex es la forma en que este servicio guarda un secreto de ALTA ENTROPÍA
+// generado por él mismo: el refresh token y el token de verificación de correo.
+//
+// Está compartida para que las dos usen literalmente la misma representación. Dos
+// funciones equivalentes —una con `hex`, otra con `base64`— compilarían igual de
+// bien y solo se delatarían el día que alguien comparase un hash escrito por una con
+// el que espera la otra.
+func sha256Hex(secret string) string {
+	sum := sha256.Sum256([]byte(secret))
 	return hex.EncodeToString(sum[:])
 }

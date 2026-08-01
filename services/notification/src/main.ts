@@ -85,6 +85,7 @@ async function main(): Promise<void> {
     batchSize: config.dispatchBatchSize,
     concurrency: config.dispatchConcurrency,
     intervalMs: config.dispatchIntervalMs,
+    template: { appBaseUrl: config.appBaseUrl },
   });
   const dispatching = dispatcher.run(controller.signal);
 

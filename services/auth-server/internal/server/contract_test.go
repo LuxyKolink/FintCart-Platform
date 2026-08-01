@@ -17,6 +17,7 @@ package server_test
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net"
 	"testing"
@@ -68,6 +69,42 @@ type fakeStore struct {
 	credential storer.CredentialRow
 	credErr    error
 	inserted   *storer.AuthCodeRow
+
+	// Estado del token de verificación. `tokenHash` guarda lo ÚLTIMO que se
+	// escribió, que es lo que permite comprobar que el servidor nunca entrega a la
+	// persistencia el valor en claro.
+	tokenHash    string
+	tokenExpires time.Time
+	setTokenErr  error
+	activated    bool
+}
+
+func (f *fakeStore) SetVerificationToken(_ context.Context, _ uuid.UUID, hash string, exp time.Time) error {
+	if f.setTokenErr != nil {
+		return f.setTokenErr
+	}
+	f.tokenHash = hash
+	f.tokenExpires = exp
+	return nil
+}
+
+// ActivateCredential reproduce las DOS ramas del UPDATE real, no un `return nil`.
+//
+// Con un doble permisivo, una implementación que ignorase el token pasaría todas
+// estas pruebas — que es justo el fallo que existen para atrapar.
+func (f *fakeStore) ActivateCredential(_ context.Context, _ uuid.UUID, hash string) error {
+	if f.activated {
+		// Rama «ya activa»: acepta sin mirar el token, para que el reintento del paso
+		// de la saga no compense un registro correcto.
+		return nil
+	}
+	if f.tokenHash == "" || hash != f.tokenHash || !time.Now().Before(f.tokenExpires) {
+		return storer.ErrVerificationTokenInvalid
+	}
+	f.activated = true
+	// Un solo uso: el UPDATE real pone las dos columnas a NULL.
+	f.tokenHash = ""
+	return nil
 }
 
 func (f *fakeStore) GetOAuthClient(context.Context, string) (storer.OAuthClientRow, error) {
@@ -882,4 +919,147 @@ func TestRevokeSucceedsEvenIfNobodyPublishes(t *testing.T) {
 	_, err := client.Revoke(context.Background(), &authv1.RevokeRequest{Token: "access"})
 	require.NoError(t, err)
 	require.True(t, tokens.blacklisted["jti-1"])
+}
+
+// ── T098: token de verificación de correo (FR-002) ──────────────────────────
+//
+// El bloque entero existe por un agujero concreto: hasta ahora `ActivateCredential`
+// solo pedía un `user_id`, y ese identificador viaja en el `actor_ref` de cada evento
+// del catálogo. Cualquiera que viera uno podía activar esa cuenta, de modo que
+// registrarse con el correo de otra persona y verificarlo uno mismo era trivial.
+
+func TestIssueVerificationTokenReturnsAUsableTokenAndStoresOnlyItsHash(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	resp, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetToken())
+
+	// Lo que llegó a la persistencia NO es lo que se devolvió. Es la propiedad
+	// central: un volcado de `credentials` no contiene ningún enlace utilizable.
+	//
+	// Se comprueba la FORMA del digest (64 hexadecimales = SHA-256) en lugar de
+	// recalcularlo aquí. Recalcularlo con el mismo `sha256`+`hex` que usa la
+	// implementación haría pasar la prueba aunque los dos guardaran el token en
+	// claro; que el hash sea función del token ya lo demuestra que ese mismo token
+	// —y solo ese— active después la cuenta.
+	require.NotEqual(t, resp.GetToken(), store.tokenHash)
+	require.Len(t, store.tokenHash, 64)
+	_, err = hex.DecodeString(store.tokenHash)
+	require.NoError(t, err)
+
+	expires, err := time.Parse(time.RFC3339, resp.GetExpiresAt())
+	require.NoError(t, err)
+	require.True(t, expires.After(time.Now()))
+}
+
+// Dos emisiones seguidas no producen el mismo token, y la segunda invalida a la
+// primera. Sin esto, pedir un reenvío porque el correo no llegó dejaría vivos los dos
+// enlaces, y el primero —el que pudo interceptarse— seguiría activando la cuenta.
+func TestIssueVerificationTokenReplacesThePreviousOne(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	first, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+	second, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+	require.NotEqual(t, first.GetToken(), second.GetToken())
+
+	_, err = client.ActivateCredential(context.Background(), &authv1.ActivateCredentialRequest{
+		UserId: testUserID, VerificationToken: first.GetToken(),
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+
+	_, err = client.ActivateCredential(context.Background(), &authv1.ActivateCredentialRequest{
+		UserId: testUserID, VerificationToken: second.GetToken(),
+	})
+	require.NoError(t, err)
+}
+
+func TestActivateCredentialRejectsAWrongToken(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+
+	_, err = client.ActivateCredential(context.Background(), &authv1.ActivateCredentialRequest{
+		UserId: testUserID, VerificationToken: "no-es-el-token",
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.False(t, store.activated)
+}
+
+// El caso que da nombre al agujero: sin token no se activa nada.
+func TestActivateCredentialRejectsAnEmptyToken(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+
+	_, err = client.ActivateCredential(context.Background(), &authv1.ActivateCredentialRequest{
+		UserId: testUserID,
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.False(t, store.activated)
+}
+
+func TestActivateCredentialRejectsAnExpiredToken(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	resp, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+
+	// Se envejece el token guardado en lugar de esperar 24 horas.
+	store.tokenExpires = time.Now().Add(-time.Second)
+
+	_, err = client.ActivateCredential(context.Background(), &authv1.ActivateCredentialRequest{
+		UserId: testUserID, VerificationToken: resp.GetToken(),
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.False(t, store.activated)
+}
+
+// El token es de UN SOLO USO, pero el paso de la saga tiene que poder reintentarse:
+// son las dos ramas del UPDATE, y esta prueba fija que conviven. El segundo intento
+// pasa porque la cuenta YA está activa, no porque el token siga sirviendo — lo
+// demuestra que un token distinto también pasa a partir de ahí.
+func TestActivateCredentialIsIdempotentOnceTheAccountIsActive(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	resp, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+
+	for range 2 {
+		_, err = client.ActivateCredential(context.Background(), &authv1.ActivateCredentialRequest{
+			UserId: testUserID, VerificationToken: resp.GetToken(),
+		})
+		require.NoError(t, err)
+	}
+	require.True(t, store.activated)
+	require.Empty(t, store.tokenHash, "el token debe consumirse en la primera activación")
+}
+
+// Una cuenta ya activa o anonimizada no recibe token nuevo: `ErrConflict` de la
+// persistencia sube como FailedPrecondition. Para la anonimizada la razón es FR-030,
+// que la deja inutilizable de forma PERMANENTE — emitirle un token sería abrirle una
+// vía de regreso.
+func TestIssueVerificationTokenRefusesAnAccountThatIsNotPending(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{setTokenErr: storer.ErrConflict}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.Equal(t, codes.FailedPrecondition, status.Code(err))
 }

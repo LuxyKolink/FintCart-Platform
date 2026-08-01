@@ -13,6 +13,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/fintcart/platform/services/orchestrator/internal/server/steps"
 	"github.com/fintcart/platform/services/orchestrator/internal/storer"
@@ -90,21 +92,46 @@ func (s *Server) StartRegistration(ctx context.Context, email, password, display
 	return id.String(), nil
 }
 
-// StartEmailVerification arranca la saga de verificación de correo (FR-002).
+// StartEmailVerification ejecuta la saga de verificación de correo (FR-002).
+//
+// Es SÍNCRONA —`Execute` y no `Start`— aunque devuelva un handle, y esa es la
+// diferencia que hace utilizable el endpoint: quien valida el token es el primer
+// paso, así que arrancarla en segundo plano respondería «aceptado» a un enlace
+// caducado y el usuario se quedaría esperando un correo verificado que nunca llega.
+// Con la ejecución en línea, un token inválido sale como error del RPC y el borde lo
+// convierte en el 400 que declara el contrato.
+//
+// El token va como SECRETO y no en el payload: `saga_state.payload` se escribe en
+// PostgreSQL en cada avance, y ahí dejaría en claro lo que basta para activar la
+// cuenta — justo lo que el token existe para impedir.
 func (s *Server) StartEmailVerification(ctx context.Context, userID, verificationToken string) (string, error) {
 	if userID == "" || verificationToken == "" {
 		return "", fmt.Errorf("%w: user_id y verification_token son obligatorios", ErrInvalidArgument)
 	}
-	// El token NO entra en el payload persistido: quien invoca este RPC ya lo validó
-	// (es la condición para llegar aquí), así que guardarlo solo dejaría en la base
-	// una credencial de un solo uso que ningún paso vuelve a mirar.
-	_ = verificationToken
-	id, err := s.engine.Start(ctx, storer.SagaVerificacionEmail,
-		map[string]any{"user_id": userID}, nil)
+	sagaID, _, err := s.engine.Execute(ctx, storer.SagaVerificacionEmail,
+		map[string]any{"user_id": userID},
+		map[string]string{steps.SecretVerificationToken: verificationToken},
+	)
 	if err != nil {
-		return "", fmt.Errorf("arrancar saga de verificación de correo: %w", err)
+		// Un `InvalidArgument` del participante significa que rechazó la ENTRADA que
+		// este servicio se limitó a reenviar —aquí, el token de verificación—, así que
+		// el fallo es del llamante y no de la plataforma. Sin esta traducción el error
+		// caería en el `default` del handler y saldría como un 500: el usuario con un
+		// enlace caducado vería «error interno» y lo reintentaría indefinidamente en
+		// lugar de pedir uno nuevo.
+		//
+		// Solo se propaga ESE código. Un `NotFound` o un `FailedPrecondition` de un
+		// participante hablan de su estado interno, no de lo que pidió el cliente, y
+		// convertirlos en respuestas del borde filtraría al exterior el detalle de qué
+		// servicio falló.
+		if status.Code(err) == codes.InvalidArgument {
+			return "", fmt.Errorf("%w: %w", ErrInvalidArgument, err)
+		}
+		return "", fmt.Errorf("verificar el correo de %s: %w", userID, err)
 	}
-	return id.String(), nil
+	// El handle es real, pero para cuando llega la saga ya terminó: consultarlo solo
+	// confirmará `completed`. Sirve para rastrear la ejecución, no para esperarla.
+	return sagaID.String(), nil
 }
 
 // StartAccountAnonymization arranca la saga de anonimización (FR-030, D-08).
@@ -156,7 +183,7 @@ func (s *Server) StartQuizGrading(
 		answers = map[string]string{}
 	}
 
-	final, err := s.engine.Execute(ctx, storer.SagaCalificacion, map[string]any{
+	_, final, err := s.engine.Execute(ctx, storer.SagaCalificacion, map[string]any{
 		"user_id": userID,
 		"quiz_id": quizID,
 		"answers": answers,

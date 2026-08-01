@@ -751,9 +751,11 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
   credencial es la que decide si el correo está libre, y con el perfil primero un alta
   con correo repetido —el fallo MÁS común del registro— crearía el perfil para tener que
   deshacerlo acto seguido.
-- En la verificación de correo, **Auth va segundo** a propósito: es el paso que desbloquea
-  la emisión de tokens (T091). Al revés quedaría un instante con sesión plena sobre un
-  perfil que todavía se declara sin verificar.
+- ~~En la verificación de correo, **Auth va segundo**~~ — **revertido en T098**. El
+  argumento de esta nota (evitar el instante con sesión plena sobre un perfil que aún se
+  declara sin verificar) deja de valer en cuanto el paso de Auth pasa a ser el que
+  *comprueba el token*: un paso capaz de rechazar la petición tiene que correr antes que
+  cualquiera que modifique estado. Ver las notas de T098–T101.
 - El `passed` de la calificación lo decide **Aprendizaje** con su `pass_threshold`; el
   Orquestador lo transporta y lo usa como bandera para el hito, pero no lo calcula. En el
   momento en que comparara el puntaje con un umbral, el umbral viviría aquí (Principio VI).
@@ -781,10 +783,95 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 ### Implementación — Notificación y borde REST
 
-- [ ] T098 [P] [US1] Implementar el consumidor de `user.registered` y la plantilla de email de verificación en `services/notification/src/consumers/identity.consumer.ts` y `services/notification/src/email/templates/verificacion.ts` (FR-002, FR-023)
-- [ ] T099 [US1] Implementar los handlers REST `POST /auth/register`, `POST /auth/verify-email` y `POST /auth/logout` en `services/api-gateway/internal/handler/auth.go` (FR-001–FR-004)
-- [ ] T100 [US1] Implementar los handlers REST `GET /catalog/articles`, `GET /catalog/articles/{articleId}` y `POST /quizzes/{quizId}/attempts` en `services/api-gateway/internal/handler/learning.go` (FR-010–FR-012)
-- [ ] T101 [US1] Implementar el handler REST `GET /me/progress` en `services/api-gateway/internal/handler/me.go` (FR-014)
+- [X] T098 [P] [US1] Implementar el consumidor de `user.registered` y la plantilla de email de verificación en `services/notification/src/consumers/identity.consumer.ts` y `services/notification/src/email/templates/verificacion.ts` (FR-002, FR-023)
+- [X] T099 [US1] Implementar los handlers REST `POST /auth/register`, `POST /auth/verify-email` y `POST /auth/logout` en `services/api-gateway/internal/handler/auth.go` (FR-001–FR-004)
+- [X] T100 [US1] Implementar los handlers REST `GET /catalog/articles`, `GET /catalog/articles/{articleId}` y `POST /quizzes/{quizId}/attempts` en `services/api-gateway/internal/handler/learning.go` (FR-010–FR-012)
+- [X] T101 [US1] Implementar el handler REST `GET /me/progress` en `services/api-gateway/internal/handler/me.go` (FR-014)
+
+#### Notas de T098–T101
+
+**Los handlers REST ya existían.** T099–T101 los construyó T055–T059 al levantar el
+borde completo, y la maquinaria de Notificación —consumidor, cola de dos tablas,
+despachador, plantillas— la construyó T041–T046. Lo que faltaba de verdad en este
+bloque era otra cosa, y es lo que se implementó aquí.
+
+**El token de verificación no existía.** `Auth.ActivateCredential` recibía solo un
+`user_id` y activaba la cuenta sin comprobar nada; `Orchestrator.StartEmailVerification`
+recibía el token y hacía literalmente `_ = verificationToken`. Como el `user_id` viaja
+en el `actor_ref` de cada evento del catálogo, cualquiera que viera uno podía activar
+esa cuenta — de modo que registrarse con el correo de otra persona y verificarlo uno
+mismo era trivial, y el correo de verificación no comprobaba nada. La plantilla, por su
+parte, exigía un `verification_token` que ningún productor ponía en el payload: todo
+correo de verificación habría agotado sus tres intentos y acabado en `failed`.
+
+Los cuatro contratos ya lo declaraban (el catálogo de eventos, la plantilla, el OpenAPI
+y `EmailVerificationRequest`). El único que no lo implementaba era Auth.
+
+**Diseño.** El dueño es **Auth** y no podía ser otro: es quien tiene el `login_status`
+que el token desbloquea. En el Orquestador sería una regla de dominio en el servicio
+que el Principio VI deja sin dominio, y en el Gateway no hay dónde guardarlo.
+
+- Nuevo RPC `IssueVerificationToken(UserRef) → VerificationToken`. Cada llamada
+  **sustituye** al token anterior: sin eso, pedir un reenvío no cerraría el enlace
+  previo, y un correo interceptado seguiría sirviendo.
+- `ActivateCredential` pasa a recibir `ActivateCredentialRequest{user_id,
+  verification_token}`.
+- Migración `20260801120000_verification_token`: `verification_token_hash` (SHA-256 hex)
+  y `verification_token_expires_at`, emparejados por un CHECK. **SHA-256 y no Argon2id**,
+  a diferencia de la contraseña: son 256 bits de un CSPRNG, así que no hay diccionario
+  que probar; el coste de memoria defendería de un ataque que aquí no existe.
+- La comprobación vive **dentro del UPDATE**, no en un `Get` previo. Separarlas dejaría
+  una ventana en la que el doble clic en el enlace pasaría la validación dos veces.
+- El UPDATE tiene dos ramas: token válido y no caducado (que consume el token, poniendo
+  las columnas a NULL) **o** cuenta ya activa (que acepta sin mirar el token, para que
+  el reintento del paso de la saga no compense un registro correcto).
+- `ErrVerificationTokenInvalid` cubre por igual el token equivocado, el ya usado, el
+  caducado y el `user_id` inexistente: distinguirlos convertiría `/auth/verify-email` en
+  un oráculo de qué identificadores corresponden a cuentas reales pendientes.
+
+**La saga de verificación cambió de orden respecto de T094: Auth va PRIMERO.** La nota
+anterior justificaba el orden inverso por la ventana de incoherencia entre servicios;
+ese argumento deja de valer en cuanto el primer paso puede *rechazar* la petición. Con
+Usuarios primero, un token equivocado marcaría el perfil como verificado de forma
+permanente —y esa marca sería alcanzable probando `user_id` al azar— mientras la
+credencial se queda pendiente. El precio que se acepta a cambio es un instante con la
+credencial `active` y el perfil aún diciendo `email_verified = false`: es benigno,
+porque la decisión de emitir tokens la toma Auth con su propio `login_status` (T091) y
+la bandera del perfil solo se muestra.
+
+**Emitir el token y emitir el evento son UN paso en la saga de registro**, la única
+excepción a «un paso, una cosa». El token en claro no puede sobrevivir al paso que lo
+pide: partirlo obligaría a llevarlo por el payload —que se persiste en PostgreSQL en
+cada avance— o por los secretos, que una saga reanudada ya no tiene, de modo que el
+segundo paso fallaría y compensaría un registro correcto.
+
+**La verificación se ejecuta EN LÍNEA** (`Execute`, no `Start`), y `Engine.Execute`
+pasa a devolver también el `saga_id`. Con arranque asíncrono, un enlace caducado
+recibiría un 202 «aceptado» y el usuario esperaría indefinidamente. Además, un
+`InvalidArgument` del participante se traduce a `ErrInvalidArgument` en la capa de
+aplicación del Orquestador: sin eso caía en el `default` del handler y salía como 500,
+así que quien tuviera un enlace caducado vería «error interno» y lo reintentaría en
+lugar de pedir uno nuevo. Solo se propaga ese código — un `NotFound` o un
+`FailedPrecondition` hablan del estado interno de un participante, no de lo que pidió
+el cliente. El borde responde **200** y el OpenAPI se ajustó en consecuencia.
+
+**El correo lleva un enlace, no un código.** La plantilla exige `user_id` **y**
+`verification_token`, porque `POST /auth/verify-email` exige los dos: con el token solo,
+el correo se entregaría con éxito y sería inútil. El dominio de la SPA es configuración
+de despliegue (`APP_BASE_URL`, obligatoria — con un valor por defecto, un despliegue mal
+configurado enviaría enlaces a otro entorno y fallarían en manos del usuario, no en el
+arranque). `render` recibe ahora un `TemplateContext`.
+
+**Copia en claro asumida y acotada**: el token viaja en claro por el bus y queda en la
+fila del outbox hasta que se publica y se poda. En `auth_db` solo existe el hash.
+Ninguna de las dos es evitable si el correo tiene que llevar un enlace utilizable; queda
+anotado en el catálogo de eventos.
+
+**Hueco anotado, no resuelto**: no hay endpoint de **reenvío** del correo de
+verificación. `IssueVerificationToken` ya es idempotente-por-reemplazo y sirve para eso
+sin cambios, pero exponerlo exige una ruta REST con su propio límite de tasa —si no,
+sería un amplificador de correo hacia cualquier dirección registrada—. Pertenece a T108,
+que ya pide el reenvío desde el frontend.
 
 ### Implementación — Frontend Angular
 

@@ -46,6 +46,11 @@ var (
 var (
 	ErrNotFound = storer.ErrNotFound
 	ErrConflict = storer.ErrConflict
+	// ErrVerificationTokenInvalid cubre por igual el token equivocado, el ya
+	// usado, el caducado y el `user_id` que no existe. El transporte lo traduce a
+	// un solo código, para que `/auth/verify-email` no acabe siendo un oráculo de
+	// qué identificadores corresponden a cuentas reales.
+	ErrVerificationTokenInvalid = storer.ErrVerificationTokenInvalid
 	// ErrTokenReuse sube tal cual desde `storer`: el hecho de que un refresh token
 	// se haya reutilizado —y que por eso se haya invalidado la familia entera— es
 	// información que el transporte necesita para elegir el código de estado.

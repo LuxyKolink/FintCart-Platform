@@ -80,6 +80,9 @@ func TestCreateCredentialTranslatesUniqueViolation(t *testing.T) {
 	require.ErrorIs(t, s.CreateCredential(context.Background(), row), ErrConflict)
 }
 
+// hash de ejemplo con la forma real (SHA-256 hex) que produce el servidor.
+const testTokenHash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+
 func TestActivateCredentialAcceptsOnlyActivatableStates(t *testing.T) {
 	t.Parallel()
 	s, mock := newMockStorer(t)
@@ -89,24 +92,62 @@ func TestActivateCredentialAcceptsOnlyActivatableStates(t *testing.T) {
 	// cuenta ya `anonymized` no puede volver a `active` por un evento de verificación
 	// que llegue tarde (FR-030).
 	mock.ExpectExec("UPDATE credentials").
-		WithArgs(id, StatusActive, StatusPendingVerification).
+		WithArgs(id, StatusActive, StatusPendingVerification, testTokenHash).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	require.NoError(t, s.ActivateCredential(context.Background(), id))
+	require.NoError(t, s.ActivateCredential(context.Background(), id, testTokenHash))
 }
 
-func TestActivateCredentialConflictsWhenNoRowMatches(t *testing.T) {
+func TestActivateCredentialRejectsATokenThatDoesNotMatch(t *testing.T) {
 	t.Parallel()
 	s, mock := newMockStorer(t)
 	id := uuid.New()
 
 	mock.ExpectExec("UPDATE credentials").
-		WithArgs(id, StatusActive, StatusPendingVerification).
+		WithArgs(id, StatusActive, StatusPendingVerification, testTokenHash).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
-	// Cero filas afectadas NO es éxito. Sin esta comprobación, activar una cuenta
-	// anonimizada devolvería `nil` y la saga seguiría como si hubiera funcionado.
-	require.ErrorIs(t, s.ActivateCredential(context.Background(), id), ErrConflict)
+	// Cero filas afectadas NO es éxito. Sin esta comprobación, verificar con un token
+	// equivocado devolvería `nil` y la saga activaría la cuenta como si el titular
+	// hubiera probado que controla el buzón.
+	require.ErrorIs(t,
+		s.ActivateCredential(context.Background(), id, testTokenHash),
+		ErrVerificationTokenInvalid)
+}
+
+// El token viaja HASHEADO hasta el SQL. Es la propiedad que hace que un volcado de
+// `credentials` —o un log de consultas lentas— no contenga ningún enlace utilizable.
+func TestActivateCredentialNeverPutsTheTokenInClearIntoTheQuery(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := uuid.New()
+
+	mock.ExpectExec("UPDATE credentials").
+		WithArgs(id, StatusActive, StatusPendingVerification, testTokenHash).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	require.NoError(t, s.ActivateCredential(context.Background(), id, testTokenHash))
+	// `WithArgs` ya falla si llega otra cosa; esto comprueba que no quedó ninguna
+	// expectativa sin consumir, es decir, que se ejecutó exactamente esa sentencia.
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestSetVerificationTokenRequiresAPendingAccount(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := uuid.New()
+	expires := time.Now().UTC().Add(time.Hour)
+
+	mock.ExpectExec("UPDATE credentials").
+		WithArgs(id, testTokenHash, expires, StatusPendingVerification).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	// Sin fila afectada la cuenta no estaba pendiente: o ya se verificó, o está
+	// anonimizada. Emitirle un token a la segunda le abriría una vía de regreso que
+	// FR-030 cierra de forma permanente.
+	require.ErrorIs(t,
+		s.SetVerificationToken(context.Background(), id, testTokenHash, expires),
+		ErrConflict)
 }
 
 func TestGetCredentialByEmailTranslatesNoRows(t *testing.T) {

@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -40,8 +41,28 @@ type fakeAuth struct {
 
 	created  *authv1.CreateCredentialRequest
 	revoked  []string
-	activate []string
+	activate []*authv1.ActivateCredentialRequest
 	err      error
+
+	// issued cuenta las emisiones de token; `issuedErr`, si está, las hace fallar.
+	issued    int
+	issuedErr error
+}
+
+// IssueVerificationToken devuelve un token DISTINTO en cada llamada, igual que el
+// servicio real. Uno fijo dejaría pasar una implementación que reemitiera siempre lo
+// mismo, y entonces pedir un reenvío no invalidaría el enlace anterior.
+func (f *fakeAuth) IssueVerificationToken(
+	_ context.Context, _ *authv1.UserRef, _ ...grpc.CallOption,
+) (*authv1.VerificationToken, error) {
+	if f.issuedErr != nil {
+		return nil, f.issuedErr
+	}
+	f.issued++
+	return &authv1.VerificationToken{
+		Token:     fmt.Sprintf("token-verificacion-%d", f.issued),
+		ExpiresAt: "2026-08-02T12:00:00Z",
+	}, nil
 }
 
 func (f *fakeAuth) CreateCredential(
@@ -62,9 +83,12 @@ func (f *fakeAuth) RevokeAndAnonymizeCredential(
 }
 
 func (f *fakeAuth) ActivateCredential(
-	_ context.Context, req *authv1.UserRef, _ ...grpc.CallOption,
+	_ context.Context, req *authv1.ActivateCredentialRequest, _ ...grpc.CallOption,
 ) (*commonv1.OpResult, error) {
-	f.activate = append(f.activate, req.GetUserId())
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.activate = append(f.activate, req)
 	return &commonv1.OpResult{Success: true}, nil
 }
 
@@ -198,7 +222,8 @@ func TestRegistrationCompensatesBothParticipants(t *testing.T) {
 
 func TestRegistrationEmitsTheEventWithAnOpaqueActor(t *testing.T) {
 	t.Parallel()
-	def := RegistrationDefinition(Clients{})
+	auth := &fakeAuth{}
+	def := RegistrationDefinition(Clients{Auth: auth})
 	st := newState(map[string]any{
 		payloadUserID: testUserID, payloadEmail: "ana@fintcart.co", payloadDisplayName: "Ana",
 	}, nil)
@@ -215,25 +240,82 @@ func TestRegistrationEmitsTheEventWithAnOpaqueActor(t *testing.T) {
 	require.Equal(t, "ana@fintcart.co", produced[0].Payload["email"])
 }
 
+// El evento tiene que llevar TODO lo que hace falta para componer el enlace del
+// correo. Notificación es un consumidor puro sin gRPC: lo que no venga en el payload
+// no lo puede consultar en ningún sitio, y el correo saldría sin enlace utilizable.
+func TestRegistrationCarriesEverythingTheEmailNeeds(t *testing.T) {
+	t.Parallel()
+	auth := &fakeAuth{}
+	def := RegistrationDefinition(Clients{Auth: auth})
+	st := newState(map[string]any{
+		payloadUserID: testUserID, payloadEmail: "ana@fintcart.co", payloadDisplayName: "Ana",
+	}, nil)
+
+	produced, err := def.Steps[2].Do(context.Background(), st)
+	require.NoError(t, err)
+	require.Equal(t, 1, auth.issued)
+
+	payload := produced[0].Payload
+	// El `user_id` se repite dentro del payload además de ir en `actor_ref`:
+	// `POST /auth/verify-email` lo exige junto al token, y Notificación solo lee el
+	// payload.
+	require.Equal(t, testUserID, payload[eventKeyUserID])
+	require.Equal(t, "token-verificacion-1", payload[eventKeyVerificationToken])
+	require.Equal(t, "2026-08-02T12:00:00Z", payload[eventKeyVerificationExp])
+	require.Equal(t, "Ana", payload[eventKeyDisplayName])
+}
+
+// Sin token no hay evento. Emitirlo igual produciría un correo con un enlace vacío
+// que se entrega con éxito, cuenta como enviado y deja al usuario sin forma de
+// activar su cuenta — un fallo que ninguna métrica de entrega detecta.
+func TestRegistrationDoesNotEmitIfTheTokenCannotBeIssued(t *testing.T) {
+	t.Parallel()
+	auth := &fakeAuth{issuedErr: errors.New("auth caído")}
+	def := RegistrationDefinition(Clients{Auth: auth})
+	st := newState(map[string]any{
+		payloadUserID: testUserID, payloadEmail: "ana@fintcart.co",
+	}, nil)
+
+	produced, err := def.Steps[2].Do(context.Background(), st)
+	require.Error(t, err)
+	require.Nil(t, produced)
+}
+
 // ── verificación de correo (T094) ───────────────────────────────────────────
 
-// TestEmailVerificationActivatesAuthAfterUsers fija el ORDEN. Al revés quedaría un
-// instante con sesión plena sobre un perfil que aún se declara sin verificar.
-func TestEmailVerificationActivatesAuthAfterUsers(t *testing.T) {
+// verificationState es el estado con el que llega una verificación real: el
+// `user_id` en el payload y el token FUERA de él.
+func verificationState() *State {
+	return newState(
+		map[string]any{payloadUserID: testUserID},
+		map[string]string{SecretVerificationToken: "token-del-correo"},
+	)
+}
+
+// TestEmailVerificationValidatesBeforeMutating fija el ORDEN, y el orden es lo único
+// que impide que un token equivocado deje huella.
+//
+// Auth va PRIMERO porque su paso es el que comprueba el token. Al revés, una petición
+// con un token cualquiera —y el `user_id` viaja en cada evento de auditoría— marcaría
+// el perfil como verificado de forma permanente antes de que nadie comprobara nada.
+func TestEmailVerificationValidatesBeforeMutating(t *testing.T) {
 	t.Parallel()
 	auth, users := &fakeAuth{}, &fakeUsers{}
 	def := EmailVerificationDefinition(Clients{Auth: auth, Users: users})
-	st := newState(map[string]any{payloadUserID: testUserID}, nil)
+	st := verificationState()
 
-	require.Equal(t, "users.mark_email_verified", def.Steps[0].Name)
-	require.Equal(t, "auth.activate_credential", def.Steps[1].Name)
+	require.Equal(t, "auth.activate_credential", def.Steps[0].Name)
+	require.Equal(t, "users.mark_email_verified", def.Steps[1].Name)
 
 	for _, step := range def.Steps {
 		_, err := step.Do(context.Background(), st)
 		require.NoError(t, err)
 	}
 	require.Equal(t, []string{testUserID}, users.verified)
-	require.Equal(t, []string{testUserID}, auth.activate)
+	require.Len(t, auth.activate, 1)
+	// El token llega TAL CUAL a Auth: el Orquestador lo transporta y no lo interpreta
+	// (Principio VI).
+	require.Equal(t, "token-del-correo", auth.activate[0].GetVerificationToken())
 
 	// Ningún paso compensa: los dos son idempotentes, y revertir la verificación
 	// porque falló un evento de auditoría castigaría al usuario por un fallo de
@@ -241,6 +323,32 @@ func TestEmailVerificationActivatesAuthAfterUsers(t *testing.T) {
 	for _, step := range def.Steps {
 		require.Nil(t, step.Compensate, "el paso %q no debe compensar", step.Name)
 	}
+}
+
+// Un token rechazado por Auth detiene la saga ANTES de tocar el perfil.
+func TestEmailVerificationLeavesTheProfileAloneWhenTheTokenFails(t *testing.T) {
+	t.Parallel()
+	auth, users := &fakeAuth{err: errors.New("token inválido")}, &fakeUsers{}
+	def := EmailVerificationDefinition(Clients{Auth: auth, Users: users})
+
+	_, err := def.Steps[0].Do(context.Background(), verificationState())
+	require.Error(t, err)
+	require.Empty(t, users.verified)
+}
+
+// El token NO puede estar en el payload: `saga_state.payload` se escribe en
+// PostgreSQL en cada avance, y ahí dejaría en claro lo que basta para activar la
+// cuenta. Una saga reanudada se queda sin él y falla, que es el lado correcto: no hay
+// efecto que deshacer y el enlace del correo sigue sirviendo.
+func TestEmailVerificationFailsWhenTheSecretIsGone(t *testing.T) {
+	t.Parallel()
+	auth := &fakeAuth{}
+	def := EmailVerificationDefinition(Clients{Auth: auth})
+	resumed := newState(map[string]any{payloadUserID: testUserID}, nil)
+
+	_, err := def.Steps[0].Do(context.Background(), resumed)
+	require.ErrorIs(t, err, ErrSecretUnavailable)
+	require.Empty(t, auth.activate)
 }
 
 // ── calificación (T095) ─────────────────────────────────────────────────────

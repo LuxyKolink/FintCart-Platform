@@ -20,6 +20,19 @@ export interface Config {
   /** Remitente de los correos salientes. */
   readonly smtpFrom: string;
   /**
+   * Base pública de la SPA, sin barra final (p. ej. `https://app.fintcart.co`).
+   *
+   * Se usa para componer el enlace de verificación. Es configuración de DESPLIEGUE y
+   * no un dato del evento: la misma plataforma se despliega en producción y en
+   * pruebas con dominios distintos, y meter la URL en el payload obligaría a que el
+   * Orquestador conociera el dominio del frontend.
+   *
+   * Es obligatoria por eso mismo: con un valor por defecto razonable, un despliegue
+   * mal configurado enviaría correos que apuntan a otro entorno —o a localhost— y
+   * los enlaces fallarían en manos del usuario, no en el arranque.
+   */
+  readonly appBaseUrl: string;
+  /**
    * Reintentos antes de dar un evento por fallido (FR-024).
    *
    * Al agotarse, el evento sale de `notification_events_queue` y queda en
@@ -74,6 +87,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     AMQP_ADDR: env.AMQP_ADDR,
     SMTP_ADDR: env.SMTP_ADDR,
     SMTP_FROM: env.SMTP_FROM,
+    APP_BASE_URL: env.APP_BASE_URL,
   };
 
   const missing = Object.entries(required)
@@ -91,6 +105,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     queue: env.AMQP_QUEUE ?? DEFAULT_QUEUE,
     smtpAddr: required.SMTP_ADDR as string,
     smtpFrom: required.SMTP_FROM as string,
+    // La barra final se recorta aquí, una vez, en lugar de en cada plantilla: dos
+    // sitios que compongan la URL acabarían discrepando en un `//` que unos
+    // servidores toleran y otros no.
+    appBaseUrl: (required.APP_BASE_URL as string).replace(/\/+$/, ''),
     maxAttempts: positiveInt(env.MAX_ATTEMPTS, 3, 'MAX_ATTEMPTS'),
     dispatchIntervalMs: positiveInt(env.DISPATCH_INTERVAL_MS, 5_000, 'DISPATCH_INTERVAL_MS'),
     dispatchBatchSize: positiveInt(env.DISPATCH_BATCH_SIZE, 50, 'DISPATCH_BATCH_SIZE'),

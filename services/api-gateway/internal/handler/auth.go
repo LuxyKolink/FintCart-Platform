@@ -42,7 +42,16 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, SagaAccepted{SagaID: resp.GetSagaId()})
 }
 
-// VerifyEmail ≡ `POST /auth/verify-email`. Arranca la saga de verificación (FR-002).
+// VerifyEmail ≡ `POST /auth/verify-email`. Ejecuta la saga de verificación (FR-002).
+//
+// Responde 200 y no 202, al contrario que el registro, porque esta saga corre EN
+// LÍNEA: el primer paso es el que comprueba el token, así que para cuando se escribe
+// la respuesta la cuenta ya está activa o el enlace ya se rechazó. Un 202 aquí sería
+// engañoso en el único caso que importa — el usuario cerraría la pestaña convencido
+// de haber verificado una cuenta que quedó pendiente por un token caducado.
+//
+// El token no se valida en el borde: el Gateway no tiene con qué compararlo, y
+// cualquier comprobación previa aquí sería una regla de identidad fuera de su dueño.
 func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	var body VerifyEmailRequest
 	if err := decodeJSON(w, r, &body); err != nil {
@@ -55,11 +64,16 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		VerificationToken: body.VerificationToken,
 	})
 	if err != nil {
+		// Un token inválido o caducado llega como `InvalidArgument` y sale como 400,
+		// que es lo que declara el contrato.
 		h.writeGRPCError(w, r, err)
 		return
 	}
 
-	writeJSON(w, http.StatusAccepted, SagaAccepted{SagaID: resp.GetSagaId()})
+	// La respuesta no debe quedar en la caché de ningún proxy: lleva el `saga_id` de
+	// una operación de identidad y la petición que la produjo llevaba el token.
+	noStore(w)
+	writeJSON(w, http.StatusOK, SagaAccepted{SagaID: resp.GetSagaId()})
 }
 
 // Logout ≡ `POST /auth/logout`. Revoca la sesión con efecto inmediato (FR-004).

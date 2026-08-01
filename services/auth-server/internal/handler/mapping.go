@@ -4,6 +4,7 @@ package handler
 
 import (
 	"errors"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,6 +22,18 @@ func credentialCheckToProto(c server.CredentialCheck) *authv1.ValidateCredential
 		UserId:        c.UserID,
 		EmailVerified: c.EmailVerified,
 		LoginStatus:   c.LoginStatus,
+	}
+}
+
+// verificationTokenToProto viste el token recién emitido.
+//
+// La caducidad sale en RFC-3339 UTC porque así la declara el contrato: el valor
+// atraviesa el Orquestador, el bus y una plantilla de correo escrita en TypeScript,
+// y una marca temporal sin zona se interpretaría distinto en cada tramo.
+func verificationTokenToProto(v server.VerificationToken) *authv1.VerificationToken {
+	return &authv1.VerificationToken{
+		Token:     v.Token,
+		ExpiresAt: v.ExpiresAt.UTC().Format(time.RFC3339),
 	}
 }
 
@@ -90,6 +103,14 @@ func grpcError(err error) error {
 		// que su código o su token llegó a ser válido. En el LOG sí se distinguen, que
 		// es donde la diferencia sirve para algo.
 		return status.Error(codes.Unauthenticated, "el canje no es válido")
+	case errors.Is(err, server.ErrVerificationTokenInvalid):
+		// Va ANTES de `ErrConflict` porque el centinela de persistencia que lo
+		// origina viaja envuelto y los dos podrían casar; el orden del `switch` es
+		// lo que decide, y este es el más específico.
+		//
+		// `InvalidArgument` y no `NotFound`: el token no cuadra, y decir «no
+		// encontrado» confirmaría que el `user_id` probado corresponde a una cuenta.
+		return status.Error(codes.InvalidArgument, "el enlace de verificación no es válido o caducó")
 	case errors.Is(err, server.ErrNotFound):
 		return status.Error(codes.NotFound, "recurso no encontrado")
 	case errors.Is(err, server.ErrConflict):

@@ -56,11 +56,12 @@ func recoverUnary(logger *slog.Logger) grpc.UnaryServerInterceptor {
 
 // logUnary emite una línea JSON estructurada por RPC (D-12, §Observabilidad).
 //
-// Registra método, duración y código de estado. NO registra el mensaje de
-// petición, y aquí la regla es especialmente estricta: `CreateCredential` y
-// `ValidateCredentials` transportan contraseñas en claro, y `ExchangeCode` y
-// `RefreshToken` transportan tokens. Cualquiera de los cuatro volcado a un log
-// convierte el sistema de logs en un almacén de credenciales.
+// Registra método, duración y código de estado. NO registra el mensaje de petición
+// ni el de RESPUESTA, y aquí la regla es especialmente estricta: `CreateCredential`
+// y `ValidateCredentials` transportan contraseñas en claro; `ExchangeCode`,
+// `RefreshToken` y `ActivateCredential` transportan tokens en la petición; e
+// `IssueVerificationToken` devuelve uno en la respuesta. Volcar cualquiera de los
+// dos lados convierte el sistema de logs en un almacén de credenciales.
 func logUnary(logger *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
 		start := time.Now()

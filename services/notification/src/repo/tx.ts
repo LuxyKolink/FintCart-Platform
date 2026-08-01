@@ -64,10 +64,7 @@ export class RepoError extends Error {
  * });
  * ```
  */
-export async function execTx<T>(
-  pool: Pool,
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
+export async function execTx<T>(pool: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   let client: PoolClient;
   try {
     client = await pool.connect();
