@@ -511,10 +511,22 @@ func (x *RecordArticleViewRequest) GetArticleId() string {
 }
 
 type InAppNotification struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"` // nuevo_articulo | recordatorio | hito_progreso | resultado_cuestionario
-	PayloadJson   string                 `protobuf:"bytes,3,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	UserId      string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Type        string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"` // nuevo_articulo | recordatorio | hito_progreso | resultado_cuestionario
+	PayloadJson string                 `protobuf:"bytes,3,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	// Clave de idempotencia: el `event_id` del envelope de la saga que originó la
+	// notificación (UUID). OBLIGATORIO.
+	//
+	// La entrega de la saga es at-least-once, así que una reentrega es normal y no
+	// excepcional. Sin esta clave habría que deducir la identidad del CONTENIDO, y dos
+	// notificaciones legítimamente idénticas —el mismo hito alcanzado dos veces—
+	// colapsarían en una sola sin que nada lo delatara.
+	//
+	// La misma saga puede producir varias notificaciones (p. ej. resultado del
+	// cuestionario e hito de progreso): la identidad de la entrada es el par
+	// (`event_id`, `type`), no el `event_id` a solas.
+	EventId       string `protobuf:"bytes,4,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -566,6 +578,13 @@ func (x *InAppNotification) GetType() string {
 func (x *InAppNotification) GetPayloadJson() string {
 	if x != nil {
 		return x.PayloadJson
+	}
+	return ""
+}
+
+func (x *InAppNotification) GetEventId() string {
+	if x != nil {
+		return x.EventId
 	}
 	return ""
 }
@@ -922,11 +941,12 @@ const file_fintcart_users_v1_users_proto_rawDesc = "" +
 	"\x18RecordArticleViewRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
-	"article_id\x18\x02 \x01(\tR\tarticleId\"c\n" +
+	"article_id\x18\x02 \x01(\tR\tarticleId\"~\n" +
 	"\x11InAppNotification\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12!\n" +
-	"\fpayload_json\x18\x03 \x01(\tR\vpayloadJson\"`\n" +
+	"\fpayload_json\x18\x03 \x01(\tR\vpayloadJson\x12\x19\n" +
+	"\bevent_id\x18\x04 \x01(\tR\aeventId\"`\n" +
 	"\x10ListInAppRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x123\n" +
 	"\x04page\x18\x02 \x01(\v2\x1f.fintcart.common.v1.PageRequestR\x04page\"\x98\x02\n" +

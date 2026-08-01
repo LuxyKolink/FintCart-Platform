@@ -90,6 +90,20 @@ export interface InAppNotification {
   /** nuevo_articulo | recordatorio | hito_progreso | resultado_cuestionario */
   type: string;
   payload_json: string;
+  /**
+   * Clave de idempotencia: el `event_id` del envelope de la saga que originó la
+   * notificación (UUID). OBLIGATORIO.
+   *
+   * La entrega de la saga es at-least-once, así que una reentrega es normal y no
+   * excepcional. Sin esta clave habría que deducir la identidad del CONTENIDO, y dos
+   * notificaciones legítimamente idénticas —el mismo hito alcanzado dos veces—
+   * colapsarían en una sola sin que nada lo delatara.
+   *
+   * La misma saga puede producir varias notificaciones (p. ej. resultado del
+   * cuestionario e hito de progreso): la identidad de la entrada es el par
+   * (`event_id`, `type`), no el `event_id` a solas.
+   */
+  event_id: string;
 }
 
 export interface ListInAppRequest {
@@ -1084,7 +1098,7 @@ export const RecordArticleViewRequest: MessageFns<RecordArticleViewRequest> = {
 };
 
 function createBaseInAppNotification(): InAppNotification {
-  return { user_id: "", type: "", payload_json: "" };
+  return { user_id: "", type: "", payload_json: "", event_id: "" };
 }
 
 export const InAppNotification: MessageFns<InAppNotification> = {
@@ -1097,6 +1111,9 @@ export const InAppNotification: MessageFns<InAppNotification> = {
     }
     if (message.payload_json !== "") {
       writer.uint32(26).string(message.payload_json);
+    }
+    if (message.event_id !== "") {
+      writer.uint32(34).string(message.event_id);
     }
     return writer;
   },
@@ -1132,6 +1149,14 @@ export const InAppNotification: MessageFns<InAppNotification> = {
           message.payload_json = reader.string();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.event_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1146,6 +1171,7 @@ export const InAppNotification: MessageFns<InAppNotification> = {
       user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
       type: isSet(object.type) ? globalThis.String(object.type) : "",
       payload_json: isSet(object.payload_json) ? globalThis.String(object.payload_json) : "",
+      event_id: isSet(object.event_id) ? globalThis.String(object.event_id) : "",
     };
   },
 
@@ -1160,6 +1186,9 @@ export const InAppNotification: MessageFns<InAppNotification> = {
     if (message.payload_json !== "") {
       obj.payload_json = message.payload_json;
     }
+    if (message.event_id !== "") {
+      obj.event_id = message.event_id;
+    }
     return obj;
   },
 
@@ -1171,6 +1200,7 @@ export const InAppNotification: MessageFns<InAppNotification> = {
     message.user_id = object.user_id ?? "";
     message.type = object.type ?? "";
     message.payload_json = object.payload_json ?? "";
+    message.event_id = object.event_id ?? "";
     return message;
   },
 };

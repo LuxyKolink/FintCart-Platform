@@ -79,6 +79,15 @@ components:
         type: { type: string, enum: [nuevo_articulo, recordatorio, hito_progreso, resultado_cuestionario] }
         read_state: { type: string, enum: [unread, read] }
         created_at: { type: string, format: date-time }
+        # El contenido de la tarjeta. Su forma depende de `type` y la decide quien
+        # produce el evento, así que aquí es un objeto libre: describirlo con un
+        # `oneOf` por tipo obligaría a tocar el contrato del borde cada vez que una
+        # saga añade un dato al payload.
+        #
+        # Viaja como JSON ANIDADO y no como cadena con JSON dentro: el Gateway lo
+        # valida antes de incrustarlo (ver `inAppToDTO`), de modo que el cliente no
+        # tiene que volver a parsear una cadena para pintar la tarjeta.
+        payload: { type: object, additionalProperties: true }
 
 security:
   - oauth2PKCE: []
