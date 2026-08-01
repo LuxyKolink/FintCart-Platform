@@ -151,13 +151,15 @@ services/
 │   ├── internal/storer/        # storer.go (interfaz), storer_postgres.go, redis_store.go, types.go
 │   ├── internal/token/         # jwt_maker.go, claims.go
 │   ├── internal/util/          # password.go (Argon2id)
+│   ├── internal/events/        # productor RabbitMQ (auth.password_changed,
+│   │                           # auth.security_alert, auth.session_revoked)
 │   ├── migrations/             # credentials, oauth_clients, authorization_codes
 │   ├── gen/
 │   └── Dockerfile{,.dev}
 ├── orchestrator/               # Go — Saga + compensaciones (sin lógica de dominio)
 │   ├── cmd/orchestrator/main.go
 │   ├── internal/handler/
-│   ├── internal/server/        # saga.go, server.go, steps/{registration,email_verification,grading,simulation,anonymization}.go
+│   ├── internal/server/        # saga.go, server.go, steps/{registration,email_verification,grading,activity,simulation,anonymization}.go
 │   ├── internal/storer/        # saga_state
 │   ├── internal/outbox/        # outbox transaccional de eventos
 │   ├── internal/events/        # topología RabbitMQ

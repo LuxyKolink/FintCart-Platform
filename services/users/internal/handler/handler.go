@@ -110,7 +110,9 @@ func (h *Handler) RecordArticleView(ctx context.Context, req *usersv1.RecordArti
 // ── Bandeja in-app ──────────────────────────────────────────────────────────
 
 func (h *Handler) AppendInAppNotification(ctx context.Context, req *usersv1.InAppNotification) (*commonv1.OpResult, error) {
-	if err := h.svc.AppendInAppNotification(ctx, req.GetUserId(), req.GetType(), req.GetPayloadJson()); err != nil {
+	if err := h.svc.AppendInAppNotification(
+		ctx, req.GetUserId(), req.GetType(), req.GetPayloadJson(), req.GetEventId(),
+	); err != nil {
 		return nil, grpcError(err)
 	}
 	return okResult(), nil

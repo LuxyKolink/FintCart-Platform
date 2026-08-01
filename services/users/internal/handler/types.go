@@ -35,7 +35,7 @@ type Service interface {
 	ApplyQuizScore(ctx context.Context, userID, quizID, score string) (server.Progress, error)
 	GetProgress(ctx context.Context, userID string) (server.Progress, error)
 	RecordArticleView(ctx context.Context, userID, articleID string) error
-	AppendInAppNotification(ctx context.Context, userID, notifType, payloadJSON string) error
+	AppendInAppNotification(ctx context.Context, userID, notifType, payloadJSON, eventID string) error
 	ListInAppNotifications(ctx context.Context, userID string, limit, offset int32) (server.InAppPage, error)
 	MarkNotificationRead(ctx context.Context, userID, notificationID string) error
 	GetActivityReport(ctx context.Context, userID string) (server.ActivityReport, error)

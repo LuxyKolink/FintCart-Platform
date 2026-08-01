@@ -10,6 +10,7 @@
 package events_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,25 +27,71 @@ import (
 	"github.com/fintcart/platform/services/auth-server/internal/server"
 )
 
-// fakeChannel captura la publicación en lugar de mandarla a un broker.
+// fakeChannel captura la publicación en lugar de mandarla a un broker, y reproduce
+// el protocolo de acuse: el `basic.ack` (o `basic.nack`) y, si el mensaje era
+// `mandatory` y nadie lo escuchaba, el `basic.return` que lo precede.
 type fakeChannel struct {
 	exchange   string
 	routingKey string
+	mandatory  bool
 	msg        amqp.Publishing
 	publishErr error
+	confirmErr error
 	published  int
 	closed     int
+
+	// nack simula un broker que rechaza; unroutable, uno que acepta el mensaje y lo
+	// descarta por no casar con ningún binding; silent, uno que nunca responde.
+	nack       bool
+	unroutable bool
+	silent     bool
+	// closeAcks simula el canal AMQP que muere por un error de protocolo —publicar en
+	// un exchange que no existe—: la biblioteca cierra el canal de notificación.
+	closeAcks bool
+
+	acks    chan amqp.Confirmation
+	returns chan amqp.Return
+}
+
+func (f *fakeChannel) Confirm(bool) error { return f.confirmErr }
+
+func (f *fakeChannel) NotifyPublish(c chan amqp.Confirmation) chan amqp.Confirmation {
+	f.acks = c
+	return c
+}
+
+func (f *fakeChannel) NotifyReturn(c chan amqp.Return) chan amqp.Return {
+	f.returns = c
+	return c
 }
 
 func (f *fakeChannel) PublishWithContext(
 	_ context.Context,
 	exchange, key string,
-	_, _ bool,
+	mandatory, _ bool,
 	msg amqp.Publishing,
 ) error {
 	f.published++
-	f.exchange, f.routingKey, f.msg = exchange, key, msg
-	return f.publishErr
+	f.exchange, f.routingKey, f.mandatory, f.msg = exchange, key, mandatory, msg
+	if f.publishErr != nil {
+		return f.publishErr
+	}
+	if f.silent {
+		return nil
+	}
+	if f.closeAcks {
+		close(f.acks)
+		return nil
+	}
+	// El `basic.return` va ANTES del acuse: lo fija AMQP 0-9-1 y de ahí depende que
+	// comprobar el retorno DESPUÉS del acuse, y sin bloquear, sea correcto.
+	if f.unroutable && f.returns != nil {
+		f.returns <- amqp.Return{ReplyCode: 312, ReplyText: "NO_ROUTE"}
+	}
+	if f.acks != nil {
+		f.acks <- amqp.Confirmation{DeliveryTag: uint64(f.published), Ack: !f.nack}
+	}
+	return nil
 }
 
 func (f *fakeChannel) Close() error {
@@ -56,6 +103,26 @@ func (f *fakeChannel) Close() error {
 // lo que no puede entregar, y una prueba no debe llenar la consola con ello.
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewJSONHandler(io.Discard, nil))
+}
+
+// captureLogger devuelve un log que escribe en memoria.
+//
+// Las pruebas de entrega fallida se hacen SOBRE EL LOG a propósito: mientras este
+// servicio no tenga cola durable, el registro es literalmente el único sitio donde
+// queda constancia de un evento perdido. Comprobar que la función «no entra en
+// pánico» dejaría pasar la versión que se lo traga en silencio, que es el fallo que
+// importa.
+func captureLogger(buf *bytes.Buffer) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+}
+
+// requireDropped exige que el evento se haya registrado como no entregado, con el
+// envelope entero: es lo que lo hace reconstruible a mano.
+func requireDropped(t *testing.T, logged string, causa string) {
+	t.Helper()
+	require.Contains(t, logged, "evento no entregado al bus")
+	require.Contains(t, logged, causa)
+	require.Contains(t, logged, "auth.session_revoked")
 }
 
 func TestPublishBuildsTheCatalogEnvelope(t *testing.T) {
@@ -104,6 +171,10 @@ func TestPublishBuildsTheCatalogEnvelope(t *testing.T) {
 	require.Equal(t, amqp.Persistent, ch.msg.DeliveryMode)
 	require.Equal(t, "application/json", ch.msg.ContentType)
 
+	// `mandatory`: sin ella, un evento que no casa con ningún binding se descarta y el
+	// broker lo confirma igual, así que se contaría como entregado.
+	require.True(t, ch.mandatory)
+
 	// El canal se cierra siempre: se abre uno por evento, y no cerrarlos los acumula
 	// hasta agotar el límite de la conexión.
 	require.Equal(t, 1, ch.closed)
@@ -128,20 +199,91 @@ func TestPublishGivesEveryEventItsOwnID(t *testing.T) {
 	}
 }
 
-// TestPublishSurvivesABrokerFailure: el puerto no devuelve error, así que lo único
-// que se puede exigir es que un fallo no entre en pánico y que el canal se cierre
-// igualmente. La consecuencia —el evento se pierde y solo queda en el log— está
-// documentada en `server.EventPublisher`; la solución durable es un outbox en
-// `auth_db`, que este servicio todavía no tiene.
+// TestPublishSurvivesABrokerFailure: el puerto no devuelve error, así que un fallo no
+// puede entrar en pánico ni dejar el canal abierto — y tiene que quedar registrado.
 func TestPublishSurvivesABrokerFailure(t *testing.T) {
 	t.Parallel()
+	var logged bytes.Buffer
 	ch := &fakeChannel{publishErr: errors.New("canal cerrado")}
-	publisher := events.NewAMQPPublisher(func() (events.Channel, error) { return ch, nil }, discardLogger())
+	publisher := events.NewAMQPPublisher(func() (events.Channel, error) { return ch, nil }, captureLogger(&logged))
 
 	require.NotPanics(t, func() {
 		publisher.Publish(context.Background(), server.Event{Type: server.EventAuthSessionRevoked})
 	})
 	require.Equal(t, 1, ch.closed)
+	requireDropped(t, logged.String(), "canal cerrado")
+}
+
+// ── los tres fallos que sin acuse serían indistinguibles del éxito ──────────
+//
+// Los tres casos siguientes devuelven `nil` en `PublishWithContext`: la publicación
+// AMQP retorna en cuanto escribe en el socket. Sin confirmaciones, los tres se
+// contarían como eventos entregados y el registro de auditoría tendría huecos que
+// nada delata.
+
+// TestPublishDetectsABrokerRejection: un `nack` es el broker diciendo que NO se hizo
+// cargo —disco lleno, cola en estado de flujo—.
+func TestPublishDetectsABrokerRejection(t *testing.T) {
+	t.Parallel()
+	var logged bytes.Buffer
+	ch := &fakeChannel{nack: true}
+	publisher := events.NewAMQPPublisher(func() (events.Channel, error) { return ch, nil }, captureLogger(&logged))
+
+	publisher.Publish(context.Background(), server.Event{
+		Type: server.EventAuthSessionRevoked, ActorRef: "actor",
+	})
+	requireDropped(t, logged.String(), "rechazó el mensaje")
+}
+
+// TestPublishDetectsAnUnroutableEvent es el caso más probable de los tres en un
+// despliegue real: el exchange existe y acepta el mensaje, pero `audit.q` todavía no
+// está enlazada. El broker CONFIRMA el mensaje y lo tira, así que el acuse por sí solo
+// no bastaría — hace falta el `basic.return`.
+func TestPublishDetectsAnUnroutableEvent(t *testing.T) {
+	t.Parallel()
+	var logged bytes.Buffer
+	ch := &fakeChannel{unroutable: true}
+	publisher := events.NewAMQPPublisher(func() (events.Channel, error) { return ch, nil }, captureLogger(&logged))
+
+	publisher.Publish(context.Background(), server.Event{
+		Type: server.EventAuthSessionRevoked, ActorRef: "actor",
+	})
+	requireDropped(t, logged.String(), "ningún binding")
+	requireDropped(t, logged.String(), "NO_ROUTE")
+}
+
+// TestPublishDetectsAChannelThatDiesBeforeTheAck: un error de protocolo —publicar en
+// un exchange que el Orquestador aún no declaró— cierra el canal AMQP, y con él el
+// canal de notificación.
+func TestPublishDetectsAChannelThatDiesBeforeTheAck(t *testing.T) {
+	t.Parallel()
+	var logged bytes.Buffer
+	ch := &fakeChannel{closeAcks: true}
+	publisher := events.NewAMQPPublisher(func() (events.Channel, error) { return ch, nil }, captureLogger(&logged))
+
+	publisher.Publish(context.Background(), server.Event{
+		Type: server.EventAuthSessionRevoked, ActorRef: "actor",
+	})
+	requireDropped(t, logged.String(), "se cerró antes del acuse")
+}
+
+// TestPublishStillPublishesWithoutConfirmations: si el broker no admite activar las
+// confirmaciones, el evento se publica igual. Un evento entregado sin acuse es mejor
+// que un evento no entregado; lo que no se hace es callar que la vigilancia se quedó
+// sin cobertura.
+func TestPublishStillPublishesWithoutConfirmations(t *testing.T) {
+	t.Parallel()
+	var logged bytes.Buffer
+	ch := &fakeChannel{confirmErr: errors.New("modo confirm no disponible")}
+	publisher := events.NewAMQPPublisher(func() (events.Channel, error) { return ch, nil }, captureLogger(&logged))
+
+	publisher.Publish(context.Background(), server.Event{
+		Type: server.EventAuthSessionRevoked, ActorRef: "actor",
+	})
+	require.Equal(t, 1, ch.published)
+	require.Equal(t, 1, ch.closed)
+	require.Contains(t, logged.String(), "sin acuse")
+	require.NotContains(t, logged.String(), "evento no entregado al bus")
 }
 
 // TestPublishSurvivesAChannelThatCannotBeOpened cubre el arranque real: si Auth

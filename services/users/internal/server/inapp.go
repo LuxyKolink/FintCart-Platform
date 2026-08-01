@@ -62,21 +62,23 @@ var inAppNamespace = uuid.MustParse("6f1c2f6a-7f9c-4f1e-9f5a-2d3b4c5e6f70")
 
 // AppendInAppNotification añade una entrada a la bandeja.
 //
-// El identificador se DERIVA del contenido (UUIDv5 sobre usuario + tipo +
-// payload) en lugar de generarse al azar, y esa es la decisión importante del
-// método. La saga de actividad entrega at-least-once (D-07): una reentrega es
-// normal, no excepcional. Con un identificador aleatorio, cada reentrega añadiría
-// una copia visible en la bandeja del usuario, y no hay forma de limpiarla
-// después porque nada distingue la copia del original.
+// El identificador se DERIVA del `event_id` de la saga (UUIDv5 sobre evento +
+// tipo) en lugar de generarse al azar, y esa es la decisión importante del método.
+// La saga de actividad entrega at-least-once (D-07): una reentrega es normal, no
+// excepcional. Con un identificador aleatorio, cada reentrega añadiría una copia
+// visible en la bandeja del usuario, y no hay forma de limpiarla después porque
+// nada distingue la copia del original.
 //
-// El contrato NO tiene campo de idempotencia —`InAppNotification` solo lleva
-// `user_id`, `type` y `payload_json`—, así que el contenido es lo único
-// disponible para deduplicar. La contrapartida es que dos notificaciones
-// byte-idénticas para el mismo usuario colapsan en una; para los cuatro tipos
-// admitidos eso es lo deseable («aprobaste el cuestionario X» dos veces es ruido,
-// no información). Un `event_id` en el contrato lo resolvería mejor y está
-// anotado como hueco pendiente.
-func (s *Server) AppendInAppNotification(ctx context.Context, userID, notifType, payloadJSON string) error {
+// La identidad es el PAR (`event_id`, `type`) y no el `event_id` a solas: una misma
+// saga produce varias notificaciones —el resultado del cuestionario y el hito de
+// progreso salen del mismo evento de calificación—, y con el `event_id` a secas la
+// segunda se tragaría a la primera.
+//
+// El contenido NO entra en el identificador, y esa es la diferencia con la versión
+// anterior de este método: deducir la identidad del payload colapsaba dos
+// notificaciones legítimamente idénticas —el mismo hito alcanzado dos veces, en dos
+// momentos distintos— en una sola, sin que nada lo delatara.
+func (s *Server) AppendInAppNotification(ctx context.Context, userID, notifType, payloadJSON, eventID string) error {
 	id, err := parseUserID(userID)
 	if err != nil {
 		return err
@@ -84,13 +86,21 @@ func (s *Server) AppendInAppNotification(ctx context.Context, userID, notifType,
 	if !validNotifTypes[notifType] {
 		return fmt.Errorf("%w: tipo de notificación %q desconocido", ErrInvalidArgument, notifType)
 	}
+	// El `event_id` es OBLIGATORIO. Aceptar su ausencia con una derivación de
+	// respaldo sobre el contenido sería peor que rechazarla: el productor que se
+	// olvidara del campo seguiría funcionando, con una deduplicación silenciosamente
+	// distinta y peor, y nadie se enteraría hasta ver notificaciones desaparecidas.
+	event, err := uuid.Parse(eventID)
+	if err != nil {
+		return fmt.Errorf("%w: event_id %q no es un UUID", ErrInvalidArgument, eventID)
+	}
 	payload, err := normalizePayload(payloadJSON)
 	if err != nil {
 		return err
 	}
 
 	row := storer.InAppNotificationRow{
-		ID:      deriveNotificationID(id, notifType, payload),
+		ID:      deriveNotificationID(event, notifType),
 		UserID:  id,
 		Type:    notifType,
 		Payload: payload,
@@ -127,20 +137,22 @@ func normalizePayload(raw string) ([]byte, error) {
 	return canonical, nil
 }
 
-// deriveNotificationID calcula el UUIDv5 de la notificación.
+// deriveNotificationID calcula el UUIDv5 de la notificación a partir del par
+// (`event_id`, `type`).
 //
-// Los tres componentes se separan con un byte 0x00, que no puede aparecer dentro
-// de un identificador ni de un JSON válido. Concatenarlos sin separador dejaría
-// que dos notificaciones distintas produjeran la misma entrada — el tipo y el
-// payload podrían «prestarse» caracteres en la frontera— y una de las dos
-// desaparecería de la bandeja.
-func deriveNotificationID(userID uuid.UUID, notifType string, payload []byte) uuid.UUID {
-	seed := make([]byte, 0, len(userID)+len(notifType)+len(payload)+2)
-	seed = append(seed, userID[:]...)
+// Los dos componentes se separan con un byte 0x00, que no puede aparecer dentro de
+// un identificador. Concatenarlos sin separador dejaría que dos pares distintos
+// produjeran la misma entrada —el UUID y el tipo podrían «prestarse» caracteres en
+// la frontera— y una de las dos notificaciones desaparecería de la bandeja.
+//
+// El resultado es un UUID de verdad y no un hash cualquiera porque la columna `id`
+// es `uuid`, y además así el identificador que ve el usuario para marcar como leída
+// tiene la misma forma que cualquier otro de la plataforma.
+func deriveNotificationID(eventID uuid.UUID, notifType string) uuid.UUID {
+	seed := make([]byte, 0, len(eventID)+len(notifType)+1)
+	seed = append(seed, eventID[:]...)
 	seed = append(seed, 0)
 	seed = append(seed, notifType...)
-	seed = append(seed, 0)
-	seed = append(seed, payload...)
 	return uuid.NewSHA1(inAppNamespace, seed)
 }
 

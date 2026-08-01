@@ -17,6 +17,7 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -41,14 +42,27 @@ const (
 	publishTimeout = 5 * time.Second
 )
 
-// Channel es el subconjunto de `*amqp.Channel` que necesita publicar.
+// Channel es el subconjunto de `*amqp.Channel` que necesita publicar CON ACUSE.
 //
 // Es una interfaz para poder comprobar sin broker lo que de verdad importa aquí:
 // que el envelope tiene la forma del catálogo y que la routing key es el nombre del
 // evento. Un nombre mal escrito NO da error —el exchange `topic` acepta cualquier
 // routing key y descarta lo que no case con ningún binding—, así que el único sitio
 // donde ese fallo se puede atrapar es una prueba.
+//
+// Los dos métodos de notificación son los que hacen que el registro de un evento
+// perdido signifique algo. Sin ellos, `PublishWithContext` devuelve `nil` en cuanto
+// escribe en el socket y NO espera al broker: un exchange inexistente o una cola sin
+// binding se verían exactamente igual que una entrega correcta.
+//
+//   - `Confirm` + `NotifyPublish` — el broker ACEPTÓ el mensaje y lo persistió.
+//   - `NotifyReturn` — nadie estaba escuchando: la routing key no casó con ningún
+//     binding. Es un caso distinto del anterior y AMQP lo confirma igual, así que sin
+//     esta segunda notificación un evento descartado se contaría como entregado.
 type Channel interface {
+	Confirm(noWait bool) error
+	NotifyPublish(chan amqp.Confirmation) chan amqp.Confirmation
+	NotifyReturn(chan amqp.Return) chan amqp.Return
 	PublishWithContext(
 		ctx context.Context,
 		exchange, key string,
@@ -152,6 +166,28 @@ func (p *AMQPPublisher) Publish(ctx context.Context, event server.Event) {
 		}
 	}()
 
+	// Confirmaciones del publicador. Si no se pueden activar, se publica igualmente:
+	// un evento entregado sin acuse es mejor que un evento no entregado. Lo que no se
+	// hace es callarlo — quedaría un hueco en la vigilancia sin que nadie lo supiera.
+	confirmed := true
+	if err := ch.Confirm(false); err != nil {
+		confirmed = false
+		p.logger.WarnContext(ctx, "no se pudo activar la confirmación del publicador; el evento va sin acuse",
+			slog.String("event_id", env.EventID),
+			slog.String("event_type", env.EventType),
+			slog.String("error", err.Error()))
+	}
+
+	// Los dos canales se registran ANTES de publicar. Al revés habría una carrera con
+	// el propio broker: la confirmación de un mensaje ya enviado puede llegar antes de
+	// que exista quien la escuche, y se perdería.
+	var acks chan amqp.Confirmation
+	var returns chan amqp.Return
+	if confirmed {
+		acks = ch.NotifyPublish(make(chan amqp.Confirmation, 1))
+		returns = ch.NotifyReturn(make(chan amqp.Return, 1))
+	}
+
 	msg := amqp.Publishing{
 		ContentType: "application/json",
 		// `Persistent` no es opcional: en modo transitorio el broker guarda el mensaje
@@ -166,14 +202,74 @@ func (p *AMQPPublisher) Publish(ctx context.Context, event server.Event) {
 	}
 
 	// Routing key = nombre del evento, que es lo que fija el catálogo para un exchange
-	// `topic`. `mandatory: false`: un evento cuya key no case con ningún binding se
-	// descarta en silencio, igual que en el Orquestador; la protección real es que las
-	// keys son constantes y no literales dispersos.
-	if err := ch.PublishWithContext(ctx, ExchangeName, env.EventType, false, false, msg); err != nil {
+	// `topic`.
+	//
+	// `mandatory: true`, al contrario que en el Orquestador. Allí la marca convertiría
+	// un consumidor desplegado antes que su binding en un FALLO de publicación; aquí no
+	// hay nada que falle —el puerto no devuelve error— y lo único que cambia es que un
+	// evento que nadie recibe deja rastro en lugar de desaparecer. Con el coste ya
+	// pagado, la información sale gratis.
+	if err := ch.PublishWithContext(ctx, ExchangeName, env.EventType, true, false, msg); err != nil {
 		p.dropped(ctx, env, body, fmt.Errorf("publicar en el exchange %q: %w", ExchangeName, err))
 		return
 	}
+	if !confirmed {
+		return
+	}
+
+	p.awaitConfirmation(ctx, env, body, acks, returns)
 }
+
+// awaitConfirmation espera el acuse del broker y detecta el descarte por falta de
+// binding.
+//
+// El orden de los dos casos importa y lo fija AMQP 0-9-1: para un mensaje `mandatory`
+// que no se puede enrutar, el `basic.return` viaja SIEMPRE antes del `basic.ack`. Por
+// eso el retorno se comprueba después del acuse y sin bloquear: cuando llega el acuse,
+// el retorno ya está en su canal si iba a llegar.
+func (p *AMQPPublisher) awaitConfirmation(
+	ctx context.Context,
+	env envelope,
+	body []byte,
+	acks chan amqp.Confirmation,
+	returns chan amqp.Return,
+) {
+	select {
+	case ack, ok := <-acks:
+		if !ok {
+			// El canal de notificación se cierra cuando lo hace el canal AMQP, y eso pasa
+			// justo en el caso que más importa: un error de protocolo, como publicar en un
+			// exchange que todavía no existe.
+			p.dropped(ctx, env, body, errAckChannelClosed)
+			return
+		}
+		if !ack.Ack {
+			p.dropped(ctx, env, body, errBrokerRejected)
+			return
+		}
+	case <-ctx.Done():
+		// El mensaje pudo llegar o no: el acuse simplemente no volvió a tiempo. Se
+		// registra como no entregado porque es lo único honesto que se puede afirmar.
+		p.dropped(ctx, env, body, fmt.Errorf("esperando el acuse del broker: %w", ctx.Err()))
+		return
+	}
+
+	select {
+	case ret := <-returns:
+		p.dropped(ctx, env, body,
+			fmt.Errorf("%w: %d %s", errUnroutable, ret.ReplyCode, ret.ReplyText))
+	default:
+	}
+}
+
+// Causas de que un evento no llegue a su destino. Son errores propios y no cadenas
+// sueltas porque cada uno pide una reacción distinta de quien opera el sistema:
+// declarar la topología, mirar el broker o revisar los bindings.
+var (
+	errAckChannelClosed = errors.New("el canal AMQP se cerró antes del acuse")
+	errBrokerRejected   = errors.New("el broker rechazó el mensaje (nack)")
+	errUnroutable       = errors.New("ningún binding casó con la routing key: el evento se descartó")
+)
 
 // dropped deja constancia de un evento que no llegó al broker.
 //

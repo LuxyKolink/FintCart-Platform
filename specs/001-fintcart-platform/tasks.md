@@ -638,14 +638,19 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
   el token. Hay una prueba que lo comprueba sobre el mensaje serializado. El archivo
   propio (`authcontext.go`) existe por lo mismo: hace visible en revisión cualquier
   campo que se le añada.
-- **El identificador de una notificación in-app se DERIVA de su contenido** (UUIDv5
-  sobre usuario + tipo + payload canonicalizado) en lugar de generarse al azar. La saga
-  entrega at-least-once: con un identificador aleatorio, cada reentrega añadiría una
-  copia visible en la bandeja del usuario y nada permitiría distinguir cuál sobra. La
-  contrapartida es que dos notificaciones byte-idénticas colapsan en una, que para los
-  cuatro tipos admitidos es lo deseable.
-  **Hueco de contrato**: `users.v1.InAppNotification` no tiene `event_id`; con él la
-  deduplicación no dependería del contenido. Anotado, no cambiado.
+- **El identificador de una notificación in-app se DERIVA** (UUIDv5) en lugar de
+  generarse al azar. La saga entrega at-least-once: con un identificador aleatorio, cada
+  reentrega añadiría una copia visible en la bandeja del usuario y nada permitiría
+  distinguir cuál sobra.
+  **Actualizado**: la primera versión derivaba el identificador del CONTENIDO (usuario +
+  tipo + payload canonicalizado), lo que colapsaba en una sola dos notificaciones
+  legítimamente idénticas —el mismo hito alcanzado dos veces, en momentos distintos—.
+  El contrato ya lleva `users.v1.InAppNotification.event_id` (obligatorio, UUID) y la
+  identidad es el par (`event_id`, `type`): el par, y no el `event_id` a solas, porque
+  la saga de calificación produce dos notificaciones del mismo evento y con la clave a
+  secas la segunda se consideraría reentrega de la primera. Un `event_id` ausente se
+  RECHAZA en vez de recurrir a una derivación de respaldo: un productor que lo olvidara
+  seguiría funcionando con una deduplicación peor y nadie se enteraría.
 - `MarkNotificationRead` lleva `user_id` en el `WHERE` —única barrera contra marcar la
   notificación de otro conociendo su identificador— y responde `NotFound` tanto si no
   existe como si es ajena: un error distinto para el segundo caso confirmaría su
@@ -688,11 +693,21 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
   convertirse en el error del logout —el cliente vería «falló» sobre una sesión que sí
   está cerrada—. El implementador registra en `Error` el envelope completo de lo que no
   pudo entregar.
-- **Limitación conocida (anotada, no resuelta)**: Autenticación no tiene outbox
-  transaccional —D-07 lo sitúa en el Orquestador—, así que un evento que no llega al
-  broker solo queda en el log. La solución durable es una tabla de outbox en `auth_db`.
-  Tampoco hay *publisher confirms*: `PublishWithContext` retorna al escribir en el
-  socket, de modo que un rechazo del broker (p. ej. exchange inexistente) no se ve.
+- El publicador espera **acuse del broker** (`Confirm` + `NotifyPublish`) y publica con
+  `mandatory` + `NotifyReturn`. Sin lo primero, `PublishWithContext` retorna al escribir
+  en el socket y un rechazo del broker es indistinguible del éxito; sin lo segundo, un
+  evento que no casa con ningún binding —`audit.q` aún sin enlazar, el caso más probable
+  en un despliegue— se confirma igual y se descarta. Va con `mandatory: true` al
+  contrario que el Orquestador: allí convertiría un binding ausente en un fallo de
+  publicación, y aquí solo cambia que el descarte deje rastro.
+- **Por qué NO hay outbox transaccional en Autenticación** (y no es un pendiente): el
+  outbox exige que el evento se escriba en la MISMA transacción que el cambio de estado,
+  y el efecto de `Revoke` vive en Redis —una entrada en la blacklist, un refresh
+  borrado—, no en PostgreSQL. Una tabla en `auth_db` no sería un outbox sino una cola
+  durable con dos escrituras que pueden divergir igual. Lo que sí queda pendiente y es
+  aplicable: `auth.password_changed` (T137) sí modifica PostgreSQL y ahí el outbox
+  encaja. Mientras tanto, el evento no entregado se registra en `Error` con el envelope
+  completo y el motivo distinguido (rechazo, sin ruta, canal muerto, sin acuse).
 - Solo se audita lo que **realmente se revocó**. Un token inexistente, caducado o ya
   rotado no cerró ninguna sesión (RFC 7009 §2.2 obliga a aceptarlo sin error), y
   anotarlo llenaría la traza de revocaciones que nunca ocurrieron.
@@ -703,9 +718,9 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
   exchange que el Orquestador aún no declaró— cierra el canal en AMQP, y con un canal
   reutilizado todas las publicaciones siguientes fallarían sobre un canal muerto. El
   coste es un ida y vuelta extra, asumible con el volumen de eventos de este servicio.
-- `internal/events/` **no** aparece en el árbol de `auth-server` de `plan.md` §Source
-  Code, aunque tasks.md lo nombra y la constitución hace a Autenticación productor.
-  Discrepancia de documentación, anotada.
+- `internal/events/` faltaba en el árbol de `auth-server` de `plan.md` §Source Code
+  aunque tasks.md lo nombra y la constitución hace a Autenticación productor. Corregido
+  en `plan.md`, junto con el `steps/` del Orquestador, que omitía la saga de actividad.
 - El comentario de `cmd/auth/main.go` nombraba los eventos como `auth.password.changed`
   / `auth.session.revoked`; el catálogo usa guion bajo. Corregido.
 

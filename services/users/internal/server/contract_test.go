@@ -413,13 +413,20 @@ func TestRecordArticleViewRejectsMalformedArticleID(t *testing.T) {
 
 // ── AppendInAppNotification (FR-023, plan.md N-03) ──────────────────────────
 
+// testEventID y testEventID2 son `event_id` de saga: la clave de idempotencia con la
+// que la bandeja distingue una reentrega de una notificación nueva.
+const (
+	testEventID  = "b1a7c9d0-4e2f-4a1b-8c3d-5e6f70819234"
+	testEventID2 = "c2b8dae1-5f30-4b2c-9d4e-6f7081920345"
+)
+
 func TestAppendInAppNotificationContract(t *testing.T) {
 	t.Parallel()
 	store := newFakeStore()
 	client := startServer(t, store)
 
 	resp, err := client.AppendInAppNotification(context.Background(), &usersv1.InAppNotification{
-		UserId: testUserID, Type: "hito_progreso", PayloadJson: `{"points":90}`,
+		UserId: testUserID, Type: "hito_progreso", PayloadJson: `{"points":90}`, EventId: testEventID,
 	})
 	require.NoError(t, err)
 	require.True(t, resp.GetSuccess())
@@ -432,7 +439,8 @@ func TestAppendInAppNotificationIsIdempotentUnderRedelivery(t *testing.T) {
 	client := startServer(t, store)
 
 	req := &usersv1.InAppNotification{
-		UserId: testUserID, Type: "resultado_cuestionario", PayloadJson: `{"quiz":"a","score":"90.00"}`,
+		UserId: testUserID, Type: "resultado_cuestionario",
+		PayloadJson: `{"quiz":"a","score":"90.00"}`, EventId: testEventID,
 	}
 	for range 3 {
 		_, err := client.AppendInAppNotification(context.Background(), req)
@@ -445,25 +453,59 @@ func TestAppendInAppNotificationIsIdempotentUnderRedelivery(t *testing.T) {
 	require.Len(t, store.appended, 1)
 }
 
-func TestAppendInAppNotificationIgnoresPayloadKeyOrder(t *testing.T) {
+// TestAppendInAppNotificationKeepsIdenticalNotificationsOfDifferentEvents es la
+// prueba de por qué la identidad NO puede deducirse del contenido.
+//
+// Dos hitos idénticos alcanzados en dos momentos distintos producen exactamente los
+// mismos bytes. Con el identificador derivado del payload —como estaba antes de que
+// el contrato tuviera `event_id`—, el segundo se tragaba al primero y el usuario
+// perdía una notificación sin que nada lo delatara.
+func TestAppendInAppNotificationKeepsIdenticalNotificationsOfDifferentEvents(t *testing.T) {
 	t.Parallel()
 	store := newFakeStore()
 	client := startServer(t, store)
 
-	for _, payload := range []string{`{"a":1,"b":2}`, `{"b":2,"a":1}`} {
+	for _, eventID := range []string{testEventID, testEventID2} {
 		_, err := client.AppendInAppNotification(context.Background(), &usersv1.InAppNotification{
-			UserId: testUserID, Type: "recordatorio", PayloadJson: payload,
+			UserId: testUserID, Type: "hito_progreso", PayloadJson: `{"points":100}`, EventId: eventID,
 		})
 		require.NoError(t, err)
 	}
+	require.Len(t, store.appended, 2)
+}
 
-	// El mismo documento con las claves en otro orden es el mismo evento. Sin
-	// reserializar antes de derivar el identificador, la deduplicación dependería de
-	// que el emisor serializara siempre igual — algo que ningún contrato garantiza.
+// TestAppendInAppNotificationSeparatesTypesOfTheSameEvent: la saga de calificación
+// produce el resultado del cuestionario y el hito de progreso a partir del MISMO
+// evento. Si la identidad fuera el `event_id` a solas, la segunda notificación se
+// consideraría una reentrega de la primera y no llegaría nunca.
+func TestAppendInAppNotificationSeparatesTypesOfTheSameEvent(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	client := startServer(t, store)
+
+	for _, notifType := range []string{"resultado_cuestionario", "hito_progreso"} {
+		_, err := client.AppendInAppNotification(context.Background(), &usersv1.InAppNotification{
+			UserId: testUserID, Type: notifType, PayloadJson: `{"score":"90.00"}`, EventId: testEventID,
+		})
+		require.NoError(t, err)
+	}
+	require.Len(t, store.appended, 2)
+}
+
+func TestAppendInAppNotificationStoresTheWholePayload(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	client := startServer(t, store)
+
+	// Las claves llegan desordenadas: el payload se reserializa en forma canónica
+	// para que el documento guardado sea estable, independientemente de cómo lo
+	// serializara el emisor.
+	_, err := client.AppendInAppNotification(context.Background(), &usersv1.InAppNotification{
+		UserId: testUserID, Type: "recordatorio", PayloadJson: `{"b":2,"a":1}`, EventId: testEventID,
+	})
+	require.NoError(t, err)
+
 	require.Len(t, store.appended, 1)
-
-	// Y lo almacenado sigue siendo el documento íntegro, no una cadena arbitraria ni
-	// una versión recortada por la canonicalización.
 	for _, row := range store.appended {
 		require.JSONEq(t, `{"a":1,"b":2}`, string(row.Payload))
 	}
@@ -476,13 +518,23 @@ func TestAppendInAppNotificationRejectsInvalidInput(t *testing.T) {
 		// Los cuatro tipos válidos los fija el CHECK de la tabla; validarlos aquí es
 		// lo que convierte un tipo mal escrito en «argumento inválido» y no en una
 		// violación de constraint que la saga reintentaría para siempre.
-		"tipo desconocido": {UserId: testUserID, Type: "sms", PayloadJson: "{}"},
-		"tipo vacío":       {UserId: testUserID, Type: "", PayloadJson: "{}"},
-		"payload roto":     {UserId: testUserID, Type: "recordatorio", PayloadJson: "{no es json"},
+		"tipo desconocido": {UserId: testUserID, Type: "sms", PayloadJson: "{}", EventId: testEventID},
+		"tipo vacío":       {UserId: testUserID, Type: "", PayloadJson: "{}", EventId: testEventID},
+		"payload roto": {
+			UserId: testUserID, Type: "recordatorio", PayloadJson: "{no es json", EventId: testEventID,
+		},
 		// `JSONB` aceptaría un escalar, pero el frontend lee el payload por clave y
 		// un `5` produciría una tarjeta vacía sin que nada fallara.
-		"payload escalar":  {UserId: testUserID, Type: "recordatorio", PayloadJson: "5"},
-		"usuario inválido": {UserId: "yo", Type: "recordatorio", PayloadJson: "{}"},
+		"payload escalar":  {UserId: testUserID, Type: "recordatorio", PayloadJson: "5", EventId: testEventID},
+		"usuario inválido": {UserId: "yo", Type: "recordatorio", PayloadJson: "{}", EventId: testEventID},
+		// Sin `event_id` no hay clave de idempotencia. Se RECHAZA en lugar de recurrir
+		// a una derivación de respaldo sobre el contenido: el productor que olvidara el
+		// campo seguiría funcionando con una deduplicación peor y nadie se enteraría
+		// hasta ver notificaciones desaparecidas.
+		"event_id ausente": {UserId: testUserID, Type: "recordatorio", PayloadJson: "{}"},
+		"event_id no UUID": {
+			UserId: testUserID, Type: "recordatorio", PayloadJson: "{}", EventId: "evento-1",
+		},
 	}
 
 	for name, req := range cases {
