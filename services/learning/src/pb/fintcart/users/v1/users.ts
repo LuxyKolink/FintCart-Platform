@@ -91,15 +91,19 @@ export interface InAppNotification {
   type: string;
   payload_json: string;
   /**
-   * Clave de idempotencia: el `event_id` del envelope de la saga que originó la
-   * notificación (UUID). OBLIGATORIO.
+   * Clave de idempotencia de la OCURRENCIA que originó la notificación (UUID).
+   * OBLIGATORIO.
    *
    * La entrega de la saga es at-least-once, así que una reentrega es normal y no
    * excepcional. Sin esta clave habría que deducir la identidad del CONTENIDO, y dos
    * notificaciones legítimamente idénticas —el mismo hito alcanzado dos veces—
    * colapsarían en una sola sin que nada lo delatara.
    *
-   * La misma saga puede producir varias notificaciones (p. ej. resultado del
+   * Cuando quien llama es un paso de saga, el valor es el **saga_id**: es lo único
+   * estable entre reintentos del paso, porque el `event_id` del outbox se genera de
+   * nuevo cada vez que un paso devuelve sus eventos.
+   *
+   * La misma ocurrencia puede producir varias notificaciones (p. ej. resultado del
    * cuestionario e hito de progreso): la identidad de la entrada es el par
    * (`event_id`, `type`), no el `event_id` a solas.
    */
