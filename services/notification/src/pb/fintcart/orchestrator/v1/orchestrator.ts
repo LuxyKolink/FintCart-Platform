@@ -5,10 +5,10 @@
 // source: fintcart/orchestrator/v1/orchestrator.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { CalcType, calcTypeFromJSON, calcTypeToJSON } from "../../simulator/v1/simulator.js";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import { CalcType, calcTypeFromJSON, calcTypeToJSON } from '../../simulator/v1/simulator.js';
 
-export const protobufPackage = "fintcart.orchestrator.v1";
+export const protobufPackage = 'fintcart.orchestrator.v1';
 
 export interface UserRef {
   user_id: string;
@@ -89,12 +89,12 @@ export interface SimulationResult_ResultEntry {
 }
 
 function createBaseUserRef(): UserRef {
-  return { user_id: "" };
+  return { user_id: '' };
 }
 
 export const UserRef: MessageFns<UserRef> = {
   encode(message: UserRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     return writer;
@@ -125,12 +125,12 @@ export const UserRef: MessageFns<UserRef> = {
   },
 
   fromJSON(object: any): UserRef {
-    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "" };
+    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '' };
   },
 
   toJSON(message: UserRef): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     return obj;
@@ -141,18 +141,18 @@ export const UserRef: MessageFns<UserRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<UserRef>, I>>(object: I): UserRef {
     const message = createBaseUserRef();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     return message;
   },
 };
 
 function createBaseSagaHandle(): SagaHandle {
-  return { saga_id: "" };
+  return { saga_id: '' };
 }
 
 export const SagaHandle: MessageFns<SagaHandle> = {
   encode(message: SagaHandle, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.saga_id !== "") {
+    if (message.saga_id !== '') {
       writer.uint32(10).string(message.saga_id);
     }
     return writer;
@@ -183,12 +183,12 @@ export const SagaHandle: MessageFns<SagaHandle> = {
   },
 
   fromJSON(object: any): SagaHandle {
-    return { saga_id: isSet(object.saga_id) ? globalThis.String(object.saga_id) : "" };
+    return { saga_id: isSet(object.saga_id) ? globalThis.String(object.saga_id) : '' };
   },
 
   toJSON(message: SagaHandle): unknown {
     const obj: any = {};
-    if (message.saga_id !== "") {
+    if (message.saga_id !== '') {
       obj.saga_id = message.saga_id;
     }
     return obj;
@@ -199,24 +199,24 @@ export const SagaHandle: MessageFns<SagaHandle> = {
   },
   fromPartial<I extends Exact<DeepPartial<SagaHandle>, I>>(object: I): SagaHandle {
     const message = createBaseSagaHandle();
-    message.saga_id = object.saga_id ?? "";
+    message.saga_id = object.saga_id ?? '';
     return message;
   },
 };
 
 function createBaseSagaStatus(): SagaStatus {
-  return { saga_id: "", saga_type: "", status: "", current_step: 0 };
+  return { saga_id: '', saga_type: '', status: '', current_step: 0 };
 }
 
 export const SagaStatus: MessageFns<SagaStatus> = {
   encode(message: SagaStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.saga_id !== "") {
+    if (message.saga_id !== '') {
       writer.uint32(10).string(message.saga_id);
     }
-    if (message.saga_type !== "") {
+    if (message.saga_type !== '') {
       writer.uint32(18).string(message.saga_type);
     }
-    if (message.status !== "") {
+    if (message.status !== '') {
       writer.uint32(26).string(message.status);
     }
     if (message.current_step !== 0) {
@@ -275,22 +275,22 @@ export const SagaStatus: MessageFns<SagaStatus> = {
 
   fromJSON(object: any): SagaStatus {
     return {
-      saga_id: isSet(object.saga_id) ? globalThis.String(object.saga_id) : "",
-      saga_type: isSet(object.saga_type) ? globalThis.String(object.saga_type) : "",
-      status: isSet(object.status) ? globalThis.String(object.status) : "",
+      saga_id: isSet(object.saga_id) ? globalThis.String(object.saga_id) : '',
+      saga_type: isSet(object.saga_type) ? globalThis.String(object.saga_type) : '',
+      status: isSet(object.status) ? globalThis.String(object.status) : '',
       current_step: isSet(object.current_step) ? globalThis.Number(object.current_step) : 0,
     };
   },
 
   toJSON(message: SagaStatus): unknown {
     const obj: any = {};
-    if (message.saga_id !== "") {
+    if (message.saga_id !== '') {
       obj.saga_id = message.saga_id;
     }
-    if (message.saga_type !== "") {
+    if (message.saga_type !== '') {
       obj.saga_type = message.saga_type;
     }
-    if (message.status !== "") {
+    if (message.status !== '') {
       obj.status = message.status;
     }
     if (message.current_step !== 0) {
@@ -304,27 +304,30 @@ export const SagaStatus: MessageFns<SagaStatus> = {
   },
   fromPartial<I extends Exact<DeepPartial<SagaStatus>, I>>(object: I): SagaStatus {
     const message = createBaseSagaStatus();
-    message.saga_id = object.saga_id ?? "";
-    message.saga_type = object.saga_type ?? "";
-    message.status = object.status ?? "";
+    message.saga_id = object.saga_id ?? '';
+    message.saga_type = object.saga_type ?? '';
+    message.status = object.status ?? '';
     message.current_step = object.current_step ?? 0;
     return message;
   },
 };
 
 function createBaseStartRegistrationRequest(): StartRegistrationRequest {
-  return { email: "", password: "", display_name: "" };
+  return { email: '', password: '', display_name: '' };
 }
 
 export const StartRegistrationRequest: MessageFns<StartRegistrationRequest> = {
-  encode(message: StartRegistrationRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.email !== "") {
+  encode(
+    message: StartRegistrationRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.email !== '') {
       writer.uint32(10).string(message.email);
     }
-    if (message.password !== "") {
+    if (message.password !== '') {
       writer.uint32(18).string(message.password);
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       writer.uint32(26).string(message.display_name);
     }
     return writer;
@@ -372,48 +375,55 @@ export const StartRegistrationRequest: MessageFns<StartRegistrationRequest> = {
 
   fromJSON(object: any): StartRegistrationRequest {
     return {
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-      password: isSet(object.password) ? globalThis.String(object.password) : "",
-      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : "",
+      email: isSet(object.email) ? globalThis.String(object.email) : '',
+      password: isSet(object.password) ? globalThis.String(object.password) : '',
+      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : '',
     };
   },
 
   toJSON(message: StartRegistrationRequest): unknown {
     const obj: any = {};
-    if (message.email !== "") {
+    if (message.email !== '') {
       obj.email = message.email;
     }
-    if (message.password !== "") {
+    if (message.password !== '') {
       obj.password = message.password;
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       obj.display_name = message.display_name;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<StartRegistrationRequest>, I>>(base?: I): StartRegistrationRequest {
+  create<I extends Exact<DeepPartial<StartRegistrationRequest>, I>>(
+    base?: I,
+  ): StartRegistrationRequest {
     return StartRegistrationRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<StartRegistrationRequest>, I>>(object: I): StartRegistrationRequest {
+  fromPartial<I extends Exact<DeepPartial<StartRegistrationRequest>, I>>(
+    object: I,
+  ): StartRegistrationRequest {
     const message = createBaseStartRegistrationRequest();
-    message.email = object.email ?? "";
-    message.password = object.password ?? "";
-    message.display_name = object.display_name ?? "";
+    message.email = object.email ?? '';
+    message.password = object.password ?? '';
+    message.display_name = object.display_name ?? '';
     return message;
   },
 };
 
 function createBaseEmailVerificationRequest(): EmailVerificationRequest {
-  return { user_id: "", verification_token: "" };
+  return { user_id: '', verification_token: '' };
 }
 
 export const EmailVerificationRequest: MessageFns<EmailVerificationRequest> = {
-  encode(message: EmailVerificationRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+  encode(
+    message: EmailVerificationRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.verification_token !== "") {
+    if (message.verification_token !== '') {
       writer.uint32(18).string(message.verification_token);
     }
     return writer;
@@ -453,47 +463,56 @@ export const EmailVerificationRequest: MessageFns<EmailVerificationRequest> = {
 
   fromJSON(object: any): EmailVerificationRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      verification_token: isSet(object.verification_token) ? globalThis.String(object.verification_token) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      verification_token: isSet(object.verification_token)
+        ? globalThis.String(object.verification_token)
+        : '',
     };
   },
 
   toJSON(message: EmailVerificationRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.verification_token !== "") {
+    if (message.verification_token !== '') {
       obj.verification_token = message.verification_token;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<EmailVerificationRequest>, I>>(base?: I): EmailVerificationRequest {
+  create<I extends Exact<DeepPartial<EmailVerificationRequest>, I>>(
+    base?: I,
+  ): EmailVerificationRequest {
     return EmailVerificationRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<EmailVerificationRequest>, I>>(object: I): EmailVerificationRequest {
+  fromPartial<I extends Exact<DeepPartial<EmailVerificationRequest>, I>>(
+    object: I,
+  ): EmailVerificationRequest {
     const message = createBaseEmailVerificationRequest();
-    message.user_id = object.user_id ?? "";
-    message.verification_token = object.verification_token ?? "";
+    message.user_id = object.user_id ?? '';
+    message.verification_token = object.verification_token ?? '';
     return message;
   },
 };
 
 function createBaseQuizGradingRequest(): QuizGradingRequest {
-  return { user_id: "", quiz_id: "", answers: {} };
+  return { user_id: '', quiz_id: '', answers: {} };
 }
 
 export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
   encode(message: QuizGradingRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       writer.uint32(18).string(message.quiz_id);
     }
     Object.entries(message.answers).forEach(([key, value]) => {
-      QuizGradingRequest_AnswersEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+      QuizGradingRequest_AnswersEntry.encode(
+        { key: key as any, value },
+        writer.uint32(26).fork(),
+      ).join();
     });
     return writer;
   },
@@ -543,23 +562,23 @@ export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
 
   fromJSON(object: any): QuizGradingRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : '',
       answers: isObject(object.answers)
         ? Object.entries(object.answers).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
+            acc[key] = String(value);
+            return acc;
+          }, {})
         : {},
     };
   },
 
   toJSON(message: QuizGradingRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       obj.quiz_id = message.quiz_id;
     }
     if (message.answers) {
@@ -579,28 +598,34 @@ export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<QuizGradingRequest>, I>>(object: I): QuizGradingRequest {
     const message = createBaseQuizGradingRequest();
-    message.user_id = object.user_id ?? "";
-    message.quiz_id = object.quiz_id ?? "";
-    message.answers = Object.entries(object.answers ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = globalThis.String(value);
-      }
-      return acc;
-    }, {});
+    message.user_id = object.user_id ?? '';
+    message.quiz_id = object.quiz_id ?? '';
+    message.answers = Object.entries(object.answers ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
     return message;
   },
 };
 
 function createBaseQuizGradingRequest_AnswersEntry(): QuizGradingRequest_AnswersEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const QuizGradingRequest_AnswersEntry: MessageFns<QuizGradingRequest_AnswersEntry> = {
-  encode(message: QuizGradingRequest_AnswersEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: QuizGradingRequest_AnswersEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -640,48 +665,50 @@ export const QuizGradingRequest_AnswersEntry: MessageFns<QuizGradingRequest_Answ
 
   fromJSON(object: any): QuizGradingRequest_AnswersEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: QuizGradingRequest_AnswersEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<QuizGradingRequest_AnswersEntry>, I>>(base?: I): QuizGradingRequest_AnswersEntry {
+  create<I extends Exact<DeepPartial<QuizGradingRequest_AnswersEntry>, I>>(
+    base?: I,
+  ): QuizGradingRequest_AnswersEntry {
     return QuizGradingRequest_AnswersEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<QuizGradingRequest_AnswersEntry>, I>>(
     object: I,
   ): QuizGradingRequest_AnswersEntry {
     const message = createBaseQuizGradingRequest_AnswersEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
 
 function createBaseQuizGradingResult(): QuizGradingResult {
-  return { attempt_id: "", attempt_no: 0, score: "", passed: false, points_after: 0 };
+  return { attempt_id: '', attempt_no: 0, score: '', passed: false, points_after: 0 };
 }
 
 export const QuizGradingResult: MessageFns<QuizGradingResult> = {
   encode(message: QuizGradingResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.attempt_id !== "") {
+    if (message.attempt_id !== '') {
       writer.uint32(10).string(message.attempt_id);
     }
     if (message.attempt_no !== 0) {
       writer.uint32(16).int32(message.attempt_no);
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       writer.uint32(26).string(message.score);
     }
     if (message.passed !== false) {
@@ -751,9 +778,9 @@ export const QuizGradingResult: MessageFns<QuizGradingResult> = {
 
   fromJSON(object: any): QuizGradingResult {
     return {
-      attempt_id: isSet(object.attempt_id) ? globalThis.String(object.attempt_id) : "",
+      attempt_id: isSet(object.attempt_id) ? globalThis.String(object.attempt_id) : '',
       attempt_no: isSet(object.attempt_no) ? globalThis.Number(object.attempt_no) : 0,
-      score: isSet(object.score) ? globalThis.String(object.score) : "",
+      score: isSet(object.score) ? globalThis.String(object.score) : '',
       passed: isSet(object.passed) ? globalThis.Boolean(object.passed) : false,
       points_after: isSet(object.points_after) ? globalThis.Number(object.points_after) : 0,
     };
@@ -761,13 +788,13 @@ export const QuizGradingResult: MessageFns<QuizGradingResult> = {
 
   toJSON(message: QuizGradingResult): unknown {
     const obj: any = {};
-    if (message.attempt_id !== "") {
+    if (message.attempt_id !== '') {
       obj.attempt_id = message.attempt_id;
     }
     if (message.attempt_no !== 0) {
       obj.attempt_no = Math.round(message.attempt_no);
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       obj.score = message.score;
     }
     if (message.passed !== false) {
@@ -784,9 +811,9 @@ export const QuizGradingResult: MessageFns<QuizGradingResult> = {
   },
   fromPartial<I extends Exact<DeepPartial<QuizGradingResult>, I>>(object: I): QuizGradingResult {
     const message = createBaseQuizGradingResult();
-    message.attempt_id = object.attempt_id ?? "";
+    message.attempt_id = object.attempt_id ?? '';
     message.attempt_no = object.attempt_no ?? 0;
-    message.score = object.score ?? "";
+    message.score = object.score ?? '';
     message.passed = object.passed ?? false;
     message.points_after = object.points_after ?? 0;
     return message;
@@ -794,22 +821,25 @@ export const QuizGradingResult: MessageFns<QuizGradingResult> = {
 };
 
 function createBaseSimulationRequest(): SimulationRequest {
-  return { user_id: "", calc_type: 0, currency: "", inputs: {} };
+  return { user_id: '', calc_type: 0, currency: '', inputs: {} };
 }
 
 export const SimulationRequest: MessageFns<SimulationRequest> = {
   encode(message: SimulationRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     if (message.calc_type !== 0) {
       writer.uint32(16).int32(message.calc_type);
     }
-    if (message.currency !== "") {
+    if (message.currency !== '') {
       writer.uint32(26).string(message.currency);
     }
     Object.entries(message.inputs).forEach(([key, value]) => {
-      SimulationRequest_InputsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+      SimulationRequest_InputsEntry.encode(
+        { key: key as any, value },
+        writer.uint32(34).fork(),
+      ).join();
     });
     return writer;
   },
@@ -867,27 +897,27 @@ export const SimulationRequest: MessageFns<SimulationRequest> = {
 
   fromJSON(object: any): SimulationRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
       calc_type: isSet(object.calc_type) ? calcTypeFromJSON(object.calc_type) : 0,
-      currency: isSet(object.currency) ? globalThis.String(object.currency) : "",
+      currency: isSet(object.currency) ? globalThis.String(object.currency) : '',
       inputs: isObject(object.inputs)
         ? Object.entries(object.inputs).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
+            acc[key] = String(value);
+            return acc;
+          }, {})
         : {},
     };
   },
 
   toJSON(message: SimulationRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     if (message.calc_type !== 0) {
       obj.calc_type = calcTypeToJSON(message.calc_type);
     }
-    if (message.currency !== "") {
+    if (message.currency !== '') {
       obj.currency = message.currency;
     }
     if (message.inputs) {
@@ -907,29 +937,35 @@ export const SimulationRequest: MessageFns<SimulationRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<SimulationRequest>, I>>(object: I): SimulationRequest {
     const message = createBaseSimulationRequest();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     message.calc_type = object.calc_type ?? 0;
-    message.currency = object.currency ?? "";
-    message.inputs = Object.entries(object.inputs ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = globalThis.String(value);
-      }
-      return acc;
-    }, {});
+    message.currency = object.currency ?? '';
+    message.inputs = Object.entries(object.inputs ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
     return message;
   },
 };
 
 function createBaseSimulationRequest_InputsEntry(): SimulationRequest_InputsEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const SimulationRequest_InputsEntry: MessageFns<SimulationRequest_InputsEntry> = {
-  encode(message: SimulationRequest_InputsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: SimulationRequest_InputsEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -969,46 +1005,51 @@ export const SimulationRequest_InputsEntry: MessageFns<SimulationRequest_InputsE
 
   fromJSON(object: any): SimulationRequest_InputsEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: SimulationRequest_InputsEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<SimulationRequest_InputsEntry>, I>>(base?: I): SimulationRequest_InputsEntry {
+  create<I extends Exact<DeepPartial<SimulationRequest_InputsEntry>, I>>(
+    base?: I,
+  ): SimulationRequest_InputsEntry {
     return SimulationRequest_InputsEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<SimulationRequest_InputsEntry>, I>>(
     object: I,
   ): SimulationRequest_InputsEntry {
     const message = createBaseSimulationRequest_InputsEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
 
 function createBaseSimulationResult(): SimulationResult {
-  return { simulation_id: "", result: {} };
+  return { simulation_id: '', result: {} };
 }
 
 export const SimulationResult: MessageFns<SimulationResult> = {
   encode(message: SimulationResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.simulation_id !== "") {
+    if (message.simulation_id !== '') {
       writer.uint32(10).string(message.simulation_id);
     }
     Object.entries(message.result).forEach(([key, value]) => {
-      SimulationResult_ResultEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+      SimulationResult_ResultEntry.encode(
+        { key: key as any, value },
+        writer.uint32(18).fork(),
+      ).join();
     });
     return writer;
   },
@@ -1050,19 +1091,19 @@ export const SimulationResult: MessageFns<SimulationResult> = {
 
   fromJSON(object: any): SimulationResult {
     return {
-      simulation_id: isSet(object.simulation_id) ? globalThis.String(object.simulation_id) : "",
+      simulation_id: isSet(object.simulation_id) ? globalThis.String(object.simulation_id) : '',
       result: isObject(object.result)
         ? Object.entries(object.result).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
+            acc[key] = String(value);
+            return acc;
+          }, {})
         : {},
     };
   },
 
   toJSON(message: SimulationResult): unknown {
     const obj: any = {};
-    if (message.simulation_id !== "") {
+    if (message.simulation_id !== '') {
       obj.simulation_id = message.simulation_id;
     }
     if (message.result) {
@@ -1082,27 +1123,33 @@ export const SimulationResult: MessageFns<SimulationResult> = {
   },
   fromPartial<I extends Exact<DeepPartial<SimulationResult>, I>>(object: I): SimulationResult {
     const message = createBaseSimulationResult();
-    message.simulation_id = object.simulation_id ?? "";
-    message.result = Object.entries(object.result ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = globalThis.String(value);
-      }
-      return acc;
-    }, {});
+    message.simulation_id = object.simulation_id ?? '';
+    message.result = Object.entries(object.result ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
     return message;
   },
 };
 
 function createBaseSimulationResult_ResultEntry(): SimulationResult_ResultEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const SimulationResult_ResultEntry: MessageFns<SimulationResult_ResultEntry> = {
-  encode(message: SimulationResult_ResultEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: SimulationResult_ResultEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -1142,47 +1189,56 @@ export const SimulationResult_ResultEntry: MessageFns<SimulationResult_ResultEnt
 
   fromJSON(object: any): SimulationResult_ResultEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: SimulationResult_ResultEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<SimulationResult_ResultEntry>, I>>(base?: I): SimulationResult_ResultEntry {
+  create<I extends Exact<DeepPartial<SimulationResult_ResultEntry>, I>>(
+    base?: I,
+  ): SimulationResult_ResultEntry {
     return SimulationResult_ResultEntry.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<SimulationResult_ResultEntry>, I>>(object: I): SimulationResult_ResultEntry {
+  fromPartial<I extends Exact<DeepPartial<SimulationResult_ResultEntry>, I>>(
+    object: I,
+  ): SimulationResult_ResultEntry {
     const message = createBaseSimulationResult_ResultEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isObject(value: any): boolean {
-  return typeof value === "object" && value !== null;
+  return typeof value === 'object' && value !== null;
 }
 
 function isSet(value: any): boolean {

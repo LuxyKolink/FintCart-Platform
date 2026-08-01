@@ -13,8 +13,19 @@ service AuthService {
   // pending_verification. Idempotente por user_id.
   rpc CreateCredential(CreateCredentialRequest) returns (fintcart.common.v1.OpResult);
 
+  // Emite (o REEMITE) el token de verificación de correo.
+  //
+  // Lo invoca el paso de la saga de registro que produce el evento `user.registered`,
+  // y el reenvío del correo cuando el enlace caduca (FR-002). Cada llamada SUSTITUYE
+  // al token anterior: un reenvío tiene que invalidar el enlace previo, porque si no
+  // un correo interceptado seguiría sirviendo indefinidamente.
+  //
+  // El valor en claro se devuelve UNA sola vez y no se puede volver a consultar: en
+  // la base solo queda su hash. Quien pierda la respuesta tiene que reemitir.
+  rpc IssueVerificationToken(UserRef) returns (VerificationToken);
+
   // Activa la credencial tras verificación de correo (Saga de verificación).
-  rpc ActivateCredential(UserRef) returns (fintcart.common.v1.OpResult);
+  rpc ActivateCredential(ActivateCredentialRequest) returns (fintcart.common.v1.OpResult);
 
   // Valida correo+contraseña durante el login del Authorization Code flow.
   rpc ValidateCredentials(ValidateCredentialsRequest) returns (ValidateCredentialsResponse);
@@ -44,6 +55,22 @@ message CreateCredentialRequest {
   string user_id = 1;
   string email = 2;
   string password = 3; // se hashea con Argon2id; nunca se persiste/loguea en claro
+}
+
+// Token de verificación de correo en claro. Solo viaja de Auth al correo del
+// titular, pasando por el Orquestador y el bus; en `auth_db` únicamente se guarda
+// su hash, igual que con una contraseña.
+message VerificationToken {
+  string token = 1;
+  string expires_at = 2; // RFC-3339 UTC; caducado deja de activar (FR-002)
+}
+
+message ActivateCredentialRequest {
+  string user_id = 1;
+  // OBLIGATORIO. Es la ÚNICA prueba de que quien verifica controla el buzón: sin
+  // él, conocer un user_id —que viaja en cada evento de auditoría— bastaría para
+  // activar la cuenta de otro, y el correo de verificación no comprobaría nada.
+  string verification_token = 2;
 }
 
 message ValidateCredentialsRequest {

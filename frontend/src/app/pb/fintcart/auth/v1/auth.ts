@@ -20,6 +20,27 @@ export interface CreateCredentialRequest {
   password: string;
 }
 
+/**
+ * Token de verificación de correo en claro. Solo viaja de Auth al correo del
+ * titular, pasando por el Orquestador y el bus; en `auth_db` únicamente se guarda
+ * su hash, igual que con una contraseña.
+ */
+export interface VerificationToken {
+  token: string;
+  /** RFC-3339 UTC; caducado deja de activar (FR-002) */
+  expires_at: string;
+}
+
+export interface ActivateCredentialRequest {
+  user_id: string;
+  /**
+   * OBLIGATORIO. Es la ÚNICA prueba de que quien verifica controla el buzón: sin
+   * él, conocer un user_id —que viaja en cada evento de auditoría— bastaría para
+   * activar la cuenta de otro, y el correo de verificación no comprobaría nada.
+   */
+  verification_token: string;
+}
+
 export interface ValidateCredentialsRequest {
   email: string;
   password: string;
@@ -235,6 +256,158 @@ export const CreateCredentialRequest: MessageFns<CreateCredentialRequest> = {
     message.user_id = object.user_id ?? "";
     message.email = object.email ?? "";
     message.password = object.password ?? "";
+    return message;
+  },
+};
+
+function createBaseVerificationToken(): VerificationToken {
+  return { token: "", expires_at: "" };
+}
+
+export const VerificationToken: MessageFns<VerificationToken> = {
+  encode(message: VerificationToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    if (message.expires_at !== "") {
+      writer.uint32(18).string(message.expires_at);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VerificationToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseVerificationToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.expires_at = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): VerificationToken {
+    return {
+      token: isSet(object.token) ? globalThis.String(object.token) : "",
+      expires_at: isSet(object.expires_at) ? globalThis.String(object.expires_at) : "",
+    };
+  },
+
+  toJSON(message: VerificationToken): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    if (message.expires_at !== "") {
+      obj.expires_at = message.expires_at;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<VerificationToken>, I>>(base?: I): VerificationToken {
+    return VerificationToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<VerificationToken>, I>>(object: I): VerificationToken {
+    const message = createBaseVerificationToken();
+    message.token = object.token ?? "";
+    message.expires_at = object.expires_at ?? "";
+    return message;
+  },
+};
+
+function createBaseActivateCredentialRequest(): ActivateCredentialRequest {
+  return { user_id: "", verification_token: "" };
+}
+
+export const ActivateCredentialRequest: MessageFns<ActivateCredentialRequest> = {
+  encode(message: ActivateCredentialRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.user_id !== "") {
+      writer.uint32(10).string(message.user_id);
+    }
+    if (message.verification_token !== "") {
+      writer.uint32(18).string(message.verification_token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ActivateCredentialRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseActivateCredentialRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.user_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.verification_token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ActivateCredentialRequest {
+    return {
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      verification_token: isSet(object.verification_token) ? globalThis.String(object.verification_token) : "",
+    };
+  },
+
+  toJSON(message: ActivateCredentialRequest): unknown {
+    const obj: any = {};
+    if (message.user_id !== "") {
+      obj.user_id = message.user_id;
+    }
+    if (message.verification_token !== "") {
+      obj.verification_token = message.verification_token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ActivateCredentialRequest>, I>>(base?: I): ActivateCredentialRequest {
+    return ActivateCredentialRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ActivateCredentialRequest>, I>>(object: I): ActivateCredentialRequest {
+    const message = createBaseActivateCredentialRequest();
+    message.user_id = object.user_id ?? "";
+    message.verification_token = object.verification_token ?? "";
     return message;
   },
 };

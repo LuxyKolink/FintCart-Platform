@@ -5,9 +5,9 @@
 // source: fintcart/auth/v1/auth.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
 
-export const protobufPackage = "fintcart.auth.v1";
+export const protobufPackage = 'fintcart.auth.v1';
 
 export interface UserRef {
   user_id: string;
@@ -18,6 +18,27 @@ export interface CreateCredentialRequest {
   email: string;
   /** se hashea con Argon2id; nunca se persiste/loguea en claro */
   password: string;
+}
+
+/**
+ * Token de verificación de correo en claro. Solo viaja de Auth al correo del
+ * titular, pasando por el Orquestador y el bus; en `auth_db` únicamente se guarda
+ * su hash, igual que con una contraseña.
+ */
+export interface VerificationToken {
+  token: string;
+  /** RFC-3339 UTC; caducado deja de activar (FR-002) */
+  expires_at: string;
+}
+
+export interface ActivateCredentialRequest {
+  user_id: string;
+  /**
+   * OBLIGATORIO. Es la ÚNICA prueba de que quien verifica controla el buzón: sin
+   * él, conocer un user_id —que viaja en cada evento de auditoría— bastaría para
+   * activar la cuenta de otro, y el correo de verificación no comprobaría nada.
+   */
+  verification_token: string;
 }
 
 export interface ValidateCredentialsRequest {
@@ -90,12 +111,12 @@ export interface IntrospectResponse {
 }
 
 function createBaseUserRef(): UserRef {
-  return { user_id: "" };
+  return { user_id: '' };
 }
 
 export const UserRef: MessageFns<UserRef> = {
   encode(message: UserRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     return writer;
@@ -126,12 +147,12 @@ export const UserRef: MessageFns<UserRef> = {
   },
 
   fromJSON(object: any): UserRef {
-    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "" };
+    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '' };
   },
 
   toJSON(message: UserRef): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     return obj;
@@ -142,24 +163,27 @@ export const UserRef: MessageFns<UserRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<UserRef>, I>>(object: I): UserRef {
     const message = createBaseUserRef();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     return message;
   },
 };
 
 function createBaseCreateCredentialRequest(): CreateCredentialRequest {
-  return { user_id: "", email: "", password: "" };
+  return { user_id: '', email: '', password: '' };
 }
 
 export const CreateCredentialRequest: MessageFns<CreateCredentialRequest> = {
-  encode(message: CreateCredentialRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+  encode(
+    message: CreateCredentialRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.email !== "") {
+    if (message.email !== '') {
       writer.uint32(18).string(message.email);
     }
-    if (message.password !== "") {
+    if (message.password !== '') {
       writer.uint32(26).string(message.password);
     }
     return writer;
@@ -207,48 +231,216 @@ export const CreateCredentialRequest: MessageFns<CreateCredentialRequest> = {
 
   fromJSON(object: any): CreateCredentialRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-      password: isSet(object.password) ? globalThis.String(object.password) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      email: isSet(object.email) ? globalThis.String(object.email) : '',
+      password: isSet(object.password) ? globalThis.String(object.password) : '',
     };
   },
 
   toJSON(message: CreateCredentialRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.email !== "") {
+    if (message.email !== '') {
       obj.email = message.email;
     }
-    if (message.password !== "") {
+    if (message.password !== '') {
       obj.password = message.password;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<CreateCredentialRequest>, I>>(base?: I): CreateCredentialRequest {
+  create<I extends Exact<DeepPartial<CreateCredentialRequest>, I>>(
+    base?: I,
+  ): CreateCredentialRequest {
     return CreateCredentialRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<CreateCredentialRequest>, I>>(object: I): CreateCredentialRequest {
+  fromPartial<I extends Exact<DeepPartial<CreateCredentialRequest>, I>>(
+    object: I,
+  ): CreateCredentialRequest {
     const message = createBaseCreateCredentialRequest();
-    message.user_id = object.user_id ?? "";
-    message.email = object.email ?? "";
-    message.password = object.password ?? "";
+    message.user_id = object.user_id ?? '';
+    message.email = object.email ?? '';
+    message.password = object.password ?? '';
+    return message;
+  },
+};
+
+function createBaseVerificationToken(): VerificationToken {
+  return { token: '', expires_at: '' };
+}
+
+export const VerificationToken: MessageFns<VerificationToken> = {
+  encode(message: VerificationToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== '') {
+      writer.uint32(10).string(message.token);
+    }
+    if (message.expires_at !== '') {
+      writer.uint32(18).string(message.expires_at);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VerificationToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseVerificationToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.expires_at = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): VerificationToken {
+    return {
+      token: isSet(object.token) ? globalThis.String(object.token) : '',
+      expires_at: isSet(object.expires_at) ? globalThis.String(object.expires_at) : '',
+    };
+  },
+
+  toJSON(message: VerificationToken): unknown {
+    const obj: any = {};
+    if (message.token !== '') {
+      obj.token = message.token;
+    }
+    if (message.expires_at !== '') {
+      obj.expires_at = message.expires_at;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<VerificationToken>, I>>(base?: I): VerificationToken {
+    return VerificationToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<VerificationToken>, I>>(object: I): VerificationToken {
+    const message = createBaseVerificationToken();
+    message.token = object.token ?? '';
+    message.expires_at = object.expires_at ?? '';
+    return message;
+  },
+};
+
+function createBaseActivateCredentialRequest(): ActivateCredentialRequest {
+  return { user_id: '', verification_token: '' };
+}
+
+export const ActivateCredentialRequest: MessageFns<ActivateCredentialRequest> = {
+  encode(
+    message: ActivateCredentialRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.user_id !== '') {
+      writer.uint32(10).string(message.user_id);
+    }
+    if (message.verification_token !== '') {
+      writer.uint32(18).string(message.verification_token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ActivateCredentialRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseActivateCredentialRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.user_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.verification_token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ActivateCredentialRequest {
+    return {
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      verification_token: isSet(object.verification_token)
+        ? globalThis.String(object.verification_token)
+        : '',
+    };
+  },
+
+  toJSON(message: ActivateCredentialRequest): unknown {
+    const obj: any = {};
+    if (message.user_id !== '') {
+      obj.user_id = message.user_id;
+    }
+    if (message.verification_token !== '') {
+      obj.verification_token = message.verification_token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ActivateCredentialRequest>, I>>(
+    base?: I,
+  ): ActivateCredentialRequest {
+    return ActivateCredentialRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ActivateCredentialRequest>, I>>(
+    object: I,
+  ): ActivateCredentialRequest {
+    const message = createBaseActivateCredentialRequest();
+    message.user_id = object.user_id ?? '';
+    message.verification_token = object.verification_token ?? '';
     return message;
   },
 };
 
 function createBaseValidateCredentialsRequest(): ValidateCredentialsRequest {
-  return { email: "", password: "" };
+  return { email: '', password: '' };
 }
 
 export const ValidateCredentialsRequest: MessageFns<ValidateCredentialsRequest> = {
-  encode(message: ValidateCredentialsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.email !== "") {
+  encode(
+    message: ValidateCredentialsRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.email !== '') {
       writer.uint32(10).string(message.email);
     }
-    if (message.password !== "") {
+    if (message.password !== '') {
       writer.uint32(18).string(message.password);
     }
     return writer;
@@ -288,49 +480,56 @@ export const ValidateCredentialsRequest: MessageFns<ValidateCredentialsRequest> 
 
   fromJSON(object: any): ValidateCredentialsRequest {
     return {
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-      password: isSet(object.password) ? globalThis.String(object.password) : "",
+      email: isSet(object.email) ? globalThis.String(object.email) : '',
+      password: isSet(object.password) ? globalThis.String(object.password) : '',
     };
   },
 
   toJSON(message: ValidateCredentialsRequest): unknown {
     const obj: any = {};
-    if (message.email !== "") {
+    if (message.email !== '') {
       obj.email = message.email;
     }
-    if (message.password !== "") {
+    if (message.password !== '') {
       obj.password = message.password;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ValidateCredentialsRequest>, I>>(base?: I): ValidateCredentialsRequest {
+  create<I extends Exact<DeepPartial<ValidateCredentialsRequest>, I>>(
+    base?: I,
+  ): ValidateCredentialsRequest {
     return ValidateCredentialsRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ValidateCredentialsRequest>, I>>(object: I): ValidateCredentialsRequest {
+  fromPartial<I extends Exact<DeepPartial<ValidateCredentialsRequest>, I>>(
+    object: I,
+  ): ValidateCredentialsRequest {
     const message = createBaseValidateCredentialsRequest();
-    message.email = object.email ?? "";
-    message.password = object.password ?? "";
+    message.email = object.email ?? '';
+    message.password = object.password ?? '';
     return message;
   },
 };
 
 function createBaseValidateCredentialsResponse(): ValidateCredentialsResponse {
-  return { valid: false, user_id: "", email_verified: false, login_status: "" };
+  return { valid: false, user_id: '', email_verified: false, login_status: '' };
 }
 
 export const ValidateCredentialsResponse: MessageFns<ValidateCredentialsResponse> = {
-  encode(message: ValidateCredentialsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: ValidateCredentialsResponse,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.valid !== false) {
       writer.uint32(8).bool(message.valid);
     }
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(18).string(message.user_id);
     }
     if (message.email_verified !== false) {
       writer.uint32(24).bool(message.email_verified);
     }
-    if (message.login_status !== "") {
+    if (message.login_status !== '') {
       writer.uint32(34).string(message.login_status);
     }
     return writer;
@@ -387,9 +586,11 @@ export const ValidateCredentialsResponse: MessageFns<ValidateCredentialsResponse
   fromJSON(object: any): ValidateCredentialsResponse {
     return {
       valid: isSet(object.valid) ? globalThis.Boolean(object.valid) : false,
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      email_verified: isSet(object.email_verified) ? globalThis.Boolean(object.email_verified) : false,
-      login_status: isSet(object.login_status) ? globalThis.String(object.login_status) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      email_verified: isSet(object.email_verified)
+        ? globalThis.Boolean(object.email_verified)
+        : false,
+      login_status: isSet(object.login_status) ? globalThis.String(object.login_status) : '',
     };
   },
 
@@ -398,50 +599,61 @@ export const ValidateCredentialsResponse: MessageFns<ValidateCredentialsResponse
     if (message.valid !== false) {
       obj.valid = message.valid;
     }
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     if (message.email_verified !== false) {
       obj.email_verified = message.email_verified;
     }
-    if (message.login_status !== "") {
+    if (message.login_status !== '') {
       obj.login_status = message.login_status;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ValidateCredentialsResponse>, I>>(base?: I): ValidateCredentialsResponse {
+  create<I extends Exact<DeepPartial<ValidateCredentialsResponse>, I>>(
+    base?: I,
+  ): ValidateCredentialsResponse {
     return ValidateCredentialsResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ValidateCredentialsResponse>, I>>(object: I): ValidateCredentialsResponse {
+  fromPartial<I extends Exact<DeepPartial<ValidateCredentialsResponse>, I>>(
+    object: I,
+  ): ValidateCredentialsResponse {
     const message = createBaseValidateCredentialsResponse();
     message.valid = object.valid ?? false;
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     message.email_verified = object.email_verified ?? false;
-    message.login_status = object.login_status ?? "";
+    message.login_status = object.login_status ?? '';
     return message;
   },
 };
 
 function createBaseIssueAuthCodeRequest(): IssueAuthCodeRequest {
-  return { user_id: "", client_id: "", redirect_uri: "", code_challenge: "", code_challenge_method: "", scopes: [] };
+  return {
+    user_id: '',
+    client_id: '',
+    redirect_uri: '',
+    code_challenge: '',
+    code_challenge_method: '',
+    scopes: [],
+  };
 }
 
 export const IssueAuthCodeRequest: MessageFns<IssueAuthCodeRequest> = {
   encode(message: IssueAuthCodeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.client_id !== "") {
+    if (message.client_id !== '') {
       writer.uint32(18).string(message.client_id);
     }
-    if (message.redirect_uri !== "") {
+    if (message.redirect_uri !== '') {
       writer.uint32(26).string(message.redirect_uri);
     }
-    if (message.code_challenge !== "") {
+    if (message.code_challenge !== '') {
       writer.uint32(34).string(message.code_challenge);
     }
-    if (message.code_challenge_method !== "") {
+    if (message.code_challenge_method !== '') {
       writer.uint32(42).string(message.code_challenge_method);
     }
     for (const v of message.scopes) {
@@ -516,30 +728,34 @@ export const IssueAuthCodeRequest: MessageFns<IssueAuthCodeRequest> = {
 
   fromJSON(object: any): IssueAuthCodeRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      client_id: isSet(object.client_id) ? globalThis.String(object.client_id) : "",
-      redirect_uri: isSet(object.redirect_uri) ? globalThis.String(object.redirect_uri) : "",
-      code_challenge: isSet(object.code_challenge) ? globalThis.String(object.code_challenge) : "",
-      code_challenge_method: isSet(object.code_challenge_method) ? globalThis.String(object.code_challenge_method) : "",
-      scopes: globalThis.Array.isArray(object?.scopes) ? object.scopes.map((e: any) => globalThis.String(e)) : [],
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      client_id: isSet(object.client_id) ? globalThis.String(object.client_id) : '',
+      redirect_uri: isSet(object.redirect_uri) ? globalThis.String(object.redirect_uri) : '',
+      code_challenge: isSet(object.code_challenge) ? globalThis.String(object.code_challenge) : '',
+      code_challenge_method: isSet(object.code_challenge_method)
+        ? globalThis.String(object.code_challenge_method)
+        : '',
+      scopes: globalThis.Array.isArray(object?.scopes)
+        ? object.scopes.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
   toJSON(message: IssueAuthCodeRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.client_id !== "") {
+    if (message.client_id !== '') {
       obj.client_id = message.client_id;
     }
-    if (message.redirect_uri !== "") {
+    if (message.redirect_uri !== '') {
       obj.redirect_uri = message.redirect_uri;
     }
-    if (message.code_challenge !== "") {
+    if (message.code_challenge !== '') {
       obj.code_challenge = message.code_challenge;
     }
-    if (message.code_challenge_method !== "") {
+    if (message.code_challenge_method !== '') {
       obj.code_challenge_method = message.code_challenge_method;
     }
     if (message.scopes?.length) {
@@ -551,25 +767,27 @@ export const IssueAuthCodeRequest: MessageFns<IssueAuthCodeRequest> = {
   create<I extends Exact<DeepPartial<IssueAuthCodeRequest>, I>>(base?: I): IssueAuthCodeRequest {
     return IssueAuthCodeRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<IssueAuthCodeRequest>, I>>(object: I): IssueAuthCodeRequest {
+  fromPartial<I extends Exact<DeepPartial<IssueAuthCodeRequest>, I>>(
+    object: I,
+  ): IssueAuthCodeRequest {
     const message = createBaseIssueAuthCodeRequest();
-    message.user_id = object.user_id ?? "";
-    message.client_id = object.client_id ?? "";
-    message.redirect_uri = object.redirect_uri ?? "";
-    message.code_challenge = object.code_challenge ?? "";
-    message.code_challenge_method = object.code_challenge_method ?? "";
+    message.user_id = object.user_id ?? '';
+    message.client_id = object.client_id ?? '';
+    message.redirect_uri = object.redirect_uri ?? '';
+    message.code_challenge = object.code_challenge ?? '';
+    message.code_challenge_method = object.code_challenge_method ?? '';
     message.scopes = object.scopes?.map((e) => e) || [];
     return message;
   },
 };
 
 function createBaseIssueAuthCodeResponse(): IssueAuthCodeResponse {
-  return { code: "" };
+  return { code: '' };
 }
 
 export const IssueAuthCodeResponse: MessageFns<IssueAuthCodeResponse> = {
   encode(message: IssueAuthCodeResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.code !== "") {
+    if (message.code !== '') {
       writer.uint32(10).string(message.code);
     }
     return writer;
@@ -600,12 +818,12 @@ export const IssueAuthCodeResponse: MessageFns<IssueAuthCodeResponse> = {
   },
 
   fromJSON(object: any): IssueAuthCodeResponse {
-    return { code: isSet(object.code) ? globalThis.String(object.code) : "" };
+    return { code: isSet(object.code) ? globalThis.String(object.code) : '' };
   },
 
   toJSON(message: IssueAuthCodeResponse): unknown {
     const obj: any = {};
-    if (message.code !== "") {
+    if (message.code !== '') {
       obj.code = message.code;
     }
     return obj;
@@ -614,29 +832,31 @@ export const IssueAuthCodeResponse: MessageFns<IssueAuthCodeResponse> = {
   create<I extends Exact<DeepPartial<IssueAuthCodeResponse>, I>>(base?: I): IssueAuthCodeResponse {
     return IssueAuthCodeResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<IssueAuthCodeResponse>, I>>(object: I): IssueAuthCodeResponse {
+  fromPartial<I extends Exact<DeepPartial<IssueAuthCodeResponse>, I>>(
+    object: I,
+  ): IssueAuthCodeResponse {
     const message = createBaseIssueAuthCodeResponse();
-    message.code = object.code ?? "";
+    message.code = object.code ?? '';
     return message;
   },
 };
 
 function createBaseExchangeCodeRequest(): ExchangeCodeRequest {
-  return { code: "", code_verifier: "", client_id: "", redirect_uri: "" };
+  return { code: '', code_verifier: '', client_id: '', redirect_uri: '' };
 }
 
 export const ExchangeCodeRequest: MessageFns<ExchangeCodeRequest> = {
   encode(message: ExchangeCodeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.code !== "") {
+    if (message.code !== '') {
       writer.uint32(10).string(message.code);
     }
-    if (message.code_verifier !== "") {
+    if (message.code_verifier !== '') {
       writer.uint32(18).string(message.code_verifier);
     }
-    if (message.client_id !== "") {
+    if (message.client_id !== '') {
       writer.uint32(26).string(message.client_id);
     }
-    if (message.redirect_uri !== "") {
+    if (message.redirect_uri !== '') {
       writer.uint32(34).string(message.redirect_uri);
     }
     return writer;
@@ -692,25 +912,25 @@ export const ExchangeCodeRequest: MessageFns<ExchangeCodeRequest> = {
 
   fromJSON(object: any): ExchangeCodeRequest {
     return {
-      code: isSet(object.code) ? globalThis.String(object.code) : "",
-      code_verifier: isSet(object.code_verifier) ? globalThis.String(object.code_verifier) : "",
-      client_id: isSet(object.client_id) ? globalThis.String(object.client_id) : "",
-      redirect_uri: isSet(object.redirect_uri) ? globalThis.String(object.redirect_uri) : "",
+      code: isSet(object.code) ? globalThis.String(object.code) : '',
+      code_verifier: isSet(object.code_verifier) ? globalThis.String(object.code_verifier) : '',
+      client_id: isSet(object.client_id) ? globalThis.String(object.client_id) : '',
+      redirect_uri: isSet(object.redirect_uri) ? globalThis.String(object.redirect_uri) : '',
     };
   },
 
   toJSON(message: ExchangeCodeRequest): unknown {
     const obj: any = {};
-    if (message.code !== "") {
+    if (message.code !== '') {
       obj.code = message.code;
     }
-    if (message.code_verifier !== "") {
+    if (message.code_verifier !== '') {
       obj.code_verifier = message.code_verifier;
     }
-    if (message.client_id !== "") {
+    if (message.client_id !== '') {
       obj.client_id = message.client_id;
     }
-    if (message.redirect_uri !== "") {
+    if (message.redirect_uri !== '') {
       obj.redirect_uri = message.redirect_uri;
     }
     return obj;
@@ -719,23 +939,25 @@ export const ExchangeCodeRequest: MessageFns<ExchangeCodeRequest> = {
   create<I extends Exact<DeepPartial<ExchangeCodeRequest>, I>>(base?: I): ExchangeCodeRequest {
     return ExchangeCodeRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ExchangeCodeRequest>, I>>(object: I): ExchangeCodeRequest {
+  fromPartial<I extends Exact<DeepPartial<ExchangeCodeRequest>, I>>(
+    object: I,
+  ): ExchangeCodeRequest {
     const message = createBaseExchangeCodeRequest();
-    message.code = object.code ?? "";
-    message.code_verifier = object.code_verifier ?? "";
-    message.client_id = object.client_id ?? "";
-    message.redirect_uri = object.redirect_uri ?? "";
+    message.code = object.code ?? '';
+    message.code_verifier = object.code_verifier ?? '';
+    message.client_id = object.client_id ?? '';
+    message.redirect_uri = object.redirect_uri ?? '';
     return message;
   },
 };
 
 function createBaseRefreshTokenRequest(): RefreshTokenRequest {
-  return { refresh_token: "" };
+  return { refresh_token: '' };
 }
 
 export const RefreshTokenRequest: MessageFns<RefreshTokenRequest> = {
   encode(message: RefreshTokenRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.refresh_token !== "") {
+    if (message.refresh_token !== '') {
       writer.uint32(10).string(message.refresh_token);
     }
     return writer;
@@ -766,12 +988,14 @@ export const RefreshTokenRequest: MessageFns<RefreshTokenRequest> = {
   },
 
   fromJSON(object: any): RefreshTokenRequest {
-    return { refresh_token: isSet(object.refresh_token) ? globalThis.String(object.refresh_token) : "" };
+    return {
+      refresh_token: isSet(object.refresh_token) ? globalThis.String(object.refresh_token) : '',
+    };
   },
 
   toJSON(message: RefreshTokenRequest): unknown {
     const obj: any = {};
-    if (message.refresh_token !== "") {
+    if (message.refresh_token !== '') {
       obj.refresh_token = message.refresh_token;
     }
     return obj;
@@ -780,26 +1004,28 @@ export const RefreshTokenRequest: MessageFns<RefreshTokenRequest> = {
   create<I extends Exact<DeepPartial<RefreshTokenRequest>, I>>(base?: I): RefreshTokenRequest {
     return RefreshTokenRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<RefreshTokenRequest>, I>>(object: I): RefreshTokenRequest {
+  fromPartial<I extends Exact<DeepPartial<RefreshTokenRequest>, I>>(
+    object: I,
+  ): RefreshTokenRequest {
     const message = createBaseRefreshTokenRequest();
-    message.refresh_token = object.refresh_token ?? "";
+    message.refresh_token = object.refresh_token ?? '';
     return message;
   },
 };
 
 function createBaseTokenResponse(): TokenResponse {
-  return { access_token: "", refresh_token: "", token_type: "", expires_in: 0 };
+  return { access_token: '', refresh_token: '', token_type: '', expires_in: 0 };
 }
 
 export const TokenResponse: MessageFns<TokenResponse> = {
   encode(message: TokenResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.access_token !== "") {
+    if (message.access_token !== '') {
       writer.uint32(10).string(message.access_token);
     }
-    if (message.refresh_token !== "") {
+    if (message.refresh_token !== '') {
       writer.uint32(18).string(message.refresh_token);
     }
-    if (message.token_type !== "") {
+    if (message.token_type !== '') {
       writer.uint32(26).string(message.token_type);
     }
     if (message.expires_in !== 0) {
@@ -858,22 +1084,22 @@ export const TokenResponse: MessageFns<TokenResponse> = {
 
   fromJSON(object: any): TokenResponse {
     return {
-      access_token: isSet(object.access_token) ? globalThis.String(object.access_token) : "",
-      refresh_token: isSet(object.refresh_token) ? globalThis.String(object.refresh_token) : "",
-      token_type: isSet(object.token_type) ? globalThis.String(object.token_type) : "",
+      access_token: isSet(object.access_token) ? globalThis.String(object.access_token) : '',
+      refresh_token: isSet(object.refresh_token) ? globalThis.String(object.refresh_token) : '',
+      token_type: isSet(object.token_type) ? globalThis.String(object.token_type) : '',
       expires_in: isSet(object.expires_in) ? globalThis.Number(object.expires_in) : 0,
     };
   },
 
   toJSON(message: TokenResponse): unknown {
     const obj: any = {};
-    if (message.access_token !== "") {
+    if (message.access_token !== '') {
       obj.access_token = message.access_token;
     }
-    if (message.refresh_token !== "") {
+    if (message.refresh_token !== '') {
       obj.refresh_token = message.refresh_token;
     }
-    if (message.token_type !== "") {
+    if (message.token_type !== '') {
       obj.token_type = message.token_type;
     }
     if (message.expires_in !== 0) {
@@ -887,24 +1113,24 @@ export const TokenResponse: MessageFns<TokenResponse> = {
   },
   fromPartial<I extends Exact<DeepPartial<TokenResponse>, I>>(object: I): TokenResponse {
     const message = createBaseTokenResponse();
-    message.access_token = object.access_token ?? "";
-    message.refresh_token = object.refresh_token ?? "";
-    message.token_type = object.token_type ?? "";
+    message.access_token = object.access_token ?? '';
+    message.refresh_token = object.refresh_token ?? '';
+    message.token_type = object.token_type ?? '';
     message.expires_in = object.expires_in ?? 0;
     return message;
   },
 };
 
 function createBaseRevokeRequest(): RevokeRequest {
-  return { token: "", token_type_hint: "" };
+  return { token: '', token_type_hint: '' };
 }
 
 export const RevokeRequest: MessageFns<RevokeRequest> = {
   encode(message: RevokeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.token !== "") {
+    if (message.token !== '') {
       writer.uint32(10).string(message.token);
     }
-    if (message.token_type_hint !== "") {
+    if (message.token_type_hint !== '') {
       writer.uint32(18).string(message.token_type_hint);
     }
     return writer;
@@ -944,17 +1170,19 @@ export const RevokeRequest: MessageFns<RevokeRequest> = {
 
   fromJSON(object: any): RevokeRequest {
     return {
-      token: isSet(object.token) ? globalThis.String(object.token) : "",
-      token_type_hint: isSet(object.token_type_hint) ? globalThis.String(object.token_type_hint) : "",
+      token: isSet(object.token) ? globalThis.String(object.token) : '',
+      token_type_hint: isSet(object.token_type_hint)
+        ? globalThis.String(object.token_type_hint)
+        : '',
     };
   },
 
   toJSON(message: RevokeRequest): unknown {
     const obj: any = {};
-    if (message.token !== "") {
+    if (message.token !== '') {
       obj.token = message.token;
     }
-    if (message.token_type_hint !== "") {
+    if (message.token_type_hint !== '') {
       obj.token_type_hint = message.token_type_hint;
     }
     return obj;
@@ -965,19 +1193,19 @@ export const RevokeRequest: MessageFns<RevokeRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<RevokeRequest>, I>>(object: I): RevokeRequest {
     const message = createBaseRevokeRequest();
-    message.token = object.token ?? "";
-    message.token_type_hint = object.token_type_hint ?? "";
+    message.token = object.token ?? '';
+    message.token_type_hint = object.token_type_hint ?? '';
     return message;
   },
 };
 
 function createBaseIntrospectRequest(): IntrospectRequest {
-  return { access_token: "" };
+  return { access_token: '' };
 }
 
 export const IntrospectRequest: MessageFns<IntrospectRequest> = {
   encode(message: IntrospectRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.access_token !== "") {
+    if (message.access_token !== '') {
       writer.uint32(10).string(message.access_token);
     }
     return writer;
@@ -1008,12 +1236,14 @@ export const IntrospectRequest: MessageFns<IntrospectRequest> = {
   },
 
   fromJSON(object: any): IntrospectRequest {
-    return { access_token: isSet(object.access_token) ? globalThis.String(object.access_token) : "" };
+    return {
+      access_token: isSet(object.access_token) ? globalThis.String(object.access_token) : '',
+    };
   },
 
   toJSON(message: IntrospectRequest): unknown {
     const obj: any = {};
-    if (message.access_token !== "") {
+    if (message.access_token !== '') {
       obj.access_token = message.access_token;
     }
     return obj;
@@ -1024,13 +1254,13 @@ export const IntrospectRequest: MessageFns<IntrospectRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<IntrospectRequest>, I>>(object: I): IntrospectRequest {
     const message = createBaseIntrospectRequest();
-    message.access_token = object.access_token ?? "";
+    message.access_token = object.access_token ?? '';
     return message;
   },
 };
 
 function createBaseIntrospectResponse(): IntrospectResponse {
-  return { active: false, user_id: "", roles: [], jti: "", exp: "0" };
+  return { active: false, user_id: '', roles: [], jti: '', exp: '0' };
 }
 
 export const IntrospectResponse: MessageFns<IntrospectResponse> = {
@@ -1038,16 +1268,16 @@ export const IntrospectResponse: MessageFns<IntrospectResponse> = {
     if (message.active !== false) {
       writer.uint32(8).bool(message.active);
     }
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(18).string(message.user_id);
     }
     for (const v of message.roles) {
       writer.uint32(26).string(v!);
     }
-    if (message.jti !== "") {
+    if (message.jti !== '') {
       writer.uint32(34).string(message.jti);
     }
-    if (message.exp !== "0") {
+    if (message.exp !== '0') {
       writer.uint32(40).int64(message.exp);
     }
     return writer;
@@ -1112,10 +1342,12 @@ export const IntrospectResponse: MessageFns<IntrospectResponse> = {
   fromJSON(object: any): IntrospectResponse {
     return {
       active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      roles: globalThis.Array.isArray(object?.roles) ? object.roles.map((e: any) => globalThis.String(e)) : [],
-      jti: isSet(object.jti) ? globalThis.String(object.jti) : "",
-      exp: isSet(object.exp) ? globalThis.String(object.exp) : "0",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      roles: globalThis.Array.isArray(object?.roles)
+        ? object.roles.map((e: any) => globalThis.String(e))
+        : [],
+      jti: isSet(object.jti) ? globalThis.String(object.jti) : '',
+      exp: isSet(object.exp) ? globalThis.String(object.exp) : '0',
     };
   },
 
@@ -1124,16 +1356,16 @@ export const IntrospectResponse: MessageFns<IntrospectResponse> = {
     if (message.active !== false) {
       obj.active = message.active;
     }
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     if (message.roles?.length) {
       obj.roles = message.roles;
     }
-    if (message.jti !== "") {
+    if (message.jti !== '') {
       obj.jti = message.jti;
     }
-    if (message.exp !== "0") {
+    if (message.exp !== '0') {
       obj.exp = message.exp;
     }
     return obj;
@@ -1145,24 +1377,29 @@ export const IntrospectResponse: MessageFns<IntrospectResponse> = {
   fromPartial<I extends Exact<DeepPartial<IntrospectResponse>, I>>(object: I): IntrospectResponse {
     const message = createBaseIntrospectResponse();
     message.active = object.active ?? false;
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     message.roles = object.roles?.map((e) => e) || [];
-    message.jti = object.jti ?? "";
-    message.exp = object.exp ?? "0";
+    message.jti = object.jti ?? '';
+    message.exp = object.exp ?? '0';
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isSet(value: any): boolean {

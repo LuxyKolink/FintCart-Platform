@@ -5,10 +5,10 @@
 // source: fintcart/users/v1/users.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { PageRequest, PageResponse } from "../../common/v1/common.js";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import { PageRequest, PageResponse } from '../../common/v1/common.js';
 
-export const protobufPackage = "fintcart.users.v1";
+export const protobufPackage = 'fintcart.users.v1';
 
 export interface UserRef {
   user_id: string;
@@ -132,12 +132,12 @@ export interface ActivityReport {
 }
 
 function createBaseUserRef(): UserRef {
-  return { user_id: "" };
+  return { user_id: '' };
 }
 
 export const UserRef: MessageFns<UserRef> = {
   encode(message: UserRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     return writer;
@@ -168,12 +168,12 @@ export const UserRef: MessageFns<UserRef> = {
   },
 
   fromJSON(object: any): UserRef {
-    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "" };
+    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '' };
   },
 
   toJSON(message: UserRef): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     return obj;
@@ -184,24 +184,24 @@ export const UserRef: MessageFns<UserRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<UserRef>, I>>(object: I): UserRef {
     const message = createBaseUserRef();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     return message;
   },
 };
 
 function createBaseCreateProfileRequest(): CreateProfileRequest {
-  return { user_id: "", email: "", display_name: "" };
+  return { user_id: '', email: '', display_name: '' };
 }
 
 export const CreateProfileRequest: MessageFns<CreateProfileRequest> = {
   encode(message: CreateProfileRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.email !== "") {
+    if (message.email !== '') {
       writer.uint32(18).string(message.email);
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       writer.uint32(26).string(message.display_name);
     }
     return writer;
@@ -249,21 +249,21 @@ export const CreateProfileRequest: MessageFns<CreateProfileRequest> = {
 
   fromJSON(object: any): CreateProfileRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      email: isSet(object.email) ? globalThis.String(object.email) : '',
+      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : '',
     };
   },
 
   toJSON(message: CreateProfileRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.email !== "") {
+    if (message.email !== '') {
       obj.email = message.email;
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       obj.display_name = message.display_name;
     }
     return obj;
@@ -272,28 +272,30 @@ export const CreateProfileRequest: MessageFns<CreateProfileRequest> = {
   create<I extends Exact<DeepPartial<CreateProfileRequest>, I>>(base?: I): CreateProfileRequest {
     return CreateProfileRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<CreateProfileRequest>, I>>(object: I): CreateProfileRequest {
+  fromPartial<I extends Exact<DeepPartial<CreateProfileRequest>, I>>(
+    object: I,
+  ): CreateProfileRequest {
     const message = createBaseCreateProfileRequest();
-    message.user_id = object.user_id ?? "";
-    message.email = object.email ?? "";
-    message.display_name = object.display_name ?? "";
+    message.user_id = object.user_id ?? '';
+    message.email = object.email ?? '';
+    message.display_name = object.display_name ?? '';
     return message;
   },
 };
 
 function createBaseAuthContext(): AuthContext {
-  return { user_id: "", roles: [], account_status: "", email_verified: false };
+  return { user_id: '', roles: [], account_status: '', email_verified: false };
 }
 
 export const AuthContext: MessageFns<AuthContext> = {
   encode(message: AuthContext, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     for (const v of message.roles) {
       writer.uint32(18).string(v!);
     }
-    if (message.account_status !== "") {
+    if (message.account_status !== '') {
       writer.uint32(26).string(message.account_status);
     }
     if (message.email_verified !== false) {
@@ -352,22 +354,26 @@ export const AuthContext: MessageFns<AuthContext> = {
 
   fromJSON(object: any): AuthContext {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      roles: globalThis.Array.isArray(object?.roles) ? object.roles.map((e: any) => globalThis.String(e)) : [],
-      account_status: isSet(object.account_status) ? globalThis.String(object.account_status) : "",
-      email_verified: isSet(object.email_verified) ? globalThis.Boolean(object.email_verified) : false,
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      roles: globalThis.Array.isArray(object?.roles)
+        ? object.roles.map((e: any) => globalThis.String(e))
+        : [],
+      account_status: isSet(object.account_status) ? globalThis.String(object.account_status) : '',
+      email_verified: isSet(object.email_verified)
+        ? globalThis.Boolean(object.email_verified)
+        : false,
     };
   },
 
   toJSON(message: AuthContext): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     if (message.roles?.length) {
       obj.roles = message.roles;
     }
-    if (message.account_status !== "") {
+    if (message.account_status !== '') {
       obj.account_status = message.account_status;
     }
     if (message.email_verified !== false) {
@@ -381,9 +387,9 @@ export const AuthContext: MessageFns<AuthContext> = {
   },
   fromPartial<I extends Exact<DeepPartial<AuthContext>, I>>(object: I): AuthContext {
     const message = createBaseAuthContext();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     message.roles = object.roles?.map((e) => e) || [];
-    message.account_status = object.account_status ?? "";
+    message.account_status = object.account_status ?? '';
     message.email_verified = object.email_verified ?? false;
     return message;
   },
@@ -391,11 +397,11 @@ export const AuthContext: MessageFns<AuthContext> = {
 
 function createBaseProfile(): Profile {
   return {
-    user_id: "",
-    email: "",
-    display_name: "",
+    user_id: '',
+    email: '',
+    display_name: '',
     email_verified: false,
-    account_status: "",
+    account_status: '',
     preferences: {},
     roles: [],
   };
@@ -403,19 +409,19 @@ function createBaseProfile(): Profile {
 
 export const Profile: MessageFns<Profile> = {
   encode(message: Profile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.email !== "") {
+    if (message.email !== '') {
       writer.uint32(18).string(message.email);
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       writer.uint32(26).string(message.display_name);
     }
     if (message.email_verified !== false) {
       writer.uint32(32).bool(message.email_verified);
     }
-    if (message.account_status !== "") {
+    if (message.account_status !== '') {
       writer.uint32(42).string(message.account_status);
     }
     Object.entries(message.preferences).forEach(([key, value]) => {
@@ -504,36 +510,43 @@ export const Profile: MessageFns<Profile> = {
 
   fromJSON(object: any): Profile {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : "",
-      email_verified: isSet(object.email_verified) ? globalThis.Boolean(object.email_verified) : false,
-      account_status: isSet(object.account_status) ? globalThis.String(object.account_status) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      email: isSet(object.email) ? globalThis.String(object.email) : '',
+      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : '',
+      email_verified: isSet(object.email_verified)
+        ? globalThis.Boolean(object.email_verified)
+        : false,
+      account_status: isSet(object.account_status) ? globalThis.String(object.account_status) : '',
       preferences: isObject(object.preferences)
-        ? Object.entries(object.preferences).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
+        ? Object.entries(object.preferences).reduce<{ [key: string]: string }>(
+            (acc, [key, value]) => {
+              acc[key] = String(value);
+              return acc;
+            },
+            {},
+          )
         : {},
-      roles: globalThis.Array.isArray(object?.roles) ? object.roles.map((e: any) => globalThis.String(e)) : [],
+      roles: globalThis.Array.isArray(object?.roles)
+        ? object.roles.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
   toJSON(message: Profile): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.email !== "") {
+    if (message.email !== '') {
       obj.email = message.email;
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       obj.display_name = message.display_name;
     }
     if (message.email_verified !== false) {
       obj.email_verified = message.email_verified;
     }
-    if (message.account_status !== "") {
+    if (message.account_status !== '') {
       obj.account_status = message.account_status;
     }
     if (message.preferences) {
@@ -556,35 +569,37 @@ export const Profile: MessageFns<Profile> = {
   },
   fromPartial<I extends Exact<DeepPartial<Profile>, I>>(object: I): Profile {
     const message = createBaseProfile();
-    message.user_id = object.user_id ?? "";
-    message.email = object.email ?? "";
-    message.display_name = object.display_name ?? "";
+    message.user_id = object.user_id ?? '';
+    message.email = object.email ?? '';
+    message.display_name = object.display_name ?? '';
     message.email_verified = object.email_verified ?? false;
-    message.account_status = object.account_status ?? "";
-    message.preferences = Object.entries(object.preferences ?? {}).reduce<{ [key: string]: string }>(
-      (acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
+    message.account_status = object.account_status ?? '';
+    message.preferences = Object.entries(object.preferences ?? {}).reduce<{
+      [key: string]: string;
+    }>((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
     message.roles = object.roles?.map((e) => e) || [];
     return message;
   },
 };
 
 function createBaseProfile_PreferencesEntry(): Profile_PreferencesEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const Profile_PreferencesEntry: MessageFns<Profile_PreferencesEntry> = {
-  encode(message: Profile_PreferencesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: Profile_PreferencesEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -624,47 +639,54 @@ export const Profile_PreferencesEntry: MessageFns<Profile_PreferencesEntry> = {
 
   fromJSON(object: any): Profile_PreferencesEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: Profile_PreferencesEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<Profile_PreferencesEntry>, I>>(base?: I): Profile_PreferencesEntry {
+  create<I extends Exact<DeepPartial<Profile_PreferencesEntry>, I>>(
+    base?: I,
+  ): Profile_PreferencesEntry {
     return Profile_PreferencesEntry.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<Profile_PreferencesEntry>, I>>(object: I): Profile_PreferencesEntry {
+  fromPartial<I extends Exact<DeepPartial<Profile_PreferencesEntry>, I>>(
+    object: I,
+  ): Profile_PreferencesEntry {
     const message = createBaseProfile_PreferencesEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
 
 function createBaseUpdateProfileRequest(): UpdateProfileRequest {
-  return { user_id: "", display_name: "", preferences: {} };
+  return { user_id: '', display_name: '', preferences: {} };
 }
 
 export const UpdateProfileRequest: MessageFns<UpdateProfileRequest> = {
   encode(message: UpdateProfileRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       writer.uint32(18).string(message.display_name);
     }
     Object.entries(message.preferences).forEach(([key, value]) => {
-      UpdateProfileRequest_PreferencesEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+      UpdateProfileRequest_PreferencesEntry.encode(
+        { key: key as any, value },
+        writer.uint32(26).fork(),
+      ).join();
     });
     return writer;
   },
@@ -714,23 +736,26 @@ export const UpdateProfileRequest: MessageFns<UpdateProfileRequest> = {
 
   fromJSON(object: any): UpdateProfileRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      display_name: isSet(object.display_name) ? globalThis.String(object.display_name) : '',
       preferences: isObject(object.preferences)
-        ? Object.entries(object.preferences).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
+        ? Object.entries(object.preferences).reduce<{ [key: string]: string }>(
+            (acc, [key, value]) => {
+              acc[key] = String(value);
+              return acc;
+            },
+            {},
+          )
         : {},
     };
   },
 
   toJSON(message: UpdateProfileRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.display_name !== "") {
+    if (message.display_name !== '') {
       obj.display_name = message.display_name;
     }
     if (message.preferences) {
@@ -748,116 +773,124 @@ export const UpdateProfileRequest: MessageFns<UpdateProfileRequest> = {
   create<I extends Exact<DeepPartial<UpdateProfileRequest>, I>>(base?: I): UpdateProfileRequest {
     return UpdateProfileRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<UpdateProfileRequest>, I>>(object: I): UpdateProfileRequest {
+  fromPartial<I extends Exact<DeepPartial<UpdateProfileRequest>, I>>(
+    object: I,
+  ): UpdateProfileRequest {
     const message = createBaseUpdateProfileRequest();
-    message.user_id = object.user_id ?? "";
-    message.display_name = object.display_name ?? "";
-    message.preferences = Object.entries(object.preferences ?? {}).reduce<{ [key: string]: string }>(
-      (acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
+    message.user_id = object.user_id ?? '';
+    message.display_name = object.display_name ?? '';
+    message.preferences = Object.entries(object.preferences ?? {}).reduce<{
+      [key: string]: string;
+    }>((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
     return message;
   },
 };
 
 function createBaseUpdateProfileRequest_PreferencesEntry(): UpdateProfileRequest_PreferencesEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
-export const UpdateProfileRequest_PreferencesEntry: MessageFns<UpdateProfileRequest_PreferencesEntry> = {
-  encode(message: UpdateProfileRequest_PreferencesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
-      writer.uint32(10).string(message.key);
-    }
-    if (message.value !== "") {
-      writer.uint32(18).string(message.value);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): UpdateProfileRequest_PreferencesEntry {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseUpdateProfileRequest_PreferencesEntry();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.key = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.value = reader.string();
-          continue;
-        }
+export const UpdateProfileRequest_PreferencesEntry: MessageFns<UpdateProfileRequest_PreferencesEntry> =
+  {
+    encode(
+      message: UpdateProfileRequest_PreferencesEntry,
+      writer: BinaryWriter = new BinaryWriter(),
+    ): BinaryWriter {
+      if (message.key !== '') {
+        writer.uint32(10).string(message.key);
       }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
+      if (message.value !== '') {
+        writer.uint32(18).string(message.value);
       }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
+      return writer;
+    },
 
-  fromJSON(object: any): UpdateProfileRequest_PreferencesEntry {
-    return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
-    };
-  },
+    decode(
+      input: BinaryReader | Uint8Array,
+      length?: number,
+    ): UpdateProfileRequest_PreferencesEntry {
+      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+      let end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseUpdateProfileRequest_PreferencesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
 
-  toJSON(message: UpdateProfileRequest_PreferencesEntry): unknown {
-    const obj: any = {};
-    if (message.key !== "") {
-      obj.key = message.key;
-    }
-    if (message.value !== "") {
-      obj.value = message.value;
-    }
-    return obj;
-  },
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
 
-  create<I extends Exact<DeepPartial<UpdateProfileRequest_PreferencesEntry>, I>>(
-    base?: I,
-  ): UpdateProfileRequest_PreferencesEntry {
-    return UpdateProfileRequest_PreferencesEntry.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<UpdateProfileRequest_PreferencesEntry>, I>>(
-    object: I,
-  ): UpdateProfileRequest_PreferencesEntry {
-    const message = createBaseUpdateProfileRequest_PreferencesEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
-    return message;
-  },
-};
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    },
+
+    fromJSON(object: any): UpdateProfileRequest_PreferencesEntry {
+      return {
+        key: isSet(object.key) ? globalThis.String(object.key) : '',
+        value: isSet(object.value) ? globalThis.String(object.value) : '',
+      };
+    },
+
+    toJSON(message: UpdateProfileRequest_PreferencesEntry): unknown {
+      const obj: any = {};
+      if (message.key !== '') {
+        obj.key = message.key;
+      }
+      if (message.value !== '') {
+        obj.value = message.value;
+      }
+      return obj;
+    },
+
+    create<I extends Exact<DeepPartial<UpdateProfileRequest_PreferencesEntry>, I>>(
+      base?: I,
+    ): UpdateProfileRequest_PreferencesEntry {
+      return UpdateProfileRequest_PreferencesEntry.fromPartial(base ?? ({} as any));
+    },
+    fromPartial<I extends Exact<DeepPartial<UpdateProfileRequest_PreferencesEntry>, I>>(
+      object: I,
+    ): UpdateProfileRequest_PreferencesEntry {
+      const message = createBaseUpdateProfileRequest_PreferencesEntry();
+      message.key = object.key ?? '';
+      message.value = object.value ?? '';
+      return message;
+    },
+  };
 
 function createBaseApplyQuizScoreRequest(): ApplyQuizScoreRequest {
-  return { user_id: "", quiz_id: "", score: "" };
+  return { user_id: '', quiz_id: '', score: '' };
 }
 
 export const ApplyQuizScoreRequest: MessageFns<ApplyQuizScoreRequest> = {
   encode(message: ApplyQuizScoreRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       writer.uint32(18).string(message.quiz_id);
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       writer.uint32(26).string(message.score);
     }
     return writer;
@@ -905,21 +938,21 @@ export const ApplyQuizScoreRequest: MessageFns<ApplyQuizScoreRequest> = {
 
   fromJSON(object: any): ApplyQuizScoreRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
-      score: isSet(object.score) ? globalThis.String(object.score) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : '',
+      score: isSet(object.score) ? globalThis.String(object.score) : '',
     };
   },
 
   toJSON(message: ApplyQuizScoreRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       obj.quiz_id = message.quiz_id;
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       obj.score = message.score;
     }
     return obj;
@@ -928,22 +961,24 @@ export const ApplyQuizScoreRequest: MessageFns<ApplyQuizScoreRequest> = {
   create<I extends Exact<DeepPartial<ApplyQuizScoreRequest>, I>>(base?: I): ApplyQuizScoreRequest {
     return ApplyQuizScoreRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ApplyQuizScoreRequest>, I>>(object: I): ApplyQuizScoreRequest {
+  fromPartial<I extends Exact<DeepPartial<ApplyQuizScoreRequest>, I>>(
+    object: I,
+  ): ApplyQuizScoreRequest {
     const message = createBaseApplyQuizScoreRequest();
-    message.user_id = object.user_id ?? "";
-    message.quiz_id = object.quiz_id ?? "";
-    message.score = object.score ?? "";
+    message.user_id = object.user_id ?? '';
+    message.quiz_id = object.quiz_id ?? '';
+    message.score = object.score ?? '';
     return message;
   },
 };
 
 function createBaseProgressView(): ProgressView {
-  return { user_id: "", points: 0 };
+  return { user_id: '', points: 0 };
 }
 
 export const ProgressView: MessageFns<ProgressView> = {
   encode(message: ProgressView, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     if (message.points !== 0) {
@@ -986,14 +1021,14 @@ export const ProgressView: MessageFns<ProgressView> = {
 
   fromJSON(object: any): ProgressView {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
       points: isSet(object.points) ? globalThis.Number(object.points) : 0,
     };
   },
 
   toJSON(message: ProgressView): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     if (message.points !== 0) {
@@ -1007,22 +1042,25 @@ export const ProgressView: MessageFns<ProgressView> = {
   },
   fromPartial<I extends Exact<DeepPartial<ProgressView>, I>>(object: I): ProgressView {
     const message = createBaseProgressView();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     message.points = object.points ?? 0;
     return message;
   },
 };
 
 function createBaseRecordArticleViewRequest(): RecordArticleViewRequest {
-  return { user_id: "", article_id: "" };
+  return { user_id: '', article_id: '' };
 }
 
 export const RecordArticleViewRequest: MessageFns<RecordArticleViewRequest> = {
-  encode(message: RecordArticleViewRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+  encode(
+    message: RecordArticleViewRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       writer.uint32(18).string(message.article_id);
     }
     return writer;
@@ -1062,49 +1100,53 @@ export const RecordArticleViewRequest: MessageFns<RecordArticleViewRequest> = {
 
   fromJSON(object: any): RecordArticleViewRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : '',
     };
   },
 
   toJSON(message: RecordArticleViewRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       obj.article_id = message.article_id;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<RecordArticleViewRequest>, I>>(base?: I): RecordArticleViewRequest {
+  create<I extends Exact<DeepPartial<RecordArticleViewRequest>, I>>(
+    base?: I,
+  ): RecordArticleViewRequest {
     return RecordArticleViewRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<RecordArticleViewRequest>, I>>(object: I): RecordArticleViewRequest {
+  fromPartial<I extends Exact<DeepPartial<RecordArticleViewRequest>, I>>(
+    object: I,
+  ): RecordArticleViewRequest {
     const message = createBaseRecordArticleViewRequest();
-    message.user_id = object.user_id ?? "";
-    message.article_id = object.article_id ?? "";
+    message.user_id = object.user_id ?? '';
+    message.article_id = object.article_id ?? '';
     return message;
   },
 };
 
 function createBaseInAppNotification(): InAppNotification {
-  return { user_id: "", type: "", payload_json: "", event_id: "" };
+  return { user_id: '', type: '', payload_json: '', event_id: '' };
 }
 
 export const InAppNotification: MessageFns<InAppNotification> = {
   encode(message: InAppNotification, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.type !== "") {
+    if (message.type !== '') {
       writer.uint32(18).string(message.type);
     }
-    if (message.payload_json !== "") {
+    if (message.payload_json !== '') {
       writer.uint32(26).string(message.payload_json);
     }
-    if (message.event_id !== "") {
+    if (message.event_id !== '') {
       writer.uint32(34).string(message.event_id);
     }
     return writer;
@@ -1160,25 +1202,25 @@ export const InAppNotification: MessageFns<InAppNotification> = {
 
   fromJSON(object: any): InAppNotification {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
-      payload_json: isSet(object.payload_json) ? globalThis.String(object.payload_json) : "",
-      event_id: isSet(object.event_id) ? globalThis.String(object.event_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      type: isSet(object.type) ? globalThis.String(object.type) : '',
+      payload_json: isSet(object.payload_json) ? globalThis.String(object.payload_json) : '',
+      event_id: isSet(object.event_id) ? globalThis.String(object.event_id) : '',
     };
   },
 
   toJSON(message: InAppNotification): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.type !== "") {
+    if (message.type !== '') {
       obj.type = message.type;
     }
-    if (message.payload_json !== "") {
+    if (message.payload_json !== '') {
       obj.payload_json = message.payload_json;
     }
-    if (message.event_id !== "") {
+    if (message.event_id !== '') {
       obj.event_id = message.event_id;
     }
     return obj;
@@ -1189,21 +1231,21 @@ export const InAppNotification: MessageFns<InAppNotification> = {
   },
   fromPartial<I extends Exact<DeepPartial<InAppNotification>, I>>(object: I): InAppNotification {
     const message = createBaseInAppNotification();
-    message.user_id = object.user_id ?? "";
-    message.type = object.type ?? "";
-    message.payload_json = object.payload_json ?? "";
-    message.event_id = object.event_id ?? "";
+    message.user_id = object.user_id ?? '';
+    message.type = object.type ?? '';
+    message.payload_json = object.payload_json ?? '';
+    message.event_id = object.event_id ?? '';
     return message;
   },
 };
 
 function createBaseListInAppRequest(): ListInAppRequest {
-  return { user_id: "", page: undefined };
+  return { user_id: '', page: undefined };
 }
 
 export const ListInAppRequest: MessageFns<ListInAppRequest> = {
   encode(message: ListInAppRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     if (message.page !== undefined) {
@@ -1246,14 +1288,14 @@ export const ListInAppRequest: MessageFns<ListInAppRequest> = {
 
   fromJSON(object: any): ListInAppRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
       page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
     };
   },
 
   toJSON(message: ListInAppRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     if (message.page !== undefined) {
@@ -1267,10 +1309,11 @@ export const ListInAppRequest: MessageFns<ListInAppRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<ListInAppRequest>, I>>(object: I): ListInAppRequest {
     const message = createBaseListInAppRequest();
-    message.user_id = object.user_id ?? "";
-    message.page = (object.page !== undefined && object.page !== null)
-      ? PageRequest.fromPartial(object.page)
-      : undefined;
+    message.user_id = object.user_id ?? '';
+    message.page =
+      object.page !== undefined && object.page !== null
+        ? PageRequest.fromPartial(object.page)
+        : undefined;
     return message;
   },
 };
@@ -1348,32 +1391,33 @@ export const ListInAppResponse: MessageFns<ListInAppResponse> = {
   fromPartial<I extends Exact<DeepPartial<ListInAppResponse>, I>>(object: I): ListInAppResponse {
     const message = createBaseListInAppResponse();
     message.items = object.items?.map((e) => ListInAppResponse_Item.fromPartial(e)) || [];
-    message.page = (object.page !== undefined && object.page !== null)
-      ? PageResponse.fromPartial(object.page)
-      : undefined;
+    message.page =
+      object.page !== undefined && object.page !== null
+        ? PageResponse.fromPartial(object.page)
+        : undefined;
     return message;
   },
 };
 
 function createBaseListInAppResponse_Item(): ListInAppResponse_Item {
-  return { id: "", type: "", payload_json: "", read_state: "", created_at: "" };
+  return { id: '', type: '', payload_json: '', read_state: '', created_at: '' };
 }
 
 export const ListInAppResponse_Item: MessageFns<ListInAppResponse_Item> = {
   encode(message: ListInAppResponse_Item, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.id !== "") {
+    if (message.id !== '') {
       writer.uint32(10).string(message.id);
     }
-    if (message.type !== "") {
+    if (message.type !== '') {
       writer.uint32(18).string(message.type);
     }
-    if (message.payload_json !== "") {
+    if (message.payload_json !== '') {
       writer.uint32(26).string(message.payload_json);
     }
-    if (message.read_state !== "") {
+    if (message.read_state !== '') {
       writer.uint32(34).string(message.read_state);
     }
-    if (message.created_at !== "") {
+    if (message.created_at !== '') {
       writer.uint32(42).string(message.created_at);
     }
     return writer;
@@ -1437,58 +1481,62 @@ export const ListInAppResponse_Item: MessageFns<ListInAppResponse_Item> = {
 
   fromJSON(object: any): ListInAppResponse_Item {
     return {
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
-      payload_json: isSet(object.payload_json) ? globalThis.String(object.payload_json) : "",
-      read_state: isSet(object.read_state) ? globalThis.String(object.read_state) : "",
-      created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : "",
+      id: isSet(object.id) ? globalThis.String(object.id) : '',
+      type: isSet(object.type) ? globalThis.String(object.type) : '',
+      payload_json: isSet(object.payload_json) ? globalThis.String(object.payload_json) : '',
+      read_state: isSet(object.read_state) ? globalThis.String(object.read_state) : '',
+      created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : '',
     };
   },
 
   toJSON(message: ListInAppResponse_Item): unknown {
     const obj: any = {};
-    if (message.id !== "") {
+    if (message.id !== '') {
       obj.id = message.id;
     }
-    if (message.type !== "") {
+    if (message.type !== '') {
       obj.type = message.type;
     }
-    if (message.payload_json !== "") {
+    if (message.payload_json !== '') {
       obj.payload_json = message.payload_json;
     }
-    if (message.read_state !== "") {
+    if (message.read_state !== '') {
       obj.read_state = message.read_state;
     }
-    if (message.created_at !== "") {
+    if (message.created_at !== '') {
       obj.created_at = message.created_at;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ListInAppResponse_Item>, I>>(base?: I): ListInAppResponse_Item {
+  create<I extends Exact<DeepPartial<ListInAppResponse_Item>, I>>(
+    base?: I,
+  ): ListInAppResponse_Item {
     return ListInAppResponse_Item.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListInAppResponse_Item>, I>>(object: I): ListInAppResponse_Item {
+  fromPartial<I extends Exact<DeepPartial<ListInAppResponse_Item>, I>>(
+    object: I,
+  ): ListInAppResponse_Item {
     const message = createBaseListInAppResponse_Item();
-    message.id = object.id ?? "";
-    message.type = object.type ?? "";
-    message.payload_json = object.payload_json ?? "";
-    message.read_state = object.read_state ?? "";
-    message.created_at = object.created_at ?? "";
+    message.id = object.id ?? '';
+    message.type = object.type ?? '';
+    message.payload_json = object.payload_json ?? '';
+    message.read_state = object.read_state ?? '';
+    message.created_at = object.created_at ?? '';
     return message;
   },
 };
 
 function createBaseMarkReadRequest(): MarkReadRequest {
-  return { user_id: "", notification_id: "" };
+  return { user_id: '', notification_id: '' };
 }
 
 export const MarkReadRequest: MessageFns<MarkReadRequest> = {
   encode(message: MarkReadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.notification_id !== "") {
+    if (message.notification_id !== '') {
       writer.uint32(18).string(message.notification_id);
     }
     return writer;
@@ -1528,17 +1576,19 @@ export const MarkReadRequest: MessageFns<MarkReadRequest> = {
 
   fromJSON(object: any): MarkReadRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      notification_id: isSet(object.notification_id) ? globalThis.String(object.notification_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      notification_id: isSet(object.notification_id)
+        ? globalThis.String(object.notification_id)
+        : '',
     };
   },
 
   toJSON(message: MarkReadRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.notification_id !== "") {
+    if (message.notification_id !== '') {
       obj.notification_id = message.notification_id;
     }
     return obj;
@@ -1549,31 +1599,37 @@ export const MarkReadRequest: MessageFns<MarkReadRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<MarkReadRequest>, I>>(object: I): MarkReadRequest {
     const message = createBaseMarkReadRequest();
-    message.user_id = object.user_id ?? "";
-    message.notification_id = object.notification_id ?? "";
+    message.user_id = object.user_id ?? '';
+    message.notification_id = object.notification_id ?? '';
     return message;
   },
 };
 
 function createBaseActivityReport(): ActivityReport {
-  return { user_id: "", points: 0, articles_viewed: "0", quizzes_attempted: "0", simulations_run: "0" };
+  return {
+    user_id: '',
+    points: 0,
+    articles_viewed: '0',
+    quizzes_attempted: '0',
+    simulations_run: '0',
+  };
 }
 
 export const ActivityReport: MessageFns<ActivityReport> = {
   encode(message: ActivityReport, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     if (message.points !== 0) {
       writer.uint32(16).int32(message.points);
     }
-    if (message.articles_viewed !== "0") {
+    if (message.articles_viewed !== '0') {
       writer.uint32(24).int64(message.articles_viewed);
     }
-    if (message.quizzes_attempted !== "0") {
+    if (message.quizzes_attempted !== '0') {
       writer.uint32(32).int64(message.quizzes_attempted);
     }
-    if (message.simulations_run !== "0") {
+    if (message.simulations_run !== '0') {
       writer.uint32(40).int64(message.simulations_run);
     }
     return writer;
@@ -1637,29 +1693,35 @@ export const ActivityReport: MessageFns<ActivityReport> = {
 
   fromJSON(object: any): ActivityReport {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
       points: isSet(object.points) ? globalThis.Number(object.points) : 0,
-      articles_viewed: isSet(object.articles_viewed) ? globalThis.String(object.articles_viewed) : "0",
-      quizzes_attempted: isSet(object.quizzes_attempted) ? globalThis.String(object.quizzes_attempted) : "0",
-      simulations_run: isSet(object.simulations_run) ? globalThis.String(object.simulations_run) : "0",
+      articles_viewed: isSet(object.articles_viewed)
+        ? globalThis.String(object.articles_viewed)
+        : '0',
+      quizzes_attempted: isSet(object.quizzes_attempted)
+        ? globalThis.String(object.quizzes_attempted)
+        : '0',
+      simulations_run: isSet(object.simulations_run)
+        ? globalThis.String(object.simulations_run)
+        : '0',
     };
   },
 
   toJSON(message: ActivityReport): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     if (message.points !== 0) {
       obj.points = Math.round(message.points);
     }
-    if (message.articles_viewed !== "0") {
+    if (message.articles_viewed !== '0') {
       obj.articles_viewed = message.articles_viewed;
     }
-    if (message.quizzes_attempted !== "0") {
+    if (message.quizzes_attempted !== '0') {
       obj.quizzes_attempted = message.quizzes_attempted;
     }
-    if (message.simulations_run !== "0") {
+    if (message.simulations_run !== '0') {
       obj.simulations_run = message.simulations_run;
     }
     return obj;
@@ -1670,29 +1732,34 @@ export const ActivityReport: MessageFns<ActivityReport> = {
   },
   fromPartial<I extends Exact<DeepPartial<ActivityReport>, I>>(object: I): ActivityReport {
     const message = createBaseActivityReport();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     message.points = object.points ?? 0;
-    message.articles_viewed = object.articles_viewed ?? "0";
-    message.quizzes_attempted = object.quizzes_attempted ?? "0";
-    message.simulations_run = object.simulations_run ?? "0";
+    message.articles_viewed = object.articles_viewed ?? '0';
+    message.quizzes_attempted = object.quizzes_attempted ?? '0';
+    message.simulations_run = object.simulations_run ?? '0';
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isObject(value: any): boolean {
-  return typeof value === "object" && value !== null;
+  return typeof value === 'object' && value !== null;
 }
 
 function isSet(value: any): boolean {

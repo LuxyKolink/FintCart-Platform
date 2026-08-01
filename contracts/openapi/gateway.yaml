@@ -184,7 +184,12 @@ paths:
 
   /auth/verify-email:
     post:
-      summary: Verificación de correo (inicia Saga de verificación)
+      # A diferencia de `/auth/register`, esta saga se ejecuta EN LÍNEA y responde 200,
+      # no 202: su primer paso es el que comprueba el token, así que para cuando sale
+      # la respuesta la cuenta ya está activa o el enlace ya se rechazó. Un 202 sería
+      # engañoso en el único caso que importa — el usuario cerraría la pestaña
+      # convencido de haber verificado una cuenta que quedó pendiente.
+      summary: Verificación de correo (ejecuta la Saga de verificación)
       security: []
       requestBody:
         required: true
@@ -195,10 +200,22 @@ paths:
               required: [user_id, verification_token]
               properties:
                 user_id: { type: string, format: uuid }
+                # Token de un solo uso emitido por Autenticación y entregado por
+                # correo. Es la única prueba de que quien verifica controla el buzón:
+                # sin él bastaría conocer el `user_id` para activar una cuenta ajena.
                 verification_token: { type: string }
       responses:
-        '200': { description: Correo verificado }
-        '400': { description: Token inválido o expirado }
+        '200':
+          description: Correo verificado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  # Handle real de la saga ya ejecutada. Sirve para rastrearla en
+                  # soporte, no para esperar a que termine.
+                  saga_id: { type: string, format: uuid }
+        '400': { description: Token inválido, ya usado o expirado }
 
   /auth/logout:
     post:

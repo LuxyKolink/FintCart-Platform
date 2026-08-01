@@ -68,8 +68,24 @@ Consumo **idempotente** (clave de idempotencia = `event_id`).
 
 ### `user.registered`
 ```json
-{ "user_id": "uuid", "email": "string", "verification_token": "string" }
+{ "user_id": "uuid", "email": "string", "display_name": "string",
+  "verification_token": "string", "verification_expires_at": "RFC-3339" }
 ```
+Es el ÚNICO evento del catálogo que transporta datos personales, y es una excepción
+deliberada: Notificación es un consumidor puro **sin gRPC**, así que lo que no venga
+en el payload no lo puede consultar en ningún sitio — y este es el único correo del
+sistema dirigido a alguien que todavía no tiene sesión. El `actor_ref` del sobre sigue
+siendo el UUID opaco, de modo que Auditoría conserva la traza aunque después se
+anonimice la cuenta (FR-031).
+
+El `user_id` se repite **dentro** del payload además de ir en `actor_ref` porque
+`POST /auth/verify-email` lo exige junto al token, y la plantilla solo lee el payload.
+
+El `verification_token` viaja **en claro** por el bus y queda en claro en la fila del
+outbox hasta que se publica y se poda. Es transitorio y acotado; en `auth_db` solo
+existe su hash. Ninguna de las dos copias es evitable si el correo tiene que llevar un
+enlace utilizable.
+
 Consumo Notificación → encola el email de verificación en `notification_events_queue` y registra su estado en `notification_states`.
 Consumo Auditoría → `operation = user.registered`.
 

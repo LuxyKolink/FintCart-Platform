@@ -5,10 +5,10 @@
 // source: fintcart/learning/v1/learning.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { PageRequest, PageResponse } from "../../common/v1/common.js";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import { PageRequest, PageResponse } from '../../common/v1/common.js';
 
-export const protobufPackage = "fintcart.learning.v1";
+export const protobufPackage = 'fintcart.learning.v1';
 
 export interface UserRef {
   user_id: string;
@@ -148,12 +148,12 @@ export interface ListAttemptsResponse_Attempt {
 }
 
 function createBaseUserRef(): UserRef {
-  return { user_id: "" };
+  return { user_id: '' };
 }
 
 export const UserRef: MessageFns<UserRef> = {
   encode(message: UserRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
     return writer;
@@ -184,12 +184,12 @@ export const UserRef: MessageFns<UserRef> = {
   },
 
   fromJSON(object: any): UserRef {
-    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "" };
+    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '' };
   },
 
   toJSON(message: UserRef): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
     return obj;
@@ -200,18 +200,18 @@ export const UserRef: MessageFns<UserRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<UserRef>, I>>(object: I): UserRef {
     const message = createBaseUserRef();
-    message.user_id = object.user_id ?? "";
+    message.user_id = object.user_id ?? '';
     return message;
   },
 };
 
 function createBaseArticleRef(): ArticleRef {
-  return { article_id: "" };
+  return { article_id: '' };
 }
 
 export const ArticleRef: MessageFns<ArticleRef> = {
   encode(message: ArticleRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       writer.uint32(10).string(message.article_id);
     }
     return writer;
@@ -242,12 +242,12 @@ export const ArticleRef: MessageFns<ArticleRef> = {
   },
 
   fromJSON(object: any): ArticleRef {
-    return { article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "" };
+    return { article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : '' };
   },
 
   toJSON(message: ArticleRef): unknown {
     const obj: any = {};
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       obj.article_id = message.article_id;
     }
     return obj;
@@ -258,21 +258,21 @@ export const ArticleRef: MessageFns<ArticleRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<ArticleRef>, I>>(object: I): ArticleRef {
     const message = createBaseArticleRef();
-    message.article_id = object.article_id ?? "";
+    message.article_id = object.article_id ?? '';
     return message;
   },
 };
 
 function createBaseVersionRef(): VersionRef {
-  return { version_id: "", actor_id: "" };
+  return { version_id: '', actor_id: '' };
 }
 
 export const VersionRef: MessageFns<VersionRef> = {
   encode(message: VersionRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       writer.uint32(10).string(message.version_id);
     }
-    if (message.actor_id !== "") {
+    if (message.actor_id !== '') {
       writer.uint32(18).string(message.actor_id);
     }
     return writer;
@@ -312,17 +312,17 @@ export const VersionRef: MessageFns<VersionRef> = {
 
   fromJSON(object: any): VersionRef {
     return {
-      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : "",
-      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : "",
+      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : '',
+      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : '',
     };
   },
 
   toJSON(message: VersionRef): unknown {
     const obj: any = {};
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       obj.version_id = message.version_id;
     }
-    if (message.actor_id !== "") {
+    if (message.actor_id !== '') {
       obj.actor_id = message.actor_id;
     }
     return obj;
@@ -333,19 +333,19 @@ export const VersionRef: MessageFns<VersionRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<VersionRef>, I>>(object: I): VersionRef {
     const message = createBaseVersionRef();
-    message.version_id = object.version_id ?? "";
-    message.actor_id = object.actor_id ?? "";
+    message.version_id = object.version_id ?? '';
+    message.actor_id = object.actor_id ?? '';
     return message;
   },
 };
 
 function createBaseQuizRef(): QuizRef {
-  return { quiz_id: "" };
+  return { quiz_id: '' };
 }
 
 export const QuizRef: MessageFns<QuizRef> = {
   encode(message: QuizRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       writer.uint32(10).string(message.quiz_id);
     }
     return writer;
@@ -376,12 +376,12 @@ export const QuizRef: MessageFns<QuizRef> = {
   },
 
   fromJSON(object: any): QuizRef {
-    return { quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "" };
+    return { quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : '' };
   },
 
   toJSON(message: QuizRef): unknown {
     const obj: any = {};
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       obj.quiz_id = message.quiz_id;
     }
     return obj;
@@ -392,33 +392,40 @@ export const QuizRef: MessageFns<QuizRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<QuizRef>, I>>(object: I): QuizRef {
     const message = createBaseQuizRef();
-    message.quiz_id = object.quiz_id ?? "";
+    message.quiz_id = object.quiz_id ?? '';
     return message;
   },
 };
 
 function createBaseArticleVersion(): ArticleVersion {
-  return { version_id: "", article_id: "", version_no: 0, state: "", created_by: "", approved_by: "" };
+  return {
+    version_id: '',
+    article_id: '',
+    version_no: 0,
+    state: '',
+    created_by: '',
+    approved_by: '',
+  };
 }
 
 export const ArticleVersion: MessageFns<ArticleVersion> = {
   encode(message: ArticleVersion, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       writer.uint32(10).string(message.version_id);
     }
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       writer.uint32(18).string(message.article_id);
     }
     if (message.version_no !== 0) {
       writer.uint32(24).int32(message.version_no);
     }
-    if (message.state !== "") {
+    if (message.state !== '') {
       writer.uint32(34).string(message.state);
     }
-    if (message.created_by !== "") {
+    if (message.created_by !== '') {
       writer.uint32(42).string(message.created_by);
     }
-    if (message.approved_by !== "") {
+    if (message.approved_by !== '') {
       writer.uint32(50).string(message.approved_by);
     }
     return writer;
@@ -490,33 +497,33 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
 
   fromJSON(object: any): ArticleVersion {
     return {
-      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : "",
-      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
+      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : '',
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : '',
       version_no: isSet(object.version_no) ? globalThis.Number(object.version_no) : 0,
-      state: isSet(object.state) ? globalThis.String(object.state) : "",
-      created_by: isSet(object.created_by) ? globalThis.String(object.created_by) : "",
-      approved_by: isSet(object.approved_by) ? globalThis.String(object.approved_by) : "",
+      state: isSet(object.state) ? globalThis.String(object.state) : '',
+      created_by: isSet(object.created_by) ? globalThis.String(object.created_by) : '',
+      approved_by: isSet(object.approved_by) ? globalThis.String(object.approved_by) : '',
     };
   },
 
   toJSON(message: ArticleVersion): unknown {
     const obj: any = {};
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       obj.version_id = message.version_id;
     }
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       obj.article_id = message.article_id;
     }
     if (message.version_no !== 0) {
       obj.version_no = Math.round(message.version_no);
     }
-    if (message.state !== "") {
+    if (message.state !== '') {
       obj.state = message.state;
     }
-    if (message.created_by !== "") {
+    if (message.created_by !== '') {
       obj.created_by = message.created_by;
     }
-    if (message.approved_by !== "") {
+    if (message.approved_by !== '') {
       obj.approved_by = message.approved_by;
     }
     return obj;
@@ -527,32 +534,32 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
   },
   fromPartial<I extends Exact<DeepPartial<ArticleVersion>, I>>(object: I): ArticleVersion {
     const message = createBaseArticleVersion();
-    message.version_id = object.version_id ?? "";
-    message.article_id = object.article_id ?? "";
+    message.version_id = object.version_id ?? '';
+    message.article_id = object.article_id ?? '';
     message.version_no = object.version_no ?? 0;
-    message.state = object.state ?? "";
-    message.created_by = object.created_by ?? "";
-    message.approved_by = object.approved_by ?? "";
+    message.state = object.state ?? '';
+    message.created_by = object.created_by ?? '';
+    message.approved_by = object.approved_by ?? '';
     return message;
   },
 };
 
 function createBaseCreateDraftRequest(): CreateDraftRequest {
-  return { title: "", category: "", body: "", editor_id: "" };
+  return { title: '', category: '', body: '', editor_id: '' };
 }
 
 export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
   encode(message: CreateDraftRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.title !== "") {
+    if (message.title !== '') {
       writer.uint32(10).string(message.title);
     }
-    if (message.category !== "") {
+    if (message.category !== '') {
       writer.uint32(18).string(message.category);
     }
-    if (message.body !== "") {
+    if (message.body !== '') {
       writer.uint32(26).string(message.body);
     }
-    if (message.editor_id !== "") {
+    if (message.editor_id !== '') {
       writer.uint32(34).string(message.editor_id);
     }
     return writer;
@@ -608,25 +615,25 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
 
   fromJSON(object: any): CreateDraftRequest {
     return {
-      title: isSet(object.title) ? globalThis.String(object.title) : "",
-      category: isSet(object.category) ? globalThis.String(object.category) : "",
-      body: isSet(object.body) ? globalThis.String(object.body) : "",
-      editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : "",
+      title: isSet(object.title) ? globalThis.String(object.title) : '',
+      category: isSet(object.category) ? globalThis.String(object.category) : '',
+      body: isSet(object.body) ? globalThis.String(object.body) : '',
+      editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : '',
     };
   },
 
   toJSON(message: CreateDraftRequest): unknown {
     const obj: any = {};
-    if (message.title !== "") {
+    if (message.title !== '') {
       obj.title = message.title;
     }
-    if (message.category !== "") {
+    if (message.category !== '') {
       obj.category = message.category;
     }
-    if (message.body !== "") {
+    if (message.body !== '') {
       obj.body = message.body;
     }
-    if (message.editor_id !== "") {
+    if (message.editor_id !== '') {
       obj.editor_id = message.editor_id;
     }
     return obj;
@@ -637,27 +644,27 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<CreateDraftRequest>, I>>(object: I): CreateDraftRequest {
     const message = createBaseCreateDraftRequest();
-    message.title = object.title ?? "";
-    message.category = object.category ?? "";
-    message.body = object.body ?? "";
-    message.editor_id = object.editor_id ?? "";
+    message.title = object.title ?? '';
+    message.category = object.category ?? '';
+    message.body = object.body ?? '';
+    message.editor_id = object.editor_id ?? '';
     return message;
   },
 };
 
 function createBaseUpdateDraftRequest(): UpdateDraftRequest {
-  return { version_id: "", body: "", editor_id: "" };
+  return { version_id: '', body: '', editor_id: '' };
 }
 
 export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
   encode(message: UpdateDraftRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       writer.uint32(10).string(message.version_id);
     }
-    if (message.body !== "") {
+    if (message.body !== '') {
       writer.uint32(18).string(message.body);
     }
-    if (message.editor_id !== "") {
+    if (message.editor_id !== '') {
       writer.uint32(26).string(message.editor_id);
     }
     return writer;
@@ -705,21 +712,21 @@ export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
 
   fromJSON(object: any): UpdateDraftRequest {
     return {
-      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : "",
-      body: isSet(object.body) ? globalThis.String(object.body) : "",
-      editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : "",
+      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : '',
+      body: isSet(object.body) ? globalThis.String(object.body) : '',
+      editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : '',
     };
   },
 
   toJSON(message: UpdateDraftRequest): unknown {
     const obj: any = {};
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       obj.version_id = message.version_id;
     }
-    if (message.body !== "") {
+    if (message.body !== '') {
       obj.body = message.body;
     }
-    if (message.editor_id !== "") {
+    if (message.editor_id !== '') {
       obj.editor_id = message.editor_id;
     }
     return obj;
@@ -730,23 +737,23 @@ export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<UpdateDraftRequest>, I>>(object: I): UpdateDraftRequest {
     const message = createBaseUpdateDraftRequest();
-    message.version_id = object.version_id ?? "";
-    message.body = object.body ?? "";
-    message.editor_id = object.editor_id ?? "";
+    message.version_id = object.version_id ?? '';
+    message.body = object.body ?? '';
+    message.editor_id = object.editor_id ?? '';
     return message;
   },
 };
 
 function createBaseApprovePublishRequest(): ApprovePublishRequest {
-  return { version_id: "", coordinator_id: "" };
+  return { version_id: '', coordinator_id: '' };
 }
 
 export const ApprovePublishRequest: MessageFns<ApprovePublishRequest> = {
   encode(message: ApprovePublishRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       writer.uint32(10).string(message.version_id);
     }
-    if (message.coordinator_id !== "") {
+    if (message.coordinator_id !== '') {
       writer.uint32(18).string(message.coordinator_id);
     }
     return writer;
@@ -786,17 +793,17 @@ export const ApprovePublishRequest: MessageFns<ApprovePublishRequest> = {
 
   fromJSON(object: any): ApprovePublishRequest {
     return {
-      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : "",
-      coordinator_id: isSet(object.coordinator_id) ? globalThis.String(object.coordinator_id) : "",
+      version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : '',
+      coordinator_id: isSet(object.coordinator_id) ? globalThis.String(object.coordinator_id) : '',
     };
   },
 
   toJSON(message: ApprovePublishRequest): unknown {
     const obj: any = {};
-    if (message.version_id !== "") {
+    if (message.version_id !== '') {
       obj.version_id = message.version_id;
     }
-    if (message.coordinator_id !== "") {
+    if (message.coordinator_id !== '') {
       obj.coordinator_id = message.coordinator_id;
     }
     return obj;
@@ -805,21 +812,23 @@ export const ApprovePublishRequest: MessageFns<ApprovePublishRequest> = {
   create<I extends Exact<DeepPartial<ApprovePublishRequest>, I>>(base?: I): ApprovePublishRequest {
     return ApprovePublishRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ApprovePublishRequest>, I>>(object: I): ApprovePublishRequest {
+  fromPartial<I extends Exact<DeepPartial<ApprovePublishRequest>, I>>(
+    object: I,
+  ): ApprovePublishRequest {
     const message = createBaseApprovePublishRequest();
-    message.version_id = object.version_id ?? "";
-    message.coordinator_id = object.coordinator_id ?? "";
+    message.version_id = object.version_id ?? '';
+    message.coordinator_id = object.coordinator_id ?? '';
     return message;
   },
 };
 
 function createBaseListPublishedRequest(): ListPublishedRequest {
-  return { category: "", page: undefined };
+  return { category: '', page: undefined };
 }
 
 export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
   encode(message: ListPublishedRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.category !== "") {
+    if (message.category !== '') {
       writer.uint32(10).string(message.category);
     }
     if (message.page !== undefined) {
@@ -862,14 +871,14 @@ export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
 
   fromJSON(object: any): ListPublishedRequest {
     return {
-      category: isSet(object.category) ? globalThis.String(object.category) : "",
+      category: isSet(object.category) ? globalThis.String(object.category) : '',
       page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
     };
   },
 
   toJSON(message: ListPublishedRequest): unknown {
     const obj: any = {};
-    if (message.category !== "") {
+    if (message.category !== '') {
       obj.category = message.category;
     }
     if (message.page !== undefined) {
@@ -881,12 +890,15 @@ export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
   create<I extends Exact<DeepPartial<ListPublishedRequest>, I>>(base?: I): ListPublishedRequest {
     return ListPublishedRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListPublishedRequest>, I>>(object: I): ListPublishedRequest {
+  fromPartial<I extends Exact<DeepPartial<ListPublishedRequest>, I>>(
+    object: I,
+  ): ListPublishedRequest {
     const message = createBaseListPublishedRequest();
-    message.category = object.category ?? "";
-    message.page = (object.page !== undefined && object.page !== null)
-      ? PageRequest.fromPartial(object.page)
-      : undefined;
+    message.category = object.category ?? '';
+    message.page =
+      object.page !== undefined && object.page !== null
+        ? PageRequest.fromPartial(object.page)
+        : undefined;
     return message;
   },
 };
@@ -940,7 +952,9 @@ export const ListPublishedResponse: MessageFns<ListPublishedResponse> = {
 
   fromJSON(object: any): ListPublishedResponse {
     return {
-      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => Article.fromJSON(e)) : [],
+      items: globalThis.Array.isArray(object?.items)
+        ? object.items.map((e: any) => Article.fromJSON(e))
+        : [],
       page: isSet(object.page) ? PageResponse.fromJSON(object.page) : undefined,
     };
   },
@@ -959,32 +973,35 @@ export const ListPublishedResponse: MessageFns<ListPublishedResponse> = {
   create<I extends Exact<DeepPartial<ListPublishedResponse>, I>>(base?: I): ListPublishedResponse {
     return ListPublishedResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListPublishedResponse>, I>>(object: I): ListPublishedResponse {
+  fromPartial<I extends Exact<DeepPartial<ListPublishedResponse>, I>>(
+    object: I,
+  ): ListPublishedResponse {
     const message = createBaseListPublishedResponse();
     message.items = object.items?.map((e) => Article.fromPartial(e)) || [];
-    message.page = (object.page !== undefined && object.page !== null)
-      ? PageResponse.fromPartial(object.page)
-      : undefined;
+    message.page =
+      object.page !== undefined && object.page !== null
+        ? PageResponse.fromPartial(object.page)
+        : undefined;
     return message;
   },
 };
 
 function createBaseArticle(): Article {
-  return { article_id: "", title: "", category: "", body: "", current_version_no: 0, quiz_ids: [] };
+  return { article_id: '', title: '', category: '', body: '', current_version_no: 0, quiz_ids: [] };
 }
 
 export const Article: MessageFns<Article> = {
   encode(message: Article, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       writer.uint32(10).string(message.article_id);
     }
-    if (message.title !== "") {
+    if (message.title !== '') {
       writer.uint32(18).string(message.title);
     }
-    if (message.category !== "") {
+    if (message.category !== '') {
       writer.uint32(26).string(message.category);
     }
-    if (message.body !== "") {
+    if (message.body !== '') {
       writer.uint32(34).string(message.body);
     }
     if (message.current_version_no !== 0) {
@@ -1062,27 +1079,31 @@ export const Article: MessageFns<Article> = {
 
   fromJSON(object: any): Article {
     return {
-      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
-      title: isSet(object.title) ? globalThis.String(object.title) : "",
-      category: isSet(object.category) ? globalThis.String(object.category) : "",
-      body: isSet(object.body) ? globalThis.String(object.body) : "",
-      current_version_no: isSet(object.current_version_no) ? globalThis.Number(object.current_version_no) : 0,
-      quiz_ids: globalThis.Array.isArray(object?.quiz_ids) ? object.quiz_ids.map((e: any) => globalThis.String(e)) : [],
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : '',
+      title: isSet(object.title) ? globalThis.String(object.title) : '',
+      category: isSet(object.category) ? globalThis.String(object.category) : '',
+      body: isSet(object.body) ? globalThis.String(object.body) : '',
+      current_version_no: isSet(object.current_version_no)
+        ? globalThis.Number(object.current_version_no)
+        : 0,
+      quiz_ids: globalThis.Array.isArray(object?.quiz_ids)
+        ? object.quiz_ids.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
   toJSON(message: Article): unknown {
     const obj: any = {};
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       obj.article_id = message.article_id;
     }
-    if (message.title !== "") {
+    if (message.title !== '') {
       obj.title = message.title;
     }
-    if (message.category !== "") {
+    if (message.category !== '') {
       obj.category = message.category;
     }
-    if (message.body !== "") {
+    if (message.body !== '') {
       obj.body = message.body;
     }
     if (message.current_version_no !== 0) {
@@ -1099,10 +1120,10 @@ export const Article: MessageFns<Article> = {
   },
   fromPartial<I extends Exact<DeepPartial<Article>, I>>(object: I): Article {
     const message = createBaseArticle();
-    message.article_id = object.article_id ?? "";
-    message.title = object.title ?? "";
-    message.category = object.category ?? "";
-    message.body = object.body ?? "";
+    message.article_id = object.article_id ?? '';
+    message.title = object.title ?? '';
+    message.category = object.category ?? '';
+    message.body = object.body ?? '';
     message.current_version_no = object.current_version_no ?? 0;
     message.quiz_ids = object.quiz_ids?.map((e) => e) || [];
     return message;
@@ -1110,21 +1131,21 @@ export const Article: MessageFns<Article> = {
 };
 
 function createBaseQuiz(): Quiz {
-  return { quiz_id: "", article_id: "", title: "", pass_threshold: "", questions: [] };
+  return { quiz_id: '', article_id: '', title: '', pass_threshold: '', questions: [] };
 }
 
 export const Quiz: MessageFns<Quiz> = {
   encode(message: Quiz, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       writer.uint32(10).string(message.quiz_id);
     }
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       writer.uint32(18).string(message.article_id);
     }
-    if (message.title !== "") {
+    if (message.title !== '') {
       writer.uint32(26).string(message.title);
     }
-    if (message.pass_threshold !== "") {
+    if (message.pass_threshold !== '') {
       writer.uint32(34).string(message.pass_threshold);
     }
     for (const v of message.questions) {
@@ -1191,10 +1212,10 @@ export const Quiz: MessageFns<Quiz> = {
 
   fromJSON(object: any): Quiz {
     return {
-      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
-      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
-      title: isSet(object.title) ? globalThis.String(object.title) : "",
-      pass_threshold: isSet(object.pass_threshold) ? globalThis.String(object.pass_threshold) : "",
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : '',
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : '',
+      title: isSet(object.title) ? globalThis.String(object.title) : '',
+      pass_threshold: isSet(object.pass_threshold) ? globalThis.String(object.pass_threshold) : '',
       questions: globalThis.Array.isArray(object?.questions)
         ? object.questions.map((e: any) => Question.fromJSON(e))
         : [],
@@ -1203,16 +1224,16 @@ export const Quiz: MessageFns<Quiz> = {
 
   toJSON(message: Quiz): unknown {
     const obj: any = {};
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       obj.quiz_id = message.quiz_id;
     }
-    if (message.article_id !== "") {
+    if (message.article_id !== '') {
       obj.article_id = message.article_id;
     }
-    if (message.title !== "") {
+    if (message.title !== '') {
       obj.title = message.title;
     }
-    if (message.pass_threshold !== "") {
+    if (message.pass_threshold !== '') {
       obj.pass_threshold = message.pass_threshold;
     }
     if (message.questions?.length) {
@@ -1226,31 +1247,31 @@ export const Quiz: MessageFns<Quiz> = {
   },
   fromPartial<I extends Exact<DeepPartial<Quiz>, I>>(object: I): Quiz {
     const message = createBaseQuiz();
-    message.quiz_id = object.quiz_id ?? "";
-    message.article_id = object.article_id ?? "";
-    message.title = object.title ?? "";
-    message.pass_threshold = object.pass_threshold ?? "";
+    message.quiz_id = object.quiz_id ?? '';
+    message.article_id = object.article_id ?? '';
+    message.title = object.title ?? '';
+    message.pass_threshold = object.pass_threshold ?? '';
     message.questions = object.questions?.map((e) => Question.fromPartial(e)) || [];
     return message;
   },
 };
 
 function createBaseQuestion(): Question {
-  return { question_id: "", prompt: "", options: [], weight: "" };
+  return { question_id: '', prompt: '', options: [], weight: '' };
 }
 
 export const Question: MessageFns<Question> = {
   encode(message: Question, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.question_id !== "") {
+    if (message.question_id !== '') {
       writer.uint32(10).string(message.question_id);
     }
-    if (message.prompt !== "") {
+    if (message.prompt !== '') {
       writer.uint32(18).string(message.prompt);
     }
     for (const v of message.options) {
       Option.encode(v!, writer.uint32(26).fork()).join();
     }
-    if (message.weight !== "") {
+    if (message.weight !== '') {
       writer.uint32(34).string(message.weight);
     }
     return writer;
@@ -1306,25 +1327,27 @@ export const Question: MessageFns<Question> = {
 
   fromJSON(object: any): Question {
     return {
-      question_id: isSet(object.question_id) ? globalThis.String(object.question_id) : "",
-      prompt: isSet(object.prompt) ? globalThis.String(object.prompt) : "",
-      options: globalThis.Array.isArray(object?.options) ? object.options.map((e: any) => Option.fromJSON(e)) : [],
-      weight: isSet(object.weight) ? globalThis.String(object.weight) : "",
+      question_id: isSet(object.question_id) ? globalThis.String(object.question_id) : '',
+      prompt: isSet(object.prompt) ? globalThis.String(object.prompt) : '',
+      options: globalThis.Array.isArray(object?.options)
+        ? object.options.map((e: any) => Option.fromJSON(e))
+        : [],
+      weight: isSet(object.weight) ? globalThis.String(object.weight) : '',
     };
   },
 
   toJSON(message: Question): unknown {
     const obj: any = {};
-    if (message.question_id !== "") {
+    if (message.question_id !== '') {
       obj.question_id = message.question_id;
     }
-    if (message.prompt !== "") {
+    if (message.prompt !== '') {
       obj.prompt = message.prompt;
     }
     if (message.options?.length) {
       obj.options = message.options.map((e) => Option.toJSON(e));
     }
-    if (message.weight !== "") {
+    if (message.weight !== '') {
       obj.weight = message.weight;
     }
     return obj;
@@ -1335,24 +1358,24 @@ export const Question: MessageFns<Question> = {
   },
   fromPartial<I extends Exact<DeepPartial<Question>, I>>(object: I): Question {
     const message = createBaseQuestion();
-    message.question_id = object.question_id ?? "";
-    message.prompt = object.prompt ?? "";
+    message.question_id = object.question_id ?? '';
+    message.prompt = object.prompt ?? '';
     message.options = object.options?.map((e) => Option.fromPartial(e)) || [];
-    message.weight = object.weight ?? "";
+    message.weight = object.weight ?? '';
     return message;
   },
 };
 
 function createBaseOption(): Option {
-  return { key: "", text: "" };
+  return { key: '', text: '' };
 }
 
 export const Option: MessageFns<Option> = {
   encode(message: Option, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.text !== "") {
+    if (message.text !== '') {
       writer.uint32(18).string(message.text);
     }
     return writer;
@@ -1392,17 +1415,17 @@ export const Option: MessageFns<Option> = {
 
   fromJSON(object: any): Option {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      text: isSet(object.text) ? globalThis.String(object.text) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      text: isSet(object.text) ? globalThis.String(object.text) : '',
     };
   },
 
   toJSON(message: Option): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.text !== "") {
+    if (message.text !== '') {
       obj.text = message.text;
     }
     return obj;
@@ -1413,22 +1436,22 @@ export const Option: MessageFns<Option> = {
   },
   fromPartial<I extends Exact<DeepPartial<Option>, I>>(object: I): Option {
     const message = createBaseOption();
-    message.key = object.key ?? "";
-    message.text = object.text ?? "";
+    message.key = object.key ?? '';
+    message.text = object.text ?? '';
     return message;
   },
 };
 
 function createBaseGradeRequest(): GradeRequest {
-  return { user_id: "", quiz_id: "", answers: {} };
+  return { user_id: '', quiz_id: '', answers: {} };
 }
 
 export const GradeRequest: MessageFns<GradeRequest> = {
   encode(message: GradeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       writer.uint32(18).string(message.quiz_id);
     }
     Object.entries(message.answers).forEach(([key, value]) => {
@@ -1482,23 +1505,23 @@ export const GradeRequest: MessageFns<GradeRequest> = {
 
   fromJSON(object: any): GradeRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : '',
       answers: isObject(object.answers)
         ? Object.entries(object.answers).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
+            acc[key] = String(value);
+            return acc;
+          }, {})
         : {},
     };
   },
 
   toJSON(message: GradeRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       obj.quiz_id = message.quiz_id;
     }
     if (message.answers) {
@@ -1518,28 +1541,34 @@ export const GradeRequest: MessageFns<GradeRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<GradeRequest>, I>>(object: I): GradeRequest {
     const message = createBaseGradeRequest();
-    message.user_id = object.user_id ?? "";
-    message.quiz_id = object.quiz_id ?? "";
-    message.answers = Object.entries(object.answers ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = globalThis.String(value);
-      }
-      return acc;
-    }, {});
+    message.user_id = object.user_id ?? '';
+    message.quiz_id = object.quiz_id ?? '';
+    message.answers = Object.entries(object.answers ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
     return message;
   },
 };
 
 function createBaseGradeRequest_AnswersEntry(): GradeRequest_AnswersEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const GradeRequest_AnswersEntry: MessageFns<GradeRequest_AnswersEntry> = {
-  encode(message: GradeRequest_AnswersEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: GradeRequest_AnswersEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -1579,46 +1608,50 @@ export const GradeRequest_AnswersEntry: MessageFns<GradeRequest_AnswersEntry> = 
 
   fromJSON(object: any): GradeRequest_AnswersEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: GradeRequest_AnswersEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<GradeRequest_AnswersEntry>, I>>(base?: I): GradeRequest_AnswersEntry {
+  create<I extends Exact<DeepPartial<GradeRequest_AnswersEntry>, I>>(
+    base?: I,
+  ): GradeRequest_AnswersEntry {
     return GradeRequest_AnswersEntry.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<GradeRequest_AnswersEntry>, I>>(object: I): GradeRequest_AnswersEntry {
+  fromPartial<I extends Exact<DeepPartial<GradeRequest_AnswersEntry>, I>>(
+    object: I,
+  ): GradeRequest_AnswersEntry {
     const message = createBaseGradeRequest_AnswersEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
 
 function createBaseGradeResponse(): GradeResponse {
-  return { attempt_id: "", attempt_no: 0, score: "", passed: false };
+  return { attempt_id: '', attempt_no: 0, score: '', passed: false };
 }
 
 export const GradeResponse: MessageFns<GradeResponse> = {
   encode(message: GradeResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.attempt_id !== "") {
+    if (message.attempt_id !== '') {
       writer.uint32(10).string(message.attempt_id);
     }
     if (message.attempt_no !== 0) {
       writer.uint32(16).int32(message.attempt_no);
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       writer.uint32(26).string(message.score);
     }
     if (message.passed !== false) {
@@ -1677,22 +1710,22 @@ export const GradeResponse: MessageFns<GradeResponse> = {
 
   fromJSON(object: any): GradeResponse {
     return {
-      attempt_id: isSet(object.attempt_id) ? globalThis.String(object.attempt_id) : "",
+      attempt_id: isSet(object.attempt_id) ? globalThis.String(object.attempt_id) : '',
       attempt_no: isSet(object.attempt_no) ? globalThis.Number(object.attempt_no) : 0,
-      score: isSet(object.score) ? globalThis.String(object.score) : "",
+      score: isSet(object.score) ? globalThis.String(object.score) : '',
       passed: isSet(object.passed) ? globalThis.Boolean(object.passed) : false,
     };
   },
 
   toJSON(message: GradeResponse): unknown {
     const obj: any = {};
-    if (message.attempt_id !== "") {
+    if (message.attempt_id !== '') {
       obj.attempt_id = message.attempt_id;
     }
     if (message.attempt_no !== 0) {
       obj.attempt_no = Math.round(message.attempt_no);
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       obj.score = message.score;
     }
     if (message.passed !== false) {
@@ -1706,24 +1739,24 @@ export const GradeResponse: MessageFns<GradeResponse> = {
   },
   fromPartial<I extends Exact<DeepPartial<GradeResponse>, I>>(object: I): GradeResponse {
     const message = createBaseGradeResponse();
-    message.attempt_id = object.attempt_id ?? "";
+    message.attempt_id = object.attempt_id ?? '';
     message.attempt_no = object.attempt_no ?? 0;
-    message.score = object.score ?? "";
+    message.score = object.score ?? '';
     message.passed = object.passed ?? false;
     return message;
   },
 };
 
 function createBaseListAttemptsRequest(): ListAttemptsRequest {
-  return { user_id: "", quiz_id: "", page: undefined };
+  return { user_id: '', quiz_id: '', page: undefined };
 }
 
 export const ListAttemptsRequest: MessageFns<ListAttemptsRequest> = {
   encode(message: ListAttemptsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       writer.uint32(10).string(message.user_id);
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       writer.uint32(18).string(message.quiz_id);
     }
     if (message.page !== undefined) {
@@ -1774,18 +1807,18 @@ export const ListAttemptsRequest: MessageFns<ListAttemptsRequest> = {
 
   fromJSON(object: any): ListAttemptsRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
-      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : '',
       page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
     };
   },
 
   toJSON(message: ListAttemptsRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== "") {
+    if (message.user_id !== '') {
       obj.user_id = message.user_id;
     }
-    if (message.quiz_id !== "") {
+    if (message.quiz_id !== '') {
       obj.quiz_id = message.quiz_id;
     }
     if (message.page !== undefined) {
@@ -1797,13 +1830,16 @@ export const ListAttemptsRequest: MessageFns<ListAttemptsRequest> = {
   create<I extends Exact<DeepPartial<ListAttemptsRequest>, I>>(base?: I): ListAttemptsRequest {
     return ListAttemptsRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListAttemptsRequest>, I>>(object: I): ListAttemptsRequest {
+  fromPartial<I extends Exact<DeepPartial<ListAttemptsRequest>, I>>(
+    object: I,
+  ): ListAttemptsRequest {
     const message = createBaseListAttemptsRequest();
-    message.user_id = object.user_id ?? "";
-    message.quiz_id = object.quiz_id ?? "";
-    message.page = (object.page !== undefined && object.page !== null)
-      ? PageRequest.fromPartial(object.page)
-      : undefined;
+    message.user_id = object.user_id ?? '';
+    message.quiz_id = object.quiz_id ?? '';
+    message.page =
+      object.page !== undefined && object.page !== null
+        ? PageRequest.fromPartial(object.page)
+        : undefined;
     return message;
   },
 };
@@ -1878,32 +1914,38 @@ export const ListAttemptsResponse: MessageFns<ListAttemptsResponse> = {
   create<I extends Exact<DeepPartial<ListAttemptsResponse>, I>>(base?: I): ListAttemptsResponse {
     return ListAttemptsResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListAttemptsResponse>, I>>(object: I): ListAttemptsResponse {
+  fromPartial<I extends Exact<DeepPartial<ListAttemptsResponse>, I>>(
+    object: I,
+  ): ListAttemptsResponse {
     const message = createBaseListAttemptsResponse();
     message.items = object.items?.map((e) => ListAttemptsResponse_Attempt.fromPartial(e)) || [];
-    message.page = (object.page !== undefined && object.page !== null)
-      ? PageResponse.fromPartial(object.page)
-      : undefined;
+    message.page =
+      object.page !== undefined && object.page !== null
+        ? PageResponse.fromPartial(object.page)
+        : undefined;
     return message;
   },
 };
 
 function createBaseListAttemptsResponse_Attempt(): ListAttemptsResponse_Attempt {
-  return { attempt_id: "", attempt_no: 0, score: "", created_at: "" };
+  return { attempt_id: '', attempt_no: 0, score: '', created_at: '' };
 }
 
 export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attempt> = {
-  encode(message: ListAttemptsResponse_Attempt, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.attempt_id !== "") {
+  encode(
+    message: ListAttemptsResponse_Attempt,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.attempt_id !== '') {
       writer.uint32(10).string(message.attempt_id);
     }
     if (message.attempt_no !== 0) {
       writer.uint32(16).int32(message.attempt_no);
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       writer.uint32(26).string(message.score);
     }
-    if (message.created_at !== "") {
+    if (message.created_at !== '') {
       writer.uint32(34).string(message.created_at);
     }
     return writer;
@@ -1959,57 +2001,66 @@ export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attem
 
   fromJSON(object: any): ListAttemptsResponse_Attempt {
     return {
-      attempt_id: isSet(object.attempt_id) ? globalThis.String(object.attempt_id) : "",
+      attempt_id: isSet(object.attempt_id) ? globalThis.String(object.attempt_id) : '',
       attempt_no: isSet(object.attempt_no) ? globalThis.Number(object.attempt_no) : 0,
-      score: isSet(object.score) ? globalThis.String(object.score) : "",
-      created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : "",
+      score: isSet(object.score) ? globalThis.String(object.score) : '',
+      created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : '',
     };
   },
 
   toJSON(message: ListAttemptsResponse_Attempt): unknown {
     const obj: any = {};
-    if (message.attempt_id !== "") {
+    if (message.attempt_id !== '') {
       obj.attempt_id = message.attempt_id;
     }
     if (message.attempt_no !== 0) {
       obj.attempt_no = Math.round(message.attempt_no);
     }
-    if (message.score !== "") {
+    if (message.score !== '') {
       obj.score = message.score;
     }
-    if (message.created_at !== "") {
+    if (message.created_at !== '') {
       obj.created_at = message.created_at;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ListAttemptsResponse_Attempt>, I>>(base?: I): ListAttemptsResponse_Attempt {
+  create<I extends Exact<DeepPartial<ListAttemptsResponse_Attempt>, I>>(
+    base?: I,
+  ): ListAttemptsResponse_Attempt {
     return ListAttemptsResponse_Attempt.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListAttemptsResponse_Attempt>, I>>(object: I): ListAttemptsResponse_Attempt {
+  fromPartial<I extends Exact<DeepPartial<ListAttemptsResponse_Attempt>, I>>(
+    object: I,
+  ): ListAttemptsResponse_Attempt {
     const message = createBaseListAttemptsResponse_Attempt();
-    message.attempt_id = object.attempt_id ?? "";
+    message.attempt_id = object.attempt_id ?? '';
     message.attempt_no = object.attempt_no ?? 0;
-    message.score = object.score ?? "";
-    message.created_at = object.created_at ?? "";
+    message.score = object.score ?? '';
+    message.created_at = object.created_at ?? '';
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isObject(value: any): boolean {
-  return typeof value === "object" && value !== null;
+  return typeof value === 'object' && value !== null;
 }
 
 function isSet(value: any): boolean {

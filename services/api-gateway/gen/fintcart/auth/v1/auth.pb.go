@@ -126,6 +126,116 @@ func (x *CreateCredentialRequest) GetPassword() string {
 	return ""
 }
 
+// Token de verificación de correo en claro. Solo viaja de Auth al correo del
+// titular, pasando por el Orquestador y el bus; en `auth_db` únicamente se guarda
+// su hash, igual que con una contraseña.
+type VerificationToken struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAt     string                 `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"` // RFC-3339 UTC; caducado deja de activar (FR-002)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerificationToken) Reset() {
+	*x = VerificationToken{}
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerificationToken) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerificationToken) ProtoMessage() {}
+
+func (x *VerificationToken) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerificationToken.ProtoReflect.Descriptor instead.
+func (*VerificationToken) Descriptor() ([]byte, []int) {
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *VerificationToken) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *VerificationToken) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+type ActivateCredentialRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// OBLIGATORIO. Es la ÚNICA prueba de que quien verifica controla el buzón: sin
+	// él, conocer un user_id —que viaja en cada evento de auditoría— bastaría para
+	// activar la cuenta de otro, y el correo de verificación no comprobaría nada.
+	VerificationToken string `protobuf:"bytes,2,opt,name=verification_token,json=verificationToken,proto3" json:"verification_token,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ActivateCredentialRequest) Reset() {
+	*x = ActivateCredentialRequest{}
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivateCredentialRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivateCredentialRequest) ProtoMessage() {}
+
+func (x *ActivateCredentialRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivateCredentialRequest.ProtoReflect.Descriptor instead.
+func (*ActivateCredentialRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ActivateCredentialRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ActivateCredentialRequest) GetVerificationToken() string {
+	if x != nil {
+		return x.VerificationToken
+	}
+	return ""
+}
+
 type ValidateCredentialsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
@@ -136,7 +246,7 @@ type ValidateCredentialsRequest struct {
 
 func (x *ValidateCredentialsRequest) Reset() {
 	*x = ValidateCredentialsRequest{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[2]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -148,7 +258,7 @@ func (x *ValidateCredentialsRequest) String() string {
 func (*ValidateCredentialsRequest) ProtoMessage() {}
 
 func (x *ValidateCredentialsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[2]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -161,7 +271,7 @@ func (x *ValidateCredentialsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateCredentialsRequest.ProtoReflect.Descriptor instead.
 func (*ValidateCredentialsRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{2}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ValidateCredentialsRequest) GetEmail() string {
@@ -190,7 +300,7 @@ type ValidateCredentialsResponse struct {
 
 func (x *ValidateCredentialsResponse) Reset() {
 	*x = ValidateCredentialsResponse{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[3]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -202,7 +312,7 @@ func (x *ValidateCredentialsResponse) String() string {
 func (*ValidateCredentialsResponse) ProtoMessage() {}
 
 func (x *ValidateCredentialsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[3]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -215,7 +325,7 @@ func (x *ValidateCredentialsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateCredentialsResponse.ProtoReflect.Descriptor instead.
 func (*ValidateCredentialsResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ValidateCredentialsResponse) GetValid() bool {
@@ -260,7 +370,7 @@ type IssueAuthCodeRequest struct {
 
 func (x *IssueAuthCodeRequest) Reset() {
 	*x = IssueAuthCodeRequest{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -272,7 +382,7 @@ func (x *IssueAuthCodeRequest) String() string {
 func (*IssueAuthCodeRequest) ProtoMessage() {}
 
 func (x *IssueAuthCodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -285,7 +395,7 @@ func (x *IssueAuthCodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueAuthCodeRequest.ProtoReflect.Descriptor instead.
 func (*IssueAuthCodeRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{4}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *IssueAuthCodeRequest) GetUserId() string {
@@ -339,7 +449,7 @@ type IssueAuthCodeResponse struct {
 
 func (x *IssueAuthCodeResponse) Reset() {
 	*x = IssueAuthCodeResponse{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -351,7 +461,7 @@ func (x *IssueAuthCodeResponse) String() string {
 func (*IssueAuthCodeResponse) ProtoMessage() {}
 
 func (x *IssueAuthCodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -364,7 +474,7 @@ func (x *IssueAuthCodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueAuthCodeResponse.ProtoReflect.Descriptor instead.
 func (*IssueAuthCodeResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{5}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *IssueAuthCodeResponse) GetCode() string {
@@ -386,7 +496,7 @@ type ExchangeCodeRequest struct {
 
 func (x *ExchangeCodeRequest) Reset() {
 	*x = ExchangeCodeRequest{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -398,7 +508,7 @@ func (x *ExchangeCodeRequest) String() string {
 func (*ExchangeCodeRequest) ProtoMessage() {}
 
 func (x *ExchangeCodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -411,7 +521,7 @@ func (x *ExchangeCodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExchangeCodeRequest.ProtoReflect.Descriptor instead.
 func (*ExchangeCodeRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{6}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ExchangeCodeRequest) GetCode() string {
@@ -451,7 +561,7 @@ type RefreshTokenRequest struct {
 
 func (x *RefreshTokenRequest) Reset() {
 	*x = RefreshTokenRequest{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +573,7 @@ func (x *RefreshTokenRequest) String() string {
 func (*RefreshTokenRequest) ProtoMessage() {}
 
 func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +586,7 @@ func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshTokenRequest.ProtoReflect.Descriptor instead.
 func (*RefreshTokenRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RefreshTokenRequest) GetRefreshToken() string {
@@ -498,7 +608,7 @@ type TokenResponse struct {
 
 func (x *TokenResponse) Reset() {
 	*x = TokenResponse{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +620,7 @@ func (x *TokenResponse) String() string {
 func (*TokenResponse) ProtoMessage() {}
 
 func (x *TokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,7 +633,7 @@ func (x *TokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenResponse.ProtoReflect.Descriptor instead.
 func (*TokenResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *TokenResponse) GetAccessToken() string {
@@ -564,7 +674,7 @@ type RevokeRequest struct {
 
 func (x *RevokeRequest) Reset() {
 	*x = RevokeRequest{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -576,7 +686,7 @@ func (x *RevokeRequest) String() string {
 func (*RevokeRequest) ProtoMessage() {}
 
 func (x *RevokeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -589,7 +699,7 @@ func (x *RevokeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeRequest.ProtoReflect.Descriptor instead.
 func (*RevokeRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{9}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RevokeRequest) GetToken() string {
@@ -615,7 +725,7 @@ type IntrospectRequest struct {
 
 func (x *IntrospectRequest) Reset() {
 	*x = IntrospectRequest{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +737,7 @@ func (x *IntrospectRequest) String() string {
 func (*IntrospectRequest) ProtoMessage() {}
 
 func (x *IntrospectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +750,7 @@ func (x *IntrospectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IntrospectRequest.ProtoReflect.Descriptor instead.
 func (*IntrospectRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{10}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *IntrospectRequest) GetAccessToken() string {
@@ -663,7 +773,7 @@ type IntrospectResponse struct {
 
 func (x *IntrospectResponse) Reset() {
 	*x = IntrospectResponse{}
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -675,7 +785,7 @@ func (x *IntrospectResponse) String() string {
 func (*IntrospectResponse) ProtoMessage() {}
 
 func (x *IntrospectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_fintcart_auth_v1_auth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -688,7 +798,7 @@ func (x *IntrospectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IntrospectResponse.ProtoReflect.Descriptor instead.
 func (*IntrospectResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{11}
+	return file_fintcart_auth_v1_auth_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *IntrospectResponse) GetActive() bool {
@@ -736,7 +846,14 @@ const file_fintcart_auth_v1_auth_proto_rawDesc = "" +
 	"\x17CreateCredentialRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x03 \x01(\tR\bpassword\"N\n" +
+	"\bpassword\x18\x03 \x01(\tR\bpassword\"H\n" +
+	"\x11VerificationToken\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\tR\texpiresAt\"c\n" +
+	"\x19ActivateCredentialRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12-\n" +
+	"\x12verification_token\x18\x02 \x01(\tR\x11verificationToken\"N\n" +
 	"\x1aValidateCredentialsRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"\x96\x01\n" +
@@ -778,10 +895,11 @@ const file_fintcart_auth_v1_auth_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05roles\x18\x03 \x03(\tR\x05roles\x12\x10\n" +
 	"\x03jti\x18\x04 \x01(\tR\x03jti\x12\x10\n" +
-	"\x03exp\x18\x05 \x01(\x03R\x03exp2\xc3\x06\n" +
+	"\x03exp\x18\x05 \x01(\x03R\x03exp2\xaf\a\n" +
 	"\vAuthService\x12[\n" +
-	"\x10CreateCredential\x12).fintcart.auth.v1.CreateCredentialRequest\x1a\x1c.fintcart.common.v1.OpResult\x12M\n" +
-	"\x12ActivateCredential\x12\x19.fintcart.auth.v1.UserRef\x1a\x1c.fintcart.common.v1.OpResult\x12r\n" +
+	"\x10CreateCredential\x12).fintcart.auth.v1.CreateCredentialRequest\x1a\x1c.fintcart.common.v1.OpResult\x12X\n" +
+	"\x16IssueVerificationToken\x12\x19.fintcart.auth.v1.UserRef\x1a#.fintcart.auth.v1.VerificationToken\x12_\n" +
+	"\x12ActivateCredential\x12+.fintcart.auth.v1.ActivateCredentialRequest\x1a\x1c.fintcart.common.v1.OpResult\x12r\n" +
 	"\x13ValidateCredentials\x12,.fintcart.auth.v1.ValidateCredentialsRequest\x1a-.fintcart.auth.v1.ValidateCredentialsResponse\x12i\n" +
 	"\x16IssueAuthorizationCode\x12&.fintcart.auth.v1.IssueAuthCodeRequest\x1a'.fintcart.auth.v1.IssueAuthCodeResponse\x12V\n" +
 	"\fExchangeCode\x12%.fintcart.auth.v1.ExchangeCodeRequest\x1a\x1f.fintcart.auth.v1.TokenResponse\x12V\n" +
@@ -804,43 +922,47 @@ func file_fintcart_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_fintcart_auth_v1_auth_proto_rawDescData
 }
 
-var file_fintcart_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_fintcart_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_fintcart_auth_v1_auth_proto_goTypes = []any{
 	(*UserRef)(nil),                     // 0: fintcart.auth.v1.UserRef
 	(*CreateCredentialRequest)(nil),     // 1: fintcart.auth.v1.CreateCredentialRequest
-	(*ValidateCredentialsRequest)(nil),  // 2: fintcart.auth.v1.ValidateCredentialsRequest
-	(*ValidateCredentialsResponse)(nil), // 3: fintcart.auth.v1.ValidateCredentialsResponse
-	(*IssueAuthCodeRequest)(nil),        // 4: fintcart.auth.v1.IssueAuthCodeRequest
-	(*IssueAuthCodeResponse)(nil),       // 5: fintcart.auth.v1.IssueAuthCodeResponse
-	(*ExchangeCodeRequest)(nil),         // 6: fintcart.auth.v1.ExchangeCodeRequest
-	(*RefreshTokenRequest)(nil),         // 7: fintcart.auth.v1.RefreshTokenRequest
-	(*TokenResponse)(nil),               // 8: fintcart.auth.v1.TokenResponse
-	(*RevokeRequest)(nil),               // 9: fintcart.auth.v1.RevokeRequest
-	(*IntrospectRequest)(nil),           // 10: fintcart.auth.v1.IntrospectRequest
-	(*IntrospectResponse)(nil),          // 11: fintcart.auth.v1.IntrospectResponse
-	(*v1.OpResult)(nil),                 // 12: fintcart.common.v1.OpResult
+	(*VerificationToken)(nil),           // 2: fintcart.auth.v1.VerificationToken
+	(*ActivateCredentialRequest)(nil),   // 3: fintcart.auth.v1.ActivateCredentialRequest
+	(*ValidateCredentialsRequest)(nil),  // 4: fintcart.auth.v1.ValidateCredentialsRequest
+	(*ValidateCredentialsResponse)(nil), // 5: fintcart.auth.v1.ValidateCredentialsResponse
+	(*IssueAuthCodeRequest)(nil),        // 6: fintcart.auth.v1.IssueAuthCodeRequest
+	(*IssueAuthCodeResponse)(nil),       // 7: fintcart.auth.v1.IssueAuthCodeResponse
+	(*ExchangeCodeRequest)(nil),         // 8: fintcart.auth.v1.ExchangeCodeRequest
+	(*RefreshTokenRequest)(nil),         // 9: fintcart.auth.v1.RefreshTokenRequest
+	(*TokenResponse)(nil),               // 10: fintcart.auth.v1.TokenResponse
+	(*RevokeRequest)(nil),               // 11: fintcart.auth.v1.RevokeRequest
+	(*IntrospectRequest)(nil),           // 12: fintcart.auth.v1.IntrospectRequest
+	(*IntrospectResponse)(nil),          // 13: fintcart.auth.v1.IntrospectResponse
+	(*v1.OpResult)(nil),                 // 14: fintcart.common.v1.OpResult
 }
 var file_fintcart_auth_v1_auth_proto_depIdxs = []int32{
 	1,  // 0: fintcart.auth.v1.AuthService.CreateCredential:input_type -> fintcart.auth.v1.CreateCredentialRequest
-	0,  // 1: fintcart.auth.v1.AuthService.ActivateCredential:input_type -> fintcart.auth.v1.UserRef
-	2,  // 2: fintcart.auth.v1.AuthService.ValidateCredentials:input_type -> fintcart.auth.v1.ValidateCredentialsRequest
-	4,  // 3: fintcart.auth.v1.AuthService.IssueAuthorizationCode:input_type -> fintcart.auth.v1.IssueAuthCodeRequest
-	6,  // 4: fintcart.auth.v1.AuthService.ExchangeCode:input_type -> fintcart.auth.v1.ExchangeCodeRequest
-	7,  // 5: fintcart.auth.v1.AuthService.RefreshToken:input_type -> fintcart.auth.v1.RefreshTokenRequest
-	9,  // 6: fintcart.auth.v1.AuthService.Revoke:input_type -> fintcart.auth.v1.RevokeRequest
-	10, // 7: fintcart.auth.v1.AuthService.Introspect:input_type -> fintcart.auth.v1.IntrospectRequest
-	0,  // 8: fintcart.auth.v1.AuthService.RevokeAndAnonymizeCredential:input_type -> fintcart.auth.v1.UserRef
-	12, // 9: fintcart.auth.v1.AuthService.CreateCredential:output_type -> fintcart.common.v1.OpResult
-	12, // 10: fintcart.auth.v1.AuthService.ActivateCredential:output_type -> fintcart.common.v1.OpResult
-	3,  // 11: fintcart.auth.v1.AuthService.ValidateCredentials:output_type -> fintcart.auth.v1.ValidateCredentialsResponse
-	5,  // 12: fintcart.auth.v1.AuthService.IssueAuthorizationCode:output_type -> fintcart.auth.v1.IssueAuthCodeResponse
-	8,  // 13: fintcart.auth.v1.AuthService.ExchangeCode:output_type -> fintcart.auth.v1.TokenResponse
-	8,  // 14: fintcart.auth.v1.AuthService.RefreshToken:output_type -> fintcart.auth.v1.TokenResponse
-	12, // 15: fintcart.auth.v1.AuthService.Revoke:output_type -> fintcart.common.v1.OpResult
-	11, // 16: fintcart.auth.v1.AuthService.Introspect:output_type -> fintcart.auth.v1.IntrospectResponse
-	12, // 17: fintcart.auth.v1.AuthService.RevokeAndAnonymizeCredential:output_type -> fintcart.common.v1.OpResult
-	9,  // [9:18] is the sub-list for method output_type
-	0,  // [0:9] is the sub-list for method input_type
+	0,  // 1: fintcart.auth.v1.AuthService.IssueVerificationToken:input_type -> fintcart.auth.v1.UserRef
+	3,  // 2: fintcart.auth.v1.AuthService.ActivateCredential:input_type -> fintcart.auth.v1.ActivateCredentialRequest
+	4,  // 3: fintcart.auth.v1.AuthService.ValidateCredentials:input_type -> fintcart.auth.v1.ValidateCredentialsRequest
+	6,  // 4: fintcart.auth.v1.AuthService.IssueAuthorizationCode:input_type -> fintcart.auth.v1.IssueAuthCodeRequest
+	8,  // 5: fintcart.auth.v1.AuthService.ExchangeCode:input_type -> fintcart.auth.v1.ExchangeCodeRequest
+	9,  // 6: fintcart.auth.v1.AuthService.RefreshToken:input_type -> fintcart.auth.v1.RefreshTokenRequest
+	11, // 7: fintcart.auth.v1.AuthService.Revoke:input_type -> fintcart.auth.v1.RevokeRequest
+	12, // 8: fintcart.auth.v1.AuthService.Introspect:input_type -> fintcart.auth.v1.IntrospectRequest
+	0,  // 9: fintcart.auth.v1.AuthService.RevokeAndAnonymizeCredential:input_type -> fintcart.auth.v1.UserRef
+	14, // 10: fintcart.auth.v1.AuthService.CreateCredential:output_type -> fintcart.common.v1.OpResult
+	2,  // 11: fintcart.auth.v1.AuthService.IssueVerificationToken:output_type -> fintcart.auth.v1.VerificationToken
+	14, // 12: fintcart.auth.v1.AuthService.ActivateCredential:output_type -> fintcart.common.v1.OpResult
+	5,  // 13: fintcart.auth.v1.AuthService.ValidateCredentials:output_type -> fintcart.auth.v1.ValidateCredentialsResponse
+	7,  // 14: fintcart.auth.v1.AuthService.IssueAuthorizationCode:output_type -> fintcart.auth.v1.IssueAuthCodeResponse
+	10, // 15: fintcart.auth.v1.AuthService.ExchangeCode:output_type -> fintcart.auth.v1.TokenResponse
+	10, // 16: fintcart.auth.v1.AuthService.RefreshToken:output_type -> fintcart.auth.v1.TokenResponse
+	14, // 17: fintcart.auth.v1.AuthService.Revoke:output_type -> fintcart.common.v1.OpResult
+	13, // 18: fintcart.auth.v1.AuthService.Introspect:output_type -> fintcart.auth.v1.IntrospectResponse
+	14, // 19: fintcart.auth.v1.AuthService.RevokeAndAnonymizeCredential:output_type -> fintcart.common.v1.OpResult
+	10, // [10:20] is the sub-list for method output_type
+	0,  // [0:10] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -857,7 +979,7 @@ func file_fintcart_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fintcart_auth_v1_auth_proto_rawDesc), len(file_fintcart_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	AuthService_CreateCredential_FullMethodName             = "/fintcart.auth.v1.AuthService/CreateCredential"
+	AuthService_IssueVerificationToken_FullMethodName       = "/fintcart.auth.v1.AuthService/IssueVerificationToken"
 	AuthService_ActivateCredential_FullMethodName           = "/fintcart.auth.v1.AuthService/ActivateCredential"
 	AuthService_ValidateCredentials_FullMethodName          = "/fintcart.auth.v1.AuthService/ValidateCredentials"
 	AuthService_IssueAuthorizationCode_FullMethodName       = "/fintcart.auth.v1.AuthService/IssueAuthorizationCode"
@@ -43,8 +44,18 @@ type AuthServiceClient interface {
 	// Paso de la Saga de registro (research D-04): crea la credencial en estado
 	// pending_verification. Idempotente por user_id.
 	CreateCredential(ctx context.Context, in *CreateCredentialRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// Emite (o REEMITE) el token de verificación de correo.
+	//
+	// Lo invoca el paso de la saga de registro que produce el evento `user.registered`,
+	// y el reenvío del correo cuando el enlace caduca (FR-002). Cada llamada SUSTITUYE
+	// al token anterior: un reenvío tiene que invalidar el enlace previo, porque si no
+	// un correo interceptado seguiría sirviendo indefinidamente.
+	//
+	// El valor en claro se devuelve UNA sola vez y no se puede volver a consultar: en
+	// la base solo queda su hash. Quien pierda la respuesta tiene que reemitir.
+	IssueVerificationToken(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*VerificationToken, error)
 	// Activa la credencial tras verificación de correo (Saga de verificación).
-	ActivateCredential(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	ActivateCredential(ctx context.Context, in *ActivateCredentialRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
 	// Valida correo+contraseña durante el login del Authorization Code flow.
 	ValidateCredentials(ctx context.Context, in *ValidateCredentialsRequest, opts ...grpc.CallOption) (*ValidateCredentialsResponse, error)
 	// Emite un authorization_code (PKCE) tras autenticación exitosa.
@@ -79,7 +90,17 @@ func (c *authServiceClient) CreateCredential(ctx context.Context, in *CreateCred
 	return out, nil
 }
 
-func (c *authServiceClient) ActivateCredential(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*v1.OpResult, error) {
+func (c *authServiceClient) IssueVerificationToken(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*VerificationToken, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VerificationToken)
+	err := c.cc.Invoke(ctx, AuthService_IssueVerificationToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ActivateCredential(ctx context.Context, in *ActivateCredentialRequest, opts ...grpc.CallOption) (*v1.OpResult, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(v1.OpResult)
 	err := c.cc.Invoke(ctx, AuthService_ActivateCredential_FullMethodName, in, out, cOpts...)
@@ -171,8 +192,18 @@ type AuthServiceServer interface {
 	// Paso de la Saga de registro (research D-04): crea la credencial en estado
 	// pending_verification. Idempotente por user_id.
 	CreateCredential(context.Context, *CreateCredentialRequest) (*v1.OpResult, error)
+	// Emite (o REEMITE) el token de verificación de correo.
+	//
+	// Lo invoca el paso de la saga de registro que produce el evento `user.registered`,
+	// y el reenvío del correo cuando el enlace caduca (FR-002). Cada llamada SUSTITUYE
+	// al token anterior: un reenvío tiene que invalidar el enlace previo, porque si no
+	// un correo interceptado seguiría sirviendo indefinidamente.
+	//
+	// El valor en claro se devuelve UNA sola vez y no se puede volver a consultar: en
+	// la base solo queda su hash. Quien pierda la respuesta tiene que reemitir.
+	IssueVerificationToken(context.Context, *UserRef) (*VerificationToken, error)
 	// Activa la credencial tras verificación de correo (Saga de verificación).
-	ActivateCredential(context.Context, *UserRef) (*v1.OpResult, error)
+	ActivateCredential(context.Context, *ActivateCredentialRequest) (*v1.OpResult, error)
 	// Valida correo+contraseña durante el login del Authorization Code flow.
 	ValidateCredentials(context.Context, *ValidateCredentialsRequest) (*ValidateCredentialsResponse, error)
 	// Emite un authorization_code (PKCE) tras autenticación exitosa.
@@ -199,7 +230,10 @@ type UnimplementedAuthServiceServer struct{}
 func (UnimplementedAuthServiceServer) CreateCredential(context.Context, *CreateCredentialRequest) (*v1.OpResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateCredential not implemented")
 }
-func (UnimplementedAuthServiceServer) ActivateCredential(context.Context, *UserRef) (*v1.OpResult, error) {
+func (UnimplementedAuthServiceServer) IssueVerificationToken(context.Context, *UserRef) (*VerificationToken, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IssueVerificationToken not implemented")
+}
+func (UnimplementedAuthServiceServer) ActivateCredential(context.Context, *ActivateCredentialRequest) (*v1.OpResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ActivateCredential not implemented")
 }
 func (UnimplementedAuthServiceServer) ValidateCredentials(context.Context, *ValidateCredentialsRequest) (*ValidateCredentialsResponse, error) {
@@ -261,8 +295,26 @@ func _AuthService_CreateCredential_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_ActivateCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AuthService_IssueVerificationToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).IssueVerificationToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_IssueVerificationToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).IssueVerificationToken(ctx, req.(*UserRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ActivateCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ActivateCredentialRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -274,7 +326,7 @@ func _AuthService_ActivateCredential_Handler(srv interface{}, ctx context.Contex
 		FullMethod: AuthService_ActivateCredential_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).ActivateCredential(ctx, req.(*UserRef))
+		return srv.(AuthServiceServer).ActivateCredential(ctx, req.(*ActivateCredentialRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -415,6 +467,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateCredential",
 			Handler:    _AuthService_CreateCredential_Handler,
+		},
+		{
+			MethodName: "IssueVerificationToken",
+			Handler:    _AuthService_IssueVerificationToken_Handler,
 		},
 		{
 			MethodName: "ActivateCredential",

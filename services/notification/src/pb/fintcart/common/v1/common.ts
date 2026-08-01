@@ -5,9 +5,9 @@
 // source: fintcart/common/v1/common.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
 
-export const protobufPackage = "fintcart.common.v1";
+export const protobufPackage = 'fintcart.common.v1';
 
 /** Dinero: monto decimal + código ISO-4217 (por defecto COP). */
 export interface Money {
@@ -43,15 +43,15 @@ export interface OpResult {
 }
 
 function createBaseMoney(): Money {
-  return { amount: "", currency: "" };
+  return { amount: '', currency: '' };
 }
 
 export const Money: MessageFns<Money> = {
   encode(message: Money, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.amount !== "") {
+    if (message.amount !== '') {
       writer.uint32(10).string(message.amount);
     }
-    if (message.currency !== "") {
+    if (message.currency !== '') {
       writer.uint32(18).string(message.currency);
     }
     return writer;
@@ -91,17 +91,17 @@ export const Money: MessageFns<Money> = {
 
   fromJSON(object: any): Money {
     return {
-      amount: isSet(object.amount) ? globalThis.String(object.amount) : "",
-      currency: isSet(object.currency) ? globalThis.String(object.currency) : "",
+      amount: isSet(object.amount) ? globalThis.String(object.amount) : '',
+      currency: isSet(object.currency) ? globalThis.String(object.currency) : '',
     };
   },
 
   toJSON(message: Money): unknown {
     const obj: any = {};
-    if (message.amount !== "") {
+    if (message.amount !== '') {
       obj.amount = message.amount;
     }
-    if (message.currency !== "") {
+    if (message.currency !== '') {
       obj.currency = message.currency;
     }
     return obj;
@@ -112,14 +112,14 @@ export const Money: MessageFns<Money> = {
   },
   fromPartial<I extends Exact<DeepPartial<Money>, I>>(object: I): Money {
     const message = createBaseMoney();
-    message.amount = object.amount ?? "";
-    message.currency = object.currency ?? "";
+    message.amount = object.amount ?? '';
+    message.currency = object.currency ?? '';
     return message;
   },
 };
 
 function createBasePageRequest(): PageRequest {
-  return { page_size: 0, page_token: "" };
+  return { page_size: 0, page_token: '' };
 }
 
 export const PageRequest: MessageFns<PageRequest> = {
@@ -127,7 +127,7 @@ export const PageRequest: MessageFns<PageRequest> = {
     if (message.page_size !== 0) {
       writer.uint32(8).int32(message.page_size);
     }
-    if (message.page_token !== "") {
+    if (message.page_token !== '') {
       writer.uint32(18).string(message.page_token);
     }
     return writer;
@@ -168,7 +168,7 @@ export const PageRequest: MessageFns<PageRequest> = {
   fromJSON(object: any): PageRequest {
     return {
       page_size: isSet(object.page_size) ? globalThis.Number(object.page_size) : 0,
-      page_token: isSet(object.page_token) ? globalThis.String(object.page_token) : "",
+      page_token: isSet(object.page_token) ? globalThis.String(object.page_token) : '',
     };
   },
 
@@ -177,7 +177,7 @@ export const PageRequest: MessageFns<PageRequest> = {
     if (message.page_size !== 0) {
       obj.page_size = Math.round(message.page_size);
     }
-    if (message.page_token !== "") {
+    if (message.page_token !== '') {
       obj.page_token = message.page_token;
     }
     return obj;
@@ -189,21 +189,21 @@ export const PageRequest: MessageFns<PageRequest> = {
   fromPartial<I extends Exact<DeepPartial<PageRequest>, I>>(object: I): PageRequest {
     const message = createBasePageRequest();
     message.page_size = object.page_size ?? 0;
-    message.page_token = object.page_token ?? "";
+    message.page_token = object.page_token ?? '';
     return message;
   },
 };
 
 function createBasePageResponse(): PageResponse {
-  return { next_page_token: "", total_size: "0" };
+  return { next_page_token: '', total_size: '0' };
 }
 
 export const PageResponse: MessageFns<PageResponse> = {
   encode(message: PageResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.next_page_token !== "") {
+    if (message.next_page_token !== '') {
       writer.uint32(10).string(message.next_page_token);
     }
-    if (message.total_size !== "0") {
+    if (message.total_size !== '0') {
       writer.uint32(16).int64(message.total_size);
     }
     return writer;
@@ -243,17 +243,19 @@ export const PageResponse: MessageFns<PageResponse> = {
 
   fromJSON(object: any): PageResponse {
     return {
-      next_page_token: isSet(object.next_page_token) ? globalThis.String(object.next_page_token) : "",
-      total_size: isSet(object.total_size) ? globalThis.String(object.total_size) : "0",
+      next_page_token: isSet(object.next_page_token)
+        ? globalThis.String(object.next_page_token)
+        : '',
+      total_size: isSet(object.total_size) ? globalThis.String(object.total_size) : '0',
     };
   },
 
   toJSON(message: PageResponse): unknown {
     const obj: any = {};
-    if (message.next_page_token !== "") {
+    if (message.next_page_token !== '') {
       obj.next_page_token = message.next_page_token;
     }
-    if (message.total_size !== "0") {
+    if (message.total_size !== '0') {
       obj.total_size = message.total_size;
     }
     return obj;
@@ -264,19 +266,19 @@ export const PageResponse: MessageFns<PageResponse> = {
   },
   fromPartial<I extends Exact<DeepPartial<PageResponse>, I>>(object: I): PageResponse {
     const message = createBasePageResponse();
-    message.next_page_token = object.next_page_token ?? "";
-    message.total_size = object.total_size ?? "0";
+    message.next_page_token = object.next_page_token ?? '';
+    message.total_size = object.total_size ?? '0';
     return message;
   },
 };
 
 function createBaseTimestamp(): Timestamp {
-  return { rfc3339: "" };
+  return { rfc3339: '' };
 }
 
 export const Timestamp: MessageFns<Timestamp> = {
   encode(message: Timestamp, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.rfc3339 !== "") {
+    if (message.rfc3339 !== '') {
       writer.uint32(10).string(message.rfc3339);
     }
     return writer;
@@ -307,12 +309,12 @@ export const Timestamp: MessageFns<Timestamp> = {
   },
 
   fromJSON(object: any): Timestamp {
-    return { rfc3339: isSet(object.rfc3339) ? globalThis.String(object.rfc3339) : "" };
+    return { rfc3339: isSet(object.rfc3339) ? globalThis.String(object.rfc3339) : '' };
   },
 
   toJSON(message: Timestamp): unknown {
     const obj: any = {};
-    if (message.rfc3339 !== "") {
+    if (message.rfc3339 !== '') {
       obj.rfc3339 = message.rfc3339;
     }
     return obj;
@@ -323,13 +325,13 @@ export const Timestamp: MessageFns<Timestamp> = {
   },
   fromPartial<I extends Exact<DeepPartial<Timestamp>, I>>(object: I): Timestamp {
     const message = createBaseTimestamp();
-    message.rfc3339 = object.rfc3339 ?? "";
+    message.rfc3339 = object.rfc3339 ?? '';
     return message;
   },
 };
 
 function createBaseOpResult(): OpResult {
-  return { success: false, code: "", message: "" };
+  return { success: false, code: '', message: '' };
 }
 
 export const OpResult: MessageFns<OpResult> = {
@@ -337,10 +339,10 @@ export const OpResult: MessageFns<OpResult> = {
     if (message.success !== false) {
       writer.uint32(8).bool(message.success);
     }
-    if (message.code !== "") {
+    if (message.code !== '') {
       writer.uint32(18).string(message.code);
     }
-    if (message.message !== "") {
+    if (message.message !== '') {
       writer.uint32(26).string(message.message);
     }
     return writer;
@@ -389,8 +391,8 @@ export const OpResult: MessageFns<OpResult> = {
   fromJSON(object: any): OpResult {
     return {
       success: isSet(object.success) ? globalThis.Boolean(object.success) : false,
-      code: isSet(object.code) ? globalThis.String(object.code) : "",
-      message: isSet(object.message) ? globalThis.String(object.message) : "",
+      code: isSet(object.code) ? globalThis.String(object.code) : '',
+      message: isSet(object.message) ? globalThis.String(object.message) : '',
     };
   },
 
@@ -399,10 +401,10 @@ export const OpResult: MessageFns<OpResult> = {
     if (message.success !== false) {
       obj.success = message.success;
     }
-    if (message.code !== "") {
+    if (message.code !== '') {
       obj.code = message.code;
     }
-    if (message.message !== "") {
+    if (message.message !== '') {
       obj.message = message.message;
     }
     return obj;
@@ -414,22 +416,27 @@ export const OpResult: MessageFns<OpResult> = {
   fromPartial<I extends Exact<DeepPartial<OpResult>, I>>(object: I): OpResult {
     const message = createBaseOpResult();
     message.success = object.success ?? false;
-    message.code = object.code ?? "";
-    message.message = object.message ?? "";
+    message.code = object.code ?? '';
+    message.message = object.message ?? '';
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isSet(value: any): boolean {
