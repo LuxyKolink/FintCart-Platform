@@ -2,7 +2,10 @@ package steps
 
 import (
 	"context"
+	"fmt"
 
+	authv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/auth/v1"
+	usersv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/users/v1"
 	"github.com/fintcart/platform/services/orchestrator/internal/events"
 	"github.com/fintcart/platform/services/orchestrator/internal/storer"
 )
@@ -12,61 +15,137 @@ import (
 // Secuencia: crear la credencial → crear el perfil → publicar `user.registered`
 // (que dispara el email de verificación en Notificación).
 //
-// El orden no es indiferente. La credencial va primero porque su `id` es el UUID
-// que después usan el perfil y el claim `sub` del JWT: si el perfil fuera primero,
-// habría que inventar el id aquí, y el Orquestador estaría generando identidad —una
-// decisión de dominio que no le corresponde (Principio VI).
+// El orden no es indiferente. La credencial va primero porque es la que decide si
+// el correo está libre: si el perfil fuera primero, un alta con un correo ya usado
+// crearía el perfil, fallaría al crear la credencial y habría que deshacer el perfil
+// — trabajo y una compensación de más para el caso MÁS común de fallo del registro.
 //
 // La compensación del último paso es `nil` a propósito: publicar un evento no se
 // deshace. Por eso el evento se emite al FINAL, cuando ya no queda nada que pueda
 // fallar; emitirlo antes obligaría a enviar un «ignora el correo anterior».
+//
+// Sobre el `user_id`: lo genera quien ARRANCA la saga y viaja en el payload
+// (`server.StartRegistration`). No se genera aquí porque un reintento del primer
+// paso produciría un identificador distinto y, con él, una segunda credencial que
+// nadie compensaría. El contrato exige el `user_id` como ENTRADA de
+// `CreateCredential` y de `CreateProfile`, de modo que alguien tiene que asignarlo
+// antes de que exista ningún participante, y el Orquestador es el único que está en
+// esa posición. Asignar un identificador opaco no es decidir nada de dominio.
 func RegistrationDefinition(c Clients) Definition {
 	return Definition{
 		Type: storer.SagaRegistro,
 		Steps: []Step{
 			{
 				Name: "auth.create_credential",
-				Do: func(_ context.Context, st *State) ([]Event, error) {
-					// T092: `c.Auth.CreateCredential` con el correo, la contraseña y el
-					// `user_id` generado por quien inicia la saga. Guarda `user_id` en
-					// `st.Payload` para los pasos siguientes.
-					_, _ = c, st
-					return nil, ErrNotImplemented
+				Do: func(ctx context.Context, st *State) ([]Event, error) {
+					userID, err := st.String(payloadUserID)
+					if err != nil {
+						return nil, err
+					}
+					email, err := st.String(payloadEmail)
+					if err != nil {
+						return nil, err
+					}
+					// La contraseña viaja FUERA del payload persistido. Ver
+					// [State.Secrets]: guardarla en `saga_state.payload` la dejaría en
+					// claro en PostgreSQL y en cada copia de seguridad.
+					password, err := st.Secret(SecretPassword)
+					if err != nil {
+						return nil, err
+					}
+
+					if _, err := c.Auth.CreateCredential(ctx, &authv1.CreateCredentialRequest{
+						UserId: userID, Email: email, Password: password,
+					}); err != nil {
+						return nil, fmt.Errorf("crear credencial de %s: %w", userID, err)
+					}
+					return nil, nil
 				},
-				Compensate: func(_ context.Context, _ *State) error {
-					// T092: `RevokeAndAnonymizeCredential`. No se BORRA la credencial:
-					// no existe un RPC de borrado, y con razón — el correo debe quedar
-					// liberado sin que desaparezca el rastro de que hubo un intento.
-					return ErrNotImplemented
+				Compensate: func(ctx context.Context, st *State) error {
+					userID, err := st.String(payloadUserID)
+					if err != nil {
+						return err
+					}
+					// No se BORRA la credencial: no existe un RPC de borrado, y con
+					// razón — el correo debe quedar liberado sin que desaparezca el
+					// rastro de que hubo un intento. `RevokeAndAnonymizeCredential` es
+					// idempotente, así que repetir la compensación no es un problema.
+					if _, err := c.Auth.RevokeAndAnonymizeCredential(ctx, &authv1.UserRef{
+						UserId: userID,
+					}); err != nil {
+						return fmt.Errorf("anonimizar la credencial de %s: %w", userID, err)
+					}
+					return nil
 				},
 			},
 			{
 				Name: "users.create_profile",
-				Do: func(_ context.Context, st *State) ([]Event, error) {
-					// T092: `c.Users.CreateProfile` con el `user_id` del paso anterior.
-					// El RPC es idempotente, así que un reintento del paso no duplica.
-					_ = st
-					return nil, ErrNotImplemented
+				Do: func(ctx context.Context, st *State) ([]Event, error) {
+					userID, err := st.String(payloadUserID)
+					if err != nil {
+						return nil, err
+					}
+					email, err := st.String(payloadEmail)
+					if err != nil {
+						return nil, err
+					}
+					// El nombre visible SÍ puede faltar: es opcional en el alta, y
+					// exigirlo aquí convertiría en fallo de saga algo que Usuarios ya
+					// decide. Se lee sin validar y el destinatario lo rechaza si no le
+					// vale (Principio VI).
+					displayName, _ := st.Payload[payloadDisplayName].(string)
+
+					// El RPC es idempotente por `user_id` (D-04), así que un reintento
+					// del paso no duplica el perfil.
+					if _, err := c.Users.CreateProfile(ctx, &usersv1.CreateProfileRequest{
+						UserId: userID, Email: email, DisplayName: displayName,
+					}); err != nil {
+						return nil, fmt.Errorf("crear perfil de %s: %w", userID, err)
+					}
+					return nil, nil
 				},
-				Compensate: func(_ context.Context, _ *State) error {
-					// T092: `c.Users.AnonymizeProfile`.
-					return ErrNotImplemented
+				Compensate: func(ctx context.Context, st *State) error {
+					userID, err := st.String(payloadUserID)
+					if err != nil {
+						return err
+					}
+					if _, err := c.Users.AnonymizeProfile(ctx, &usersv1.UserRef{UserId: userID}); err != nil {
+						return fmt.Errorf("anonimizar el perfil de %s: %w", userID, err)
+					}
+					return nil
 				},
 			},
 			{
 				Name: "emit.user_registered",
 				Do: func(_ context.Context, st *State) ([]Event, error) {
+					userID, err := st.String(payloadUserID)
+					if err != nil {
+						return nil, err
+					}
+					email, err := st.String(payloadEmail)
+					if err != nil {
+						return nil, err
+					}
+					displayName, _ := st.Payload[payloadDisplayName].(string)
+
 					// El paso no publica: DEVUELVE el evento y el motor lo escribe en el
 					// outbox dentro de la transacción del avance (D-07).
-					_ = st
+					//
+					// El correo va en el payload y es la ÚNICA excepción a la regla de no
+					// meter datos personales: Notificación necesita una dirección a la que
+					// escribir, y este es el único evento del catálogo que produce un
+					// correo dirigido a alguien que aún no tiene sesión. `actor_ref` sigue
+					// siendo el UUID opaco, de modo que Auditoría —el otro consumidor—
+					// conserva la traza aunque después se anonimice la cuenta (FR-031).
 					return []Event{{
 						Type:       events.EventUserRegistered,
 						RoutingKey: events.EventUserRegistered,
-						// T092 rellena el payload. Sin PII más allá del correo que
-						// Notificación necesita para enviar el mensaje; el `actor_ref`
-						// del sobre es un UUID opaco (FR-031).
-						Payload: nil,
-					}}, ErrNotImplemented
+						ActorRef:   userID,
+						Payload: map[string]any{
+							"email":        email,
+							"display_name": displayName,
+						},
+					}}, nil
 				},
 				// Sin compensación: un evento publicado no se despublica.
 				Compensate: nil,

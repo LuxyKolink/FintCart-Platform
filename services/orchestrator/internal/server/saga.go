@@ -129,7 +129,15 @@ const compensationTimeout = 5 * time.Minute
 // perfil. Se conservan los valores del contexto —de ahí `WithoutCancel` y no un
 // `context.Background()` pelado— para que la traza de la petición siga acompañando
 // a los pasos en el log.
-func (e *Engine) Start(ctx context.Context, sagaType string, payload map[string]any) (uuid.UUID, error) {
+// `secrets` son los datos que los pasos necesitan y que NO se persisten (la
+// contraseña del registro). Ver [steps.State.Secrets]: no sobreviven a un reinicio,
+// y esa es justo la propiedad que se busca.
+func (e *Engine) Start(
+	ctx context.Context,
+	sagaType string,
+	payload map[string]any,
+	secrets map[string]string,
+) (uuid.UUID, error) {
 	def, sagaID, err := e.create(ctx, sagaType, payload)
 	if err != nil {
 		return uuid.Nil, err
@@ -140,7 +148,7 @@ func (e *Engine) Start(ctx context.Context, sagaType string, payload map[string]
 		return uuid.Nil, fmt.Errorf("releer la saga %s recién creada: %w", sagaID, err)
 	}
 
-	e.launch(ctx, def, row)
+	e.launch(ctx, def, row, secrets)
 	return sagaID, nil
 }
 
@@ -154,7 +162,12 @@ func (e *Engine) Start(ctx context.Context, sagaType string, payload map[string]
 // del llamador: si quien espera se marcha, no tiene sentido seguir gastando llamadas
 // a los participantes. La compensación, en cambio, se desacopla igualmente — deshacer
 // no es opcional por mucho que el cliente ya no esté escuchando.
-func (e *Engine) Execute(ctx context.Context, sagaType string, payload map[string]any) (map[string]any, error) {
+func (e *Engine) Execute(
+	ctx context.Context,
+	sagaType string,
+	payload map[string]any,
+	secrets map[string]string,
+) (map[string]any, error) {
 	def, sagaID, err := e.create(ctx, sagaType, payload)
 	if err != nil {
 		return nil, err
@@ -165,7 +178,7 @@ func (e *Engine) Execute(ctx context.Context, sagaType string, payload map[strin
 		return nil, fmt.Errorf("releer la saga %s recién creada: %w", sagaID, err)
 	}
 
-	return e.run(ctx, def, row)
+	return e.run(ctx, def, row, secrets)
 }
 
 // create valida el tipo y persiste la saga en su estado inicial.
@@ -188,7 +201,7 @@ func (e *Engine) create(ctx context.Context, sagaType string, payload map[string
 }
 
 // launch ejecuta la saga en una goroutine contabilizada por [Engine.Wait].
-func (e *Engine) launch(ctx context.Context, def steps.Definition, row storer.SagaRow) {
+func (e *Engine) launch(ctx context.Context, def steps.Definition, row storer.SagaRow, secrets map[string]string) {
 	runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), sagaExecutionTimeout)
 
 	e.wg.Add(1)
@@ -196,7 +209,7 @@ func (e *Engine) launch(ctx context.Context, def steps.Definition, row storer.Sa
 		defer e.wg.Done()
 		defer cancel()
 
-		if _, err := e.run(runCtx, def, row); err != nil {
+		if _, err := e.run(runCtx, def, row, secrets); err != nil {
 			// El error se registra y no se propaga: no hay nadie esperándolo. El
 			// estado real queda en `saga_state`, que es lo que consultará
 			// `GetSagaStatus` y lo que verá quien opere la plataforma.
@@ -275,7 +288,10 @@ func (e *Engine) Resume(ctx context.Context, limit int32) error {
 			slog.String("status", row.Status),
 			slog.Int("current_step", int(row.CurrentStep)),
 		)
-		e.launch(ctx, def, row)
+		// Sin secretos: se perdieron con el proceso anterior. Es deliberado — la
+		// alternativa habría sido persistirlos, que es justo lo que no puede hacerse.
+		// Un paso que los necesite fallará y la saga compensará.
+		e.launch(ctx, def, row, nil)
 	}
 	return nil
 }
@@ -288,8 +304,13 @@ func (e *Engine) Resume(ctx context.Context, limit int32) error {
 // partida. Tener dos bucles —uno para empezar y otro para continuar— habría
 // significado que la reanudación es un camino que casi nunca se recorre y que, por
 // tanto, casi nunca se prueba.
-func (e *Engine) run(ctx context.Context, def steps.Definition, row storer.SagaRow) (map[string]any, error) {
-	st, completed, err := stateFromRow(def, row)
+func (e *Engine) run(
+	ctx context.Context,
+	def steps.Definition,
+	row storer.SagaRow,
+	secrets map[string]string,
+) (map[string]any, error) {
+	st, completed, err := stateFromRow(def, row, secrets)
 	if err != nil {
 		// La fila no se puede interpretar: no hay forma de ejecutar ni de compensar,
 		// porque no se sabe qué pasos se aplicaron. Queda marcada para que alguien lo
@@ -532,7 +553,7 @@ func (e *Engine) markStatus(ctx context.Context, sagaID uuid.UUID, status string
 // Comprueba el invariante `len(compensations) == current_step`. Una fila que no lo
 // cumple no se puede compensar con garantías —no se sabe qué paso corresponde a qué
 // nombre— y es preferible detenerse que deshacer el paso equivocado.
-func stateFromRow(def steps.Definition, row storer.SagaRow) (*steps.State, []string, error) {
+func stateFromRow(def steps.Definition, row storer.SagaRow, secrets map[string]string) (*steps.State, []string, error) {
 	payload := map[string]any{}
 	if len(row.Payload) > 0 {
 		if err := json.Unmarshal(row.Payload, &payload); err != nil {
@@ -573,6 +594,9 @@ func stateFromRow(def steps.Definition, row storer.SagaRow) (*steps.State, []str
 		Type:    row.SagaType,
 		Step:    row.CurrentStep,
 		Payload: payload,
+		// Los secretos vienen del LLAMADOR y nunca de la fila: no están en la fila
+		// justamente porque no se persisten (ver [steps.State.Secrets]).
+		Secrets: secrets,
 	}, completed, nil
 }
 

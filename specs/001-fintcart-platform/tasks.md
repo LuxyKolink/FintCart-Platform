@@ -726,11 +726,58 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 ### Implementación — Sagas (Orquestador)
 
-- [ ] T093 [US1] Implementar la Saga de registro (`Users.CreateProfile` → `Auth.CreateCredential` → publicar `user.registered`) con compensación que deshabilita perfil y credencial en `services/orchestrator/internal/server/steps/registration.go` (D-04, FR-001)
-- [ ] T094 [US1] Implementar la Saga de verificación de correo (`Auth.ActivateCredential` → `Users.MarkEmailVerified` → publicar `user.email_verified`) en `services/orchestrator/internal/server/steps/email_verification.go` (FR-002)
-- [ ] T095 [US1] Implementar la Saga de calificación (`Learning.GradeAndStoreAttempt` → `Users.ApplyQuizScore` → publicar `learning.quiz_graded` y `user.progress_milestone` → `Users.AppendInAppNotification`) con reintento en lugar de compensación destructiva en `services/orchestrator/internal/server/steps/grading.go` (D-07, FR-027)
-- [ ] T096 [US1] Implementar la Saga de actividad que publica `user.activity` y ejecuta `Users.AppendInAppNotification` para los eventos de actividad del usuario, en `services/orchestrator/internal/server/steps/activity.go` (FR-023, catálogo de eventos)
-- [ ] T097 [US1] Implementar `OrchestratorService.StartRegistration`, `StartEmailVerification`, `StartQuizGrading` y `GetSagaStatus` en `services/orchestrator/internal/server/server.go`
+- [X] T093 [US1] Implementar la Saga de registro (`Users.CreateProfile` → `Auth.CreateCredential` → publicar `user.registered`) con compensación que deshabilita perfil y credencial en `services/orchestrator/internal/server/steps/registration.go` (D-04, FR-001)
+- [X] T094 [US1] Implementar la Saga de verificación de correo (`Auth.ActivateCredential` → `Users.MarkEmailVerified` → publicar `user.email_verified`) en `services/orchestrator/internal/server/steps/email_verification.go` (FR-002)
+- [X] T095 [US1] Implementar la Saga de calificación (`Learning.GradeAndStoreAttempt` → `Users.ApplyQuizScore` → publicar `learning.quiz_graded` y `user.progress_milestone` → `Users.AppendInAppNotification`) con reintento en lugar de compensación destructiva en `services/orchestrator/internal/server/steps/grading.go` (D-07, FR-027)
+- [X] T096 [US1] Implementar la Saga de actividad que publica `user.activity` y ejecuta `Users.AppendInAppNotification` para los eventos de actividad del usuario, en `services/orchestrator/internal/server/steps/activity.go` (FR-023, catálogo de eventos)
+- [X] T097 [US1] Implementar `OrchestratorService.StartRegistration`, `StartEmailVerification`, `StartQuizGrading` y `GetSagaStatus` en `services/orchestrator/internal/server/server.go`
+
+**Notas de T093–T097**
+
+- **La contraseña ya no se persiste.** `StartRegistration` la metía en el payload de la
+  saga, y `saga_state.payload` se escribe en PostgreSQL en cada avance: habría quedado
+  en claro en la base y en cada copia de seguridad hasta que alguien limpiara la fila.
+  Ningún cifrado de columna lo arreglaría, porque la clave viviría en el mismo
+  despliegue. Ahora viaja por `steps.State.Secrets`, que el motor NO serializa.
+  Consecuencia deliberada: una saga reanudada tras un reinicio no tiene sus secretos, y
+  el paso que los necesite falla y compensa en lugar de crear una credencial con
+  contraseña vacía. Hay una prueba sobre los BYTES persistidos, no sobre el mapa.
+- El `user_id` lo genera `StartRegistration`, una sola vez, y viaja en el payload. El
+  contrato lo exige como ENTRADA de `CreateCredential` y `CreateProfile`, así que
+  alguien tiene que asignarlo antes de que exista ningún participante. Generarlo dentro
+  del primer paso sería el error: un reintento produciría otro identificador y, con él,
+  una segunda credencial que nadie compensaría.
+- Se invirtió el orden documentado del registro: **credencial antes que perfil**. La
+  credencial es la que decide si el correo está libre, y con el perfil primero un alta
+  con correo repetido —el fallo MÁS común del registro— crearía el perfil para tener que
+  deshacerlo acto seguido.
+- En la verificación de correo, **Auth va segundo** a propósito: es el paso que desbloquea
+  la emisión de tokens (T091). Al revés quedaría un instante con sesión plena sobre un
+  perfil que todavía se declara sin verificar.
+- El `passed` de la calificación lo decide **Aprendizaje** con su `pass_threshold`; el
+  Orquestador lo transporta y lo usa como bandera para el hito, pero no lo calcula. En el
+  momento en que comparara el puntaje con un umbral, el umbral viviría aquí (Principio VI).
+- La bandeja in-app recibe el `saga_id` como `event_id`. Es lo **único** estable entre
+  reintentos de un paso: el `event_id` del outbox se genera de nuevo cada vez que un paso
+  devuelve sus eventos, así que usarlo produciría una segunda entrada indistinguible en
+  la bandeja del usuario. Las dos notificaciones de la saga de calificación comparten
+  clave y se distinguen por el tipo — de ahí que la identidad sea el par.
+- Los ayudantes `State.String`/`StringMap` aceptan las dos formas del mismo dato:
+  `map[string]string` (lo que deja quien arranca la saga en memoria) y `map[string]any`
+  (lo que devuelve `encoding/json` al releer el payload tras una reanudación). Sin el
+  segundo caso, las sagas funcionarían siempre… salvo justo después de un reinicio. Y
+  devuelven error en vez de hacer una aserción de tipo a pelo, que reventaría la
+  goroutine de la saga en lugar de compensar.
+- **Hueco de contrato anotado**: `orchestrator.proto` no tiene ningún RPC que arranque la
+  saga de **actividad**; los otros cinco flujos sí lo tienen. La definición existe y es
+  alcanzable desde `server.StartActivity`, pero hoy solo en proceso. La actividad que sí
+  tiene ruta —el resultado de un cuestionario— la escribe la propia saga de calificación,
+  y el registro de vista de artículo lo enruta el Gateway a `Users.RecordArticleView`
+  (research §D-06). Añadir el RPC exige decidir además su ruta REST, que pertenece a las
+  tareas del borde (T099–T101).
+- La saga de calificación pasó de 3 a **4 pasos**: la escritura de la bandeja es un paso
+  propio (`users.append_inapp_result`) en lugar de un efecto colateral del paso que emite
+  los eventos. Cada paso hace una cosa y el motor registra su avance.
 
 ### Implementación — Notificación y borde REST
 

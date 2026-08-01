@@ -21,6 +21,7 @@ package steps
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	authv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/auth/v1"
 	learningv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/learning/v1"
@@ -28,9 +29,52 @@ import (
 	usersv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/users/v1"
 )
 
-// ErrNotImplemented marca los pasos del esqueleto (T026). Las implementaciones
-// llegan con T060 y las tareas por historia.
-var ErrNotImplemented = errors.New("steps: no implementado")
+// Errores de los pasos.
+var (
+	// ErrNotImplemented marca los pasos del esqueleto (T026). Las implementaciones
+	// llegan con T060 y las tareas por historia.
+	ErrNotImplemented = errors.New("steps: no implementado")
+
+	// ErrPayloadInvalid marca un payload de saga del que falta un dato que un paso
+	// anterior debía haber dejado.
+	ErrPayloadInvalid = errors.New("steps: payload de saga inválido")
+
+	// ErrSecretUnavailable marca un secreto que no está disponible, típicamente
+	// porque la saga se reanudó tras un reinicio (ver [State.Secrets]).
+	ErrSecretUnavailable = errors.New("steps: secreto de saga no disponible")
+)
+
+// Claves del payload de saga.
+//
+// Son constantes y no literales dispersos porque el payload es un `map[string]any`
+// sin tipo: un `"user_id"` mal escrito en el paso que ESCRIBE y bien escrito en el
+// que LEE no da error de compilación — da una saga que compensa en producción con un
+// «falta user_id» que no dice quién debía haberlo puesto.
+//
+// No son exportadas: quien arranca una saga usa los ayudantes de `server`, y un
+// productor externo que compusiera el mapa a mano sería justo la forma de que las
+// claves se desincronizaran.
+const (
+	payloadUserID      = "user_id"
+	payloadEmail       = "email"
+	payloadDisplayName = "display_name"
+	payloadQuizID      = "quiz_id"
+	payloadAnswers     = "answers"
+	payloadAttemptID   = "attempt_id"
+	payloadAttemptNo   = "attempt_no"
+	payloadScore       = "score"
+	payloadPassed      = "passed"
+	payloadPointsAfter = "points_after"
+	payloadNotifType   = "notification_type"
+	payloadNotifBody   = "notification_payload"
+)
+
+// SecretPassword es la clave de la contraseña en [State.Secrets].
+//
+// Es exportada, al contrario que las claves del payload, porque quien arranca la
+// saga de registro tiene que rellenarla desde `server` — y ese es exactamente el
+// único sitio del proceso por el que una contraseña en claro puede pasar.
+const SecretPassword = "password"
 
 // Clients agrupa los clientes gRPC de los servicios participantes.
 //
@@ -61,6 +105,89 @@ type State struct {
 	Type    string
 	Step    int32
 	Payload map[string]any
+
+	// Secrets son los datos que un paso necesita y que NO pueden persistirse.
+	//
+	// Existe por la contraseña del registro. `Payload` se escribe en
+	// `saga_state.payload` en cada avance, así que meter ahí la contraseña en claro
+	// la dejaría en PostgreSQL —y en cada copia de seguridad— hasta que la fila se
+	// limpiara. La constitución lo prohíbe, y ningún cifrado en la columna lo
+	// arreglaría: la clave estaría en el mismo despliegue.
+	//
+	// La consecuencia es deliberada y hay que conocerla: tras un reinicio, una saga
+	// reanudada NO tiene sus secretos. Un paso que los necesite falla y la saga
+	// compensa, en lugar de continuar con un valor vacío. Para el registro eso
+	// significa que una caída entre la creación de la saga y la de la credencial
+	// obliga al usuario a repetir el alta — que es exactamente lo que debe pasar, y
+	// mucho mejor que la alternativa.
+	Secrets map[string]string
+}
+
+// Secret devuelve un secreto de la saga o falla si no está.
+//
+// El error explica que el valor se perdió en una reanudación en lugar de decir
+// «campo vacío»: sin esa distinción, el síntoma sería una credencial creada con una
+// contraseña en blanco y nadie sabría por qué.
+func (s *State) Secret(key string) (string, error) {
+	value, ok := s.Secrets[key]
+	if !ok || value == "" {
+		return "", fmt.Errorf("%w: %q (los secretos no sobreviven a una reanudación)",
+			ErrSecretUnavailable, key)
+	}
+	return value, nil
+}
+
+// String extrae del payload un valor de texto puesto por un paso anterior.
+//
+// El payload viaja como JSONB, así que al releerlo tras una reanudación todo llega
+// como `any`. Sin esta comprobación, un `st.Payload["user_id"].(string)` haría
+// pánico en la goroutine de la saga —no un error— si el valor faltara.
+func (s *State) String(key string) (string, error) {
+	raw, ok := s.Payload[key]
+	if !ok {
+		return "", fmt.Errorf("%w: falta %q en el payload de la saga", ErrPayloadInvalid, key)
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return "", fmt.Errorf("%w: %q es %T y se esperaba una cadena", ErrPayloadInvalid, key, raw)
+	}
+	if value == "" {
+		return "", fmt.Errorf("%w: %q está vacío", ErrPayloadInvalid, key)
+	}
+	return value, nil
+}
+
+// StringMap extrae del payload un mapa de cadenas.
+//
+// Acepta las DOS formas en que el mismo dato puede presentarse, y esa duplicidad no
+// es un descuido del llamador: `map[string]string` es lo que deja quien arranca la
+// saga en memoria, y `map[string]any` es lo que devuelve `encoding/json` al releer
+// el payload de `saga_state` tras una reanudación. Tratar solo la primera haría que
+// las sagas funcionaran siempre… salvo justo después de un reinicio.
+func (s *State) StringMap(key string) (map[string]string, error) {
+	raw, ok := s.Payload[key]
+	if !ok {
+		return nil, fmt.Errorf("%w: falta %q en el payload de la saga", ErrPayloadInvalid, key)
+	}
+
+	switch typed := raw.(type) {
+	case map[string]string:
+		return typed, nil
+	case map[string]any:
+		out := make(map[string]string, len(typed))
+		for k, v := range typed {
+			text, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("%w: %q[%q] es %T y se esperaba una cadena",
+					ErrPayloadInvalid, key, k, v)
+			}
+			out[k] = text
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("%w: %q es %T y se esperaba un mapa de cadenas",
+			ErrPayloadInvalid, key, raw)
+	}
 }
 
 // Event es un evento de dominio producido por un paso.

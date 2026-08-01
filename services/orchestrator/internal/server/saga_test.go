@@ -224,7 +224,7 @@ func TestSagaCompletesAndRecordsEveryStep(t *testing.T) {
 		okStep(tr, "uno"), okStep(tr, "dos"), okStep(tr, "tres"),
 	}}
 
-	payload, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, map[string]any{"email": "a@b.co"})
+	payload, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, map[string]any{"email": "a@b.co"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{"do:uno", "do:dos", "do:tres"}, tr.seen())
 	// El payload que un paso escribe llega al siguiente y sale por el resultado: es
@@ -250,7 +250,7 @@ func TestEveryStepIsPersistedBeforeTheNext(t *testing.T) {
 		okStep(tr, "uno"), okStep(tr, "dos"),
 	}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, 2, store.advances, "debe haber una escritura por paso")
 }
@@ -270,7 +270,7 @@ func TestFailureCompensatesInReverseOrder(t *testing.T) {
 		okStep(tr, "uno"), okStep(tr, "dos"), failingStep(tr, "tres"),
 	}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.ErrorIs(t, err, ErrSagaFailed)
 	require.ErrorIs(t, err, errStepFailed, "la causa original debe seguir accesible")
 
@@ -298,7 +298,7 @@ func TestTheFailingStepIsNotCompensated(t *testing.T) {
 		okStep(tr, "uno"), failingStep(tr, "dos"),
 	}}
 
-	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil, nil)
 	require.Error(t, err)
 	require.NotContains(t, tr.seen(), "undo:dos")
 	require.Contains(t, tr.seen(), "undo:uno")
@@ -322,7 +322,7 @@ func TestStepsWithoutCompensationAreSkipped(t *testing.T) {
 		okStep(tr, "uno"), sinCompensacion, failingStep(tr, "tres"),
 	}}
 
-	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), testSagaType, nil, nil)
 	require.Error(t, err)
 	require.Equal(t, []string{
 		"do:uno", "do:solo_lectura", "do:tres", "undo:uno",
@@ -357,7 +357,7 @@ func TestCompensationSurvivesTheCallersCancellation(t *testing.T) {
 	}
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{primero, pasoQueCancela}}
 
-	_, err := newTestEngine(newMemStore(), def).Execute(ctx, testSagaType, nil)
+	_, err := newTestEngine(newMemStore(), def).Execute(ctx, testSagaType, nil, nil)
 	require.Error(t, err)
 	require.Equal(t, []string{"undo:primero"}, tr.seen())
 	require.NoError(t, compensationCtxErr, "la compensación no puede heredar la cancelación")
@@ -379,7 +379,7 @@ func TestFailedCompensationLeavesTheSagaRetryable(t *testing.T) {
 	}}
 
 	store := newMemStore()
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.ErrorIs(t, err, errUndo)
 
 	for id := range store.sagas {
@@ -398,7 +398,7 @@ func TestConflictStopsWithoutCompensating(t *testing.T) {
 	store.advanceFail, store.advanceErr = 1, storer.ErrConflict
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{okStep(tr, "uno"), okStep(tr, "dos")}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.ErrorIs(t, err, storer.ErrConflict)
 	require.Equal(t, []string{"do:uno"}, tr.seen(), "no se compensa lo que la base no registró")
 }
@@ -477,7 +477,7 @@ func TestInconsistentRowIsNotExecuted(t *testing.T) {
 func TestUnknownSagaTypeIsRejected(t *testing.T) {
 	t.Parallel()
 	def := steps.Definition{Type: testSagaType}
-	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), "inexistente", nil)
+	_, err := newTestEngine(newMemStore(), def).Execute(context.Background(), "inexistente", nil, nil)
 	require.ErrorIs(t, err, ErrUnknownSagaType)
 }
 
@@ -508,7 +508,7 @@ func TestEventCarriesTheCatalogEnvelope(t *testing.T) {
 	store := newMemStore()
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{emitStep("emite", testActor)}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, store.events, 1)
 
@@ -534,7 +534,7 @@ func TestEventWithoutValidActorIsRejectedBeforeTheOutbox(t *testing.T) {
 
 	for _, actor := range []string{"", "no-es-un-uuid"} {
 		def := steps.Definition{Type: testSagaType, Steps: []steps.Step{emitStep("emite", actor)}}
-		_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil)
+		_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 		require.ErrorIs(t, err, ErrInvalidEvent, "actor_ref %q", actor)
 	}
 	require.Empty(t, store.events, "un evento inválido no puede llegar al outbox")
@@ -549,7 +549,91 @@ func TestEventsAreWrittenWithTheAdvance(t *testing.T) {
 	store.advanceFail, store.advanceErr = 1, errors.New("la base falló al confirmar")
 	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{emitStep("emite", testActor)}}
 
-	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil)
+	_, err := newTestEngine(store, def).Execute(context.Background(), testSagaType, nil, nil)
 	require.Error(t, err)
 	require.Empty(t, store.events, "sin avance confirmado no puede quedar evento encolado")
+}
+
+// ── secretos de saga ────────────────────────────────────────────────────────
+
+// TestStartRegistrationNeverPersistsThePassword es una prueba de SEGURIDAD, no de
+// funcionalidad.
+//
+// `saga_state.payload` se escribe en PostgreSQL en cada avance de la saga, así que
+// una contraseña metida ahí queda en claro en la base y en cada copia de seguridad
+// hasta que alguien limpie la fila. La constitución lo prohíbe, y no hay cifrado de
+// columna que lo arregle: la clave viviría en el mismo despliegue.
+//
+// La comprobación es sobre los BYTES que llegaron al almacén y no sobre el mapa que
+// construye `StartRegistration`: es lo único que demuestra que el valor no cruzó la
+// frontera, y sigue valiendo si alguien añade otro campo al payload más adelante.
+func TestStartRegistrationNeverPersistsThePassword(t *testing.T) {
+	t.Parallel()
+	const password = "una-contraseña-muy-secreta-123"
+
+	store := newMemStore()
+	tr := &tracker{}
+	// La definición es sintética: lo que se prueba es qué se PERSISTE al arrancar,
+	// no qué hacen los participantes.
+	def := steps.Definition{Type: storer.SagaRegistro, Steps: []steps.Step{okStep(tr, "uno")}}
+	svc := New(newTestEngine(store, def))
+
+	id, err := svc.StartRegistration(context.Background(), "ana@fintcart.co", password, "Ana")
+	require.NoError(t, err)
+
+	sagaID, err := uuid.Parse(id)
+	require.NoError(t, err)
+	row := store.row(t, sagaID)
+	require.NotContains(t, string(row.Payload), password)
+
+	// Y lo que sí tiene que estar: el `user_id` asignado al crear la saga. Generarlo
+	// dentro del primer paso haría que un reintento produjera otro identificador y,
+	// con él, una segunda credencial que nadie compensaría.
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(row.Payload, &payload))
+	require.NotEmpty(t, payload["user_id"])
+	_, err = uuid.Parse(payload["user_id"].(string))
+	require.NoError(t, err)
+	require.Equal(t, "ana@fintcart.co", payload["email"])
+}
+
+// TestResumedSagasHaveNoSecrets: los secretos no sobreviven a un reinicio, por
+// construcción. Un paso que los necesite falla y la saga compensa, en vez de
+// continuar con un valor vacío — que en el registro sería una credencial con
+// contraseña en blanco.
+func TestResumedSagasHaveNoSecrets(t *testing.T) {
+	t.Parallel()
+	var seen *steps.State
+	store := newMemStore()
+	def := steps.Definition{Type: testSagaType, Steps: []steps.Step{{
+		Name: "mira",
+		Do: func(_ context.Context, st *steps.State) ([]steps.Event, error) {
+			seen = st
+			return nil, nil
+		},
+	}}}
+	engine := newTestEngine(store, def)
+
+	_, err := engine.Start(context.Background(), testSagaType,
+		map[string]any{"user_id": uuid.NewString()},
+		map[string]string{steps.SecretPassword: "en-memoria"})
+	require.NoError(t, err)
+	require.True(t, engine.Wait(2*time.Second))
+	require.NotNil(t, seen)
+	require.Equal(t, "en-memoria", seen.Secrets[steps.SecretPassword])
+
+	// Ahora el mismo motor reanuda: el proceso «murió» y con él los secretos.
+	seen = nil
+	store.mu.Lock()
+	for _, row := range store.sagas {
+		row.Status = storer.StatusRunning
+		row.CurrentStep = 0
+		row.Compensations = []byte(`[]`)
+	}
+	store.mu.Unlock()
+
+	require.NoError(t, engine.Resume(context.Background(), 10))
+	require.True(t, engine.Wait(2*time.Second))
+	require.NotNil(t, seen)
+	require.Empty(t, seen.Secrets)
 }
