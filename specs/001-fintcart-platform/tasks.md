@@ -663,8 +663,51 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 ### Implementación — Autenticación (reglas específicas de US1)
 
-- [ ] T091 [US1] Implementar el bloqueo de acceso pleno hasta la verificación de correo en `services/auth-server/internal/server/oauth.go` y `credentials.go`: rechazar la emisión de tokens y la validación de credenciales cuando `credentials.login_status = pending_verification` (FR-002)
-- [ ] T092 [US1] Publicar el evento `auth.session_revoked` hacia Auditoría al ejecutar `AuthService.Revoke`, en `services/auth-server/internal/server/credentials.go` y `services/auth-server/internal/events/publisher.go` (FR-004, catálogo de eventos)
+- [X] T091 [US1] Implementar el bloqueo de acceso pleno hasta la verificación de correo en `services/auth-server/internal/server/oauth.go` y `credentials.go`: rechazar la emisión de tokens y la validación de credenciales cuando `credentials.login_status = pending_verification` (FR-002)
+- [X] T092 [US1] Publicar el evento `auth.session_revoked` hacia Auditoría al ejecutar `AuthService.Revoke`, en `services/auth-server/internal/server/credentials.go` y `services/auth-server/internal/events/publisher.go` (FR-004, catálogo de eventos)
+
+**Notas de T091–T092**
+
+- El estado de la cuenta se comprueba en los **cuatro** puntos donde una cuenta sin
+  verificar podría colarse, no solo en el login: `ValidateCredentials`,
+  `IssueAuthorizationCode`, `ExchangeCode` y `RefreshToken`. Cada uno abre una ventana
+  temporal distinta —el login, la emisión del código, el canje 45 s después y la
+  renovación hasta 30 días después—, y basta con que uno no mire el estado para que la
+  verificación de correo pase a ser opcional. Los tres puntos de emisión comparten
+  `Server.assertIssuable`.
+- La comprobación es **lista blanca** (`!= StatusActive`), no un rechazo de los estados
+  hoy conocidos como malos. El día que el esquema admita `suspended` o `locked`, una
+  lista negra los dejaría entrar por omisión.
+- `ValidateCredentials` devuelve el `login_status` pero **no** el `user_id` cuando la
+  cuenta no está activa: quien llama necesita el estado para decir «revisa tu correo» y
+  no necesita un identificador con el que seguir. Filtrar el estado ahí no es un
+  oráculo — para llegar a esa línea hay que haber acertado la contraseña; un correo
+  desconocido o una contraseña incorrecta salen antes, con el estado vacío.
+- `EventPublisher.Publish` **no devuelve error**, y es una decisión codificada en el
+  tipo: la revocación ya ocurrió y es irreversible, así que un fallo del bus no puede
+  convertirse en el error del logout —el cliente vería «falló» sobre una sesión que sí
+  está cerrada—. El implementador registra en `Error` el envelope completo de lo que no
+  pudo entregar.
+- **Limitación conocida (anotada, no resuelta)**: Autenticación no tiene outbox
+  transaccional —D-07 lo sitúa en el Orquestador—, así que un evento que no llega al
+  broker solo queda en el log. La solución durable es una tabla de outbox en `auth_db`.
+  Tampoco hay *publisher confirms*: `PublishWithContext` retorna al escribir en el
+  socket, de modo que un rechazo del broker (p. ej. exchange inexistente) no se ve.
+- Solo se audita lo que **realmente se revocó**. Un token inexistente, caducado o ya
+  rotado no cerró ninguna sesión (RFC 7009 §2.2 obliga a aceptarlo sin error), y
+  anotarlo llenaría la traza de revocaciones que nunca ocurrieron.
+- El dueño de un *refresh token* se consulta **antes** de borrarlo: no es un JWT y no
+  lleva dentro a su titular, así que después del borrado ya no habría a quién atribuir
+  el evento. El fallo de esa consulta no interrumpe el logout.
+- El publicador abre **un canal AMQP por evento**. Un error de protocolo —publicar en un
+  exchange que el Orquestador aún no declaró— cierra el canal en AMQP, y con un canal
+  reutilizado todas las publicaciones siguientes fallarían sobre un canal muerto. El
+  coste es un ida y vuelta extra, asumible con el volumen de eventos de este servicio.
+- `internal/events/` **no** aparece en el árbol de `auth-server` de `plan.md` §Source
+  Code, aunque tasks.md lo nombra y la constitución hace a Autenticación productor.
+  Discrepancia de documentación, anotada.
+- El comentario de `cmd/auth/main.go` nombraba los eventos como `auth.password.changed`
+  / `auth.session.revoked`; el catálogo usa guion bajo. Corregido.
 
 ### Implementación — Sagas (Orquestador)
 

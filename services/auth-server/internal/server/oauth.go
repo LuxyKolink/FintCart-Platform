@@ -142,6 +142,16 @@ func (s *Server) IssueAuthorizationCode(
 		return "", fmt.Errorf("%w: code_challenge vacío", ErrInvalidArgument)
 	}
 
+	// El estado de la cuenta se comprueba antes de emitir nada (FR-002). Un código
+	// de autorización es un token en todo lo que importa: quien lo tiene obtiene una
+	// sesión, y dejar que se emita para una cuenta sin verificar convertiría la
+	// verificación de correo en un trámite que se puede saltar. Va después de las
+	// comprobaciones gratuitas —método y challenge— para no leer la base por una
+	// petición que ya es inválida.
+	if err := s.assertIssuable(ctx, uid); err != nil {
+		return "", err
+	}
+
 	client, err := s.store.GetOAuthClient(ctx, clientID)
 	if err != nil {
 		return "", fmt.Errorf("leer cliente %s: %w", clientID, err)
@@ -220,13 +230,10 @@ func (s *Server) ExchangeCode(ctx context.Context, code, codeVerifier, clientID,
 
 	// El estado de la cuenta se comprueba EN EL CANJE, no solo al autenticar: entre
 	// la emisión del código y su canje caben 45 segundos, y una anonimización
-	// (FR-030) en ese hueco no puede acabar en un token válido.
-	cred, err := s.store.GetCredential(ctx, row.UserID)
-	if err != nil {
-		return TokenPair{}, fmt.Errorf("leer credencial %s: %w", row.UserID, err)
-	}
-	if cred.LoginStatus == storer.StatusAnonymized {
-		return TokenPair{}, ErrUnauthenticated
+	// (FR-030) o el mero hecho de no haber verificado el correo (FR-002) en ese hueco
+	// no pueden acabar en un token válido.
+	if err := s.assertIssuable(ctx, row.UserID); err != nil {
+		return TokenPair{}, err
 	}
 
 	return s.issuePair(ctx, row.UserID, row.Scopes)
@@ -265,6 +272,14 @@ func (s *Server) RefreshToken(ctx context.Context, refreshToken string) (TokenPa
 		// recurso ausente. Distinguirlos le diría a quien prueba tokens cuál de ellos
 		// llegó a existir. La causa concreta sí va al log, envuelta.
 		return TokenPair{}, fmt.Errorf("%w: consultar refresh token: %w", ErrUnauthenticated, err)
+	}
+
+	// Renovar es EMITIR, así que la cuenta vuelve a comprobarse (FR-002, FR-030). Un
+	// refresh token vive treinta días: sin esta comprobación, una cuenta anonimizada
+	// el martes seguiría produciendo access tokens válidos hasta que su refresh
+	// caducara, y la anonimización sería una promesa a plazo en lugar de un efecto.
+	if err := s.assertIssuable(ctx, userID); err != nil {
+		return TokenPair{}, err
 	}
 
 	newToken, err := randomSecret()

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/fintcart/platform/services/auth-server/internal/storer"
 )
 
@@ -34,6 +36,56 @@ type Introspection struct {
 	Roles     []string
 	JTI       string
 	ExpiresAt time.Time
+}
+
+// ── producción de eventos (Principio V) ─────────────────────────────────────
+
+// Event es un evento de dominio de este servicio, ANTES de envolverse.
+//
+// No lleva `event_id` ni `occurred_at`: los pone el publicador al construir el
+// envelope del catálogo. Ponerlos aquí obligaría a cada sitio que produce un evento
+// a acordarse del formato de la fecha, y el primero que se despistara metería un
+// evento con un `occurred_at` en hora local que Auditoría ordenaría mal.
+//
+// `ActorRef` es el identificador OPACO del titular, nunca su correo: el catálogo lo
+// exige para que la traza siga sirviendo después de una anonimización (FR-030/031).
+// Por la misma razón `Payload` no debe llevar datos personales. Si algún día
+// transporta un monto, viaja como cadena decimal canónica (Principio VIII / D-10).
+type Event struct {
+	Type     string
+	ActorRef string
+	Payload  map[string]any
+}
+
+// EventAuthSessionRevoked es la routing key del evento de revocación (FR-004).
+const EventAuthSessionRevoked = "auth.session_revoked"
+
+// Claves del payload de `auth.session_revoked`.
+const (
+	payloadKeyTokenType = "token_type"
+	payloadKeyJTI       = "jti"
+
+	tokenKindAccess  = "access_token"
+	tokenKindRefresh = "refresh_token"
+)
+
+// EventPublisher entrega eventos de dominio al bus. Lo implementa
+// `internal/events` (Principio IX: el puerto se declara donde se consume).
+//
+// `Publish` NO devuelve error, y eso es una decisión de diseño, no un descuido.
+// Quien la llama ya ejecutó un efecto irreversible —una sesión revocada no se
+// «des-revoca»—, así que un fallo del bus no puede convertirse en el error de la
+// operación: el cliente vería «el logout falló» sobre una sesión que SÍ está
+// cerrada, y volvería a intentarlo creyéndose dentro. Con esta firma el error es
+// imposible de propagar por descuido; el implementador es responsable de dejar
+// constancia de lo que no pudo entregar.
+//
+// LIMITACIÓN CONOCIDA: este servicio no tiene outbox transaccional —D-07 lo sitúa
+// en el Orquestador—, así que un evento que no llega al broker solo queda en el log
+// de error. La solución durable es una tabla de outbox en `auth_db`; está anotada,
+// no implementada.
+type EventPublisher interface {
+	Publish(ctx context.Context, event Event)
 }
 
 // CreateCredential crea la credencial en `pending_verification`. Paso de la saga
@@ -151,15 +203,60 @@ func (s *Server) ValidateCredentials(ctx context.Context, email, password string
 		return CredentialCheck{Valid: false}, nil
 	}
 
-	// Una cuenta anonimizada nunca es válida, aunque el hash coincida: FR-030 la
-	// deja inutilizable de forma permanente, y el hash se sustituye por un valor
-	// que no puede corresponder a ninguna contraseña. La comprobación explícita es
-	// la segunda barrera, no la única.
-	if cred.LoginStatus == storer.StatusAnonymized {
+	// Solo `active` autentica (FR-002). La comprobación es una LISTA BLANCA y no un
+	// rechazo de los estados que hoy sabemos malos, y la diferencia no es estilística:
+	// el día que el esquema admita un estado nuevo —`suspended`, `locked`—, una lista
+	// negra lo dejaría entrar por omisión, y nadie se enteraría hasta que una cuenta
+	// suspendida operara con normalidad. Con lista blanca, un estado desconocido no
+	// autentica y el fallo es del lado seguro.
+	//
+	// Los dos estados que hoy quedan fuera lo hacen por razones distintas:
+	// `pending_verification` bloquea el acceso pleno hasta verificar el correo
+	// (FR-002), y `anonymized` lo hace de forma permanente (FR-030) — ahí el hash se
+	// sustituyó por un valor que ninguna contraseña puede satisfacer, así que esta
+	// comprobación es la segunda barrera, no la única.
+	if cred.LoginStatus != storer.StatusActive {
+		// Se devuelve el ESTADO pero no el `user_id`: quien llama necesita el estado
+		// para decirle al usuario que revise su correo, y no necesita un identificador
+		// con el que podría intentar emitir algo. Un `Valid: false` no debe llevar
+		// nunca encima lo que haría falta para seguir adelante.
+		//
+		// Filtrar el estado aquí NO es un oráculo: para llegar a esta línea hay que
+		// haber acertado la contraseña. Un correo desconocido o una contraseña
+		// incorrecta salen antes, con el estado vacío.
 		return CredentialCheck{Valid: false, LoginStatus: cred.LoginStatus}, nil
 	}
 
 	return credentialCheckFromRow(cred), nil
+}
+
+// assertIssuable rechaza la EMISIÓN de tokens para una cuenta que no está activa
+// (FR-002, FR-030).
+//
+// Existe como función y no como tres comprobaciones repetidas porque los puntos de
+// emisión son tres —emitir el código, canjearlo y renovar— y cada uno abre una
+// ventana propia: entre autenticarse y canjear caben 45 segundos, y una renovación
+// puede llegar treinta días después de la última contraseña escrita. Un servicio
+// que solo comprobara el estado al autenticar dejaría vivas las sesiones de una
+// cuenta anonimizada hasta que su refresh token caducara.
+func (s *Server) assertIssuable(ctx context.Context, userID uuid.UUID) error {
+	cred, err := s.store.GetCredential(ctx, userID)
+	if err != nil {
+		if errors.Is(err, storer.ErrNotFound) {
+			// «No hay credencial» es un fallo de AUTENTICACIÓN, no un recurso ausente:
+			// como `NotFound` viajaría al cliente como la confirmación de que ese
+			// identificador no existe, y como `Unauthenticated` no dice nada.
+			return fmt.Errorf("%w: no hay credencial para %s: %w", ErrUnauthenticated, userID, err)
+		}
+		return fmt.Errorf("leer credencial %s: %w", userID, err)
+	}
+	if cred.LoginStatus != storer.StatusActive {
+		// El estado concreto va al LOG —`grpcError` sanea el mensaje que sale— porque
+		// es la diferencia entre «no verificó el correo» y «la cuenta se anonimizó», y
+		// esa distinción hace falta para diagnosticar, no para responder.
+		return fmt.Errorf("%w: la cuenta %s está en estado %q", ErrUnauthenticated, userID, cred.LoginStatus)
+	}
+	return nil
 }
 
 // Revoke revoca un token con efecto inmediato (FR-004, logout).
@@ -181,14 +278,29 @@ func (s *Server) Revoke(ctx context.Context, token, tokenTypeHint string) error 
 		// No es un JWT válido: se trata como refresh token. El `token_type_hint` se
 		// ignora deliberadamente —es una pista del cliente, no una verdad— y probar
 		// los dos tipos cuesta lo mismo que fiarse de él.
-		//
+		_ = tokenTypeHint
+		tokenID := refreshTokenID(token)
+
+		// La consulta va ANTES del borrado y sirve solo para saber a quién auditar: el
+		// refresh token no es un JWT y no lleva dentro a su dueño, así que después de
+		// borrarlo ya no habría forma de averiguarlo. Su error no interrumpe nada — el
+		// logout no puede depender de que la auditoría sepa a quién apuntar.
+		owner, lookupErr := s.tokens.LookupRefreshToken(ctx, tokenID)
+
 		// `DeleteRefreshToken` es idempotente, así que un token que tampoco existe
 		// como refresh se considera ya revocado y NO produce error. Lo exige el
 		// RFC 7009 §2.2: un logout no puede fallar por presentar algo que ya no vale,
 		// porque el efecto buscado —que no sirva— ya se cumplió.
-		_ = tokenTypeHint
-		if err := s.tokens.DeleteRefreshToken(ctx, refreshTokenID(token)); err != nil {
+		if err := s.tokens.DeleteRefreshToken(ctx, tokenID); err != nil {
 			return fmt.Errorf("revocar refresh token: %w", err)
+		}
+
+		// Se audita lo que se REVOCÓ, no lo que se intentó revocar. Un token
+		// inexistente, caducado o ya rotado no cerró ninguna sesión, y anotarlo
+		// llenaría el registro de revocaciones que nunca ocurrieron —justo el ruido
+		// que hace inservible una traza de auditoría—.
+		if lookupErr == nil {
+			s.publishSessionRevoked(ctx, owner.String(), tokenKindRefresh, "")
 		}
 		return nil
 	}
@@ -201,7 +313,30 @@ func (s *Server) Revoke(ctx context.Context, token, tokenTypeHint string) error 
 	if err := s.tokens.BlacklistJTI(ctx, claims.JTI, ttl); err != nil {
 		return fmt.Errorf("revocar access token: %w", err)
 	}
+	s.publishSessionRevoked(ctx, claims.UserID, tokenKindAccess, claims.JTI)
 	return nil
+}
+
+// publishSessionRevoked anota la revocación para Auditoría (FR-004, catálogo).
+//
+// Se llama DESPUÉS de revocar y nunca antes: un evento publicado sobre una
+// revocación que después falla dejaría en el registro inmutable de Auditoría una
+// sesión cerrada que sigue abierta, y un registro inmutable no admite rectificación.
+//
+// El payload no lleva datos personales: el titular viaja como `actor_ref` opaco, y
+// el `jti` identifica al token, no a la persona. Auditoría necesita distinguir el
+// cierre de UNA sesión (access token) del de la renovación (refresh) para poder
+// reconstruir después qué pasó con una cuenta.
+func (s *Server) publishSessionRevoked(ctx context.Context, actorRef, tokenKind, jti string) {
+	payload := map[string]any{payloadKeyTokenType: tokenKind}
+	if jti != "" {
+		payload[payloadKeyJTI] = jti
+	}
+	s.events.Publish(ctx, Event{
+		Type:     EventAuthSessionRevoked,
+		ActorRef: actorRef,
+		Payload:  payload,
+	})
 }
 
 // Introspect valida un access token para el API Gateway.

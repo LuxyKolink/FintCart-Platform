@@ -35,6 +35,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	usersv1 "github.com/fintcart/platform/services/auth-server/gen/fintcart/users/v1"
+	"github.com/fintcart/platform/services/auth-server/internal/events"
 	"github.com/fintcart/platform/services/auth-server/internal/handler"
 	"github.com/fintcart/platform/services/auth-server/internal/observability"
 	"github.com/fintcart/platform/services/auth-server/internal/server"
@@ -90,12 +91,24 @@ func run() error {
 	}
 
 	// El Servidor de Autenticación es PRODUCTOR de eventos (Principio V):
-	// `auth.password.changed`, `auth.security.alert`, `auth.session.revoked`.
+	// `auth.password_changed`, `auth.security_alert` y `auth.session_revoked`.
+	//
+	// La TOPOLOGÍA no se declara aquí: la declara el Orquestador. Este proceso solo
+	// abre la conexión; los canales los abre el publicador, uno por evento (ver
+	// `internal/events/publisher.go`).
 	amqpConn, err := amqp.Dial(cfg.AMQPAddr)
 	if err != nil {
 		return fmt.Errorf("conectar con RabbitMQ: %w", err)
 	}
 	defer closeQuietly(logger, "conexión con RabbitMQ", amqpConn.Close)
+
+	publisher := events.NewAMQPPublisher(func() (events.Channel, error) {
+		ch, err := amqpConn.Channel()
+		if err != nil {
+			return nil, fmt.Errorf("abrir canal AMQP: %w", err)
+		}
+		return ch, nil
+	}, logger)
 
 	// Los ROLES los posee el Servicio de Usuarios (Principio III): se piden por gRPC
 	// y no se leen de su base de datos, aunque estuviera a un `DB_ADDR` de distancia.
@@ -117,6 +130,7 @@ func run() error {
 		util.NewArgon2idHasher(),
 		maker,
 		server.NewUsersRolesProvider(usersv1.NewUsersServiceClient(usersConn)),
+		publisher,
 	)
 	h := handler.New(svc)
 

@@ -59,18 +59,31 @@ type Server struct {
 	hasher  PasswordHasher
 	maker   TokenMaker
 	authctx AuthContextProvider
+	events  EventPublisher
 }
 
 // New ensambla la capa de aplicación. No abre conexiones ni lee entorno: recibe
 // todo construido desde `cmd/auth/main.go` (Principio X).
+//
+// `events` es OBLIGATORIO y no admite `nil`: un `nil` haría que la primera
+// revocación entrara en pánico, y el punto de exigirlo en la firma es que ningún
+// sitio de construcción pueda olvidarlo en silencio y quedarse sin auditoría.
 func New(
 	store storer.Storer,
 	tokens storer.TokenStore,
 	hasher PasswordHasher,
 	maker TokenMaker,
 	authctx AuthContextProvider,
+	events EventPublisher,
 ) *Server {
-	return &Server{store: store, tokens: tokens, hasher: hasher, maker: maker, authctx: authctx}
+	return &Server{
+		store:   store,
+		tokens:  tokens,
+		hasher:  hasher,
+		maker:   maker,
+		authctx: authctx,
+		events:  events,
+	}
 }
 
 // parseUserID valida el identificador opaco antes de que llegue al SQL.

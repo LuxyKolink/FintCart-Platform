@@ -208,6 +208,26 @@ type fakeRoles struct{ roles []string }
 
 func (f fakeRoles) Roles(context.Context, string) ([]string, error) { return f.roles, nil }
 
+// fakePublisher registra lo publicado.
+//
+// No tiene forma de fallar, y no la necesita: el puerto [server.EventPublisher] no
+// devuelve error a propósito, así que «el bus está caído» es indistinguible de «el
+// bus funciona» desde la capa de aplicación —que es justo la propiedad que se quiere,
+// y la que comprueba `TestRevokeSucceedsEvenIfNobodyPublishes` con un publicador que
+// no hace nada—.
+type fakePublisher struct {
+	published []server.Event
+}
+
+func (f *fakePublisher) Publish(_ context.Context, event server.Event) {
+	f.published = append(f.published, event)
+}
+
+// deafPublisher es un bus que se traga todo: reproduce a RabbitMQ caído.
+type deafPublisher struct{}
+
+func (deafPublisher) Publish(context.Context, server.Event) {}
+
 // ── arranque de la pila real ────────────────────────────────────────────────
 
 // startServer levanta el servidor gRPC completo sobre `bufconn` y devuelve el
@@ -218,8 +238,20 @@ func (f fakeRoles) Roles(context.Context, string) ([]string, error) { return f.r
 // que es exactamente el fallo que estas pruebas existen para atrapar.
 func startServer(t *testing.T, store storer.Storer, tokens storer.TokenStore, maker server.TokenMaker) authv1.AuthServiceClient {
 	t.Helper()
+	return startServerWithEvents(t, store, tokens, maker, &fakePublisher{})
+}
 
-	svc := server.New(store, tokens, fakeHasher{}, maker, fakeRoles{roles: []string{"usuario_final"}})
+// startServerWithEvents es la variante para las pruebas que observan lo publicado.
+func startServerWithEvents(
+	t *testing.T,
+	store storer.Storer,
+	tokens storer.TokenStore,
+	maker server.TokenMaker,
+	publisher server.EventPublisher,
+) authv1.AuthServiceClient {
+	t.Helper()
+
+	svc := server.New(store, tokens, fakeHasher{}, maker, fakeRoles{roles: []string{"usuario_final"}}, publisher)
 	grpcServer := grpc.NewServer()
 	handler.New(svc).Register(grpcServer)
 
@@ -243,6 +275,16 @@ func startServer(t *testing.T, store storer.Storer, tokens storer.TokenStore, ma
 	return authv1.NewAuthServiceClient(conn)
 }
 
+// activeCredentialRow es la cuenta verificada y en uso.
+//
+// Existe como ayudante porque desde T091 el estado de la cuenta se comprueba en los
+// TRES puntos de emisión, y una fila con `login_status` vacío ya no emite nada. El
+// valor cero de `CredentialRow` es, por tanto, una cuenta que no puede entrar — que
+// es el lado correcto en el que equivocarse.
+func activeCredentialRow() storer.CredentialRow {
+	return storer.CredentialRow{ID: uuid.MustParse(testUserID), LoginStatus: storer.StatusActive}
+}
+
 func publicClientRow() storer.OAuthClientRow {
 	return storer.OAuthClientRow{
 		ClientID:     testClientID,
@@ -257,7 +299,7 @@ func publicClientRow() storer.OAuthClientRow {
 
 func TestIssueAuthorizationCodeContract(t *testing.T) {
 	t.Parallel()
-	store := &fakeStore{client: publicClientRow()}
+	store := &fakeStore{client: publicClientRow(), credential: activeCredentialRow()}
 	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
 
 	resp, err := client.IssueAuthorizationCode(context.Background(), &authv1.IssueAuthCodeRequest{
@@ -301,7 +343,8 @@ func TestIssueAuthorizationCodeRejectsPlainPKCE(t *testing.T) {
 // `.../callback.atacante.com` y el código se entregaría a otro sitio.
 func TestIssueAuthorizationCodeRejectsUnregisteredRedirect(t *testing.T) {
 	t.Parallel()
-	client := startServer(t, &fakeStore{client: publicClientRow()}, newFakeTokens(), &fakeMaker{})
+	store := &fakeStore{client: publicClientRow(), credential: activeCredentialRow()}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
 
 	_, err := client.IssueAuthorizationCode(context.Background(), &authv1.IssueAuthCodeRequest{
 		UserId:              testUserID,
@@ -315,7 +358,8 @@ func TestIssueAuthorizationCodeRejectsUnregisteredRedirect(t *testing.T) {
 
 func TestIssueAuthorizationCodeRejectsUngrantedScope(t *testing.T) {
 	t.Parallel()
-	client := startServer(t, &fakeStore{client: publicClientRow()}, newFakeTokens(), &fakeMaker{})
+	store := &fakeStore{client: publicClientRow(), credential: activeCredentialRow()}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
 
 	_, err := client.IssueAuthorizationCode(context.Background(), &authv1.IssueAuthCodeRequest{
 		UserId:              testUserID,
@@ -476,6 +520,141 @@ func TestValidateCredentialsIsNotAnOracle(t *testing.T) {
 	require.Equal(t, respUnknown.GetLoginStatus(), respWrong.GetLoginStatus())
 }
 
+// ── FR-002: el acceso pleno espera a la verificación del correo (T091) ──────
+//
+// Las cuatro pruebas siguientes recorren los CUATRO sitios donde una cuenta sin
+// verificar podría colarse. No son una sola comprobación repetida: cada punto abre
+// una ventana temporal distinta —el login, la emisión del código, el canje 45 s
+// después y la renovación treinta días después—, y basta con que uno solo no mire el
+// estado para que la verificación de correo pase a ser opcional.
+
+// TestValidateCredentialsRejectsUnverifiedAccount: la contraseña es CORRECTA y aun
+// así no autentica. El estado sí sale, y el `user_id` no: quien llama necesita poder
+// decir «revisa tu correo», y no necesita un identificador con el que seguir.
+func TestValidateCredentialsRejectsUnverifiedAccount(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{
+		ID: uuid.MustParse(testUserID), Email: "ana@fintcart.co",
+		PasswordHash: "hash:contraseña-valida-123",
+		LoginStatus:  storer.StatusPendingVerification,
+	}}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	resp, err := client.ValidateCredentials(context.Background(), &authv1.ValidateCredentialsRequest{
+		Email: "ana@fintcart.co", Password: "contraseña-valida-123",
+	})
+	require.NoError(t, err)
+	require.False(t, resp.GetValid())
+	require.False(t, resp.GetEmailVerified())
+	require.Equal(t, storer.StatusPendingVerification, resp.GetLoginStatus())
+	require.Empty(t, resp.GetUserId())
+}
+
+// TestValidateCredentialsUsesAWhitelistOfStatuses: un estado que el código no conoce
+// —uno añadido al esquema después— NO autentica. Es la prueba de que la comprobación
+// es una lista blanca; con una lista negra, este caso pasaría y una cuenta suspendida
+// entraría con normalidad hasta que alguien lo notara.
+func TestValidateCredentialsUsesAWhitelistOfStatuses(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{
+		ID: uuid.MustParse(testUserID), PasswordHash: "hash:contraseña-valida-123",
+		LoginStatus: "suspended",
+	}}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	resp, err := client.ValidateCredentials(context.Background(), &authv1.ValidateCredentialsRequest{
+		Email: "ana@fintcart.co", Password: "contraseña-valida-123",
+	})
+	require.NoError(t, err)
+	require.False(t, resp.GetValid())
+	require.Empty(t, resp.GetUserId())
+}
+
+// TestIssueAuthorizationCodeRejectsUnverifiedAccount: el código de autorización es un
+// token en todo lo que importa —quien lo tiene obtiene una sesión—, así que emitirlo
+// para una cuenta sin verificar convertiría FR-002 en un trámite saltable.
+func TestIssueAuthorizationCodeRejectsUnverifiedAccount(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{
+		client: publicClientRow(),
+		credential: storer.CredentialRow{
+			ID: uuid.MustParse(testUserID), LoginStatus: storer.StatusPendingVerification,
+		},
+	}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.IssueAuthorizationCode(context.Background(), &authv1.IssueAuthCodeRequest{
+		UserId:              testUserID,
+		ClientId:            testClientID,
+		RedirectUri:         testRedirect,
+		CodeChallenge:       testChallenge,
+		CodeChallengeMethod: "S256",
+	})
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+
+	// Y no llegó a persistirse ningún código: la cuenta se comprueba ANTES de emitir,
+	// no después. Un código guardado y luego rechazado seguiría siendo canjeable si
+	// alguna otra ruta lo consumiera.
+	require.Nil(t, store.inserted)
+}
+
+// TestExchangeCodeRejectsUnverifiedAccount cubre la ventana de 45 segundos entre
+// emitir el código y canjearlo.
+func TestExchangeCodeRejectsUnverifiedAccount(t *testing.T) {
+	t.Parallel()
+	userID := uuid.MustParse(testUserID)
+	store := &fakeStore{
+		authCode: storer.AuthCodeRow{
+			Code: "codigo", ClientID: testClientID, UserID: userID,
+			CodeChallenge: testChallenge, RedirectURI: testRedirect,
+		},
+		credential: storer.CredentialRow{ID: userID, LoginStatus: storer.StatusPendingVerification},
+	}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.ExchangeCode(context.Background(), &authv1.ExchangeCodeRequest{
+		Code: "codigo", CodeVerifier: testVerifier, ClientId: testClientID, RedirectUri: testRedirect,
+	})
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+}
+
+// TestRefreshTokenRejectsAnonymizedAccount es el caso que hace que la comprobación en
+// la renovación no sea redundante: la sesión era legítima cuando empezó. Un refresh
+// token vive treinta días, así que sin esta comprobación una cuenta anonimizada el
+// martes seguiría produciendo access tokens válidos durante casi un mes, y FR-030
+// sería una promesa a plazo en lugar de un efecto.
+func TestRefreshTokenRejectsAnonymizedAccount(t *testing.T) {
+	t.Parallel()
+	userID := uuid.MustParse(testUserID)
+	tokens := newFakeTokens()
+	store := &fakeStore{
+		client: publicClientRow(),
+		authCode: storer.AuthCodeRow{
+			Code: "codigo", ClientID: testClientID, UserID: userID,
+			CodeChallenge: testChallenge, RedirectURI: testRedirect,
+		},
+		credential: activeCredentialRow(),
+	}
+	maker := &fakeMaker{issued: server.AccessToken{
+		Raw: "access", JTI: "jti-1", ExpiresAt: time.Now().Add(15 * time.Minute),
+	}}
+	client := startServer(t, store, tokens, maker)
+
+	// La sesión se abre con la cuenta activa.
+	pair, err := client.ExchangeCode(context.Background(), &authv1.ExchangeCodeRequest{
+		Code: "codigo", CodeVerifier: testVerifier, ClientId: testClientID, RedirectUri: testRedirect,
+	})
+	require.NoError(t, err)
+
+	// Y se anonimiza mientras está viva.
+	store.credential = storer.CredentialRow{ID: userID, LoginStatus: storer.StatusAnonymized}
+
+	_, err = client.RefreshToken(context.Background(), &authv1.RefreshTokenRequest{
+		RefreshToken: pair.GetRefreshToken(),
+	})
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+}
+
 func TestRefreshTokenRotatesContract(t *testing.T) {
 	t.Parallel()
 	userID := uuid.MustParse(testUserID)
@@ -594,4 +773,113 @@ func TestRevokeRejectsEmptyToken(t *testing.T) {
 
 	_, err := client.Revoke(context.Background(), &authv1.RevokeRequest{Token: ""})
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+// ── FR-004: la revocación queda auditada (T092) ─────────────────────────────
+
+// TestRevokePublishesSessionRevoked comprueba el evento del catálogo: el titular
+// viaja como referencia OPACA y el payload distingue qué tipo de token se cerró.
+func TestRevokePublishesSessionRevoked(t *testing.T) {
+	t.Parallel()
+	events := &fakePublisher{}
+	maker := &fakeMaker{parseOK: true, claims: server.AccessClaims{
+		UserID: testUserID, JTI: "jti-1", ExpiresAt: time.Now().Add(10 * time.Minute),
+	}}
+	client := startServerWithEvents(t, &fakeStore{}, newFakeTokens(), maker, events)
+
+	_, err := client.Revoke(context.Background(), &authv1.RevokeRequest{Token: "access"})
+	require.NoError(t, err)
+
+	require.Len(t, events.published, 1)
+	got := events.published[0]
+	require.Equal(t, server.EventAuthSessionRevoked, got.Type)
+	require.Equal(t, testUserID, got.ActorRef)
+	require.Equal(t, "access_token", got.Payload["token_type"])
+	require.Equal(t, "jti-1", got.Payload["jti"])
+}
+
+// TestRevokePublishesTheOwnerOfARefreshToken: un refresh token no es un JWT y no
+// lleva dentro a su dueño, así que hay que consultarlo ANTES de borrarlo. Si el
+// orden se invirtiera, el evento saldría sin actor y la traza no serviría para nada.
+func TestRevokePublishesTheOwnerOfARefreshToken(t *testing.T) {
+	t.Parallel()
+	userID := uuid.MustParse(testUserID)
+	events := &fakePublisher{}
+	tokens := newFakeTokens()
+	store := &fakeStore{
+		client: publicClientRow(),
+		authCode: storer.AuthCodeRow{
+			Code: "codigo", ClientID: testClientID, UserID: userID,
+			CodeChallenge: testChallenge, RedirectURI: testRedirect,
+		},
+		credential: activeCredentialRow(),
+	}
+	maker := &fakeMaker{issued: server.AccessToken{
+		Raw: "access", JTI: "jti-1", ExpiresAt: time.Now().Add(15 * time.Minute),
+	}}
+	client := startServerWithEvents(t, store, tokens, maker, events)
+
+	pair, err := client.ExchangeCode(context.Background(), &authv1.ExchangeCodeRequest{
+		Code: "codigo", CodeVerifier: testVerifier, ClientId: testClientID, RedirectUri: testRedirect,
+	})
+	require.NoError(t, err)
+
+	// El `fakeMaker` no parsea, así que el token entra por la rama de refresh, igual
+	// que un refresh real —que no es un JWT—.
+	_, err = client.Revoke(context.Background(), &authv1.RevokeRequest{Token: pair.GetRefreshToken()})
+	require.NoError(t, err)
+
+	require.Len(t, events.published, 1)
+	require.Equal(t, testUserID, events.published[0].ActorRef)
+	require.Equal(t, "refresh_token", events.published[0].Payload["token_type"])
+	// Sin `jti`: un refresh token no tiene identificador de JWT, y anotar una clave
+	// vacía haría creer a Auditoría que se revocó un access token sin identificar.
+	require.NotContains(t, events.published[0].Payload, "jti")
+}
+
+// TestRevokeAuditsOnlyWhatItRevoked: presentar un token que ya no existe es un caso
+// LEGÍTIMO (RFC 7009 §2.2) y no cierra ninguna sesión. Auditarlo llenaría el registro
+// de revocaciones que nunca ocurrieron, que es lo que hace inservible una traza.
+func TestRevokeAuditsOnlyWhatItRevoked(t *testing.T) {
+	t.Parallel()
+	events := &fakePublisher{}
+	client := startServerWithEvents(t, &fakeStore{}, newFakeTokens(), &fakeMaker{parseOK: false}, events)
+
+	_, err := client.Revoke(context.Background(), &authv1.RevokeRequest{Token: "refresh-que-ya-no-existe"})
+	require.NoError(t, err)
+	require.Empty(t, events.published)
+}
+
+// TestRevokeDoesNotAuditAnExpiredAccessToken: un token caducado ya no vale por sí
+// solo, así que no se añade a la blacklist y no hay revocación que anotar.
+func TestRevokeDoesNotAuditAnExpiredAccessToken(t *testing.T) {
+	t.Parallel()
+	events := &fakePublisher{}
+	tokens := newFakeTokens()
+	maker := &fakeMaker{parseOK: true, claims: server.AccessClaims{
+		UserID: testUserID, JTI: "jti-viejo", ExpiresAt: time.Now().Add(-time.Minute),
+	}}
+	client := startServerWithEvents(t, &fakeStore{}, tokens, maker, events)
+
+	_, err := client.Revoke(context.Background(), &authv1.RevokeRequest{Token: "access-caducado"})
+	require.NoError(t, err)
+	require.Empty(t, events.published)
+	require.Empty(t, tokens.blacklisted)
+}
+
+// TestRevokeSucceedsEvenIfNobodyPublishes es la prueba de la decisión de diseño del
+// puerto: el cierre de sesión NO depende del bus. Un logout que fallara porque
+// RabbitMQ está caído le diría al usuario que sigue dentro de una sesión que ya está
+// cerrada, y volvería a intentarlo creyéndoselo.
+func TestRevokeSucceedsEvenIfNobodyPublishes(t *testing.T) {
+	t.Parallel()
+	tokens := newFakeTokens()
+	maker := &fakeMaker{parseOK: true, claims: server.AccessClaims{
+		UserID: testUserID, JTI: "jti-1", ExpiresAt: time.Now().Add(10 * time.Minute),
+	}}
+	client := startServerWithEvents(t, &fakeStore{}, tokens, maker, deafPublisher{})
+
+	_, err := client.Revoke(context.Background(), &authv1.RevokeRequest{Token: "access"})
+	require.NoError(t, err)
+	require.True(t, tokens.blacklisted["jti-1"])
 }
