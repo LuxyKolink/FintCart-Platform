@@ -116,6 +116,191 @@ impl CalcType {
         }
     }
 }
+/// Generated client implementations.
+pub mod simulator_service_client {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    /// Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
+    /// decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
+    /// (Principio V); la auditoría de simulaciones la emite el Orquestador (research D-03).
+    /// Todos los montos/tasas viajan como `string` decimal canónica (Principio VIII / D-10).
+    #[derive(Debug, Clone)]
+    pub struct SimulatorServiceClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl SimulatorServiceClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> SimulatorServiceClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> SimulatorServiceClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+        {
+            SimulatorServiceClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
+        /// Ejecuta una simulación y persiste el historial (FR-019..FR-022).
+        /// Invocada por el Orquestador para permitir el evento de auditoría (D-03).
+        pub async fn compute(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ComputeRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ComputeResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/Compute",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("fintcart.simulator.v1.SimulatorService", "Compute"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Historial de simulaciones por usuario (FR-022).
+        pub async fn list_history(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListHistoryRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListHistoryResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/ListHistory",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "ListHistory",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Saga de anonimización (FR-030): disocia PII del historial.
+        pub async fn anonymize_history(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UserRef>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/AnonymizeHistory",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "AnonymizeHistory",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+    }
+}
 /// Generated server implementations.
 pub mod simulator_service_server {
     #![allow(

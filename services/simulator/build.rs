@@ -70,8 +70,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tonic_build::configure()
         .build_server(true)
-        // El Simulador no consume otros servicios por gRPC: no necesita clientes.
-        .build_client(false)
+        // El Simulador no consume otros servicios por gRPC, así que en producción el
+        // cliente no se usa. Se genera igualmente porque `tests/contract.rs` lo
+        // necesita: una prueba de contrato que llamara al servicio por la puerta de
+        // atrás —construyendo el `Request` a mano contra el trait— no ejercitaría la
+        // serialización protobuf, que es justo el fallo que existe para atrapar. El
+        // código muerto que esto añade al binario lo elimina el enlazador.
+        .build_client(true)
         .out_dir(PB_DIR)
         .compile_protos(&protos, std::slice::from_ref(&contracts))?;
 
