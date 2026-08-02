@@ -189,9 +189,9 @@ services/
 ├── simulator/                  # Rust — 5 calculadoras, precisión decimal, historial
 │   ├── src/main.rs
 │   ├── src/grpc/               # service.rs, mapping.rs (transporte)
-│   ├── src/calculators/        # ahorro, credito, presupuesto, inversion, colombia
-│   ├── src/domain/             # dispatch.rs, currency.rs, decimal_str.rs, error.rs
-│   ├── src/repo/               # simulations.rs, tx.rs, anonymize.rs (persistencia)
+│   ├── src/calculators/        # ahorro, credito, presupuesto, inversion, colombia, annuity
+│   ├── src/domain/             # dispatch.rs, currency.rs, inputs.rs, decimal_str.rs, error.rs
+│   ├── src/repo/               # simulations.rs (incl. anonimización), tx.rs
 │   ├── src/pb/
 │   ├── migrations/
 │   ├── tests/

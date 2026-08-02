@@ -198,22 +198,78 @@ func (s *Server) StartQuizGrading(
 //
 // `Result` es un mapa de strings decimales, igual que las entradas: los montos no se
 // convierten en ningún punto de este servicio (Principio VIII).
+// El instante de cálculo NO viaja aquí aunque el Simulador lo devuelva y la saga lo
+// deje en su payload: `orchestrator.v1.SimulationResult` no tiene ese campo, así que
+// añadirlo a este struct sería estado muerto. Queda anotado como hueco menor de
+// contrato — la marca temporal sí aparece en el historial (`ListHistory.created_at`).
 type Simulation struct {
 	SimulationID string
 	Result       map[string]string
 }
 
 // StartSimulation ejecuta la simulación mediada y espera su resultado (D-03).
-func (s *Server) StartSimulation(_ context.Context, userID string, calcType int32, currency string, inputs map[string]string) (Simulation, error) {
+//
+// Es SÍNCRONA porque el usuario está mirando la pantalla: devolver un handle para que
+// el Gateway sondee convertiría un cálculo instantáneo en un bucle de espera.
+func (s *Server) StartSimulation(
+	ctx context.Context,
+	userID string,
+	calcType int32,
+	currency string,
+	inputs map[string]string,
+) (Simulation, error) {
 	if userID == "" {
 		return Simulation{}, fmt.Errorf("%w: user_id es obligatorio", ErrInvalidArgument)
 	}
-	// T129: arrancar `SagaSimulacion`. `calcType` viaja como el entero del enum del
-	// contrato del Simulador; el Orquestador no lo interpreta ni comprueba que sea un
-	// valor conocido — el dueño del enum es el Simulador y él lo rechaza si no lo es.
-	_, _ = calcType, currency
-	_ = inputs
-	return Simulation{}, ErrNotImplemented
+	// `calcType` viaja como el entero del enum del contrato del Simulador y NO se
+	// comprueba aquí: el dueño del enum es el Simulador, y una segunda lista de
+	// valores válidos en este servicio acabaría discrepando de la suya (Principio VI).
+	// Lo mismo con los `inputs`: qué parámetros necesita cada calculadora, y con qué
+	// escala, lo decide quien calcula.
+	//
+	// Un mapa de entradas VACÍO tampoco se rechaza, por la misma razón: hay
+	// calculadoras cuyos parámetros son todos opcionales, y saber cuáles sería
+	// conocer su dominio.
+	if inputs == nil {
+		inputs = map[string]string{}
+	}
+
+	_, final, err := s.engine.Execute(ctx, storer.SagaSimulacion, map[string]any{
+		"user_id":   userID,
+		"calc_type": calcType,
+		"currency":  currency,
+		"inputs":    inputs,
+	}, nil)
+	if err != nil {
+		// Igual que en la verificación de correo: un `InvalidArgument` del Simulador
+		// significa que rechazó la ENTRADA que este servicio se limitó a reenviar —un
+		// monto no canónico, un plazo irrazonable—, así que es un error del llamante y
+		// no de la plataforma. Sin esta traducción saldría como 500 y el usuario
+		// reintentaría indefinidamente una petición que nunca va a funcionar.
+		if status.Code(err) == codes.InvalidArgument {
+			return Simulation{}, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
+		}
+		return Simulation{}, fmt.Errorf("ejecutar saga de simulación: %w", err)
+	}
+	return simulationFromPayload(final)
+}
+
+// simulationFromPayload extrae el resultado del payload final de la saga.
+//
+// Comprueba lo que lee en vez de asumirlo: el payload es un `map[string]any` sin
+// tipo, y un `final["result"].(map[string]string)` haría pánico —no error— si el paso
+// anterior no lo hubiera dejado.
+func simulationFromPayload(final map[string]any) (Simulation, error) {
+	id, err := payloadString(final, "simulation_id")
+	if err != nil {
+		return Simulation{}, err
+	}
+	result, ok := final["result"].(map[string]string)
+	if !ok {
+		return Simulation{}, fmt.Errorf("%w: la saga no dejó el resultado de la simulación",
+			ErrIncompletePayload)
+	}
+	return Simulation{SimulationID: id, Result: result}, nil
 }
 
 // StartActivity arranca la saga de actividad (FR-023, plan.md N-03).

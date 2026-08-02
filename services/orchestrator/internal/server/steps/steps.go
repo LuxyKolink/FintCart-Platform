@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	authv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/auth/v1"
 	learningv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/learning/v1"
@@ -67,6 +68,13 @@ const (
 	payloadPointsAfter = "points_after"
 	payloadNotifType   = "notification_type"
 	payloadNotifBody   = "notification_payload"
+
+	payloadCalcType     = "calc_type"
+	payloadCurrency     = "currency"
+	payloadInputs       = "inputs"
+	payloadSimulationID = "simulation_id"
+	payloadResult       = "result"
+	payloadComputedAt   = "computed_at"
 )
 
 // SecretPassword es la clave de la contraseña en [State.Secrets].
@@ -178,6 +186,38 @@ func (s *State) String(key string) (string, error) {
 		return "", fmt.Errorf("%w: %q está vacío", ErrPayloadInvalid, key)
 	}
 	return value, nil
+}
+
+// Int32 extrae del payload un entero puesto por quien arrancó la saga.
+//
+// Acepta las DOS formas por la misma razón que [State.StringMap]: `int32` es lo que
+// queda en memoria y `float64` es lo que devuelve `encoding/json` al releer el
+// payload tras una reanudación —JSON no tiene enteros—. Tratar solo la primera haría
+// que la saga funcionara siempre salvo justo después de un reinicio.
+//
+// El `float64` de aquí NO es dinero y no infringe el Principio VIII: es el enum de un
+// tipo de cálculo, un identificador. Se comprueba además que no traiga parte
+// fraccionaria, de modo que un valor que sí fuera un monto no pueda colarse por esta
+// puerta sin que salte.
+//
+//nolint:forbidigo // float64 es la representación de un entero JSON, no de un monto.
+func (s *State) Int32(key string) (int32, error) {
+	raw, ok := s.Payload[key]
+	if !ok {
+		return 0, fmt.Errorf("%w: falta %q en el payload de la saga", ErrPayloadInvalid, key)
+	}
+
+	switch typed := raw.(type) {
+	case int32:
+		return typed, nil
+	case float64:
+		if typed != math.Trunc(typed) {
+			return 0, fmt.Errorf("%w: %q = %v no es un entero", ErrPayloadInvalid, key, typed)
+		}
+		return int32(typed), nil
+	default:
+		return 0, fmt.Errorf("%w: %q es %T y se esperaba un entero", ErrPayloadInvalid, key, raw)
+	}
 }
 
 // StringMap extrae del payload un mapa de cadenas.

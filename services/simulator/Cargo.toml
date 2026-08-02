@@ -64,6 +64,14 @@ tonic-build = "0.12"
 [dev-dependencies]
 tokio-test = "0.4"
 
+# Solo para `tests/contract.rs`: levantan el servidor `tonic` sobre un canal en
+# MEMORIA (`tokio::io::duplex`), el equivalente del `bufconn` que usan los servicios
+# Go. Son dev-dependencies y no dependencias del servicio: en producción tonic abre
+# un socket normal y nada de esto se compila.
+hyper-util = { version = "0.1", features = ["tokio"] }
+tokio-stream = "0.1"
+tower = { version = "0.5", features = ["util"] }
+
 [profile.release]
 lto = true
 codegen-units = 1

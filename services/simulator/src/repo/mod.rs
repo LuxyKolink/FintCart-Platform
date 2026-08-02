@@ -4,8 +4,9 @@
 //! negocio, sin tipos proto y sin decidir el alcance de una transacción fuera de
 //! [`tx::exec_tx`].
 //!
-//! `simulations.rs` (historial) y `anonymize.rs` (FR-030) llegan con T131 y T163;
-//! aquí está por ahora el único elemento que el resto de la capa necesita antes de
-//! escribir su primera consulta.
+//! La anonimización (FR-030) NO tiene módulo propio: vive junto al resto de las
+//! operaciones sobre `simulations`, porque es un `UPDATE` sobre esa misma tabla.
+//! Separarla sugeriría que toca otro almacén.
 
+pub mod simulations;
 pub mod tx;

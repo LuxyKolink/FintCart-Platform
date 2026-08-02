@@ -11,6 +11,7 @@
 // distintos, así que esta línea aparece también en `main.rs`.
 #![deny(clippy::disallowed_types)]
 
+pub mod calculators;
 pub mod domain;
 pub mod grpc;
 pub mod observability;

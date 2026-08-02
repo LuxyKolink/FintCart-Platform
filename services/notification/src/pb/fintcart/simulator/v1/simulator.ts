@@ -5,10 +5,10 @@
 // source: fintcart/simulator/v1/simulator.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
-import { PageRequest, PageResponse } from '../../common/v1/common.js';
+import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { PageRequest, PageResponse } from "../../common/v1/common.js";
 
-export const protobufPackage = 'fintcart.simulator.v1';
+export const protobufPackage = "fintcart.simulator.v1";
 
 /**
  * Las cinco calculadoras del alcance (FR-019). Los valores DEBEN llevar el
@@ -29,25 +29,25 @@ export enum CalcType {
 export function calcTypeFromJSON(object: any): CalcType {
   switch (object) {
     case 0:
-    case 'CALC_TYPE_UNSPECIFIED':
+    case "CALC_TYPE_UNSPECIFIED":
       return CalcType.CALC_TYPE_UNSPECIFIED;
     case 1:
-    case 'CALC_TYPE_AHORRO':
+    case "CALC_TYPE_AHORRO":
       return CalcType.CALC_TYPE_AHORRO;
     case 2:
-    case 'CALC_TYPE_CREDITO':
+    case "CALC_TYPE_CREDITO":
       return CalcType.CALC_TYPE_CREDITO;
     case 3:
-    case 'CALC_TYPE_PRESUPUESTO':
+    case "CALC_TYPE_PRESUPUESTO":
       return CalcType.CALC_TYPE_PRESUPUESTO;
     case 4:
-    case 'CALC_TYPE_INVERSION':
+    case "CALC_TYPE_INVERSION":
       return CalcType.CALC_TYPE_INVERSION;
     case 5:
-    case 'CALC_TYPE_COLOMBIA_ESPECIFICA':
+    case "CALC_TYPE_COLOMBIA_ESPECIFICA":
       return CalcType.CALC_TYPE_COLOMBIA_ESPECIFICA;
     case -1:
-    case 'UNRECOGNIZED':
+    case "UNRECOGNIZED":
     default:
       return CalcType.UNRECOGNIZED;
   }
@@ -56,20 +56,20 @@ export function calcTypeFromJSON(object: any): CalcType {
 export function calcTypeToJSON(object: CalcType): string {
   switch (object) {
     case CalcType.CALC_TYPE_UNSPECIFIED:
-      return 'CALC_TYPE_UNSPECIFIED';
+      return "CALC_TYPE_UNSPECIFIED";
     case CalcType.CALC_TYPE_AHORRO:
-      return 'CALC_TYPE_AHORRO';
+      return "CALC_TYPE_AHORRO";
     case CalcType.CALC_TYPE_CREDITO:
-      return 'CALC_TYPE_CREDITO';
+      return "CALC_TYPE_CREDITO";
     case CalcType.CALC_TYPE_PRESUPUESTO:
-      return 'CALC_TYPE_PRESUPUESTO';
+      return "CALC_TYPE_PRESUPUESTO";
     case CalcType.CALC_TYPE_INVERSION:
-      return 'CALC_TYPE_INVERSION';
+      return "CALC_TYPE_INVERSION";
     case CalcType.CALC_TYPE_COLOMBIA_ESPECIFICA:
-      return 'CALC_TYPE_COLOMBIA_ESPECIFICA';
+      return "CALC_TYPE_COLOMBIA_ESPECIFICA";
     case CalcType.UNRECOGNIZED:
     default:
-      return 'UNRECOGNIZED';
+      return "UNRECOGNIZED";
   }
 }
 
@@ -136,12 +136,12 @@ export interface ListHistoryResponse_Entry_ResultEntry {
 }
 
 function createBaseUserRef(): UserRef {
-  return { user_id: '' };
+  return { user_id: "" };
 }
 
 export const UserRef: MessageFns<UserRef> = {
   encode(message: UserRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== '') {
+    if (message.user_id !== "") {
       writer.uint32(10).string(message.user_id);
     }
     return writer;
@@ -172,12 +172,12 @@ export const UserRef: MessageFns<UserRef> = {
   },
 
   fromJSON(object: any): UserRef {
-    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '' };
+    return { user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "" };
   },
 
   toJSON(message: UserRef): unknown {
     const obj: any = {};
-    if (message.user_id !== '') {
+    if (message.user_id !== "") {
       obj.user_id = message.user_id;
     }
     return obj;
@@ -188,31 +188,28 @@ export const UserRef: MessageFns<UserRef> = {
   },
   fromPartial<I extends Exact<DeepPartial<UserRef>, I>>(object: I): UserRef {
     const message = createBaseUserRef();
-    message.user_id = object.user_id ?? '';
+    message.user_id = object.user_id ?? "";
     return message;
   },
 };
 
 function createBaseComputeRequest(): ComputeRequest {
-  return { user_id: '', calc_type: 0, currency: '', inputs: {} };
+  return { user_id: "", calc_type: 0, currency: "", inputs: {} };
 }
 
 export const ComputeRequest: MessageFns<ComputeRequest> = {
   encode(message: ComputeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== '') {
+    if (message.user_id !== "") {
       writer.uint32(10).string(message.user_id);
     }
     if (message.calc_type !== 0) {
       writer.uint32(16).int32(message.calc_type);
     }
-    if (message.currency !== '') {
+    if (message.currency !== "") {
       writer.uint32(26).string(message.currency);
     }
     Object.entries(message.inputs).forEach(([key, value]) => {
-      ComputeRequest_InputsEntry.encode(
-        { key: key as any, value },
-        writer.uint32(34).fork(),
-      ).join();
+      ComputeRequest_InputsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
     });
     return writer;
   },
@@ -270,27 +267,27 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
 
   fromJSON(object: any): ComputeRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
       calc_type: isSet(object.calc_type) ? calcTypeFromJSON(object.calc_type) : 0,
-      currency: isSet(object.currency) ? globalThis.String(object.currency) : '',
+      currency: isSet(object.currency) ? globalThis.String(object.currency) : "",
       inputs: isObject(object.inputs)
         ? Object.entries(object.inputs).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
     };
   },
 
   toJSON(message: ComputeRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== '') {
+    if (message.user_id !== "") {
       obj.user_id = message.user_id;
     }
     if (message.calc_type !== 0) {
       obj.calc_type = calcTypeToJSON(message.calc_type);
     }
-    if (message.currency !== '') {
+    if (message.currency !== "") {
       obj.currency = message.currency;
     }
     if (message.inputs) {
@@ -310,35 +307,29 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<ComputeRequest>, I>>(object: I): ComputeRequest {
     const message = createBaseComputeRequest();
-    message.user_id = object.user_id ?? '';
+    message.user_id = object.user_id ?? "";
     message.calc_type = object.calc_type ?? 0;
-    message.currency = object.currency ?? '';
-    message.inputs = Object.entries(object.inputs ?? {}).reduce<{ [key: string]: string }>(
-      (acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
+    message.currency = object.currency ?? "";
+    message.inputs = Object.entries(object.inputs ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
     return message;
   },
 };
 
 function createBaseComputeRequest_InputsEntry(): ComputeRequest_InputsEntry {
-  return { key: '', value: '' };
+  return { key: "", value: "" };
 }
 
 export const ComputeRequest_InputsEntry: MessageFns<ComputeRequest_InputsEntry> = {
-  encode(
-    message: ComputeRequest_InputsEntry,
-    writer: BinaryWriter = new BinaryWriter(),
-  ): BinaryWriter {
-    if (message.key !== '') {
+  encode(message: ComputeRequest_InputsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== '') {
+    if (message.value !== "") {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -378,53 +369,46 @@ export const ComputeRequest_InputsEntry: MessageFns<ComputeRequest_InputsEntry> 
 
   fromJSON(object: any): ComputeRequest_InputsEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : '',
-      value: isSet(object.value) ? globalThis.String(object.value) : '',
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
     };
   },
 
   toJSON(message: ComputeRequest_InputsEntry): unknown {
     const obj: any = {};
-    if (message.key !== '') {
+    if (message.key !== "") {
       obj.key = message.key;
     }
-    if (message.value !== '') {
+    if (message.value !== "") {
       obj.value = message.value;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ComputeRequest_InputsEntry>, I>>(
-    base?: I,
-  ): ComputeRequest_InputsEntry {
+  create<I extends Exact<DeepPartial<ComputeRequest_InputsEntry>, I>>(base?: I): ComputeRequest_InputsEntry {
     return ComputeRequest_InputsEntry.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ComputeRequest_InputsEntry>, I>>(
-    object: I,
-  ): ComputeRequest_InputsEntry {
+  fromPartial<I extends Exact<DeepPartial<ComputeRequest_InputsEntry>, I>>(object: I): ComputeRequest_InputsEntry {
     const message = createBaseComputeRequest_InputsEntry();
-    message.key = object.key ?? '';
-    message.value = object.value ?? '';
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
     return message;
   },
 };
 
 function createBaseComputeResponse(): ComputeResponse {
-  return { simulation_id: '', result: {}, computed_at: '' };
+  return { simulation_id: "", result: {}, computed_at: "" };
 }
 
 export const ComputeResponse: MessageFns<ComputeResponse> = {
   encode(message: ComputeResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.simulation_id !== '') {
+    if (message.simulation_id !== "") {
       writer.uint32(10).string(message.simulation_id);
     }
     Object.entries(message.result).forEach(([key, value]) => {
-      ComputeResponse_ResultEntry.encode(
-        { key: key as any, value },
-        writer.uint32(18).fork(),
-      ).join();
+      ComputeResponse_ResultEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
     });
-    if (message.computed_at !== '') {
+    if (message.computed_at !== "") {
       writer.uint32(26).string(message.computed_at);
     }
     return writer;
@@ -475,20 +459,20 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
 
   fromJSON(object: any): ComputeResponse {
     return {
-      simulation_id: isSet(object.simulation_id) ? globalThis.String(object.simulation_id) : '',
+      simulation_id: isSet(object.simulation_id) ? globalThis.String(object.simulation_id) : "",
       result: isObject(object.result)
         ? Object.entries(object.result).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
-      computed_at: isSet(object.computed_at) ? globalThis.String(object.computed_at) : '',
+      computed_at: isSet(object.computed_at) ? globalThis.String(object.computed_at) : "",
     };
   },
 
   toJSON(message: ComputeResponse): unknown {
     const obj: any = {};
-    if (message.simulation_id !== '') {
+    if (message.simulation_id !== "") {
       obj.simulation_id = message.simulation_id;
     }
     if (message.result) {
@@ -500,7 +484,7 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
         });
       }
     }
-    if (message.computed_at !== '') {
+    if (message.computed_at !== "") {
       obj.computed_at = message.computed_at;
     }
     return obj;
@@ -511,34 +495,28 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
   },
   fromPartial<I extends Exact<DeepPartial<ComputeResponse>, I>>(object: I): ComputeResponse {
     const message = createBaseComputeResponse();
-    message.simulation_id = object.simulation_id ?? '';
-    message.result = Object.entries(object.result ?? {}).reduce<{ [key: string]: string }>(
-      (acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
-    message.computed_at = object.computed_at ?? '';
+    message.simulation_id = object.simulation_id ?? "";
+    message.result = Object.entries(object.result ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
+    message.computed_at = object.computed_at ?? "";
     return message;
   },
 };
 
 function createBaseComputeResponse_ResultEntry(): ComputeResponse_ResultEntry {
-  return { key: '', value: '' };
+  return { key: "", value: "" };
 }
 
 export const ComputeResponse_ResultEntry: MessageFns<ComputeResponse_ResultEntry> = {
-  encode(
-    message: ComputeResponse_ResultEntry,
-    writer: BinaryWriter = new BinaryWriter(),
-  ): BinaryWriter {
-    if (message.key !== '') {
+  encode(message: ComputeResponse_ResultEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== '') {
+    if (message.value !== "") {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -578,44 +556,40 @@ export const ComputeResponse_ResultEntry: MessageFns<ComputeResponse_ResultEntry
 
   fromJSON(object: any): ComputeResponse_ResultEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : '',
-      value: isSet(object.value) ? globalThis.String(object.value) : '',
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
     };
   },
 
   toJSON(message: ComputeResponse_ResultEntry): unknown {
     const obj: any = {};
-    if (message.key !== '') {
+    if (message.key !== "") {
       obj.key = message.key;
     }
-    if (message.value !== '') {
+    if (message.value !== "") {
       obj.value = message.value;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ComputeResponse_ResultEntry>, I>>(
-    base?: I,
-  ): ComputeResponse_ResultEntry {
+  create<I extends Exact<DeepPartial<ComputeResponse_ResultEntry>, I>>(base?: I): ComputeResponse_ResultEntry {
     return ComputeResponse_ResultEntry.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ComputeResponse_ResultEntry>, I>>(
-    object: I,
-  ): ComputeResponse_ResultEntry {
+  fromPartial<I extends Exact<DeepPartial<ComputeResponse_ResultEntry>, I>>(object: I): ComputeResponse_ResultEntry {
     const message = createBaseComputeResponse_ResultEntry();
-    message.key = object.key ?? '';
-    message.value = object.value ?? '';
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
     return message;
   },
 };
 
 function createBaseListHistoryRequest(): ListHistoryRequest {
-  return { user_id: '', page: undefined };
+  return { user_id: "", page: undefined };
 }
 
 export const ListHistoryRequest: MessageFns<ListHistoryRequest> = {
   encode(message: ListHistoryRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.user_id !== '') {
+    if (message.user_id !== "") {
       writer.uint32(10).string(message.user_id);
     }
     if (message.page !== undefined) {
@@ -658,14 +632,14 @@ export const ListHistoryRequest: MessageFns<ListHistoryRequest> = {
 
   fromJSON(object: any): ListHistoryRequest {
     return {
-      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : '',
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
       page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
     };
   },
 
   toJSON(message: ListHistoryRequest): unknown {
     const obj: any = {};
-    if (message.user_id !== '') {
+    if (message.user_id !== "") {
       obj.user_id = message.user_id;
     }
     if (message.page !== undefined) {
@@ -679,11 +653,10 @@ export const ListHistoryRequest: MessageFns<ListHistoryRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<ListHistoryRequest>, I>>(object: I): ListHistoryRequest {
     const message = createBaseListHistoryRequest();
-    message.user_id = object.user_id ?? '';
-    message.page =
-      object.page !== undefined && object.page !== null
-        ? PageRequest.fromPartial(object.page)
-        : undefined;
+    message.user_id = object.user_id ?? "";
+    message.page = (object.page !== undefined && object.page !== null)
+      ? PageRequest.fromPartial(object.page)
+      : undefined;
     return message;
   },
 };
@@ -758,50 +731,38 @@ export const ListHistoryResponse: MessageFns<ListHistoryResponse> = {
   create<I extends Exact<DeepPartial<ListHistoryResponse>, I>>(base?: I): ListHistoryResponse {
     return ListHistoryResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListHistoryResponse>, I>>(
-    object: I,
-  ): ListHistoryResponse {
+  fromPartial<I extends Exact<DeepPartial<ListHistoryResponse>, I>>(object: I): ListHistoryResponse {
     const message = createBaseListHistoryResponse();
     message.items = object.items?.map((e) => ListHistoryResponse_Entry.fromPartial(e)) || [];
-    message.page =
-      object.page !== undefined && object.page !== null
-        ? PageResponse.fromPartial(object.page)
-        : undefined;
+    message.page = (object.page !== undefined && object.page !== null)
+      ? PageResponse.fromPartial(object.page)
+      : undefined;
     return message;
   },
 };
 
 function createBaseListHistoryResponse_Entry(): ListHistoryResponse_Entry {
-  return { simulation_id: '', calc_type: 0, currency: '', inputs: {}, result: {}, created_at: '' };
+  return { simulation_id: "", calc_type: 0, currency: "", inputs: {}, result: {}, created_at: "" };
 }
 
 export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = {
-  encode(
-    message: ListHistoryResponse_Entry,
-    writer: BinaryWriter = new BinaryWriter(),
-  ): BinaryWriter {
-    if (message.simulation_id !== '') {
+  encode(message: ListHistoryResponse_Entry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.simulation_id !== "") {
       writer.uint32(10).string(message.simulation_id);
     }
     if (message.calc_type !== 0) {
       writer.uint32(16).int32(message.calc_type);
     }
-    if (message.currency !== '') {
+    if (message.currency !== "") {
       writer.uint32(26).string(message.currency);
     }
     Object.entries(message.inputs).forEach(([key, value]) => {
-      ListHistoryResponse_Entry_InputsEntry.encode(
-        { key: key as any, value },
-        writer.uint32(34).fork(),
-      ).join();
+      ListHistoryResponse_Entry_InputsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
     });
     Object.entries(message.result).forEach(([key, value]) => {
-      ListHistoryResponse_Entry_ResultEntry.encode(
-        { key: key as any, value },
-        writer.uint32(42).fork(),
-      ).join();
+      ListHistoryResponse_Entry_ResultEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).join();
     });
-    if (message.created_at !== '') {
+    if (message.created_at !== "") {
       writer.uint32(50).string(message.created_at);
     }
     return writer;
@@ -879,34 +840,34 @@ export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = 
 
   fromJSON(object: any): ListHistoryResponse_Entry {
     return {
-      simulation_id: isSet(object.simulation_id) ? globalThis.String(object.simulation_id) : '',
+      simulation_id: isSet(object.simulation_id) ? globalThis.String(object.simulation_id) : "",
       calc_type: isSet(object.calc_type) ? calcTypeFromJSON(object.calc_type) : 0,
-      currency: isSet(object.currency) ? globalThis.String(object.currency) : '',
+      currency: isSet(object.currency) ? globalThis.String(object.currency) : "",
       inputs: isObject(object.inputs)
         ? Object.entries(object.inputs).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
       result: isObject(object.result)
         ? Object.entries(object.result).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
-      created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : '',
+      created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : "",
     };
   },
 
   toJSON(message: ListHistoryResponse_Entry): unknown {
     const obj: any = {};
-    if (message.simulation_id !== '') {
+    if (message.simulation_id !== "") {
       obj.simulation_id = message.simulation_id;
     }
     if (message.calc_type !== 0) {
       obj.calc_type = calcTypeToJSON(message.calc_type);
     }
-    if (message.currency !== '') {
+    if (message.currency !== "") {
       obj.currency = message.currency;
     }
     if (message.inputs) {
@@ -927,240 +888,211 @@ export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = 
         });
       }
     }
-    if (message.created_at !== '') {
+    if (message.created_at !== "") {
       obj.created_at = message.created_at;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ListHistoryResponse_Entry>, I>>(
-    base?: I,
-  ): ListHistoryResponse_Entry {
+  create<I extends Exact<DeepPartial<ListHistoryResponse_Entry>, I>>(base?: I): ListHistoryResponse_Entry {
     return ListHistoryResponse_Entry.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListHistoryResponse_Entry>, I>>(
-    object: I,
-  ): ListHistoryResponse_Entry {
+  fromPartial<I extends Exact<DeepPartial<ListHistoryResponse_Entry>, I>>(object: I): ListHistoryResponse_Entry {
     const message = createBaseListHistoryResponse_Entry();
-    message.simulation_id = object.simulation_id ?? '';
+    message.simulation_id = object.simulation_id ?? "";
     message.calc_type = object.calc_type ?? 0;
-    message.currency = object.currency ?? '';
-    message.inputs = Object.entries(object.inputs ?? {}).reduce<{ [key: string]: string }>(
-      (acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
-    message.result = Object.entries(object.result ?? {}).reduce<{ [key: string]: string }>(
-      (acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
-    message.created_at = object.created_at ?? '';
+    message.currency = object.currency ?? "";
+    message.inputs = Object.entries(object.inputs ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
+    message.result = Object.entries(object.result ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
+    message.created_at = object.created_at ?? "";
     return message;
   },
 };
 
 function createBaseListHistoryResponse_Entry_InputsEntry(): ListHistoryResponse_Entry_InputsEntry {
-  return { key: '', value: '' };
+  return { key: "", value: "" };
 }
 
-export const ListHistoryResponse_Entry_InputsEntry: MessageFns<ListHistoryResponse_Entry_InputsEntry> =
-  {
-    encode(
-      message: ListHistoryResponse_Entry_InputsEntry,
-      writer: BinaryWriter = new BinaryWriter(),
-    ): BinaryWriter {
-      if (message.key !== '') {
-        writer.uint32(10).string(message.key);
-      }
-      if (message.value !== '') {
-        writer.uint32(18).string(message.value);
-      }
-      return writer;
-    },
+export const ListHistoryResponse_Entry_InputsEntry: MessageFns<ListHistoryResponse_Entry_InputsEntry> = {
+  encode(message: ListHistoryResponse_Entry_InputsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
 
-    decode(
-      input: BinaryReader | Uint8Array,
-      length?: number,
-    ): ListHistoryResponse_Entry_InputsEntry {
-      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-      let end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseListHistoryResponse_Entry_InputsEntry();
-      while (reader.pos < end) {
-        const tag = reader.uint32();
-        switch (tag >>> 3) {
-          case 1: {
-            if (tag !== 10) {
-              break;
-            }
-
-            message.key = reader.string();
-            continue;
+  decode(input: BinaryReader | Uint8Array, length?: number): ListHistoryResponse_Entry_InputsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListHistoryResponse_Entry_InputsEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
           }
-          case 2: {
-            if (tag !== 18) {
-              break;
-            }
 
-            message.value = reader.string();
-            continue;
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
           }
+
+          message.value = reader.string();
+          continue;
         }
-        if ((tag & 7) === 4 || tag === 0) {
-          break;
-        }
-        reader.skip(tag & 7);
       }
-      return message;
-    },
-
-    fromJSON(object: any): ListHistoryResponse_Entry_InputsEntry {
-      return {
-        key: isSet(object.key) ? globalThis.String(object.key) : '',
-        value: isSet(object.value) ? globalThis.String(object.value) : '',
-      };
-    },
-
-    toJSON(message: ListHistoryResponse_Entry_InputsEntry): unknown {
-      const obj: any = {};
-      if (message.key !== '') {
-        obj.key = message.key;
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
       }
-      if (message.value !== '') {
-        obj.value = message.value;
-      }
-      return obj;
-    },
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
 
-    create<I extends Exact<DeepPartial<ListHistoryResponse_Entry_InputsEntry>, I>>(
-      base?: I,
-    ): ListHistoryResponse_Entry_InputsEntry {
-      return ListHistoryResponse_Entry_InputsEntry.fromPartial(base ?? ({} as any));
-    },
-    fromPartial<I extends Exact<DeepPartial<ListHistoryResponse_Entry_InputsEntry>, I>>(
-      object: I,
-    ): ListHistoryResponse_Entry_InputsEntry {
-      const message = createBaseListHistoryResponse_Entry_InputsEntry();
-      message.key = object.key ?? '';
-      message.value = object.value ?? '';
-      return message;
-    },
-  };
+  fromJSON(object: any): ListHistoryResponse_Entry_InputsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: ListHistoryResponse_Entry_InputsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListHistoryResponse_Entry_InputsEntry>, I>>(
+    base?: I,
+  ): ListHistoryResponse_Entry_InputsEntry {
+    return ListHistoryResponse_Entry_InputsEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListHistoryResponse_Entry_InputsEntry>, I>>(
+    object: I,
+  ): ListHistoryResponse_Entry_InputsEntry {
+    const message = createBaseListHistoryResponse_Entry_InputsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
 
 function createBaseListHistoryResponse_Entry_ResultEntry(): ListHistoryResponse_Entry_ResultEntry {
-  return { key: '', value: '' };
+  return { key: "", value: "" };
 }
 
-export const ListHistoryResponse_Entry_ResultEntry: MessageFns<ListHistoryResponse_Entry_ResultEntry> =
-  {
-    encode(
-      message: ListHistoryResponse_Entry_ResultEntry,
-      writer: BinaryWriter = new BinaryWriter(),
-    ): BinaryWriter {
-      if (message.key !== '') {
-        writer.uint32(10).string(message.key);
-      }
-      if (message.value !== '') {
-        writer.uint32(18).string(message.value);
-      }
-      return writer;
-    },
+export const ListHistoryResponse_Entry_ResultEntry: MessageFns<ListHistoryResponse_Entry_ResultEntry> = {
+  encode(message: ListHistoryResponse_Entry_ResultEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
 
-    decode(
-      input: BinaryReader | Uint8Array,
-      length?: number,
-    ): ListHistoryResponse_Entry_ResultEntry {
-      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-      let end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseListHistoryResponse_Entry_ResultEntry();
-      while (reader.pos < end) {
-        const tag = reader.uint32();
-        switch (tag >>> 3) {
-          case 1: {
-            if (tag !== 10) {
-              break;
-            }
-
-            message.key = reader.string();
-            continue;
+  decode(input: BinaryReader | Uint8Array, length?: number): ListHistoryResponse_Entry_ResultEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListHistoryResponse_Entry_ResultEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
           }
-          case 2: {
-            if (tag !== 18) {
-              break;
-            }
 
-            message.value = reader.string();
-            continue;
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
           }
+
+          message.value = reader.string();
+          continue;
         }
-        if ((tag & 7) === 4 || tag === 0) {
-          break;
-        }
-        reader.skip(tag & 7);
       }
-      return message;
-    },
-
-    fromJSON(object: any): ListHistoryResponse_Entry_ResultEntry {
-      return {
-        key: isSet(object.key) ? globalThis.String(object.key) : '',
-        value: isSet(object.value) ? globalThis.String(object.value) : '',
-      };
-    },
-
-    toJSON(message: ListHistoryResponse_Entry_ResultEntry): unknown {
-      const obj: any = {};
-      if (message.key !== '') {
-        obj.key = message.key;
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
       }
-      if (message.value !== '') {
-        obj.value = message.value;
-      }
-      return obj;
-    },
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
 
-    create<I extends Exact<DeepPartial<ListHistoryResponse_Entry_ResultEntry>, I>>(
-      base?: I,
-    ): ListHistoryResponse_Entry_ResultEntry {
-      return ListHistoryResponse_Entry_ResultEntry.fromPartial(base ?? ({} as any));
-    },
-    fromPartial<I extends Exact<DeepPartial<ListHistoryResponse_Entry_ResultEntry>, I>>(
-      object: I,
-    ): ListHistoryResponse_Entry_ResultEntry {
-      const message = createBaseListHistoryResponse_Entry_ResultEntry();
-      message.key = object.key ?? '';
-      message.value = object.value ?? '';
-      return message;
-    },
-  };
+  fromJSON(object: any): ListHistoryResponse_Entry_ResultEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: ListHistoryResponse_Entry_ResultEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListHistoryResponse_Entry_ResultEntry>, I>>(
+    base?: I,
+  ): ListHistoryResponse_Entry_ResultEntry {
+    return ListHistoryResponse_Entry_ResultEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListHistoryResponse_Entry_ResultEntry>, I>>(
+    object: I,
+  ): ListHistoryResponse_Entry_ResultEntry {
+    const message = createBaseListHistoryResponse_Entry_ResultEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends globalThis.Array<infer U>
-    ? globalThis.Array<DeepPartial<U>>
-    : T extends ReadonlyArray<infer U>
-      ? ReadonlyArray<DeepPartial<U>>
-      : T extends {}
-        ? { [K in keyof T]?: DeepPartial<T[K]> }
-        : Partial<T>;
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin
-  ? P
+export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isObject(value: any): boolean {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }
 
 function isSet(value: any): boolean {

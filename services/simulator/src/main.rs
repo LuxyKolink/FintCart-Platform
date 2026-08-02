@@ -26,6 +26,7 @@ use tracing_subscriber::EnvFilter;
 
 use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::observability;
+use fintcart_simulator::repo::simulations::PgSimulations;
 
 /// Cotas del pool de conexiones.
 ///
@@ -94,7 +95,7 @@ async fn main() -> Result<()> {
     // él, un SIGTERM del orquestador de contenedores cortaría las llamadas a mitad y
     // el cliente vería un error de transporte en lugar de una respuesta.
     Server::builder()
-        .add_service(Service::new(pool).into_server())
+        .add_service(Service::new(PgSimulations::new(pool)).into_server())
         .serve_with_shutdown(addr, {
             let mut grpc_stop = grpc_stop;
             async move {

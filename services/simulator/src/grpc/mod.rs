@@ -9,4 +9,5 @@
 //! `String ↔ Decimal` ocurre aquí y solo aquí — un `Decimal` que llegara al proto o
 //! un `String` que llegara a una calculadora significaría que la frontera se movió.
 
+pub mod mapping;
 pub mod service;

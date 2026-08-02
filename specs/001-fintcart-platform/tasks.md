@@ -533,8 +533,8 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 
 - [X] T069 [P] [US1] Prueba de contrato gRPC de `LearningService` (`ListPublished`, `GetArticle`, `GetQuiz`, `GradeAndStoreAttempt`, `ListAttempts`) en `services/learning/test/learning.contract.spec.ts`
 - [X] T070 [P] [US1] Prueba de contrato gRPC de `UsersService` (`CreateProfile`, `MarkEmailVerified`, `GetAuthContext`, `ApplyQuizScore`, `GetProgress`, `RecordArticleView`, `AppendInAppNotification`) en `services/users/internal/server/contract_test.go`
-- [ ] T071 [P] [US1] Prueba de integración de la Saga de registro con inyección de fallo en cada paso y verificación de compensación en `services/orchestrator/internal/server/saga_registration_test.go` (D-04)
-- [ ] T072 [P] [US1] Prueba de integración de la Saga de calificación→progreso→notificar→auditar, verificando idempotencia y monotonía de `ApplyQuizScore` en `services/orchestrator/internal/server/saga_grading_test.go` (D-07, FR-027)
+- [X] T071 [P] [US1] Prueba de integración de la Saga de registro con inyección de fallo en cada paso y verificación de compensación en `services/orchestrator/internal/server/saga_registration_test.go` (D-04)
+- [X] T072 [P] [US1] Prueba de integración de la Saga de calificación→progreso→notificar→auditar, verificando idempotencia y monotonía de `ApplyQuizScore` en `services/orchestrator/internal/server/saga_grading_test.go` (D-07, FR-027)
 - [ ] T073 [P] [US1] Prueba e2e Playwright del recorrido completo de US1 en `frontend/e2e/us1-aprendizaje.spec.ts` (SC-001)
 
 ### Implementación — Servicio de Aprendizaje (NestJS)
@@ -895,34 +895,137 @@ que ya pide el reenvío desde el frontend.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T109 [P] [US2] Prueba de contrato gRPC de `SimulatorService` (`Compute`, `ListHistory`) en `services/simulator/tests/contract.rs`
-- [ ] T110 [P] [US2] Pruebas de borde numérico OBLIGATORIAS en `services/simulator/tests/numeric_edge.rs`: montos extremos, redondeo bancario half-even, división con resto, tasas atípicas y plazos largos, comparadas contra un cálculo decimal de referencia con cero divergencia (SC-004, Principio VIII)
-- [ ] T111 [P] [US2] Prueba de integración de la Saga de simulación (`Simulator.Compute` → publicar `simulation.executed` → Auditoría) en `services/orchestrator/internal/server/saga_simulation_test.go` (D-03)
+- [X] T109 [P] [US2] Prueba de contrato gRPC de `SimulatorService` (`Compute`, `ListHistory`) en `services/simulator/tests/contract.rs`
+- [X] T110 [P] [US2] Pruebas de borde numérico OBLIGATORIAS en `services/simulator/tests/numeric_edge.rs`: montos extremos, redondeo bancario half-even, división con resto, tasas atípicas y plazos largos, comparadas contra un cálculo decimal de referencia con cero divergencia (SC-004, Principio VIII)
+- [X] T111 [P] [US2] Prueba de integración de la Saga de simulación (`Simulator.Compute` → publicar `simulation.executed` → Auditoría) en `services/orchestrator/internal/server/saga_simulation_test.go` (D-03)
 - [ ] T112 [P] [US2] Prueba e2e Playwright del recorrido de US2 en `frontend/e2e/us2-simuladores.spec.ts`
 
 ### Implementación — Simulador (Rust)
 
-- [ ] T113 [P] [US2] Implementar la calculadora de ahorro con `rust_decimal::Decimal` en `services/simulator/src/calculators/ahorro.rs` (FR-019, FR-021)
-- [ ] T114 [P] [US2] Implementar la calculadora de crédito en `services/simulator/src/calculators/credito.rs`
-- [ ] T115 [P] [US2] Implementar la calculadora de presupuesto en `services/simulator/src/calculators/presupuesto.rs`
-- [ ] T116 [P] [US2] Implementar la calculadora de inversión en `services/simulator/src/calculators/inversion.rs`
-- [ ] T117 [P] [US2] Implementar las calculadoras específicas del contexto financiero colombiano en `services/simulator/src/calculators/colombia.rs` (FR-019)
-- [ ] T118 [US2] Implementar el despacho por `calc_type`, la validación de parámetros y el rechazo de overflow/escala inválida en `services/simulator/src/domain/dispatch.rs` (Edge Cases: precisión extrema y rangos irrazonables)
-- [ ] T119 [US2] Implementar la conversión auxiliar de moneda con tasa provista como parámetro y redondeo half-even explícito en `services/simulator/src/domain/currency.rs` (FR-020, D-14)
-- [ ] T120 [US2] Implementar la persistencia de `simulations` con `inputs`/`result` como strings decimales canónicas en `services/simulator/src/repo/simulations.rs` (FR-022, D-10)
-- [ ] T121 [US2] Implementar `SimulatorService.Compute` y `ListHistory` con su mapeo proto↔dominio en `services/simulator/src/grpc/{service.rs,mapping.rs}`
+- [X] T113 [P] [US2] Implementar la calculadora de ahorro con `rust_decimal::Decimal` en `services/simulator/src/calculators/ahorro.rs` (FR-019, FR-021)
+- [X] T114 [P] [US2] Implementar la calculadora de crédito en `services/simulator/src/calculators/credito.rs`
+- [X] T115 [P] [US2] Implementar la calculadora de presupuesto en `services/simulator/src/calculators/presupuesto.rs`
+- [X] T116 [P] [US2] Implementar la calculadora de inversión en `services/simulator/src/calculators/inversion.rs`
+- [X] T117 [P] [US2] Implementar las calculadoras específicas del contexto financiero colombiano en `services/simulator/src/calculators/colombia.rs` (FR-019)
+- [X] T118 [US2] Implementar el despacho por `calc_type`, la validación de parámetros y el rechazo de overflow/escala inválida en `services/simulator/src/domain/dispatch.rs` (Edge Cases: precisión extrema y rangos irrazonables)
+- [X] T119 [US2] Implementar la conversión auxiliar de moneda con tasa provista como parámetro y redondeo half-even explícito en `services/simulator/src/domain/currency.rs` (FR-020, D-14)
+- [X] T120 [US2] Implementar la persistencia de `simulations` con `inputs`/`result` como strings decimales canónicas en `services/simulator/src/repo/simulations.rs` (FR-022, D-10)
+- [X] T121 [US2] Implementar `SimulatorService.Compute` y `ListHistory` con su mapeo proto↔dominio en `services/simulator/src/grpc/{service.rs,mapping.rs}`
 
 ### Implementación — Saga, borde REST y frontend
 
-- [ ] T122 [US2] Implementar la Saga de simulación (paso único con publicación de `simulation.executed` hacia Auditoría) en `services/orchestrator/internal/server/steps/simulation.go` y `OrchestratorService.StartSimulation` (D-03, FR-025, SC-006)
-- [ ] T123 [US2] Implementar los handlers REST `POST /simulators/{calcType}/run` y `GET /simulators/history` en `services/api-gateway/internal/handler/simulators.go`, con montos y tasas como `string` decimal en la petición y la respuesta (Principio VIII)
+- [X] T122 [US2] Implementar la Saga de simulación (paso único con publicación de `simulation.executed` hacia Auditoría) en `services/orchestrator/internal/server/steps/simulation.go` y `OrchestratorService.StartSimulation` (D-03, FR-025, SC-006)
+- [X] T123 [US2] Implementar los handlers REST `POST /simulators/{calcType}/run` y `GET /simulators/history` en `services/api-gateway/internal/handler/simulators.go`, con montos y tasas como `string` decimal en la petición y la respuesta (Principio VIII)
 - [ ] T124 [P] [US2] Implementar el selector de las cinco calculadoras en `frontend/src/app/features/simulators/selector/` (FR-019)
 - [ ] T125 [P] [US2] Implementar los formularios de parámetros en COP con validación decimal mediante `big.js` en `frontend/src/app/features/simulators/forms/` — sin usar `number` para montos ni tasas (Principio VIII)
 - [ ] T126 [US2] Implementar la presentación de resultados con precisión decimal preservada en `frontend/src/app/features/simulators/result/`
 - [ ] T127 [US2] Implementar la vista del historial de simulaciones con parámetros, resultados y marca temporal en `frontend/src/app/features/simulators/history/` (FR-022)
 - [ ] T128 [US2] Implementar el manejo de pérdida de conexión durante la ejecución de una simulación en `frontend/src/app/features/simulators/simulators.service.ts` (Edge Cases)
 
-**Checkpoint**: US1 y US2 funcionan de forma independiente.
+#### Notas de T071–T072 y T109–T123
+
+**T071/T072 — qué se prueba y contra qué.** Las dos ejercitan el motor REAL con las
+definiciones REALES; lo que se sustituye son los participantes. La diferencia con los
+dobles de `steps/steps_test.go` está en `internal/server/participants_test.go`: aquellos
+registran la llamada, estos reproducen los invariantes de los que la saga depende
+—unicidad del correo, monotonía del puntaje, idempotencia de la bandeja por
+(`event_id`, `type`)—. Contra un doble permisivo, una saga que aplicara el puntaje dos
+veces pasaría igual.
+
+La monotonía se modela con `math/big.Rat` y no con `float64`: `85.55` no es
+representable en binario, y un doble ahí haría pasar la prueba del Principio VIII con
+una implementación que pierde la centésima. `big.Rat` es de la biblioteca estándar, así
+que tampoco añade una dependencia decimal a un servicio que no debe interpretar montos.
+
+T072 no inyecta fallos de participante sino **interrupciones**: corta la escritura del
+avance y reanuda, que es el camino at-least-once que describe D-07. Es el escenario que
+había que cubrir porque el motor, ante un avance no confirmado, deliberadamente **no
+compensa** —lo que la base recuerda es que el paso no se dio—, así que toda la
+corrección descansa en que repetirlo no cambie nada.
+
+Se corrigió de paso una prueba mal enfocada: la de monotonía comprobaba sobre todo el
+doble. Lo que sí pertenece al Orquestador es que las cuatro compensaciones sean `nil` y
+que el progreso reportado venga del participante y no de una aritmética propia; eso es
+lo que se fija ahora.
+
+**`Engine.Execute` devuelve también el `saga_id`.** Hacía falta para la verificación de
+correo y sirve igual para simulación y calificación: es lo único con lo que se rastrea
+después una ejecución que falló, que es justo cuando hace falta.
+
+**T113–T117 — el diseño de los parámetros es decisión de implementación.** `spec.md`
+nombra las cinco calculadoras pero no dice qué calcula cada una; los conjuntos de
+entrada y salida están documentados en la cabecera de cada módulo. Tres decisiones que
+conviene revisar:
+
+- Las tasas se expresan como **fracción** (`0.12`), nunca como porcentaje. Aceptar las
+  dos formas obligaría a adivinar si `12` es doce por ciento o mil doscientos, y la
+  respuesta equivocada no se nota hasta que alguien compara su cuota con la del banco.
+- **Ahorro e inversión están separadas** (mensual y anual) en lugar de una calculadora
+  con periodicidad configurable: son dos preguntas distintas del usuario, y unificarlas
+  obligaría a explicarle qué es un periodo antes de poder responderle.
+- **Presupuesto no sugiere cuánto ahorrar.** Devuelve la fracción del ingreso que queda
+  libre y nada más: un «ahorro sugerido del 20 %» sería asesoría financiera incrustada
+  en un simulador, y esta plataforma es educativa.
+- La calculadora colombiana tiene **tres modos** (`ea_a_mv`, `mv_a_ea`, `gmf`), y el
+  plural de FR-019 lo admite. Las conversiones E.A. ↔ M.V. porque la Superintendencia
+  obliga a publicar en efectiva anual mientras las cuotas se liquidan sobre una nominal
+  periódica —confundirlas es el error de lectura más común de un crédito de consumo—, y
+  el GMF porque casi nadie lo cuenta al proyectar. **La UVT entra como parámetro**: su
+  valor cambia cada año, e incrustarlo dejaría la calculadora silenciosamente
+  equivocada cada primero de enero.
+
+**T110 — qué significa «cero divergencia».** El enunciado pide comparar contra una
+referencia decimal sin divergencia, y hay que ser preciso porque solo una clase de
+operación admite exactitud absoluta:
+
+- **Exactas** (sumas, productos, potencias de exponente entero): la referencia es una
+  segunda implementación independiente —la amortización iterada mes a mes frente a la
+  fórmula cerrada— y la divergencia exigida es cero **al centavo**. El residuo previo,
+  del orden de 10⁻²⁴, es el límite de la mantisa de 96 bits al dividir, no un error de
+  la fórmula.
+- **No exactas** (`1/3`, la raíz duodécima): no tienen representación decimal finita.
+  Fingir exactitud ahí sería mentir, así que se fija la estabilidad a la escala de su
+  columna y la propiedad algebraica — la ida y vuelta `EA → MV → EA` vuelve al origen
+  dentro de una millonésima. Un valor esperado «mágico» habría ocultado el método.
+
+Consecuencia de diseño derivada de esto: **el total pagado de un crédito no es la cuota
+redondeada por el plazo**. La cuota exacta casi nunca tiene dos decimales, y en un
+crédito a 240 meses el atajo se desvía en miles de pesos. Se calcula a precisión plena y
+se redondea una sola vez, de modo que `interes_total = total_pagado − monto` cuadra
+exactamente. La última cuota real de un banco absorbe ese descuadre: el simulador
+orienta, no liquida, y está documentado en `credito.rs`.
+
+**Cambio de estructura en el Simulador**: `grpc::Service` era genérico sobre nada y
+sostenía un `PgPool`. Ahora es genérico sobre un puerto `repo::simulations::Simulations`.
+El propio comentario del archivo ya anticipaba el cambio; lo que lo hizo urgente es que
+sin él **T109 no podría existir**, porque cada RPC exigiría PostgreSQL levantado. El
+canal de la prueba es un `tokio::io::duplex` en memoria, el equivalente del `bufconn` de
+los servicios Go, y usa el cliente **generado** para ejercitar la serialización protobuf.
+`build.rs` pasa a generar también el cliente por eso mismo.
+
+**T109 encontró un fallo real en su propia prueba**, y merece anotarse porque la
+distinción es del contrato: el mensaje de `Error::InvalidInput` **sí** viaja al cliente
+—lo necesita para corregir el parámetro— y el de `Error::Storage` **no**, porque
+llevaría dentro nombres de tabla y fragmentos de SQL. Hay ahora una prueba para cada
+lado.
+
+**T123 ya estaba implementada** por T055–T059, igual que ocurrió con T099–T101.
+
+**Huecos anotados, no resueltos**:
+
+- `orchestrator.v1.SimulationResult` **no tiene `computed_at`**, aunque el Simulador lo
+  devuelve y la saga lo deja en su payload. Se optó por no arrastrarlo en la estructura
+  de dominio antes que mantener un campo que no llega a ninguna parte. La marca temporal
+  sí aparece en el historial (`ListHistory.created_at`).
+- La **anonimización del historial** (`AnonymizeHistory`) queda implementada aquí porque
+  comparte tabla y transacción con el resto, aunque su tarea sea T163: sustituye el
+  `user_id` por uno aleatorio y **no borra** las filas —los parámetros de una simulación
+  no identifican a nadie por sí solos y conservarlos mantiene utilizable la estadística
+  agregada—. Es idempotente, así que el reintento del paso de la saga no falla.
+
+**Checkpoint**: US1 y US2 funcionan de forma independiente **en el backend**. Las
+pantallas de las dos historias (T102–T108, T124–T128) y sus e2e (T073, T112) quedan
+pendientes por indicación explícita de posponer el frontend.
 
 ---
 
