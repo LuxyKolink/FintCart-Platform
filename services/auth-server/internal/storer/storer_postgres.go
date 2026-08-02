@@ -323,10 +323,25 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 // una deriva entre ese reloj y el del servidor de base de datos rechazara códigos
 // perfectamente válidos.
 func (s *PostgresStorer) InsertAuthCode(ctx context.Context, c AuthCodeRow) error {
+	// Un slice nil NO es lo mismo que uno vacío para `pq.Array`: el primero se
+	// serializa como NULL y `scopes` es NOT NULL, así que la inserción reventaba con
+	// un error de restricción que, al no ser ninguno de los centinelas, salía al
+	// cliente como 500.
+	//
+	// Y llegaba nil de forma rutinaria: en protobuf un campo `repeated` vacío y uno
+	// ausente son indistinguibles, de modo que CUALQUIER autorización que no pidiera
+	// scopes —lo normal en un cliente que solo quiere iniciar sesión— caía aquí. Se
+	// normaliza en este punto y no antes porque es donde la distinción entre nil y
+	// vacío deja de tener significado: en SQL solo existe la lista vacía.
+	scopes := c.Scopes
+	if scopes == nil {
+		scopes = []string{}
+	}
+
 	_, err := s.db.ExecContext(ctx, insertAuthCodeQuery,
 		c.ID, c.Code, c.ClientID, c.UserID,
 		c.CodeChallenge, c.CodeChallengeMethod, c.RedirectURI,
-		pq.Array(c.Scopes), c.ExpiresAt,
+		pq.Array(scopes), c.ExpiresAt,
 	)
 	if err != nil {
 		return wrap("insertar código de autorización", err)

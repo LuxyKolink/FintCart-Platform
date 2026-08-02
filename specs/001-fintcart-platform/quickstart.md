@@ -33,6 +33,7 @@ dev/build      # construye las imágenes de desarrollo (Dockerfile.dev) de los 8
 dev/up         # levanta la topología y espera los health checks de PostgreSQL, Redis y RabbitMQ
 dev/migrate    # aplica las migraciones de los 7 servicios con estado (golang-migrate uniforme)
 dev/seed       # datos sin los que la plataforma no se puede USAR (ver abajo)
+dev/demo       # recorre el sistema de punta a punta y enseña qué mirar
 ```
 
 Eso es todo: **cero pasos manuales adicionales** (Principio XII, regla 4). Para detener y limpiar:
@@ -50,8 +51,31 @@ La topología declarada en `dev/docker-compose.yaml` sobre la red bridge `fintca
 - **8 servicios backend + SPA**, configurados 100% por variables de entorno y localizados por
   hostname (nombre de servicio en compose) — Principio X.
 
-Health checks: `GET /healthz` y `/readyz` por servicio (consumidos por Kubernetes en producción).
+Health checks: `GET /healthz` y `/readyz` por servicio (consumidos por Kubernetes en producción),
+en un puerto DISTINTO del de tráfico: el Gateway sirve REST en 8080 y sondas en 8081. Compartirlo
+no es una simplificación válida — los dos servidores compiten por el puerto y el de sondas pierde
+en silencio, porque un fallo de observabilidad no debe tumbar el borde.
+
 Frontend en `http://localhost:4200`; borde REST en `http://localhost:8080`.
+
+### Herramientas de inspección (solo desarrollo)
+
+Un borde REST y siete bases aisladas no se ven con nada. `dev/up` levanta también:
+
+| Herramienta | URL | Para qué |
+|-------------|-----|----------|
+| **Swagger UI** | `http://localhost:8090` | Recorrer el contrato y lanzar peticiones reales |
+| **Mailhog** | `http://localhost:8025` | Ver los correos que salen de Notificación |
+| **RabbitMQ** | `http://localhost:15672` | Colas, tasas de entrega y consumidores enlazados |
+| **Adminer** | `http://localhost:8091` | Las siete bases, una conexión cada una |
+| **Métricas** | `http://localhost:8081/metrics` | Latencia, throughput y errores por patrón de ruta |
+
+En Swagger UI hay que elegir **«Desarrollo local (dev/up)»** en el desplegable *Servers*: el
+primero de la lista es producción, que es lo correcto en el contrato y lo inútil en local. El
+botón *Authorize* acepta el token que imprime `dev/demo --keep`.
+
+Adminer y Swagger UI no son parte del sistema: ningún servicio depende de ellos y no existen
+fuera de `dev/docker-compose.yaml`.
 
 ### `dev/seed` no es opcional
 
@@ -164,11 +188,17 @@ equivalentes) en cualquier entorno.
 
 ## 4. Verificación del flujo principal (User Story 1 — P1)
 
+`dev/demo` ejecuta todo lo que sigue —y además los simuladores, la auditoría y el cierre de
+sesión— encadenando las respuestas automáticamente. Los `curl` de abajo son la versión paso a
+paso, para cuando hace falta detenerse en uno concreto.
+
 ```bash
 # (a) Registro → inicia Saga de registro (Users.CreateProfile + Auth.CreateCredential + email)
 curl -X POST http://localhost:8080/auth/register \
   -H "Content-Type: application/json" \
-  -d '{ "email": "ana@example.co", "password": "S3gura!2026", "display_name": "Ana" }'
+  -d '{ "email": "ana@example.co", "password": "Dem0stracion!2026", "display_name": "Ana" }'
+# La contraseña debe tener 12 caracteres o más. Con menos, esta llamada responde
+# 202 IGUALMENTE y la saga falla después: no llega correo y nadie recibe el motivo.
 # 202 Accepted; revisar el email de verificación en la UI de Mailhog
 
 # (b) Verificar correo → Saga de verificación (Auth.ActivateCredential + Users.MarkEmailVerified)
@@ -185,7 +215,9 @@ curl http://localhost:8080/catalog/articles -H "Authorization: Bearer <jwt>"
 # (e) Enviar cuestionario → Saga calificación→progreso→notificar→auditar (FR-027)
 curl -X POST http://localhost:8080/quizzes/<quizId>/attempts \
   -H "Authorization: Bearer <jwt>" -H "Content-Type: application/json" \
-  -d '{ "answers": { "q1": "b", "q2": "a" } }'
+  -d '{ "answers": { "<questionId>": "b" } }'
+# Las claves son los identificadores de PREGUNTA que devuelve el cuestionario, no
+# posiciones. Los del cuestionario de `dev/seed` terminan en 0d01, 0d02 y 0d03.
 # 201; la respuesta incluye score (string decimal), attempt_no y points_after
 
 # (f) Progreso actualizado (FR-014)

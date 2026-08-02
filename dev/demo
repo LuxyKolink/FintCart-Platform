@@ -1,0 +1,325 @@
+#!/usr/bin/env bash
+# dev/demo — recorre el sistema de punta a punta contra la plataforma en marcha.
+#
+# Es el guion de demostración ejecutable: registra una cuenta nueva, recoge el
+# correo de verificación, la activa, inicia sesión por OAuth2+PKCE, lee el
+# catálogo, responde un cuestionario, ejecuta los cinco simuladores y cierra la
+# sesión, imprimiendo por el camino lo que hay que mirar.
+#
+# Existe por tres razones, en orden de importancia:
+#
+#   1. Enseñar el sistema a mano es teclear quince peticiones encadenadas donde
+#      la salida de una es la entrada de la siguiente. Delante de un cliente eso
+#      se rompe, y lo que se rompe parece el producto.
+#   2. Es una prueba de humo real. Las pruebas de cada servicio corren contra
+#      dobles; esto corre contra PostgreSQL, Redis, RabbitMQ y SMTP de verdad, y
+#      los cuatro fallos del primer arranque en frío fueron justo de ese tipo.
+#   3. Comprueba invariantes de la Constitución que solo se pueden observar en
+#      ejecución: que el puntaje viaja como cadena decimal (VIII), que Auditoría
+#      registra la simulación SIN el monto (FR-031), que el token revocado deja
+#      de valer (IV).
+#
+# NO es una prueba automatizada: no sustituye a `go test`/`cargo test`/`npm test`
+# ni se ejecuta en CI. Aquí se afirma poco y se enseña mucho; ahí es al revés.
+#
+# Uso:
+#   dev/demo              recorrido completo con una cuenta nueva
+#   dev/demo --keep       no cierra la sesión al final (deja el token a la vista
+#                         para seguir explorando desde Swagger UI)
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+require_docker
+command -v curl >/dev/null 2>&1 || die "curl no está disponible en este shell."
+
+GATEWAY="http://localhost:8080"
+MAILHOG="http://localhost:8025"
+QUIZ_ID="00000000-0000-4000-8000-000000000c01"   # el de dev/seed
+KEEP_SESSION=false
+[[ "${1:-}" == "--keep" ]] && KEEP_SESSION=true
+
+# Cada ejecución usa un correo distinto para que el recorrido sea repetible: el
+# registro es idempotente por correo y una segunda pasada con el mismo chocaría
+# contra la cuenta de la anterior.
+#
+# Sin `+` en la parte local a propósito: el correo se usa tal cual como valor de
+# una cadena de consulta contra la API de Mailhog, y ahí un `+` significa espacio.
+EMAIL="demo$(date +%s)@fintcart.co"
+# 12 caracteres como mínimo: es la política de Auth, y por debajo de eso el
+# registro devuelve 202 igualmente y la saga muere después, sin que llegue ningún
+# correo (ver el diagnóstico del paso 2).
+PASSWORD='Dem0stracion!2026'
+
+# ── Presentación ────────────────────────────────────────────────────────────
+# Los pasos van numerados y con título para que quien mira la pantalla sepa en
+# qué punto del recorrido está sin leer la salida de curl.
+STEP=0
+step() { STEP=$((STEP + 1)); printf '\n\033[1;36m[%d] %s\033[0m\n' "$STEP" "$*"; }
+show() { printf '    \033[2m%s\033[0m %s\n' "$1" "$2"; }
+ok()   { printf '    \033[1;32m✓\033[0m %s\n' "$*"; }
+
+# Envía una petición y separa cuerpo y código de estado. El código se necesita
+# tanto para comprobar el resultado como para ENSEÑARLO: media demostración
+# consiste en que un 401 o un 403 aparezcan cuando deben.
+#
+# Escribe en las variables BODY y CODE en lugar de imprimirlas porque casi todas
+# las respuestas alimentan la petición siguiente.
+BODY=""; CODE=""
+request() {
+  local method="$1" path="$2" data="${3:-}" token="${4:-}"
+  local args=(-s -w '\n%{http_code}' -X "$method" "$GATEWAY$path")
+  [[ -n "$data"  ]] && args+=(-H 'Content-Type: application/json' -d "$data")
+  [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+
+  local raw; raw="$(curl "${args[@]}")"
+  CODE="${raw##*$'\n'}"
+  BODY="${raw%$'\n'*}"
+}
+
+# Extrae el valor de una clave de primer nivel de un JSON.
+#
+# Sin `jq` a propósito: el único prerrequisito de este repositorio es Docker
+# (Principio XII), y un guion de demostración que exija instalar algo antes es
+# justo lo que el Principio prohíbe. Basta para estas respuestas, que son planas
+# y de claves conocidas.
+json_field() {
+  local key="$1" json="$2"
+  printf '%s' "$json" \
+    | tr -d '\n' \
+    | grep -oE "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" \
+    | head -1 \
+    | sed -E "s/.*:[[:space:]]*\"(.*)\"$/\1/"
+}
+
+require() {
+  local expected="$1" what="$2"
+  [[ "$CODE" == "$expected" ]] \
+    || die "$what: se esperaba HTTP $expected y llegó $CODE — $BODY"
+}
+
+# ── PKCE ────────────────────────────────────────────────────────────────────
+# El verificador es un secreto de un solo uso que el cliente genera y NO envía
+# al autorizar; solo manda su SHA-256. Se hace con `openssl` porque en un shell
+# no hay forma portable de calcular un SHA-256 en base64url, y `openssl` viene
+# con Git Bash, con macOS y con cualquier Linux.
+command -v openssl >/dev/null 2>&1 || die "openssl no está disponible (necesario para PKCE)."
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+VERIFIER="$(openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
+CHALLENGE="$(printf '%s' "$VERIFIER" | openssl dgst -sha256 -binary | b64url)"
+
+# ── 1. Registro ─────────────────────────────────────────────────────────────
+step "Registro — arranca la saga de registro (Usuarios + Auth + correo)"
+request POST /auth/register \
+  "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"display_name\":\"Demo\"}"
+require 202 "registro"
+SAGA_ID="$(json_field saga_id "$BODY")"
+show "correo" "$EMAIL"
+show "saga" "$SAGA_ID"
+ok "202 Accepted — el borde responde sin esperar a que la saga termine"
+
+# ── 2. Correo de verificación ───────────────────────────────────────────────
+step "Correo — el Servicio de Notificación lo entrega por SMTP"
+# La saga es asíncrona y la cola de notificación tiene su propio intervalo de
+# despacho, así que el correo tarda en aparecer. Se sondea en lugar de dormir un
+# rato fijo: un `sleep` generoso alarga la demostración y uno corto la rompe.
+deadline=$(( SECONDS + 60 )); MSG=""
+while :; do
+  MSG="$(curl -s "$MAILHOG/api/v2/search?kind=to&query=$EMAIL")"
+  [[ "$MSG" == *"$EMAIL"* ]] && break
+  if [[ $SECONDS -ge $deadline ]]; then
+    # Sin esto, el síntoma («no llegó el correo») no dice nada: el registro
+    # respondió 202 y el fallo puede estar en cualquiera de los tres pasos de la
+    # saga. Preguntarle a la saga por qué murió convierte un tiempo de espera
+    # agotado en un diagnóstico. Es también lo que le pasa a un usuario real
+    # —recibe 202 y nunca más sabe nada—, así que conviene tenerlo a la vista.
+    warn "el correo no llegó en 60 s. Estado de la saga de registro:"
+    docker exec -i "$(compose ps -q postgres-orchestrator)" \
+      psql -q -A -t -U "$PG_USER" -d orchestrator_db -c \
+      "SELECT status || ' · paso ' || current_step || ' · ' || coalesce(last_error, 'sin error')
+         FROM saga_state WHERE id = '$SAGA_ID';" 2>/dev/null | sed 's/^/    /'
+    die "registro incompleto."
+  fi
+  sleep 2
+done
+
+# El cuerpo viaja en quoted-printable: los renglones se parten con `=` al final
+# —a veces en mitad del UUID— y el propio `=` se escribe `=3D`. Sin deshacer las
+# dos cosas, y EN ESTE ORDEN, lo que se extrae es un identificador truncado.
+DECODED="$(printf '%s' "$MSG" | sed -E 's/=\\r\\n//g; s/=3D/=/g')"
+USER_ID="$(printf '%s' "$DECODED" | grep -oE 'user_id=[0-9a-f-]{36}' | head -1 | cut -d= -f2)"
+TOKEN="$(printf '%s' "$DECODED"  | grep -oE 'token=[A-Za-z0-9_-]{20,}' | head -1 | cut -d= -f2)"
+[[ -n "$USER_ID" && -n "$TOKEN" ]] || die "no se pudo leer el enlace de verificación del correo."
+show "usuario" "$USER_ID"
+show "bandeja" "$MAILHOG  → «Verifica tu cuenta de Fintcart»"
+ok "correo entregado con enlace de verificación"
+
+# ── 3. Verificación ─────────────────────────────────────────────────────────
+step "Verificación — el token es obligatorio y de un solo uso"
+request POST /auth/verify-email \
+  "{\"user_id\":\"$USER_ID\",\"verification_token\":\"no-es-el-token\"}"
+[[ "$CODE" == "400" ]] || die "un token equivocado debería dar 400 y dio $CODE"
+ok "token equivocado → 400 (no basta con conocer el user_id)"
+
+request POST /auth/verify-email \
+  "{\"user_id\":\"$USER_ID\",\"verification_token\":\"$TOKEN\"}"
+require 200 "verificación"
+ok "token correcto → 200, cuenta activa"
+
+# ── 4. Inicio de sesión ─────────────────────────────────────────────────────
+step "Inicio de sesión — OAuth2 Authorization Code + PKCE"
+# Los `scopes` son los que `dev/seed` concedió al cliente `fintcart-spa`; pedir uno
+# que no esté en esa lista devuelve 400. Se piden explícitamente para que la demo
+# enseñe que el borde los comprueba contra lo concedido y no los da por buenos.
+REDIRECT="http://localhost:4200/auth/callback"
+authorize() {
+  request POST /oauth/authorize \
+    "{\"client_id\":\"fintcart-spa\",\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",
+      \"redirect_uri\":\"$REDIRECT\",\"scopes\":[\"perfil\",\"catalogo\",\"simulador\",\"progreso\"],
+      \"code_challenge\":\"$CHALLENGE\",\"code_challenge_method\":\"S256\"}"
+  require 200 "autorización"
+  # El campo se llama `code` —no `authorization_code`—; ver `AuthorizeResponse`.
+  json_field code "$BODY"
+}
+
+CODE_1="$(authorize)"
+
+# Un código robado no sirve sin el verificador que nunca viajó por la red. Y el
+# intento fallido CONSUME el código: si no, quien lo tuviera podría probar
+# verificadores sin límite y fuera de línea.
+request POST /oauth/token \
+  "{\"grant_type\":\"authorization_code\",\"client_id\":\"fintcart-spa\",
+    \"code\":\"$CODE_1\",\"code_verifier\":\"verificador-equivocado\",
+    \"redirect_uri\":\"$REDIRECT\"}"
+[[ "$CODE" == "401" ]] || die "un verificador equivocado debería dar 401 y dio $CODE"
+ok "verificador equivocado → 401, y el código queda quemado"
+
+CODE_2="$(authorize)"
+
+request POST /oauth/token \
+  "{\"grant_type\":\"authorization_code\",\"client_id\":\"fintcart-spa\",
+    \"code\":\"$CODE_2\",\"code_verifier\":\"$VERIFIER\",
+    \"redirect_uri\":\"$REDIRECT\"}"
+require 200 "canje del código"
+ACCESS="$(json_field access_token "$BODY")"
+[[ -n "$ACCESS" ]] || die "la respuesta no trae access_token — $BODY"
+ok "verificador correcto → access token + refresh token"
+
+request GET /catalog/articles
+[[ "$CODE" == "401" ]] || die "sin token debería dar 401 y dio $CODE"
+ok "la misma ruta sin token → 401"
+
+# ── 5. Catálogo ─────────────────────────────────────────────────────────────
+step "Catálogo — contenido publicado por el flujo editorial"
+request GET /catalog/articles '' "$ACCESS"
+require 200 "catálogo"
+show "artículos" "$(printf '%s' "$BODY" | grep -o '"article_id"' | wc -l | tr -d ' ')"
+ok "catálogo servido"
+
+# ── 6. Cuestionario ─────────────────────────────────────────────────────────
+step "Cuestionario — saga calificar → progreso → notificar → auditar"
+request POST "/quizzes/$QUIZ_ID/attempts" \
+  '{"answers":{"00000000-0000-4000-8000-000000000d01":"b",
+               "00000000-0000-4000-8000-000000000d02":"b",
+               "00000000-0000-4000-8000-000000000d03":"c"}}' "$ACCESS"
+require 201 "primer intento"
+show "intento 1" "$BODY"
+
+request POST "/quizzes/$QUIZ_ID/attempts" \
+  '{"answers":{"00000000-0000-4000-8000-000000000d01":"b",
+               "00000000-0000-4000-8000-000000000d02":"b",
+               "00000000-0000-4000-8000-000000000d03":"b"}}' "$ACCESS"
+require 201 "segundo intento"
+show "intento 2" "$BODY"
+# El puntaje entrecomillado no es un detalle de formato: es el Principio VIII en
+# la respuesta. Un 66.67 como número JSON sería un binario de coma flotante.
+[[ "$BODY" == *'"score":"100"'* ]] || warn "el puntaje no llegó como cadena decimal «100»"
+ok "puntaje como CADENA decimal, no como número JSON (Principio VIII)"
+
+request GET /me/progress '' "$ACCESS"
+require 200 "progreso"
+show "progreso" "$BODY"
+ok "el progreso guarda el MEJOR intento, no el último"
+
+# ── 7. Simuladores ──────────────────────────────────────────────────────────
+step "Simuladores — cinco calculadoras con decimal de precisión arbitraria"
+# Recibe SOLO el objeto de entradas y arma el cuerpo alrededor: la moneda es la
+# misma en todas las llamadas y repetirla cinco veces solo daría cinco sitios
+# donde equivocarse.
+run_sim() {
+  local calc="$1" inputs="$2"
+  request POST "/simulators/$calc/run" "{\"currency\":\"COP\",\"inputs\":$inputs}" "$ACCESS"
+  require 200 "simulador $calc"
+  show "$calc" "$(printf '%s' "$BODY" | tr -d '\n' | cut -c1-160)"
+}
+# Las tasas van como FRACCIÓN, no como porcentaje: `0.185`, no `18.5`. El
+# Simulador no lo adivina —no puede: un 18,5 % y un 1850 % son ambos números
+# válidos— así que un porcentaje se acepta y devuelve una cuota disparatada.
+run_sim credito     '{"monto":"20000000","tasa_anual":"0.185","meses":"36"}'
+run_sim ahorro      '{"deposito_inicial":"1000000","aporte_mensual":"350000","tasa_anual":"0.0925","meses":"24"}'
+run_sim presupuesto '{"ingreso_mensual":"4500000","gastos_fijos":"2100000","gastos_variables":"900000"}'
+run_sim inversion   '{"capital":"15000000","tasa_anual":"0.115","anios":"5","aporte_anual":"2000000","inflacion_anual":"0.052"}'
+# El 4×1000 con la exención de 350 UVT: sobre 20 000 000 el tope exento es
+# 17 429 650, así que el gravamen sale solo de los 2 570 350 restantes → 10 281,40.
+# `exento` hay que pedirlo: por defecto la exención NO se aplica.
+run_sim colombia_especifica '{"operacion":"gmf","monto":"20000000","valor_uvt":"49799","exento":"si"}'
+ok "los cinco devuelven cadenas decimales exactas"
+
+request GET /simulators/history '' "$ACCESS"
+require 200 "historial"
+ok "historial de simulaciones del usuario"
+
+# ── 8. Auditoría ────────────────────────────────────────────────────────────
+step "Auditoría — registro inmutable, alimentado por RabbitMQ"
+# Se consulta la base directamente porque Auditoría es un consumidor puro: no
+# expone gRPC ni tiene ruta en el borde, y ese aislamiento es intencionado.
+sleep 3
+AUDIT_CID="$(compose ps -q postgres-audit)"
+
+# El error de psql NO se silencia: cuando la consulta se quedó desfasada respecto
+# del esquema, `pipefail` hizo que el guion terminara aquí sin imprimir una sola
+# línea. Un fallo mudo en la última demostración es peor que uno ruidoso.
+audit_query() {
+  docker exec -i "$AUDIT_CID" psql -q -U "$PG_USER" -d audit_db -c "$1" | sed 's/^/    /'
+}
+
+# Se consulta la base directamente porque Auditoría es un consumidor puro: no
+# expone gRPC ni tiene ruta en el borde, y ese aislamiento es intencionado.
+#
+# Filtrado por `actor_ref`: son los eventos de ESTA cuenta y de nadie más. La
+# columna guarda el UUID opaco del usuario y ningún dato personal — Auditoría no
+# sabe ni el correo ni el nombre de quien actuó (Principio III).
+audit_query "SELECT operation, result, count(*)
+               FROM audit_log WHERE actor_ref = '$USER_ID'
+              GROUP BY operation, result ORDER BY 1;"
+
+audit_query "SELECT context
+               FROM audit_log
+              WHERE actor_ref = '$USER_ID' AND operation = 'simulation.executed'
+              ORDER BY occurred_at DESC LIMIT 1;"
+ok "la simulación se audita SIN el monto: solo el tipo y el identificador (FR-031)"
+
+# ── 9. Cierre de sesión ─────────────────────────────────────────────────────
+if $KEEP_SESSION; then
+  step "Sesión abierta (--keep)"
+  printf '    \033[1mAccess token\033[0m — pégalo en el botón «Authorize» de Swagger UI:\n\n'
+  printf '    %s\n\n' "$ACCESS"
+  show "Swagger UI" "http://localhost:8090"
+else
+  step "Cierre de sesión — el token entra en la blacklist de Redis"
+  request POST /auth/logout '' "$ACCESS"
+  require 204 "logout"
+  request GET /me/progress '' "$ACCESS"
+  [[ "$CODE" == "401" ]] || die "el token revocado debería dar 401 y dio $CODE"
+  ok "el mismo token, válido hace un segundo, ya no sirve (Principio IV)"
+fi
+
+printf '\n\033[1;32m==> recorrido completo\033[0m  cuenta: %s\n' "$EMAIL"
+cat <<'EOF'
+
+    Para verlo con interfaz:
+      Contrato REST   http://localhost:8090   (Swagger UI — «Try it out»)
+      Bandeja         http://localhost:8025   (Mailhog)
+      Colas           http://localhost:15672  (fintcart / dev_only_password)
+      Bases           http://localhost:8091   (Adminer — una base por servicio)
+      Métricas        http://localhost:8081/metrics
+EOF

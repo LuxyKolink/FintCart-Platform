@@ -45,9 +45,16 @@ done
 log "OK — infraestructura sana. Siguiente: dev/migrate"
 cat <<'EOF'
     Borde REST     http://localhost:8080
+    Sondas         http://localhost:8081/healthz  /readyz  /metrics
     Frontend SPA   http://localhost:4200
-    RabbitMQ       http://localhost:15672   (fintcart / dev_only_password)
+
+    Para inspeccionar (solo desarrollo):
+    Swagger UI     http://localhost:8090     elegir «Desarrollo local» en Servers
     Mailhog        http://localhost:8025
+    RabbitMQ       http://localhost:15672    (fintcart / dev_only_password)
+    Adminer        http://localhost:8091     (fintcart / dev_only_password)
+
+    Recorrido completo de punta a punta:  dev/demo
 EOF
 
 $FOLLOW_LOGS && compose logs -f

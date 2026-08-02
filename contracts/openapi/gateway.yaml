@@ -11,6 +11,13 @@ info:
 
 servers:
   - url: https://api.fintcart.co/v1
+    description: Producción
+  # El borde local que levanta `dev/up`, SIN el prefijo `/v1`: en desarrollo no hay
+  # nada delante del Gateway que lo añada, así que las rutas cuelgan de la raíz.
+  # Está aquí y no solo en la documentación porque es lo que permite que el «Try it
+  # out» de Swagger UI dispare peticiones reales contra la plataforma en marcha.
+  - url: http://localhost:8080
+    description: Desarrollo local (dev/up)
 
 components:
   securitySchemes:
@@ -33,6 +40,22 @@ components:
             learning: Acceso al módulo de aprendizaje
             simulator: Acceso a simuladores
             profile: Gestión de perfil
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        El mismo token que emite `/oauth/token`, presentado en la cabecera
+        `Authorization`. No es un mecanismo de autenticación ALTERNATIVO —el único
+        modo de obtener el token sigue siendo `oauth2PKCE`—, sino la descripción de
+        cómo VIAJA una vez emitido, que es lo que el Gateway comprueba en cada
+        petición contra la blacklist de Redis.
+
+        Está declarado aparte porque el flujo `authorizationCode` de OpenAPI supone
+        una redirección de navegador, y este `/oauth/authorize` responde JSON (ver la
+        desviación de RFC 6749 §3.1 más arriba). Sin este esquema, un cliente de
+        exploración como Swagger UI no ofrece dónde pegar el token y ninguna ruta
+        autenticada se puede probar desde ahí.
   schemas:
     DecimalString:
       type: string
@@ -89,8 +112,11 @@ components:
         # tiene que volver a parsear una cadena para pintar la tarjeta.
         payload: { type: object, additionalProperties: true }
 
+# Los dos esquemas en una lista son alternativas (OR), no requisitos acumulados: la
+# petición vale si trae un token, con independencia de cómo se describa su obtención.
 security:
   - oauth2PKCE: []
+  - bearerAuth: []
 
 paths:
   # --- OAuth2 (Principio VII). Públicas: sirven para OBTENER el token. ---
@@ -296,6 +322,16 @@ paths:
   /simulators/{calcType}/run:
     post:
       summary: Ejecutar simulación financiera (FR-019..FR-022)
+      description: >
+        Las claves de `inputs` dependen del `calcType` y las define el Simulador,
+        que es su dueño; el Gateway las pasa tal cual sin interpretarlas.
+
+        LAS TASAS VAN COMO FRACCIÓN, NO COMO PORCENTAJE: `"0.185"` para un 18,5 %
+        anual. La distinción importa porque no es detectable — `"18.5"` es un
+        número perfectamente válido, se acepta con 200 y devuelve el resultado de
+        un 1850 % anual. No hay heurística honesta que las separe: un 18,5 % y un
+        1850 % son ambos representables, así que la convención tiene que estar
+        escrita y respetarse en el cliente.
       parameters:
         - { name: calcType, in: path, required: true, schema: { type: string, enum: [ahorro, credito, presupuesto, inversion, colombia_especifica] } }
       requestBody:

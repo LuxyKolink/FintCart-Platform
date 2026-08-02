@@ -267,6 +267,42 @@ func TestInsertAuthCodeDoesNotSendCreatedAt(t *testing.T) {
 	require.NoError(t, s.InsertAuthCode(context.Background(), row))
 }
 
+// TestInsertAuthCodeNormalizesNilScopes fija el arreglo de un 500 en el inicio de
+// sesión, no un detalle de estilo.
+//
+// `pq.Array` serializa un slice nil como NULL, y `scopes` es NOT NULL. Como en
+// protobuf un `repeated` vacío es indistinguible de uno ausente, toda autorización
+// que no pidiera scopes —lo normal en un cliente que solo quiere entrar— llegaba
+// aquí con nil, violaba la restricción y salía al borde como «error interno».
+//
+// La prueba afirma sobre el ARGUMENTO enviado a la base, que es donde estaba el
+// fallo: comprobar solo que la función no devuelve error dejaría pasar la versión
+// rota, porque contra un mock la restricción NOT NULL no existe.
+func TestInsertAuthCodeNormalizesNilScopes(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+
+	row := AuthCodeRow{
+		ID:                  uuid.New(),
+		Code:                "codigo-sin-scopes",
+		ClientID:            "fintcart-spa",
+		UserID:              uuid.New(),
+		CodeChallenge:       "challenge",
+		CodeChallengeMethod: "S256",
+		RedirectURI:         "https://app.fintcart.co/callback",
+		Scopes:              nil,
+		ExpiresAt:           time.Now().UTC().Add(45 * time.Second),
+	}
+
+	mock.ExpectExec("INSERT INTO authorization_codes").
+		WithArgs(row.ID, row.Code, row.ClientID, row.UserID,
+			row.CodeChallenge, row.CodeChallengeMethod, row.RedirectURI,
+			pq.Array([]string{}), row.ExpiresAt).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	require.NoError(t, s.InsertAuthCode(context.Background(), row))
+}
+
 // TestConsumeAuthCodeMarksAndReturnsAtomically es la prueba central de T050.
 //
 // Comprueba la FORMA de la sentencia, no solo su resultado: `UPDATE ... RETURNING`

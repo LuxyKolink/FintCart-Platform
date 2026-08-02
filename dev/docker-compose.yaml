@@ -143,6 +143,42 @@ services:
     logging:
       driver: none
 
+  # ───────────────────── Herramientas de inspección ──────────────────────
+  #
+  # Solo desarrollo, igual que mailhog: no forman parte del sistema y NINGÚN
+  # servicio depende de ellas. Existen porque el borde REST y siete bases
+  # aisladas son, sin una interfaz, invisibles — y algo invisible no se puede
+  # revisar ni enseñar.
+
+  # Renderiza el contrato REST y permite lanzar peticiones reales contra el
+  # Gateway. Monta `contracts/openapi/` en lugar de copiarlo: así la interfaz
+  # muestra siempre el contrato del árbol de trabajo y no una copia que se
+  # quedaría desfasada en silencio en cuanto alguien editase el YAML.
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    networks: [fintcart]
+    restart: unless-stopped
+    environment:
+      SWAGGER_JSON: /spec/gateway.yaml
+      # Deja preseleccionado el servidor local en el desplegable de «Servers».
+      # Sin esto, el primero de la lista es producción y el primer «Try it out»
+      # sale hacia un dominio que no existe.
+      QUERY_CONFIG_ENABLED: "true"
+    volumes:
+      - ../contracts/openapi:/spec:ro
+    ports: ["8090:8080"]
+
+  # Un único cliente para las siete bases. Que haya que elegir el servidor al
+  # entrar no es una molestia del montaje: es la separación del Principio III
+  # hecha visible — no existe ninguna conexión desde la que se vean dos bases.
+  adminer:
+    image: adminer:5
+    networks: [fintcart]
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres-audit
+    ports: ["8091:8080"]
+
   # ──────────────────────────── Servicios ────────────────────────────────
 
   auth-server:
@@ -277,10 +313,21 @@ services:
       ORCHESTRATOR_SVC_ADDR: "orchestrator:9090"
       JWT_SIGNING_KEY: "dev_only_signing_key_change_in_every_other_environment"
       HTTP_PORT: "8080"
+      # Las sondas (`/healthz`, `/readyz`, `/metrics`) van en su PROPIO puerto, y
+      # aquí hay que decirlo: el valor por defecto de HEALTH_PORT es 8080, el mismo
+      # de HTTP_PORT, así que los dos servidores competían por el puerto. El de
+      # sondas perdía la carrera y —por diseño, para que un fallo de observabilidad
+      # no tumbe el borde— solo lo registraba en el log. Resultado: el Gateway
+      # llevaba desde el primer arranque devolviendo 404 en /healthz.
+      HEALTH_PORT: "8081"
       RATE_LIMIT_RPM: "600"
-      CORS_ALLOWED_ORIGINS: "http://localhost:4200"
+      # Swagger UI se sirve desde otro origen, así que sin él en esta lista el
+      # navegador bloquea en el preflight cualquier «Try it out».
+      CORS_ALLOWED_ORIGINS: "http://localhost:4200,http://localhost:8090"
       LOG_LEVEL: "debug"
-    ports: ["8080:8080"]
+    ports:
+      - "8080:8080"    # borde REST
+      - "8081:8081"    # sondas y métricas Prometheus
     depends_on:
       redis: { condition: service_healthy }
       auth-server: { condition: service_started }
