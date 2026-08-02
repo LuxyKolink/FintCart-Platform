@@ -32,6 +32,7 @@ modificar un contrato.
 dev/build      # construye las imágenes de desarrollo (Dockerfile.dev) de los 8 servicios + frontend
 dev/up         # levanta la topología y espera los health checks de PostgreSQL, Redis y RabbitMQ
 dev/migrate    # aplica las migraciones de los 7 servicios con estado (golang-migrate uniforme)
+dev/seed       # datos sin los que la plataforma no se puede USAR (ver abajo)
 ```
 
 Eso es todo: **cero pasos manuales adicionales** (Principio XII, regla 4). Para detener y limpiar:
@@ -51,6 +52,27 @@ La topología declarada en `dev/docker-compose.yaml` sobre la red bridge `fintca
 
 Health checks: `GET /healthz` y `/readyz` por servicio (consumidos por Kubernetes en producción).
 Frontend en `http://localhost:4200`; borde REST en `http://localhost:8080`.
+
+### `dev/seed` no es opcional
+
+Migrar deja el esquema listo pero el sistema **inutilizable**, y de una forma que no se
+nota hasta que se intenta entrar:
+
+- `oauth_clients` está vacía, así que `POST /oauth/authorize` rechaza toda petición. Es
+  el único dato que ninguna saga crea y que ningún endpoint permite dar de alta —
+  registrarse funciona, iniciar sesión no.
+- El catálogo se llena solo por el flujo editorial, que exige un usuario con rol, y los
+  roles tampoco se pueden pedir por la API (concederlos desde fuera es lo que sostiene
+  la separación de responsabilidades de FR-008).
+
+```bash
+dev/seed                                   # cliente OAuth `fintcart-spa` + 5 artículos + 1 cuestionario
+dev/seed role ana@fintcart.co editor       # rol editorial sobre una cuenta ya registrada
+```
+
+Es idempotente. No es una migración a propósito: `golang-migrate` versiona el esquema, y
+una migración con `INSERT` llevaría este cliente OAuth de desarrollo a producción
+(Principio XI).
 
 ## 2. Regenerar stubs tras cambiar un contrato
 

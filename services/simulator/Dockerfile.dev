@@ -13,7 +13,13 @@
 #
 # NUNCA usar esta imagen fuera de desarrollo.
 
-ARG RUST_VERSION=1.85
+# Tiene que coincidir con el toolchain de desarrollo: el árbol de dependencias
+# resuelto en `Cargo.lock` (la familia `icu_*`, vía `idna_adapter`) declara
+# `rust-version = 1.86`, y con 1.85 el build fallaba dentro del contenedor mientras
+# compilaba sin problema en la máquina. Un `cargo update --precise` para retroceder
+# esas crates arreglaría el síntoma congelando dependencias transitivas por una razón
+# que no es nuestra; subir el compilador es la causa.
+ARG RUST_VERSION=1.97
 
 FROM rust:${RUST_VERSION}-slim-bookworm
 WORKDIR /src

@@ -11,6 +11,11 @@
     "esModuleInterop": true,
     "sourceMap": true,
     "outDir": "./dist",
+    // Sin `rootDir`, TypeScript lo infiere del árbol de entradas: al incluir
+    // `test/` el ancestro común pasaba a ser la raíz del servicio y la salida
+    // caía en `dist/src/main.js`, mientras el Dockerfile y `start:prod`
+    // arrancan `dist/main.js`. El contenedor moría en bucle nada más levantarlo.
+    "rootDir": "./src",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
@@ -23,6 +28,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist"]
+  // `test/` queda fuera del build a propósito: una imagen de producción no debe
+  // llevar pruebas compiladas. Jest las compila por su cuenta con ts-jest, así
+  // que excluirlas aquí no las deja sin comprobar de tipos al ejecutarlas.
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test"]
 }

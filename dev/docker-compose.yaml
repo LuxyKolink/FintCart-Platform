@@ -236,6 +236,10 @@ services:
       AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
       SMTP_ADDR: "mailhog:1025"
       SMTP_FROM: "no-reply@fintcart.local"
+      # MailHog no ofrece STARTTLS: exigirlo hace que responda `500 Unrecognised
+      # command` y ningún correo salga. Es una excepción de DESARROLLO y por eso
+      # está escrita aquí y no como defecto del servicio.
+      SMTP_REQUIRE_TLS: "false"
       # Dominio público de la SPA: con él se compone el enlace de verificación del
       # correo. En local apunta al servidor de desarrollo de Angular.
       APP_BASE_URL: "http://localhost:4200"

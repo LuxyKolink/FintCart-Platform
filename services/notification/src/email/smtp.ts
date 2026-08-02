@@ -15,6 +15,13 @@ export interface SMTPOptions {
   readonly addr: string;
   /** Remitente de los correos salientes. */
   readonly from: string;
+  /**
+   * Si se exige STARTTLS. Viene de `SMTP_REQUIRE_TLS` y por defecto es `true`.
+   *
+   * Se pasa en vez de deducirse del puerto porque un relé de desarrollo (MailHog en
+   * el 1025) no ofrece STARTTLS y la deducción lo daba por supuesto.
+   */
+  readonly requireTls: boolean;
 }
 
 /** Puerto SMTP por defecto si `SMTP_ADDR` no lo incluye. */
@@ -32,8 +39,11 @@ export class SMTPMailer implements Mailer {
       // `secure: false` con `requireTLS` no es «sin cifrar»: es STARTTLS, el modo del
       // puerto 587. `secure: true` corresponde al 465 (TLS implícito) y, puesto en el
       // 587, la conexión se queda colgada en el saludo sin un error que lo explique.
+      // Por eso el 465 sigue deduciéndose del puerto: ahí TLS es la forma de hablar,
+      // no una política. Lo que ya no se deduce es si se EXIGE cifrado en los demás
+      // puertos, que es una decisión de despliegue.
       secure: port === 465,
-      requireTLS: port !== 465,
+      requireTLS: port !== 465 && options.requireTls,
       // Una conexión SMTP colgada bloquearía un hueco de concurrencia del despachador
       // indefinidamente. Con plazo, el envío falla, cuenta como intento y se reintenta.
       connectionTimeout: 10_000,

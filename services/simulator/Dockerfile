@@ -9,7 +9,10 @@
 # `FINTCART_REGEN_PROTO=1`. Es la diferencia entre un build reproducible y uno que
 # depende de tener la versión correcta de un compilador de protobuf en cada máquina.
 
-ARG RUST_VERSION=1.85
+# Igual que en `Dockerfile.dev`: `Cargo.lock` arrastra crates que exigen 1.86 o
+# superior, así que 1.85 no compila este árbol. Se fija la misma versión que el
+# toolchain de desarrollo para que un build que pasa en local no falle aquí.
+ARG RUST_VERSION=1.97
 
 FROM rust:${RUST_VERSION}-slim-bookworm AS build
 WORKDIR /src

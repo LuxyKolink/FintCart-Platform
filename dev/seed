@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+# dev/seed — carga los datos MÍNIMOS sin los cuales la plataforma no se puede usar.
+#
+# No es contenido de adorno para una demo. Sin esto:
+#
+#   · `POST /oauth/authorize` rechaza TODA petición, porque no hay ningún cliente
+#     registrado en `oauth_clients` y nadie puede iniciar sesión. Es el único dato
+#     que ninguna saga crea y que ningún endpoint permite dar de alta.
+#   · `GET /catalog/articles` devuelve una lista vacía y `POST /quizzes/{id}/attempts`
+#     no tiene ningún cuestionario al que apuntar, porque el catálogo solo se llena
+#     por el flujo editorial, que a su vez exige un usuario con rol.
+#
+# Por qué NO es una migración: `golang-migrate` versiona el ESQUEMA, y una migración
+# que insertara filas las llevaría también a producción, donde este cliente OAuth de
+# desarrollo y estos artículos de ejemplo no pintan nada (Principio XI).
+#
+# Es idempotente: todas las filas llevan identificador fijo y `ON CONFLICT DO NOTHING`,
+# de modo que ejecutarlo dos veces no duplica nada.
+#
+# Uso:
+#   dev/seed                          cliente OAuth + catálogo de ejemplo
+#   dev/seed role <correo> <rol>      concede un rol a una cuenta ya registrada
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+require_docker
+
+# Ejecuta SQL por la entrada estándar de psql DENTRO del contenedor de Postgres del
+# servicio indicado. El nombre del contenedor y el de la base salen de
+# STATEFUL_SERVICES, que es la misma tabla que usa dev/migrate: así el sembrado no
+# puede apuntar a una base distinta de la que se migra.
+#
+# Se usa `docker exec` y no un cliente del host porque psql no es un prerrequisito
+# de este repositorio (Principio XII: Docker es lo único que hace falta).
+psql_exec() {
+  local svc="$1" entry pg_host db cid
+  for entry in "${STATEFUL_SERVICES[@]}"; do
+    IFS=':' read -r name pg_host db <<< "$entry"
+    [[ "$name" == "$svc" ]] && break
+    pg_host=""
+  done
+  [[ -n "$pg_host" ]] || die "servicio con estado desconocido: '$svc'"
+
+  cid="$(compose ps -q "$pg_host" 2>/dev/null || true)"
+  [[ -n "$cid" ]] || die "'$pg_host' no está en marcha. Ejecutar 'dev/up' antes de 'dev/seed'."
+
+  docker exec -i "$cid" psql -v ON_ERROR_STOP=1 -q -U "$PG_USER" -d "$db"
+}
+
+# ── subcomando: conceder un rol ─────────────────────────────────────────────
+#
+# Los roles editoriales no se pueden pedir por la API —y con razón: un endpoint que
+# permitiera auto-concederse `coordinador_editorial` anularía la separación de
+# responsabilidades de FR-008—. Se conceden aquí, contra la base de Usuarios.
+seed_role() {
+  local email="${1:-}" role="${2:-}"
+  [[ -n "$email" && -n "$role" ]] || die "uso: dev/seed role <correo> <rol>"
+
+  case "$role" in
+    usuario_final|editor|coordinador_editorial) ;;
+    *) die "rol inválido: '$role' (usuario_final, editor o coordinador_editorial)" ;;
+  esac
+
+  log "concediendo '$role' a $email"
+  # La comprobación de existencia va en SQL y no en bash: si el correo no está
+  # registrado, un INSERT ... SELECT no inserta nada y el script terminaría diciendo
+  # OK sobre un rol que nadie tiene.
+  psql_exec users <<SQL
+DO \$\$
+DECLARE target UUID;
+BEGIN
+  SELECT id INTO target FROM profiles
+   WHERE email = '${email}' AND account_status = 'active';
+  IF target IS NULL THEN
+    RAISE EXCEPTION 'no hay ninguna cuenta activa con el correo %', '${email}';
+  END IF;
+  INSERT INTO roles_assignment (user_id, role) VALUES (target, '${role}')
+  ON CONFLICT DO NOTHING;
+END
+\$\$;
+SQL
+  log "OK — rol concedido. El token ya emitido NO lo lleva: hay que volver a entrar."
+}
+
+if [[ "${1:-}" == "role" ]]; then
+  shift
+  seed_role "$@"
+  exit 0
+fi
+
+[[ $# -eq 0 ]] || die "argumento no reconocido: '$1' (ver la cabecera de dev/seed)"
+
+# ── cliente OAuth de la SPA ─────────────────────────────────────────────────
+#
+# Cliente PÚBLICO: sin secreto y con PKCE obligatorio. Una SPA no puede guardar un
+# secreto —el navegador lo entrega a quien mire el bundle—, y por eso la constitución
+# fija Authorization Code + PKCE para este caso (Principio VII, research D-05).
+log "registrando el cliente OAuth de la SPA (fintcart-spa)"
+psql_exec auth-server <<'SQL'
+INSERT INTO oauth_clients (id, client_id, client_secret_hash, grant_types, redirect_uris, scopes, is_public)
+VALUES (
+  '00000000-0000-4000-8000-00000000c1e1',
+  'fintcart-spa',
+  NULL,
+  ARRAY['authorization_code', 'refresh_token'],
+  ARRAY['http://localhost:4200/auth/callback'],
+  ARRAY['perfil', 'catalogo', 'simulador', 'progreso'],
+  TRUE
+)
+ON CONFLICT (client_id) DO NOTHING;
+SQL
+
+# ── catálogo de ejemplo ─────────────────────────────────────────────────────
+#
+# Cinco categorías temáticas (SC-009), cada una con un artículo publicado, y un
+# cuestionario sobre el primero. Los identificadores de autor y aprobador son
+# distintos a propósito: `article_versions` exige `approved_by <> created_by`, que es
+# el invariante de FR-008 escrito en la base.
+log "sembrando el catálogo (5 categorías, 5 artículos publicados, 1 cuestionario)"
+psql_exec learning <<'SQL'
+BEGIN;
+
+-- Identidades opacas del contenido de ejemplo. No existen en Usuarios y no hace
+-- falta que existan: Aprendizaje guarda referencias opacas y NUNCA lee la base de
+-- otro servicio (Principio III).
+CREATE TEMP TABLE seed_ids (editor UUID, coordinador UUID) ON COMMIT DROP;
+INSERT INTO seed_ids VALUES (
+  '00000000-0000-4000-8000-0000000ed170',
+  '00000000-0000-4000-8000-00000000c007'
+);
+
+INSERT INTO articles (id, title, category, author_id)
+SELECT v.id, v.title, v.category, s.editor
+FROM seed_ids s, (VALUES
+  ('00000000-0000-4000-8000-000000000a01'::UUID, 'Cómo construir tu primer presupuesto mensual', 'presupuesto'),
+  ('00000000-0000-4000-8000-000000000a02'::UUID, 'El fondo de emergencia: cuánto y dónde', 'ahorro'),
+  ('00000000-0000-4000-8000-000000000a03'::UUID, 'Entender la tasa efectiva anual antes de pedir un crédito', 'credito'),
+  ('00000000-0000-4000-8000-000000000a04'::UUID, 'Interés compuesto: por qué el tiempo pesa más que el monto', 'inversion'),
+  ('00000000-0000-4000-8000-000000000a05'::UUID, 'El 4x1000 y otros costos que no aparecen en la tasa', 'seguridad_financiera')
+) AS v(id, title, category)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO article_versions (id, article_id, version_no, body, state, created_by, approved_by, published_at)
+SELECT v.id, v.article_id, 1, v.body, 'publicado', s.editor, s.coordinador, now()
+FROM seed_ids s, (VALUES
+  ('00000000-0000-4000-8000-000000000b01'::UUID, '00000000-0000-4000-8000-000000000a01'::UUID,
+   E'Un presupuesto no es una lista de prohibiciones: es una fotografía de a dónde va tu dinero.\n\nEmpieza por registrar un mes completo de gastos reales, sin corregir nada. La mayoría de la gente descubre que entre el 15 % y el 25 % de sus egresos no encaja en ninguna categoría que hubiera anticipado.\n\nCon esa base, agrupa en tres bloques: fijos, variables y ahorro. La regla que mejor aguanta el paso del tiempo no es un porcentaje concreto, sino que el ahorro salga PRIMERO y no de lo que sobra.'),
+  ('00000000-0000-4000-8000-000000000b02'::UUID, '00000000-0000-4000-8000-000000000a02'::UUID,
+   E'El fondo de emergencia existe para que un imprevisto no se convierta en una deuda cara.\n\nLa cifra habitual —de tres a seis meses de gastos— depende de algo que casi nunca se menciona: la estabilidad de tu ingreso. Un salario fijo admite tres meses; un ingreso variable o independiente pide seis o más.\n\nDónde guardarlo importa tanto como cuánto: tiene que ser líquido y de bajo riesgo. Un fondo de emergencia invertido en algo volátil deja de ser un fondo de emergencia justo el día que lo necesitas.'),
+  ('00000000-0000-4000-8000-000000000b03'::UUID, '00000000-0000-4000-8000-000000000a03'::UUID,
+   E'Dos créditos con la misma cuota mensual pueden costar cantidades muy distintas.\n\nLa tasa que aparece en la publicidad suele ser NOMINAL. La que de verdad mide lo que pagas es la EFECTIVA ANUAL, que incorpora el efecto de capitalizar los intereses a lo largo del año.\n\nAntes de firmar, convierte siempre a efectiva anual y compara ahí. Y suma los costos que no van en la tasa: estudio de crédito, seguros asociados y comisiones de manejo.'),
+  ('00000000-0000-4000-8000-000000000b04'::UUID, '00000000-0000-4000-8000-000000000a04'::UUID,
+   E'El interés compuesto es interés que gana interés, y su efecto no es lineal sino acelerado.\n\nDe ahí la conclusión que sorprende: empezar temprano con montos pequeños suele superar a empezar tarde con montos grandes. El tiempo entra como exponente; el monto, apenas como factor.\n\nEl mismo mecanismo opera en tu contra en una deuda de tarjeta de crédito. Es la misma fórmula, con el signo cambiado.'),
+  ('00000000-0000-4000-8000-000000000b05'::UUID, '00000000-0000-4000-8000-000000000a05'::UUID,
+   E'En Colombia, el Gravamen a los Movimientos Financieros —el 4x1000— cobra cuatro pesos por cada mil que salen de tu cuenta.\n\nParece poco hasta que mueves dinero con frecuencia: veinte traslados de un millón cuestan ochenta mil pesos al año en un impuesto que nadie te cobra de forma visible.\n\nExiste una exención por cuenta marcada, hasta un tope mensual en UVT. Marcar la cuenta correcta es de las decisiones de mayor rendimiento por minuto invertido que existen.')
+) AS v(id, article_id, body)
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE articles a
+   SET current_version_id = av.id
+  FROM article_versions av
+ WHERE av.article_id = a.id
+   AND av.state = 'publicado'
+   AND a.current_version_id IS NULL;
+
+-- Un cuestionario con tres preguntas de peso desigual: el puntaje resultante
+-- (66.67) es un decimal periódico, que es justo el caso en el que un `float`
+-- delataría el error de redondeo (Principio VIII).
+INSERT INTO quizzes (id, article_id, title, pass_threshold)
+VALUES (
+  '00000000-0000-4000-8000-000000000c01',
+  '00000000-0000-4000-8000-000000000a01',
+  'Presupuesto mensual: comprobación de lectura',
+  70.00
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO questions (id, quiz_id, prompt, options, correct_key, weight, position)
+VALUES
+  ('00000000-0000-4000-8000-000000000d01',
+   '00000000-0000-4000-8000-000000000c01',
+   '¿Con qué conviene empezar un presupuesto?',
+   '{"a": "Fijando un límite por categoría", "b": "Registrando un mes de gastos reales", "c": "Cancelando las suscripciones"}'::JSONB,
+   'b', 1.00, 1),
+  ('00000000-0000-4000-8000-000000000d02',
+   '00000000-0000-4000-8000-000000000c01',
+   '¿Qué lugar debería ocupar el ahorro?',
+   '{"a": "Lo que sobre a fin de mes", "b": "Antes que los gastos variables", "c": "Solo en meses con prima"}'::JSONB,
+   'b', 1.00, 2),
+  ('00000000-0000-4000-8000-000000000d03',
+   '00000000-0000-4000-8000-000000000c01',
+   '¿Qué proporción del gasto suele escapar a las categorías previstas?',
+   '{"a": "Menos del 5 %", "b": "Entre el 15 % y el 25 %", "c": "Más de la mitad"}'::JSONB,
+   'b', 1.00, 3)
+ON CONFLICT (id) DO NOTHING;
+
+COMMIT;
+SQL
+
+log "OK — datos sembrados"
+cat <<'EOF'
+    Cliente OAuth  fintcart-spa  (público, PKCE S256)
+    redirect_uri   http://localhost:4200/auth/callback
+    Cuestionario   00000000-0000-4000-8000-000000000c01
+
+    Para el flujo editorial hace falta un rol:
+      dev/seed role <correo> editor
+      dev/seed role <correo> coordinador_editorial
+EOF

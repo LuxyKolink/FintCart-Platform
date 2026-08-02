@@ -9,20 +9,31 @@ docs/
 specs/
 deploy/
 
-# Dependencias y artefactos: se instalan/compilan dentro de la imagen
-node_modules/
-dist/
-build/
-coverage/
-.angular/
+# Dependencias y artefactos: se instalan/compilan dentro de la imagen.
+#
+# Van con `**/` porque Docker compara cada patrón contra la ruta COMPLETA desde la
+# raíz del contexto, y `*` no cruza barras: `dist/` a secas solo tapaba un `dist/`
+# en la raíz del monorepo, que no existe, mientras `services/learning/dist/` seguía
+# entrando. Es lo que dejaba el contexto de Aprendizaje en 114 MB.
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+# La caché incremental de TypeScript. Excluirla NO es una optimización: si el
+# `.tsbuildinfo` del host entra en el contexto, `tsc` deduce que el JavaScript ya
+# está emitido —pero `dist/` sí está excluido— y la imagen queda solo con los
+# `.d.ts`. El contenedor arranca y muere en bucle buscando `dist/main.js`.
+**/*.tsbuildinfo
+**/.angular/
 services/simulator/target/
-vendor/
+**/vendor/
 
-# Nunca copiar secretos a una imagen
-.env
-.env.*
-*.pem
-*.key
+# Nunca copiar secretos a una imagen (Principio X). También con `**/`: la forma
+# root-only dejaba pasar un `services/<svc>/.env`, que es justo donde aparecen.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
 
 # Ruido
 **/.DS_Store

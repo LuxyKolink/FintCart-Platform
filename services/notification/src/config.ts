@@ -20,6 +20,20 @@ export interface Config {
   /** Remitente de los correos salientes. */
   readonly smtpFrom: string;
   /**
+   * Si se exige STARTTLS al servidor SMTP. Por defecto SÍ.
+   *
+   * Estaba deducido del puerto (`≠ 465 ⇒ STARTTLS`), lo cual es correcto para un
+   * proveedor real pero falso para un relé local de desarrollo: MailHog escucha en
+   * el 1025 y habla SMTP plano, así que respondía `500 Unrecognised command` y
+   * NINGÚN correo de verificación llegaba a salir. Se convierte en una decisión
+   * explícita porque el cifrado del correo no debería depender de un número de
+   * puerto.
+   *
+   * El defecto es `true` a propósito: desactivarlo exige escribirlo, de modo que
+   * una variable olvidada nunca degrada la conexión en silencio.
+   */
+  readonly smtpRequireTls: boolean;
+  /**
    * Base pública de la SPA, sin barra final (p. ej. `https://app.fintcart.co`).
    *
    * Se usa para componer el enlace de verificación. Es configuración de DESPLIEGUE y
@@ -105,6 +119,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     queue: env.AMQP_QUEUE ?? DEFAULT_QUEUE,
     smtpAddr: required.SMTP_ADDR as string,
     smtpFrom: required.SMTP_FROM as string,
+    smtpRequireTls: boolFlag(env.SMTP_REQUIRE_TLS, true, 'SMTP_REQUIRE_TLS'),
     // La barra final se recorta aquí, una vez, en lugar de en cada plantilla: dos
     // sitios que compongan la URL acabarían discrepando en un `//` que unos
     // servidores toleran y otros no.
@@ -137,4 +152,24 @@ function positiveInt(raw: string | undefined, fallback: number, name: string): n
     throw new ConfigError(`${name} debe ser un entero positivo, no ${JSON.stringify(raw)}`);
   }
   return parsed;
+}
+
+/**
+ * Interpreta una bandera booleana, o el valor por defecto si la variable no está.
+ *
+ * Solo admite `true`/`false` literales. La tentación es tratar cualquier cosa que no
+ * sea `"true"` como `false`, pero aplicado a un interruptor de TLS eso convierte una
+ * errata —`SMTP_REQUIRE_TLS: "ture"`— en una conexión sin cifrar que nadie pidió.
+ *
+ * @throws {ConfigError} si el valor está presente pero no es `true` ni `false`.
+ */
+function boolFlag(raw: string | undefined, fallback: boolean, name: string): boolean {
+  if (raw === undefined || raw === '') {
+    return fallback;
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (normalized !== 'true' && normalized !== 'false') {
+    throw new ConfigError(`${name} debe ser "true" o "false", no ${JSON.stringify(raw)}`);
+  }
+  return normalized === 'true';
 }

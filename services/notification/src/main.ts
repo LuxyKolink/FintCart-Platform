@@ -61,7 +61,11 @@ async function main(): Promise<void> {
   installSignalHandlers(controller, logger);
 
   const queue = new PostgresNotificationQueue(pool);
-  const mailer = new SMTPMailer({ addr: config.smtpAddr, from: config.smtpFrom });
+  const mailer = new SMTPMailer({
+    addr: config.smtpAddr,
+    from: config.smtpFrom,
+    requireTls: config.smtpRequireTls,
+  });
   const metrics = new Metrics();
 
   // La readiness comprueba la BASE, que es de lo que depende poder aceptar un evento.
