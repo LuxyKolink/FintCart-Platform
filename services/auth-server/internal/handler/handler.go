@@ -144,3 +144,15 @@ func (h *Handler) RevokeAndAnonymizeCredential(ctx context.Context, req *authv1.
 	}
 	return okResult(), nil
 }
+
+// ── contraseña ───────────────────────────────────────────────────────────────
+
+// ChangePassword transporta DOS contraseñas en claro (la actual y la nueva) y es,
+// junto con `CreateCredential`, el único RPC al que aplica la exclusión del log de
+// acceso en `middleware.go`.
+func (h *Handler) ChangePassword(ctx context.Context, req *authv1.ChangePasswordRequest) (*commonv1.OpResult, error) {
+	if err := h.svc.ChangePassword(ctx, req.GetUserId(), req.GetCurrentPassword(), req.GetNewPassword()); err != nil {
+		return nil, grpcError(err)
+	}
+	return okResult(), nil
+}

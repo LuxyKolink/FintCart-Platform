@@ -119,6 +119,12 @@ export class GradingService {
    * Devuelve TODOS los intentos, no solo el mejor: la ruta de lectura de FR-016 es la
    * que permite a una persona ver su propia progresión, y quedarse solo con el máximo
    * la borraría.
+   *
+   * `quizId` VACÍO es válido y significa «todos los cuestionarios del usuario» —
+   * no se exige que sea UUID en ese caso. Es lo que usa
+   * `UsersService.GetActivityReport` para contar `quizzes_attempted` sin conocer
+   * cada cuestionario de antemano (plan.md N-02, `users/internal/server/mapping.go`)
+   * y lo que usa `GET /me/data` del Gateway para el historial completo (FR-029).
    */
   public async listAttempts(
     userId: string,
@@ -126,7 +132,9 @@ export class GradingService {
     page: PageRequestLike | undefined,
   ): Promise<AttemptsPage> {
     requireUuid('user_id', userId);
-    requireUuid('quiz_id', quizId);
+    if (quizId !== '') {
+      requireUuid('quiz_id', quizId);
+    }
 
     const window = resolvePage(page);
     const result = await this.quizzes.listAttempts(userId, quizId, window);
@@ -136,6 +144,35 @@ export class GradingService {
       nextPageToken: nextPageToken(window, result.items.length, result.total),
       totalSize: result.total,
     };
+  }
+
+  /**
+   * Paso de la Saga de anonimización que le corresponde a este servicio
+   * (FR-030, D-08).
+   *
+   * Es un no-op DELIBERADO, no un esqueleto sin terminar: `quiz_attempts` no
+   * tiene ninguna columna de PII que disociar (a diferencia de
+   * `services/auth-server` o `services/users`, cuyo esquema anota
+   * explícitamente qué columnas son «anonimizables»). El único identificador de
+   * la fila es `user_id`, que ya es un UUID opaco y DEBE seguir siéndolo
+   * después de esta llamada: es el mismo correlador que usa
+   * `Users.GetActivityReport` para contar `quizzes_attempted`, y una vez que
+   * Auth y Usuarios anonimizan la identidad detrás de ese UUID, el propio
+   * identificador deja de señalar a nadie sin que este servicio tenga que
+   * tocar una sola fila (ver la nota equivalente en
+   * `services/users/internal/server/anonymize.go`).
+   *
+   * Sigue existiendo como RPC —y la Saga lo sigue invocando— porque `Aprendizaje`
+   * está en el alcance de FR-030 y una implementación futura que SÍ añadiera una
+   * columna con datos personales (por ejemplo, un comentario libre del usuario)
+   * tiene que encontrar aquí el paso listo para vaciarla, no un servicio que
+   * nunca aprendió a hacerlo.
+   *
+   * @throws {DomainError} `invalid_argument` si `userId` no es un UUID.
+   */
+  // eslint-disable-next-line @typescript-eslint/require-await -- no-op documentado; ver arriba
+  public async anonymizeAttempts(userId: string): Promise<void> {
+    requireUuid('user_id', userId);
   }
 }
 

@@ -78,6 +78,17 @@ type Storer interface {
 	// y el hecho de que la cuenta existió es información de auditoría.
 	AnonymizeCredential(ctx context.Context, userID uuid.UUID, opaqueEmail string) error
 
+	// RegisterFailedLogin cuenta un intento fallido y bloquea la cuenta si alcanza
+	// el umbral, todo en una transacción (Edge Cases: intentos repetidos de
+	// inicio de sesión fallidos). Devuelve `locked = true` EXACTAMENTE la vez que
+	// el bloqueo se activa —no en los intentos siguientes contra una cuenta ya
+	// bloqueada—, que es la señal que necesita `server` para publicar
+	// `auth.security_alert` una sola vez por episodio y no en cada intento
+	// posterior.
+	RegisterFailedLogin(ctx context.Context, userID uuid.UUID, threshold int32, lockDuration time.Duration) (locked bool, err error)
+	// ResetFailedLogins limpia el contador y el bloqueo tras un login válido.
+	ResetFailedLogins(ctx context.Context, userID uuid.UUID) error
+
 	// ── oauth_clients ────────────────────────────────────────────────────────
 
 	GetOAuthClient(ctx context.Context, clientID string) (OAuthClientRow, error)

@@ -1,0 +1,66 @@
+@switch (state()) {
+  @case ('loading') {
+    <p>Cargando tu perfil…</p>
+  }
+  @case ('error') {
+    <p class="fc-banner fc-banner--error">No pudimos cargar tu perfil. Intenta de nuevo.</p>
+  }
+  @case ('ready') {
+    @if (profile(); as p) {
+      <section class="fc-module" style="max-width: 480px">
+        <header>Tu perfil</header>
+        <div class="fc-module-body">
+          <dl style="margin: 0 0 var(--space-4)">
+            <div style="display: flex; justify-content: space-between; gap: var(--space-2)">
+              <dt class="fc-help">Correo electrónico</dt>
+              <dd style="margin: 0">{{ p.email }}</dd>
+            </div>
+          </dl>
+
+          @if (saved()) {
+            <p class="fc-banner fc-banner--success">Tus cambios se guardaron correctamente.</p>
+          }
+          @if (errorMessage()) {
+            <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+          }
+
+          <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <div class="fc-field">
+              <label class="fc-label" for="displayName">Nombre para mostrar</label>
+              <input class="fc-input" id="displayName" type="text" formControlName="displayName" autocomplete="name" />
+            </div>
+            <div class="fc-field">
+              <label class="fc-label" for="locale">Idioma / región</label>
+              <select class="fc-input" id="locale" formControlName="locale">
+                <option value="es-CO">Español (Colombia)</option>
+                <option value="es-MX">Español (México)</option>
+                <option value="en-US">English (US)</option>
+              </select>
+            </div>
+            <div class="fc-field">
+              <label style="display: flex; align-items: center; gap: var(--space-2)">
+                <input type="checkbox" formControlName="notifInApp" />
+                Notificaciones en la bandeja de la plataforma
+              </label>
+            </div>
+            <div class="fc-field">
+              <label style="display: flex; align-items: center; gap: var(--space-2)">
+                <input type="checkbox" formControlName="notifEmail" />
+                Notificaciones por correo electrónico
+              </label>
+            </div>
+            <button class="fc-btn fc-btn--primary fc-btn--block" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </form>
+
+          <nav style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-6)">
+            <a routerLink="/perfil/reporte">Ver reporte de actividad</a>
+            <a routerLink="/perfil/contrasena">Cambiar contraseña</a>
+            <a routerLink="/perfil/eliminar-cuenta">Eliminar mi cuenta</a>
+          </nav>
+        </div>
+      </section>
+    }
+  }
+}

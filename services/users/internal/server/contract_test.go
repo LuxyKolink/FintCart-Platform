@@ -17,6 +17,7 @@ package server_test
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strings"
 	"testing"
@@ -68,6 +69,23 @@ type fakeStore struct {
 	// hace el `ON CONFLICT (id) DO NOTHING` de la tabla. Un slice no serviría: la
 	// deduplicación es precisamente lo que se quiere observar.
 	appended map[uuid.UUID]storer.InAppNotificationRow
+
+	prefs          storer.PreferencesRow
+	prefsErr       error
+	upsertedPrefs  *storer.PreferencesRow
+	updatedName    *string
+	updateNameErr  error
+	articleViews   int64
+	articleViewErr error
+	inappItems     []storer.InAppNotificationRow
+	inappTotal     int64
+	inappErr       error
+	markedRead     []struct{ userID, notifID uuid.UUID }
+	markReadErr    error
+	anonymizedID   uuid.UUID
+	anonymizedMail string
+	anonymizedName string
+	anonymizeErr   error
 }
 
 func newFakeStore() *fakeStore {
@@ -116,12 +134,67 @@ func (f *fakeStore) AppendInAppNotification(_ context.Context, n storer.InAppNot
 	return nil
 }
 
+func (f *fakeStore) GetPreferences(context.Context, uuid.UUID) (storer.PreferencesRow, error) {
+	return f.prefs, nil
+}
+
+func (f *fakeStore) UpsertPreferences(_ context.Context, p storer.PreferencesRow) error {
+	f.upsertedPrefs = &p
+	return nil
+}
+
+func (f *fakeStore) UpdateDisplayName(_ context.Context, _ uuid.UUID, name string) error {
+	if f.updateNameErr != nil {
+		return f.updateNameErr
+	}
+	f.updatedName = &name
+	return nil
+}
+
+func (f *fakeStore) CountArticleViews(context.Context, uuid.UUID) (int64, error) {
+	return f.articleViews, f.articleViewErr
+}
+
+func (f *fakeStore) ListInAppNotifications(
+	context.Context, uuid.UUID, int32, int32,
+) ([]storer.InAppNotificationRow, int64, error) {
+	return f.inappItems, f.inappTotal, f.inappErr
+}
+
+func (f *fakeStore) MarkNotificationRead(_ context.Context, userID, notifID uuid.UUID) error {
+	if f.markReadErr != nil {
+		return f.markReadErr
+	}
+	f.markedRead = append(f.markedRead, struct{ userID, notifID uuid.UUID }{userID, notifID})
+	return nil
+}
+
+func (f *fakeStore) AnonymizeProfile(_ context.Context, userID uuid.UUID, opaqueEmail, opaqueName string) error {
+	if f.anonymizeErr != nil {
+		return f.anonymizeErr
+	}
+	f.anonymizedID, f.anonymizedMail, f.anonymizedName = userID, opaqueEmail, opaqueName
+	return nil
+}
+
 // ── dobles de los puertos salientes (plan.md N-02) ──────────────────────────
 
 type fakeCounter struct{ n int64 }
 
 func (f fakeCounter) CountAttempts(context.Context, string) (int64, error)    { return f.n, nil }
 func (f fakeCounter) CountSimulations(context.Context, string) (int64, error) { return f.n, nil }
+
+// fakeFailingCounter reproduce un participante remoto caído, para comprobar
+// que `GetActivityReport` no sustituye el contador ausente por cero.
+type fakeFailingCounter struct{ err error }
+
+func (f fakeFailingCounter) CountAttempts(context.Context, string) (int64, error) {
+	return 0, f.err
+}
+
+func (f fakeFailingCounter) CountSimulations(context.Context, string) (int64, error) {
+	return 0, f.err
+}
 
 // ── arranque de la pila real ────────────────────────────────────────────────
 
@@ -133,8 +206,21 @@ func (f fakeCounter) CountSimulations(context.Context, string) (int64, error) { 
 // aquí, que es exactamente el fallo que estas pruebas existen para atrapar.
 func startServer(t *testing.T, store storer.Storer) usersv1.UsersServiceClient {
 	t.Helper()
+	return startServerWith(t, store, fakeCounter{}, fakeCounter{})
+}
 
-	svc := server.New(store, fakeCounter{}, fakeCounter{})
+// startServerWith es la variante para las pruebas de `GetActivityReport`, que
+// necesitan controlar por separado lo que devuelve (o falla) cada puerto
+// saliente — algo que un `fakeCounter{}` compartido no permite distinguir.
+func startServerWith(
+	t *testing.T,
+	store storer.Storer,
+	attempts server.AttemptCounter,
+	sims server.SimulationCounter,
+) usersv1.UsersServiceClient {
+	t.Helper()
+
+	svc := server.New(store, attempts, sims)
 	grpcServer := grpc.NewServer()
 	handler.New(svc).Register(grpcServer)
 
@@ -546,4 +632,189 @@ func TestAppendInAppNotificationRejectsInvalidInput(t *testing.T) {
 			requireCode(t, err, codes.InvalidArgument)
 		})
 	}
+}
+
+// ── Perfil y preferencias (FR-017, FR-029, T129) ────────────────────────────
+
+func TestGetProfileContract(t *testing.T) {
+	t.Parallel()
+	id := uuid.MustParse(testUserID)
+	store := newFakeStore()
+	store.profile = storer.ProfileRow{
+		ID: id, Email: testEmail, DisplayName: testName,
+		EmailVerified: true, AccountStatus: "active",
+	}
+	store.roles = []storer.RoleRow{{UserID: id, Role: "usuario_final"}}
+	store.prefs = storer.PreferencesRow{
+		UserID: id, Locale: "es-CO", NotifInApp: true, NotifEmail: false,
+	}
+	client := startServer(t, store)
+
+	resp, err := client.GetProfile(context.Background(), &usersv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+	require.Equal(t, testEmail, resp.GetEmail())
+	require.Equal(t, testName, resp.GetDisplayName())
+	require.True(t, resp.GetEmailVerified())
+	require.Equal(t, "active", resp.GetAccountStatus())
+	require.Equal(t, []string{"usuario_final"}, resp.GetRoles())
+	require.Equal(t, "es-CO", resp.GetPreferences()["locale"])
+	require.Equal(t, "true", resp.GetPreferences()["notif_inapp"])
+	require.Equal(t, "false", resp.GetPreferences()["notif_email"])
+}
+
+func TestGetProfileOnMissingProfile(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.profileErr = storer.ErrNotFound
+	client := startServer(t, store)
+
+	_, err := client.GetProfile(context.Background(), &usersv1.UserRef{UserId: testUserID})
+	requireCode(t, err, codes.NotFound)
+}
+
+func TestUpdateProfileChangesNameAndMergesPreferences(t *testing.T) {
+	t.Parallel()
+	id := uuid.MustParse(testUserID)
+	store := newFakeStore()
+	// Preferencias ACTUALES con `notif_email = true`: la prueba comprueba que
+	// sobrevive intacta cuando la petición solo trae `locale`.
+	store.prefs = storer.PreferencesRow{UserID: id, Locale: "es-CO", NotifInApp: true, NotifEmail: true}
+	client := startServer(t, store)
+
+	_, err := client.UpdateProfile(context.Background(), &usersv1.UpdateProfileRequest{
+		UserId:      testUserID,
+		DisplayName: "Ana Nueva",
+		Preferences: map[string]string{"locale": "en-US"},
+	})
+	require.NoError(t, err)
+
+	require.NotNil(t, store.updatedName)
+	require.Equal(t, "Ana Nueva", *store.updatedName)
+	require.NotNil(t, store.upsertedPrefs)
+	require.Equal(t, "en-US", store.upsertedPrefs.Locale)
+	require.True(t, store.upsertedPrefs.NotifEmail, "una preferencia no mencionada no debe apagarse")
+}
+
+// TestUpdateProfileWithoutDisplayNameLeavesItUntouched es el motivo de que el
+// campo vacío signifique «no cambies esto» y no «bórralo» (ver el comentario
+// de `UpdateProfile` en profile.go).
+func TestUpdateProfileWithoutDisplayNameLeavesItUntouched(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.prefs = storer.PreferencesRow{UserID: uuid.MustParse(testUserID)}
+	client := startServer(t, store)
+
+	_, err := client.UpdateProfile(context.Background(), &usersv1.UpdateProfileRequest{
+		UserId:      testUserID,
+		Preferences: map[string]string{"locale": "en-US"},
+	})
+	require.NoError(t, err)
+	require.Nil(t, store.updatedName)
+}
+
+func TestUpdateProfileRejectsAnInvalidPreferenceValue(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.prefs = storer.PreferencesRow{UserID: uuid.MustParse(testUserID)}
+	client := startServer(t, store)
+
+	_, err := client.UpdateProfile(context.Background(), &usersv1.UpdateProfileRequest{
+		UserId:      testUserID,
+		Preferences: map[string]string{"notif_email": "tal-vez"},
+	})
+	requireCode(t, err, codes.InvalidArgument)
+}
+
+// ── Bandeja in-app: lectura (FR-023, T129) ──────────────────────────────────
+
+func TestListInAppNotificationsContract(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.inappItems = []storer.InAppNotificationRow{
+		{ID: uuid.New(), Type: "hito_progreso", Payload: []byte(`{"puntos":100}`), ReadState: "unread"},
+	}
+	store.inappTotal = 1
+	client := startServer(t, store)
+
+	resp, err := client.ListInAppNotifications(context.Background(), &usersv1.ListInAppRequest{
+		UserId: testUserID,
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.GetItems(), 1)
+	require.Equal(t, "hito_progreso", resp.GetItems()[0].GetType())
+	require.Equal(t, int64(1), resp.GetPage().GetTotalSize())
+}
+
+func TestMarkNotificationReadContract(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	client := startServer(t, store)
+	notifID := uuid.New()
+
+	_, err := client.MarkNotificationRead(context.Background(), &usersv1.MarkReadRequest{
+		UserId: testUserID, NotificationId: notifID.String(),
+	})
+	require.NoError(t, err)
+	require.Len(t, store.markedRead, 1)
+	require.Equal(t, uuid.MustParse(testUserID), store.markedRead[0].userID)
+	require.Equal(t, notifID, store.markedRead[0].notifID)
+}
+
+func TestMarkNotificationReadRejectsAMalformedNotificationID(t *testing.T) {
+	t.Parallel()
+	client := startServer(t, newFakeStore())
+
+	_, err := client.MarkNotificationRead(context.Background(), &usersv1.MarkReadRequest{
+		UserId: testUserID, NotificationId: "no-es-un-uuid",
+	})
+	requireCode(t, err, codes.InvalidArgument)
+}
+
+// ── Reporte de actividad (FR-018, plan.md N-02, T129) ───────────────────────
+
+func TestGetActivityReportCombinesOwnAndRemoteCounts(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.progress = storer.ProgressRow{UserID: uuid.MustParse(testUserID), Points: 120}
+	store.articleViews = 4
+	client := startServerWith(t, store, fakeCounter{n: 3}, fakeCounter{n: 2})
+
+	resp, err := client.GetActivityReport(context.Background(), &usersv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+	require.Equal(t, int32(120), resp.GetPoints())
+	require.Equal(t, int64(4), resp.GetArticlesViewed())
+	require.Equal(t, int64(3), resp.GetQuizzesAttempted())
+	require.Equal(t, int64(2), resp.GetSimulationsRun())
+}
+
+// TestGetActivityReportFailsWholeWhenARemoteParticipantFails es la prueba de
+// que un contador ausente NUNCA se sustituye por cero: un reporte que dijera
+// «cero simulaciones» cuando el Simulador simplemente no respondió sería un
+// dato falso.
+func TestGetActivityReportFailsWholeWhenARemoteParticipantFails(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	client := startServerWith(t, store, fakeCounter{}, fakeFailingCounter{err: errors.New("simulador caído")})
+
+	_, err := client.GetActivityReport(context.Background(), &usersv1.UserRef{UserId: testUserID})
+	requireCode(t, err, codes.Internal)
+}
+
+// ── Anonimización (FR-030, T129/T144) ───────────────────────────────────────
+
+func TestAnonymizeProfileGeneratesAnOpaqueUniqueEmail(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	client := startServer(t, store)
+
+	_, err := client.AnonymizeProfile(context.Background(), &usersv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+
+	require.Equal(t, uuid.MustParse(testUserID), store.anonymizedID)
+	// El correo opaco debe contener el user_id: es lo que lo mantiene único entre
+	// cuentas anonimizadas sin necesitar una consulta extra (ver el comentario de
+	// `server.AnonymizeProfile`).
+	require.Contains(t, store.anonymizedMail, testUserID)
+	require.NotEmpty(t, store.anonymizedName)
+	require.NotContains(t, store.anonymizedMail, testEmail, "el correo opaco no debe filtrar el real")
 }

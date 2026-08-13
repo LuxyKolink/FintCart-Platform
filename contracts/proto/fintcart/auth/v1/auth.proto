@@ -47,6 +47,14 @@ service AuthService {
 
   // Paso de la Saga de anonimización (FR-030): revoca y anonimiza la credencial.
   rpc RevokeAndAnonymizeCredential(UserRef) returns (fintcart.common.v1.OpResult);
+
+  // Cambia la contraseña de una cuenta activa (FR-005). Exige la contraseña
+  // ACTUAL: a diferencia del restablecimiento por enlace de correo (fuera del
+  // alcance de este contrato — no tiene RPC propio todavía), este flujo lo invoca
+  // un usuario YA AUTENTICADO desde su perfil, así que la prueba de identidad es
+  // la contraseña vigente y no un token de un solo uso. Invalida las sesiones
+  // abiertas (refresh tokens) y publica `auth.password_changed`.
+  rpc ChangePassword(ChangePasswordRequest) returns (fintcart.common.v1.OpResult);
 }
 
 message UserRef { string user_id = 1; }
@@ -113,6 +121,12 @@ message TokenResponse {
 message RevokeRequest {
   string token = 1;     // access o refresh
   string token_type_hint = 2;
+}
+
+message ChangePasswordRequest {
+  string user_id = 1;
+  string current_password = 2; // se verifica contra el hash vigente
+  string new_password = 3;     // se hashea con Argon2id; nunca se persiste/loguea en claro
 }
 
 message IntrospectRequest { string access_token = 1; }

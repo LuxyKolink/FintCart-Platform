@@ -2,7 +2,17 @@ package server
 
 import (
 	"context"
+	"fmt"
 )
+
+// anonymizedEmailDomain compone el correo opaco que sustituye al real (FR-030).
+//
+// Incluye el `user_id`, igual que en el Servicio de Usuarios (ver el comentario
+// equivalente en `services/users/internal/server/anonymize.go`): es lo que lo
+// mantiene único entre credenciales anonimizadas sin necesitar una consulta extra
+// ni un generador aleatorio. El dominio `.invalid` es el reservado por RFC 2606
+// para direcciones que deliberadamente no deben resolver a nada.
+const anonymizedEmailDomain = "anonimizado.fintcart.invalid"
 
 // Paso de la saga de anonimización que le corresponde a este servicio (FR-030).
 
@@ -17,19 +27,31 @@ import (
 // Es idempotente: repetirlo sobre una credencial ya anonimizada no es un error. La
 // saga puede reintentar el paso y no hay compensación posible para un dato personal
 // ya destruido, así que está diseñado para no necesitarla.
-func (s *Server) RevokeAndAnonymizeCredential(_ context.Context, userID string) error {
-	if _, err := parseUserID(userID); err != nil {
+func (s *Server) RevokeAndAnonymizeCredential(ctx context.Context, userID string) error {
+	id, err := parseUserID(userID)
+	if err != nil {
 		return err
 	}
-	// T162 implementa:
-	//   1. Borrar los refresh tokens del usuario en Redis.
-	//   2. `store.AnonymizeCredential` con un correo opaco único y un hash
-	//      imposible de satisfacer (no una cadena vacía: un hash vacío podría
-	//      hacer que un verificador mal escrito aceptara cualquier contraseña).
+
+	// PRIMERO se revoca, DESPUÉS se anonimiza — ver la nota de orden en el
+	// comentario del paso de la saga (`orchestrator/.../steps/anonymization.go`).
 	//
-	// Los access tokens ya emitidos NO se pueden enumerar por usuario desde la
-	// blacklist, que está indexada por `jti`. Es una limitación real del diseño y
-	// hay que resolverla explícitamente en T162 — la opción habitual es una marca
-	// por usuario con la fecha de corte que la introspección consulte.
-	return ErrNotImplemented
+	// LIMITACIÓN CONOCIDA (anotada, no resuelta aquí): los access tokens YA
+	// EMITIDOS no se pueden enumerar por usuario desde la blacklist, que está
+	// indexada por `jti`. `InvalidateFamily` corta los refresh tokens —con lo que
+	// ningún token NUEVO se emite tras esta llamada—, pero un access token vigente
+	// sigue siendo válido hasta su propia expiración (minutos, no días, por
+	// diseño). Resolverlo exigiría una marca de corte por usuario que
+	// `Introspect` consultara además de la blacklist, y es un cambio que toca la
+	// ruta caliente de cada petición autenticada de la plataforma — fuera del
+	// alcance de esta historia.
+	if err := s.tokens.InvalidateFamily(ctx, id); err != nil {
+		return fmt.Errorf("invalidar sesiones antes de anonimizar: %w", err)
+	}
+
+	opaqueEmail := fmt.Sprintf("%s@%s", id, anonymizedEmailDomain)
+	if err := s.store.AnonymizeCredential(ctx, id, opaqueEmail); err != nil {
+		return fmt.Errorf("anonimizar credencial: %w", err)
+	}
+	return nil
 }

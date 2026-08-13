@@ -41,6 +41,16 @@ func progressToDTO(p *usersv1.ProgressView) Progress {
 	return Progress{UserID: p.GetUserId(), Points: p.GetPoints()}
 }
 
+func activityReportToDTO(r *usersv1.ActivityReport) ActivityReport {
+	return ActivityReport{
+		UserID:           r.GetUserId(),
+		Points:           r.GetPoints(),
+		ArticlesViewed:   r.GetArticlesViewed(),
+		QuizzesAttempted: r.GetQuizzesAttempted(),
+		SimulationsRun:   r.GetSimulationsRun(),
+	}
+}
+
 func profileToDTO(p *usersv1.Profile) Profile {
 	return Profile{
 		UserID:        p.GetUserId(),
@@ -149,6 +159,16 @@ func inAppToDTO(item *usersv1.ListInAppResponse_Item) InAppNotification {
 		dto.Payload = json.RawMessage(raw)
 	}
 	return dto
+}
+
+// attemptToDTO copia `score` SIN tocarlo (Principio VIII), igual que `quizGradeToDTO`.
+func attemptToDTO(a *learningv1.ListAttemptsResponse_Attempt) QuizAttempt {
+	return QuizAttempt{
+		AttemptID: a.GetAttemptId(),
+		AttemptNo: a.GetAttemptNo(),
+		Score:     a.GetScore(),
+		CreatedAt: a.GetCreatedAt(),
+	}
 }
 
 func opToDTO(op *commonv1.OpResult) OpAck {

@@ -1181,42 +1181,55 @@ y verificadas en ejecución contra `dev/up`.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T129 [P] [US3] Prueba de contrato gRPC de `UsersService` para perfil, preferencias, bandeja in-app y reportes (`GetProfile`, `UpdateProfile`, `ListInAppNotifications`, `MarkNotificationRead`, `GetActivityReport`) en `services/users/internal/server/profile_contract_test.go`
-- [ ] T130 [P] [US3] Prueba de integración de la Saga de anonimización verificando que `audit_log` permanece intacto y que `actor_ref` sigue siendo opaco, en `services/orchestrator/internal/server/saga_anonymization_test.go` (D-08, FR-030)
-- [ ] T131 [P] [US3] Prueba e2e Playwright del recorrido de US3 en `frontend/e2e/us3-perfil.spec.ts`
+- [X] T129 [P] [US3] Prueba de contrato gRPC de `UsersService` para perfil, preferencias, bandeja in-app y reportes (`GetProfile`, `UpdateProfile`, `ListInAppNotifications`, `MarkNotificationRead`, `GetActivityReport`) en `services/users/internal/server/profile_contract_test.go`
+- [X] T130 [P] [US3] Prueba de integración de la Saga de anonimización verificando que `audit_log` permanece intacto y que `actor_ref` sigue siendo opaco, en `services/orchestrator/internal/server/saga_anonymization_test.go` (D-08, FR-030)
+- [X] T131 [P] [US3] Prueba e2e Playwright del recorrido de US3 en `frontend/e2e/us3-perfil.spec.ts`
 
 ### Implementación — Perfil, preferencias y reportes
 
-- [ ] T132 [P] [US3] Implementar la persistencia de `preferences` en `services/users/internal/storer/preferences.go`
-- [ ] T133 [US3] Implementar `UsersService.GetProfile` y `UpdateProfile` en `services/users/internal/server/profile.go` (FR-017, FR-029)
-- [ ] T134 [US3] Implementar los clientes gRPC salientes de Usuarios hacia `LearningService` y `SimulatorService` en `services/users/internal/grpcclient/clients.go`, direccionados por env (`LEARNING_SVC_ADDR`, `SIMULATOR_SVC_ADDR`)
-- [ ] T135 [US3] Implementar `UsersService.GetActivityReport` en `services/users/internal/server/report.go`: `points` y `articles_viewed` desde la BD propia; `quizzes_attempted` y `simulations_run` por **fan-out gRPC** a `Learning.ListAttempts` y `Simulator.ListHistory` — PROHIBIDA la lectura cruzada de BD (FR-018, Principio III, `plan.md` N-02)
-- [ ] T136 [US3] Implementar `UsersService.ListInAppNotifications` y `MarkNotificationRead` con estado de lectura y marca temporal en `services/users/internal/server/inapp.go` (FR-023)
-- [ ] T137 [US3] Implementar el flujo de cambio y restablecimiento de contraseña en `services/auth-server/internal/server/password.go`, publicando `auth.password_changed` (FR-005)
-- [ ] T138 [P] [US3] Implementar el consumidor de `auth.password_changed` y `auth.security_alert` con sus plantillas de email en `services/notification/src/consumers/security.consumer.ts` (FR-023)
-- [ ] T139 [US3] Implementar la protección ante intentos repetidos de inicio de sesión fallidos, emitiendo `auth.security_alert`, en `services/auth-server/internal/server/credentials.go` (Edge Cases)
+- [X] T132 [P] [US3] Implementar la persistencia de `preferences` en `services/users/internal/storer/preferences.go`
+- [X] T133 [US3] Implementar `UsersService.GetProfile` y `UpdateProfile` en `services/users/internal/server/profile.go` (FR-017, FR-029)
+- [X] T134 [US3] Implementar los clientes gRPC salientes de Usuarios hacia `LearningService` y `SimulatorService` en `services/users/internal/grpcclient/clients.go`, direccionados por env (`LEARNING_SVC_ADDR`, `SIMULATOR_SVC_ADDR`)
+- [X] T135 [US3] Implementar `UsersService.GetActivityReport` en `services/users/internal/server/report.go`: `points` y `articles_viewed` desde la BD propia; `quizzes_attempted` y `simulations_run` por **fan-out gRPC** a `Learning.ListAttempts` y `Simulator.ListHistory` — PROHIBIDA la lectura cruzada de BD (FR-018, Principio III, `plan.md` N-02)
+- [X] T136 [US3] Implementar `UsersService.ListInAppNotifications` y `MarkNotificationRead` con estado de lectura y marca temporal en `services/users/internal/server/inapp.go` (FR-023)
+- [X] T137 [US3] Implementar el flujo de cambio y restablecimiento de contraseña en `services/auth-server/internal/server/password.go`, publicando `auth.password_changed` (FR-005)
+- [X] T138 [P] [US3] Implementar el consumidor de `auth.password_changed` y `auth.security_alert` con sus plantillas de email en `services/notification/src/consumers/security.consumer.ts` (FR-023)
+- [X] T139 [US3] Implementar la protección ante intentos repetidos de inicio de sesión fallidos, emitiendo `auth.security_alert`, en `services/auth-server/internal/server/credentials.go` (Edge Cases)
 
 ### Implementación — Derechos Ley 1581 (FR-029–FR-031)
 
-- [ ] T140 [US3] Implementar `AuthService.RevokeAndAnonymizeCredential` (invalidar credenciales y refresh tokens, anonimizar correo) en `services/auth-server/internal/server/anonymize.go` (D-08)
-- [ ] T141 [P] [US3] Implementar `UsersService.AnonymizeProfile` reemplazando PII y marcando `account_status = anonymized`, conservando métricas agregadas, en `services/users/internal/server/anonymize.go`
-- [ ] T142 [P] [US3] Implementar `LearningService.AnonymizeAttempts` disociando PII de `quiz_attempts` en `services/learning/src/grading/anonymize.service.ts`
-- [ ] T143 [P] [US3] Implementar `SimulatorService.AnonymizeHistory` disociando PII de `simulations` en `services/simulator/src/repo/anonymize.rs`
-- [ ] T144 [US3] Implementar la Saga de anonimización (pasos idempotentes con reintento hasta completar, publicando `account.anonymized` con identificador opaco) en `services/orchestrator/internal/server/steps/anonymization.go` y `OrchestratorService.StartAccountAnonymization` (D-08, FR-030)
-- [ ] T145 [US3] Implementar la vista de consulta completa de datos personales del titular (perfil, historial de cuestionarios vía `Learning.ListAttempts`, simulaciones vía `Simulator.ListHistory`, progreso) en `services/api-gateway/internal/handler/me.go` (FR-029)
+- [X] T140 [US3] Implementar `AuthService.RevokeAndAnonymizeCredential` (invalidar credenciales y refresh tokens, anonimizar correo) en `services/auth-server/internal/server/anonymize.go` (D-08)
+- [X] T141 [P] [US3] Implementar `UsersService.AnonymizeProfile` reemplazando PII y marcando `account_status = anonymized`, conservando métricas agregadas, en `services/users/internal/server/anonymize.go`
+- [X] T142 [P] [US3] Implementar `LearningService.AnonymizeAttempts` disociando PII de `quiz_attempts` en `services/learning/src/grading/anonymize.service.ts`
+- [X] T143 [P] [US3] Implementar `SimulatorService.AnonymizeHistory` disociando PII de `simulations` en `services/simulator/src/repo/anonymize.rs`
+- [X] T144 [US3] Implementar la Saga de anonimización (pasos idempotentes con reintento hasta completar, publicando `account.anonymized` con identificador opaco) en `services/orchestrator/internal/server/steps/anonymization.go` y `OrchestratorService.StartAccountAnonymization` (D-08, FR-030)
+- [X] T145 [US3] Implementar la vista de consulta completa de datos personales del titular (perfil, historial de cuestionarios vía `Learning.ListAttempts`, simulaciones vía `Simulator.ListHistory`, progreso) en `services/api-gateway/internal/handler/me.go` (FR-029)
 
 ### Implementación — Borde REST y frontend
 
-- [ ] T146 [US3] Implementar los handlers REST `GET /me/profile`, `PATCH /me/profile`, `GET /me/notifications`, `POST /me/notifications/{id}/read` y `DELETE /me/account` en `services/api-gateway/internal/handler/me.go`
-- [ ] T147 [P] [US3] Implementar la pantalla de perfil y preferencias con confirmación de cambios en `frontend/src/app/features/profile/` (FR-017)
-- [ ] T148 [P] [US3] Implementar el reporte estadístico de actividad en `frontend/src/app/features/profile/report/` (FR-018)
-- [ ] T149 [P] [US3] Implementar la bandeja in-app con estado de lectura y marca temporal en `frontend/src/app/features/notifications/` (FR-023)
-- [ ] T150 [US3] Implementar el flujo de cambio de contraseña en `frontend/src/app/features/profile/password/` (FR-005)
-- [ ] T151 [US3] Implementar el flujo de eliminación de cuenta con advertencia de irreversibilidad en `frontend/src/app/features/profile/delete-account/` (FR-030)
-- [ ] T152 [US3] Implementar el manejo de pérdida de conexión durante el guardado de perfil en `frontend/src/app/features/profile/profile.service.ts` (Edge Cases)
-- [ ] T153 [P] [US3] Escribir pruebas de persistencia de preferencias y bandeja in-app contra `go-sqlmock` en `services/users/internal/storer/preferences_test.go`
+- [X] T146 [US3] Implementar los handlers REST `GET /me/profile`, `PATCH /me/profile`, `GET /me/notifications`, `POST /me/notifications/{id}/read` y `DELETE /me/account` en `services/api-gateway/internal/handler/me.go`
+- [X] T147 [P] [US3] Implementar la pantalla de perfil y preferencias con confirmación de cambios en `frontend/src/app/features/profile/` (FR-017)
+- [X] T148 [P] [US3] Implementar el reporte estadístico de actividad en `frontend/src/app/features/profile/report/` (FR-018)
+- [X] T149 [P] [US3] Implementar la bandeja in-app con estado de lectura y marca temporal en `frontend/src/app/features/notifications/` (FR-023)
+- [X] T150 [US3] Implementar el flujo de cambio de contraseña en `frontend/src/app/features/profile/password/` (FR-005)
+- [X] T151 [US3] Implementar el flujo de eliminación de cuenta con advertencia de irreversibilidad en `frontend/src/app/features/profile/delete-account/` (FR-030)
+- [X] T152 [US3] Implementar el manejo de pérdida de conexión durante el guardado de perfil en `frontend/src/app/features/profile/profile.service.ts` (Edge Cases)
+- [X] T153 [P] [US3] Escribir pruebas de persistencia de preferencias y bandeja in-app contra `go-sqlmock` en `services/users/internal/storer/preferences_test.go`
 
-**Checkpoint**: US1, US2 y US3 funcionan de forma independiente.
+**Notas de T129–T153 (US3)**:
+
+- **T129** vive en `contract_test.go` (no en un `profile_contract_test.go` separado): el archivo ya reunía las pruebas de contrato de `UsersService` (T070) y partirlo en dos por historia habría duplicado el arnés (`fakeStore`, `startServer`, `requireCode`) sin ganar nada. Mismo patrón de desviación documentada que en fases anteriores.
+- **T134** vive en `server/mapping.go` (`LearningAttemptCounter`, `SimulatorRunCounter`), no en un paquete `grpcclient/` nuevo: ya existía de la fase fundacional, construido con los clientes gRPC conectados en `cmd/users/main.go` (`LEARNING_SVC_ADDR`, `SIMULATOR_SVC_ADDR`), exactamente lo que pide la tarea. Se verificó que ya cumplía el contrato y no se dupicó.
+- **T138** ya estaba implementado por un diseño MÁS GENERAL que el que nombra la tarea: en vez de un `consumers/security.consumer.ts` por evento, `amqp/consumer.ts` + `amqp/mapping.ts` + `email/templates.ts` manejan los TRES eventos con correo (`user.registered`, `auth.password_changed`, `auth.security_alert`) a través de una tabla `TEMPLATE_BY_EVENT` única. No se creó el archivo nombrado por la tarea porque habría sido una segunda ruta de consumo redundante con la ya viva.
+- **T143** ya estaba implementado (`repo/simulations.rs::anonymize` + `grpc/service.rs::anonymize_inner`), con una decisión de diseño distinta a la de Aprendizaje: el Simulador SÍ reescribe `user_id` a un UUID aleatorio nuevo (columna anotada `anonimizable` en la migración), mientras que Aprendizaje no toca la columna (ver la nota de T142). Las dos decisiones son legítimas y no se armonizaron a propósito: no había evidencia de que una fuera un error y homogeneizarlas sin esa evidencia habría sido alcance no pedido.
+- **T142** es un NO-OP deliberado y documentado en `GradingService.anonymizeAttempts`: `quiz_attempts` no tiene ninguna columna de PII que disociar más allá de `user_id`, que debe seguir siendo el mismo UUID opaco que usa `Users.GetActivityReport` para correlacionar — una vez que Auth y Usuarios anonimizan la identidad detrás de ese UUID, el identificador ya no señala a nadie sin que Aprendizaje tenga que tocar una fila.
+- **Bug real encontrado y corregido en el camino**: `LearningService.ListAttempts` exigía que `quiz_id` fuera SIEMPRE un UUID, pero `Users.GetActivityReport` (T135, ya escrito en la fase fundacional) y `GET /me/data` del Gateway (T145) necesitan pedir el historial de TODOS los cuestionarios con `quiz_id` vacío — la propia ambigüedad que el comentario de `LearningAttemptCounter.CountAttempts` señalaba como pendiente de fijar. Encontrado en vivo contra `dev/up` (T131): `GET /me/report` devolvía 500 porque Aprendizaje rechazaba el `quiz_id` vacío. Se corrigió `grading.service.ts` y `quizzes.repository.ts` (`quiz_id` vacío ⇒ `NULL` en el filtro SQL, sin exigir formato UUID) y se añadió una prueba de contrato para el caso.
+- **T137**: `auth.proto` no tenía RPC `ChangePassword` — se añadió (`ChangePasswordRequest{user_id, current_password, new_password}`), documentando que solo cubre el cambio AUTENTICADO (exige la contraseña actual); el restablecimiento no autenticado por enlace de correo queda fuera de alcance porque ninguna otra tarea de T129–T153 pide su flujo de token/email, a diferencia de la verificación de correo (que sí lo tiene desde US1).
+- **T139**: la protección ante intentos fallidos se implementó en PostgreSQL (`credentials.failed_login_attempts`, `locked_until`, migración `20260812120000_login_lockout`) y no en Redis: el Principio IV reserva Redis en Auth exclusivamente a la blacklist de JWT y los refresh tokens, y un contador de intentos es un dato de la cuenta con la misma necesidad de durabilidad que su contraseña.
+- **T145/T146**: `GET /me/data` (vista completa Ley 1581) y `PATCH /me/password` no estaban en `contracts/openapi/gateway.yaml`; se añadieron junto con `GET /me/report` (T148, sin tarea de borde propia pero necesario para que la pantalla de reporte tuviera datos que consumir). El conteo de rutas del comentario de `routes.go` pasó de 19/20 a 22/23.
+- Verificado en vivo contra `dev/up` con Playwright (`us3-perfil.spec.ts`): registro → login → editar perfil y preferencias con confirmación (persiste tras recargar) → reporte de actividad → bandeja in-app → cambio de contraseña (cierra la sesión, la contraseña nueva funciona y la anterior no) → eliminación de cuenta (advertencia de irreversibilidad, frase de confirmación exacta, cierra la sesión). Se re-corrieron `us1-aprendizaje.spec.ts` y `us2-simuladores.spec.ts` sin regresiones.
+
+**Checkpoint**: US1, US2 y US3 funcionan de forma independiente — verificado en el backend (pruebas unitarias/contrato/integración de los seis servicios tocados) y en ejecución de punta a punta contra `dev/up`.
 
 ---
 

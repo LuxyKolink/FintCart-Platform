@@ -312,9 +312,10 @@ type fakeLearningSvc struct {
 	mu sync.Mutex
 	// score y passed son lo que este participante DECIDE. El umbral de aprobación es
 	// suyo (Principio VI): la saga transporta el veredicto, no lo calcula.
-	score    string
-	passed   bool
-	attempts int
+	score      string
+	passed     bool
+	attempts   int
+	anonymized []string
 
 	fail failures
 }
@@ -348,4 +349,20 @@ func (f *fakeLearningSvc) attemptCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.attempts
+}
+
+// AnonymizeAttempts registra a quién se le disoció el historial (FR-030). No
+// borra `attempts`: la anonimización quita PII, no el hecho de que se rindió el
+// cuestionario (FR-016).
+func (f *fakeLearningSvc) AnonymizeAttempts(
+	_ context.Context, req *learningv1.UserRef, _ ...grpc.CallOption,
+) (*commonv1.OpResult, error) {
+	if err := f.fail.check("AnonymizeAttempts"); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.anonymized = append(f.anonymized, req.GetUserId())
+	return &commonv1.OpResult{Success: true}, nil
 }

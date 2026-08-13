@@ -1,0 +1,47 @@
+<section>
+  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
+    <h1>Tu reporte de actividad</h1>
+    <a class="fc-btn fc-btn--secondary" routerLink="/perfil">Volver al perfil</a>
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <p>Cargando tu reporte…</p>
+    }
+    @case ('error') {
+      <p class="fc-banner fc-banner--error">No pudimos cargar tu reporte. Intenta de nuevo.</p>
+    }
+    @case ('ready') {
+      @if (report(); as r) {
+        <div
+          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-4); margin-top: var(--space-4)"
+        >
+          <article class="fc-module">
+            <div class="fc-module-body">
+              <p class="fc-help" style="margin: 0">Puntos acumulados</p>
+              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.points }}</p>
+            </div>
+          </article>
+          <article class="fc-module">
+            <div class="fc-module-body">
+              <p class="fc-help" style="margin: 0">Artículos vistos</p>
+              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.articles_viewed }}</p>
+            </div>
+          </article>
+          <article class="fc-module">
+            <div class="fc-module-body">
+              <p class="fc-help" style="margin: 0">Cuestionarios respondidos</p>
+              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.quizzes_attempted }}</p>
+            </div>
+          </article>
+          <article class="fc-module">
+            <div class="fc-module-body">
+              <p class="fc-help" style="margin: 0">Simulaciones ejecutadas</p>
+              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.simulations_run }}</p>
+            </div>
+          </article>
+        </div>
+      }
+    }
+  }
+</section>

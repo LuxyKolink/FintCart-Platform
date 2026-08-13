@@ -10,11 +10,11 @@
  *
  * ## Los RPC que faltan
  *
- * `CreateDraft`, `UpdateDraft`, `SubmitForReview`, `ApproveAndPublish`, `Archive` y
- * `AnonymizeAttempts` no se registran todavía: son el flujo editorial (US3) y la saga
- * de anonimización (US4). No declararlos es MEJOR que declararlos devolviendo un error
- * propio — gRPC responde `UNIMPLEMENTED` por sí solo, que es exactamente lo que son, y
- * un cliente puede distinguirlo de un fallo del servidor.
+ * `CreateDraft`, `UpdateDraft`, `SubmitForReview`, `ApproveAndPublish` y `Archive`
+ * no se registran todavía: son el flujo editorial (US4). No declararlos es MEJOR
+ * que declararlos devolviendo un error propio — gRPC responde `UNIMPLEMENTED` por
+ * sí solo, que es exactamente lo que son, y un cliente puede distinguirlo de un
+ * fallo del servidor.
  */
 import { Controller } from '@nestjs/common';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
@@ -26,6 +26,7 @@ import { DecimalStrError } from '../common/decimal-str';
 import { GradingService } from '../grading/grading.service';
 import { JsonLogger } from '../common/observability';
 import { QuizzesService } from '../quizzes/quizzes.service';
+import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type {
   ArticleRef,
   Article as ArticlePb,
@@ -37,9 +38,10 @@ import type {
   ListPublishedResponse as ListPublishedResponsePb,
   QuizRef,
   Quiz as QuizPb,
+  UserRef,
 } from '../pb/fintcart/learning/v1/learning';
 
-import { articleToPb, attemptsToPb, catalogToPb, gradeToPb, quizToPb } from './mapping';
+import { articleToPb, attemptsToPb, catalogToPb, gradeToPb, okResult, quizToPb } from './mapping';
 
 /** Nombre del servicio en el contrato; debe coincidir con el `.proto`. */
 const SERVICE = 'LearningService';
@@ -100,6 +102,16 @@ export class LearningController {
         await this.grading.listAttempts(request.user_id ?? '', request.quiz_id ?? '', request.page),
       ),
     );
+  }
+
+  /** Paso de la Saga de anonimización (FR-030, D-08). Ver el comentario de
+   * `GradingService.anonymizeAttempts` para por qué es un no-op deliberado. */
+  @GrpcMethod(SERVICE, 'AnonymizeAttempts')
+  public async anonymizeAttempts(request: UserRef): Promise<OpResultPb> {
+    return this.guard('AnonymizeAttempts', async () => {
+      await this.grading.anonymizeAttempts(request.user_id ?? '');
+      return okResult();
+    });
   }
 
   /**

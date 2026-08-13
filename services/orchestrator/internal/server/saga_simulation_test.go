@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	commonv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/common/v1"
 	simulatorv1 "github.com/fintcart/platform/services/orchestrator/gen/fintcart/simulator/v1"
 	"github.com/fintcart/platform/services/orchestrator/internal/events"
 	"github.com/fintcart/platform/services/orchestrator/internal/server/steps"
@@ -34,9 +35,10 @@ const simUser = "22222222-2222-4222-8222-222222222222"
 type fakeSimulator struct {
 	simulatorv1.SimulatorServiceClient
 
-	requests []*simulatorv1.ComputeRequest
-	result   map[string]string
-	err      error
+	requests   []*simulatorv1.ComputeRequest
+	result     map[string]string
+	err        error
+	anonymized []string
 }
 
 func (f *fakeSimulator) Compute(
@@ -51,6 +53,16 @@ func (f *fakeSimulator) Compute(
 		Result:       f.result,
 		ComputedAt:   "2026-08-01T12:00:00Z",
 	}, nil
+}
+
+// AnonymizeHistory registra a quién se le disoció el historial de simulaciones
+// (FR-030). No borra `simulations`: el registro sigue acreditando que el cálculo
+// ocurrió (FR-022/FR-025); solo deja de identificar a quien lo pidió.
+func (f *fakeSimulator) AnonymizeHistory(
+	_ context.Context, req *simulatorv1.UserRef, _ ...grpc.CallOption,
+) (*commonv1.OpResult, error) {
+	f.anonymized = append(f.anonymized, req.GetUserId())
+	return &commonv1.OpResult{Success: true}, nil
 }
 
 func newSimulationEngine(store storer.Storer, sim *fakeSimulator) *Engine {

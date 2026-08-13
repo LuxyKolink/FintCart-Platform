@@ -18,7 +18,11 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
+
+	"github.com/google/uuid"
 
 	commonv1 "github.com/fintcart/platform/services/users/gen/fintcart/common/v1"
 	learningv1 "github.com/fintcart/platform/services/users/gen/fintcart/learning/v1"
@@ -28,11 +32,102 @@ import (
 
 // ── fila → dominio ──────────────────────────────────────────────────────────
 
-// Los convertidores del perfil completo (`profileFromRows`) y de las preferencias
-// (`preferencesToRow`) llegan con T158/T159, junto con los métodos que los usan.
-// No se declaran vacíos por adelantado a propósito: una función sin llamadas es
-// código muerto que el lint marca, y un convertidor a medio escribir es peor que
-// no tenerlo, porque parece disponible.
+// Claves reservadas del mapa de preferencias del contrato.
+//
+// `UpdateProfileRequest.preferences` y `Profile.preferences` son un
+// `map<string, string>` genérico porque el contrato no puede anticipar cada
+// preferencia futura, pero la tabla `preferences` SÍ tiene columnas tipadas para
+// las tres que ya existen (`locale`, `notif_inapp`, `notif_email`). Estas tres
+// claves son el puente: lo que llega con uno de estos nombres se guarda en su
+// columna; cualquier otra clave cae en `payload` (JSONB), extensible sin migración.
+const (
+	prefKeyLocale     = "locale"
+	prefKeyNotifInApp = "notif_inapp"
+	prefKeyNotifEmail = "notif_email"
+)
+
+// preferencesFromRow aplana la fila de preferencias en el mapa del contrato.
+func preferencesFromRow(row storer.PreferencesRow) map[string]string {
+	out := map[string]string{
+		prefKeyLocale:     row.Locale,
+		prefKeyNotifInApp: strconv.FormatBool(row.NotifInApp),
+		prefKeyNotifEmail: strconv.FormatBool(row.NotifEmail),
+	}
+	if len(row.Payload) > 0 {
+		var extra map[string]string
+		// Un payload ilegible no debe tumbar la lectura del perfil: se ignora y el
+		// usuario ve sus tres preferencias tipadas igualmente. `UpdateProfile` es
+		// quien garantiza que lo que se ESCRIBE siempre es JSON válido; esto es
+		// solo defensa ante una fila que alguna vía futura dejara corrupta.
+		_ = json.Unmarshal(row.Payload, &extra)
+		for k, v := range extra {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// preferencesToRow combina la fila ACTUAL con las preferencias entrantes.
+//
+// Recibe la fila actual y no parte de cero porque el contrato no distingue «no
+// mandaste esta preferencia» de «bórrala»: un `UpdateProfile` que solo cambia el
+// idioma no debe apagar sin querer las notificaciones por correo. Fusionar sobre
+// lo existente es lo que hace que actualizar una preferencia deje intactas las
+// demás.
+func preferencesToRow(userID uuid.UUID, current storer.PreferencesRow, prefs map[string]string) (storer.PreferencesRow, error) {
+	row := current
+	row.UserID = userID
+
+	extra := map[string]string{}
+	if len(current.Payload) > 0 {
+		_ = json.Unmarshal(current.Payload, &extra)
+	}
+
+	for k, v := range prefs {
+		switch k {
+		case prefKeyLocale:
+			row.Locale = v
+		case prefKeyNotifInApp:
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return storer.PreferencesRow{}, fmt.Errorf("%w: %q no es booleano", ErrInvalidArgument, prefKeyNotifInApp)
+			}
+			row.NotifInApp = b
+		case prefKeyNotifEmail:
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return storer.PreferencesRow{}, fmt.Errorf("%w: %q no es booleano", ErrInvalidArgument, prefKeyNotifEmail)
+			}
+			row.NotifEmail = b
+		default:
+			extra[k] = v
+		}
+	}
+
+	payload, err := json.Marshal(extra)
+	if err != nil {
+		return storer.PreferencesRow{}, fmt.Errorf("serializar preferencias adicionales: %w", err)
+	}
+	row.Payload = payload
+	return row, nil
+}
+
+// profileFromRows ensambla la vista completa del perfil (FR-017).
+func profileFromRows(p storer.ProfileRow, prefs storer.PreferencesRow, roles []storer.RoleRow) Profile {
+	names := make([]string, 0, len(roles))
+	for _, r := range roles {
+		names = append(names, r.Role)
+	}
+	return Profile{
+		UserID:        p.ID.String(),
+		Email:         p.Email,
+		DisplayName:   p.DisplayName,
+		EmailVerified: p.EmailVerified,
+		AccountStatus: p.AccountStatus,
+		Preferences:   preferencesFromRow(prefs),
+		Roles:         names,
+	}
+}
 
 func authContextFromRows(p storer.ProfileRow, roles []storer.RoleRow) AuthContext {
 	names := make([]string, 0, len(roles))

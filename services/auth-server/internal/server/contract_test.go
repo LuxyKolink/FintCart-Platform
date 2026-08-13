@@ -77,6 +77,11 @@ type fakeStore struct {
 	tokenExpires time.Time
 	setTokenErr  error
 	activated    bool
+
+	registerFailedLoginLocked bool
+	registerFailedLoginErr    error
+	failedLoginsReset         bool
+	anonymizedEmail           string
 }
 
 func (f *fakeStore) SetVerificationToken(_ context.Context, _ uuid.UUID, hash string, exp time.Time) error {
@@ -126,6 +131,29 @@ func (f *fakeStore) GetCredential(context.Context, uuid.UUID) (storer.Credential
 
 func (f *fakeStore) GetCredentialByEmail(context.Context, string) (storer.CredentialRow, error) {
 	return f.credential, f.credErr
+}
+
+// RegisterFailedLogin y ResetFailedLogins son no-op por defecto: la mayoría de
+// las pruebas de este archivo no ejercitan la política de bloqueo, y sin estos
+// overrides la interfaz `storer.Storer` embebida (nil) haría panic en cuanto
+// `ValidateCredentials` la invocara en cualquier camino de contraseña incorrecta.
+func (f *fakeStore) RegisterFailedLogin(context.Context, uuid.UUID, int32, time.Duration) (bool, error) {
+	return f.registerFailedLoginLocked, f.registerFailedLoginErr
+}
+
+func (f *fakeStore) ResetFailedLogins(context.Context, uuid.UUID) error {
+	f.failedLoginsReset = true
+	return nil
+}
+
+func (f *fakeStore) UpdatePasswordHash(_ context.Context, _ uuid.UUID, hash string) error {
+	f.credential.PasswordHash = hash
+	return nil
+}
+
+func (f *fakeStore) AnonymizeCredential(_ context.Context, _ uuid.UUID, opaqueEmail string) error {
+	f.anonymizedEmail = opaqueEmail
+	return nil
 }
 
 type fakeTokens struct {
@@ -1062,4 +1090,172 @@ func TestIssueVerificationTokenRefusesAnAccountThatIsNotPending(t *testing.T) {
 
 	_, err := client.IssueVerificationToken(context.Background(), &authv1.UserRef{UserId: testUserID})
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+}
+
+// ── Edge Cases: intentos repetidos de inicio de sesión fallidos ────────────
+
+// TestValidateCredentialsLocksAccountAndPublishesSecurityAlert: cuando el
+// storer señala que el intento fallido alcanzó el umbral, el servidor debe
+// publicar `auth.security_alert` con el correo del titular — es lo único que
+// permite a Notificación avisarle— y NUNCA con la contraseña.
+func TestValidateCredentialsLocksAccountAndPublishesSecurityAlert(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{
+		credential: storer.CredentialRow{
+			ID: uuid.MustParse(testUserID), Email: "ana@fintcart.co",
+			PasswordHash: "hash:la-buena-12345", LoginStatus: storer.StatusActive,
+		},
+		registerFailedLoginLocked: true,
+	}
+	pub := &fakePublisher{}
+	client := startServerWithEvents(t, store, newFakeTokens(), &fakeMaker{}, pub)
+
+	resp, err := client.ValidateCredentials(context.Background(), &authv1.ValidateCredentialsRequest{
+		Email: "ana@fintcart.co", Password: "la-mala-123456",
+	})
+	require.NoError(t, err)
+	require.False(t, resp.GetValid())
+
+	require.Len(t, pub.published, 1)
+	event := pub.published[0]
+	require.Equal(t, server.EventAuthSecurityAlert, event.Type)
+	require.Equal(t, testUserID, event.ActorRef)
+	require.Equal(t, "ana@fintcart.co", event.Payload["email"])
+	require.NotContains(t, event.Payload, "password")
+}
+
+// TestValidateCredentialsDoesNotAlertBelowThreshold: un intento fallido que
+// todavía no alcanza el umbral no debe generar ninguna alerta de seguridad —
+// el usuario que teclea mal su contraseña una vez no es un incidente.
+func TestValidateCredentialsDoesNotAlertBelowThreshold(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{
+		PasswordHash: "hash:la-buena-12345", LoginStatus: storer.StatusActive,
+	}}
+	pub := &fakePublisher{}
+	client := startServerWithEvents(t, store, newFakeTokens(), &fakeMaker{}, pub)
+
+	_, err := client.ValidateCredentials(context.Background(), &authv1.ValidateCredentialsRequest{
+		Email: "ana@fintcart.co", Password: "la-mala-123456",
+	})
+	require.NoError(t, err)
+	require.Empty(t, pub.published)
+}
+
+// TestValidateCredentialsRejectsALockedAccountWithoutCheckingThePassword: con
+// la cuenta bloqueada, ni siquiera la contraseña CORRECTA autentica, y no debe
+// contarse como un intento fallido nuevo.
+func TestValidateCredentialsRejectsALockedAccountWithoutCheckingThePassword(t *testing.T) {
+	t.Parallel()
+	future := time.Now().Add(10 * time.Minute)
+	store := &fakeStore{credential: storer.CredentialRow{
+		PasswordHash: "hash:contraseña-valida-123",
+		LoginStatus:  storer.StatusActive,
+		LockedUntil:  &future,
+	}}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	resp, err := client.ValidateCredentials(context.Background(), &authv1.ValidateCredentialsRequest{
+		Email: "ana@fintcart.co", Password: "contraseña-valida-123",
+	})
+	require.NoError(t, err)
+	require.False(t, resp.GetValid())
+}
+
+// TestValidateCredentialsResetsFailedLoginsOnSuccess: un login correcto cierra
+// el episodio de intentos fallidos previos.
+func TestValidateCredentialsResetsFailedLoginsOnSuccess(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{
+		ID: uuid.MustParse(testUserID), Email: "ana@fintcart.co",
+		PasswordHash:        "hash:contraseña-valida-123",
+		LoginStatus:         storer.StatusActive,
+		FailedLoginAttempts: 2,
+	}}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.ValidateCredentials(context.Background(), &authv1.ValidateCredentialsRequest{
+		Email: "ana@fintcart.co", Password: "contraseña-valida-123",
+	})
+	require.NoError(t, err)
+	require.True(t, store.failedLoginsReset)
+}
+
+// ── FR-005: cambio de contraseña ────────────────────────────────────────────
+
+func TestChangePasswordSucceedsAndPublishesEvent(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{
+		ID: uuid.MustParse(testUserID), Email: "ana@fintcart.co",
+		PasswordHash: "hash:contraseña-actual-123", LoginStatus: storer.StatusActive,
+	}}
+	tokens := newFakeTokens()
+	tokens.saved["refresh-1"] = uuid.MustParse(testUserID)
+	pub := &fakePublisher{}
+	client := startServerWithEvents(t, store, tokens, &fakeMaker{}, pub)
+
+	_, err := client.ChangePassword(context.Background(), &authv1.ChangePasswordRequest{
+		UserId: testUserID, CurrentPassword: "contraseña-actual-123", NewPassword: "contraseña-nueva-456",
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "hash:contraseña-nueva-456", store.credential.PasswordHash)
+	require.Contains(t, tokens.invalidated, uuid.MustParse(testUserID))
+	require.Empty(t, tokens.saved, "las sesiones abiertas deben quedar invalidadas")
+
+	require.Len(t, pub.published, 1)
+	require.Equal(t, server.EventAuthPasswordChanged, pub.published[0].Type)
+	require.Equal(t, "ana@fintcart.co", pub.published[0].Payload["email"])
+}
+
+// TestChangePasswordRejectsAWrongCurrentPassword: sin la contraseña ACTUAL
+// correcta, no hay cambio — de lo contrario, robar una sesión ya autenticada
+// bastaría para expulsar al dueño legítimo de su propia cuenta.
+func TestChangePasswordRejectsAWrongCurrentPassword(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{
+		ID: uuid.MustParse(testUserID), PasswordHash: "hash:contraseña-actual-123",
+	}}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.ChangePassword(context.Background(), &authv1.ChangePasswordRequest{
+		UserId: testUserID, CurrentPassword: "adivinando-123", NewPassword: "contraseña-nueva-456",
+	})
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+	require.Equal(t, "hash:contraseña-actual-123", store.credential.PasswordHash)
+}
+
+// TestChangePasswordRejectsAWeakNewPassword: la política se aplica también en
+// el cambio, no solo en el registro — si no, cambiar la contraseña sería la vía
+// para saltarse la longitud mínima.
+func TestChangePasswordRejectsAWeakNewPassword(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{
+		ID: uuid.MustParse(testUserID), PasswordHash: "hash:contraseña-actual-123",
+	}}
+	client := startServer(t, store, newFakeTokens(), &fakeMaker{})
+
+	_, err := client.ChangePassword(context.Background(), &authv1.ChangePasswordRequest{
+		UserId: testUserID, CurrentPassword: "contraseña-actual-123", NewPassword: "corta",
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+// ── FR-030: paso de anonimización de Auth ───────────────────────────────────
+
+// TestRevokeAndAnonymizeCredentialRevokesBeforeAnonymizing: el orden importa
+// (ver el comentario de `server.RevokeAndAnonymizeCredential`) — se comprueba
+// aquí que las DOS cosas ocurren, no solo una.
+func TestRevokeAndAnonymizeCredentialRevokesBeforeAnonymizing(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{credential: storer.CredentialRow{ID: uuid.MustParse(testUserID)}}
+	tokens := newFakeTokens()
+	tokens.saved["refresh-1"] = uuid.MustParse(testUserID)
+	client := startServer(t, store, tokens, &fakeMaker{})
+
+	_, err := client.RevokeAndAnonymizeCredential(context.Background(), &authv1.UserRef{UserId: testUserID})
+	require.NoError(t, err)
+
+	require.Contains(t, tokens.invalidated, uuid.MustParse(testUserID))
+	require.Contains(t, store.anonymizedEmail, testUserID)
 }

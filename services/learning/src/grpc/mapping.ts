@@ -12,6 +12,7 @@
  * hacia dentro son los tipos de dominio.
  */
 import { format } from '../common/decimal-str';
+import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type { ArticleDetail, ArticleSummary } from '../articles/articles.repository';
 import type { CatalogPage } from '../articles/articles.service';
 import type { AttemptsPage, GradeResult } from '../grading/grading.service';
@@ -24,6 +25,17 @@ import type {
   Question as QuestionPb,
   Quiz as QuizPb,
 } from '../pb/fintcart/learning/v1/learning';
+
+/**
+ * Respuesta de éxito de las operaciones de comando.
+ *
+ * Un FALLO no viaja como `success: false`: viaja como `RpcException` (ver
+ * `learning.controller.ts::guard`), para que el cliente no tenga dos caminos
+ * distintos que comprobar y se olvide de uno.
+ */
+export function okResult(): OpResultPb {
+  return { success: true, code: '', message: '' };
+}
 
 /**
  * Resumen del catálogo → `Article`.

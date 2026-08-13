@@ -60,6 +60,25 @@ type Event struct {
 // EventAuthSessionRevoked es la routing key del evento de revocación (FR-004).
 const EventAuthSessionRevoked = "auth.session_revoked"
 
+// EventAuthSecurityAlert es la routing key de las alertas de seguridad, incluida
+// la de bloqueo por intentos fallidos repetidos (Edge Cases).
+const EventAuthSecurityAlert = "auth.security_alert"
+
+// EventAuthPasswordChanged es la routing key del cambio de contraseña (FR-005).
+const EventAuthPasswordChanged = "auth.password_changed"
+
+// Política de bloqueo por intentos fallidos (Edge Cases: «¿Cómo se manejan
+// intentos repetidos de inicio de sesión fallidos contra una misma cuenta?»).
+//
+// Son constantes de PROCESO y no variables de entorno (Principio X: es
+// configurable lo que cambia entre entornos, no una decisión de producto). Cinco
+// intentos y quince minutos son un punto de partida razonable frente a fuerza
+// bruta sin castigar en exceso una contraseña tecleada mal dos veces seguidas.
+const (
+	maxFailedLoginAttempts = 5
+	lockoutDuration        = 15 * time.Minute
+)
+
 // Claves del payload de `auth.session_revoked`.
 const (
 	payloadKeyTokenType = "token_type"
@@ -130,29 +149,6 @@ func (s *Server) CreateCredential(ctx context.Context, userID, email, password s
 	return nil
 }
 
-// ChangePasswordHash sustituye la contraseña de una cuenta existente.
-//
-// Valida la política igual que el registro: si solo se validara al crear la cuenta,
-// un cambio de contraseña sería la vía para saltarse la longitud mínima.
-func (s *Server) ChangePasswordHash(ctx context.Context, userID, newPassword string) error {
-	id, err := parseUserID(userID)
-	if err != nil {
-		return err
-	}
-	if err := ValidatePasswordPolicy(newPassword); err != nil {
-		return err
-	}
-
-	hash, err := s.hasher.Hash(newPassword)
-	if err != nil {
-		return fmt.Errorf("derivar el hash de la contraseña: %w", err)
-	}
-	if err := s.store.UpdatePasswordHash(ctx, id, hash); err != nil {
-		return fmt.Errorf("actualizar hash de contraseña: %w", err)
-	}
-	return nil
-}
-
 // normalizeEmail recorta espacios y pasa a minúsculas.
 //
 // La columna es `CITEXT`, así que la base ya compara sin distinguir mayúsculas; esto
@@ -183,12 +179,50 @@ func (s *Server) ValidateCredentials(ctx context.Context, email, password string
 		return CredentialCheck{}, fmt.Errorf("leer credencial por correo: %w", err)
 	}
 
+	if cred.LockedUntil != nil && cred.LockedUntil.After(time.Now()) {
+		// Bloqueada: ni siquiera se comprueba la contraseña. Verificarla de todos
+		// modos no cambiaría el resultado —el acceso está denegado igual— y solo
+		// gastaría un Argon2id completo por cada intento contra una cuenta que ya
+		// se sabe bloqueada, que es exactamente el coste que un atacante que
+		// insiste querría imponerle al servicio.
+		return CredentialCheck{Valid: false}, nil
+	}
+
 	ok, err := s.hasher.Verify(cred.PasswordHash, password)
 	if err != nil {
 		return CredentialCheck{}, fmt.Errorf("verificar contraseña: %w", err)
 	}
 	if !ok {
+		locked, regErr := s.store.RegisterFailedLogin(ctx, cred.ID, maxFailedLoginAttempts, lockoutDuration)
+		if regErr != nil {
+			// El intento SIGUE siendo inválido aunque no se haya podido contabilizar:
+			// un fallo al registrar el contador no debe convertirse en un 500 que
+			// confunda un login fallido normal con una caída del servicio.
+			return CredentialCheck{Valid: false}, nil
+		}
+		if locked {
+			s.events.Publish(ctx, Event{
+				Type:     EventAuthSecurityAlert,
+				ActorRef: cred.ID.String(),
+				Payload: map[string]any{
+					"user_id": cred.ID.String(),
+					"email":   cred.Email,
+					"detail": fmt.Sprintf(
+						"la cuenta se bloqueó durante %s tras %d intentos de inicio de sesión fallidos consecutivos",
+						lockoutDuration, maxFailedLoginAttempts,
+					),
+				},
+			})
+		}
 		return CredentialCheck{Valid: false}, nil
+	}
+
+	if cred.FailedLoginAttempts > 0 {
+		// Un login correcto cierra el episodio de intentos fallidos. El error, si lo
+		// hay, no se propaga: la autenticación en sí fue válida y no debe fallar por
+		// no haber podido limpiar un contador que de todos modos seguirá bajo el
+		// umbral en el próximo intento fallido.
+		_ = s.store.ResetFailedLogins(ctx, cred.ID)
 	}
 
 	// Solo `active` autentica (FR-002). La comprobación es una LISTA BLANCA y no un

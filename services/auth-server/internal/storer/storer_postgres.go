@@ -186,7 +186,7 @@ func (s *PostgresStorer) ActivateCredential(ctx context.Context, userID uuid.UUI
 }
 
 //nolint:gosec // G101 falso positivo: lista de columnas, no credencial.
-const selectCredentialColumns = `id, email, password_hash, login_status, created_at, updated_at`
+const selectCredentialColumns = `id, email, password_hash, login_status, failed_login_attempts, locked_until, created_at, updated_at`
 
 // GetCredentialByEmail es la lectura del login.
 //
@@ -271,13 +271,115 @@ func isUniqueViolation(err error) bool {
 // Las dos escrituras van juntas porque un código sin consumir sobreviviente
 // permitiría emitir tokens para una cuenta ya anonimizada — exactamente lo que
 // FR-030 prohíbe.
+// anonymizeCredentialQuery deja la credencial permanentemente inutilizable.
+//
+// El hash NO se pone en blanco ni se borra: se sustituye por un valor que ningún
+// `Verify` puede satisfacer. Un hash vacío o NULL podría —según el verificador—
+// tratarse como «sin contraseña» y aceptar cualquier entrada; una cadena que no es
+// un hash Argon2id válido garantiza que la verificación falla siempre, sin
+// depender de esa distinción.
+const anonymizeCredentialQuery = `
+UPDATE credentials
+   SET email = $2,
+       password_hash = 'anonymized:no-password-can-match',
+       login_status = $3,
+       failed_login_attempts = 0,
+       locked_until = NULL,
+       updated_at = now()
+ WHERE id = $1`
+
+const deleteUnconsumedAuthCodesQuery = `DELETE FROM authorization_codes WHERE user_id = $1 AND NOT consumed`
+
+// AnonymizeCredential reescribe la credencial y descarta los códigos de
+// autorización pendientes del usuario, en una sola transacción.
+//
+// Las dos escrituras van juntas porque un código sin consumir sobreviviente
+// permitiría emitir tokens para una cuenta ya anonimizada — exactamente lo que
+// FR-030 prohíbe.
+//
+// Es idempotente: un `UPDATE` sobre una credencial ya anonimizada vuelve a
+// escribir los mismos valores opacos y no falla, lo que permite que la saga de
+// anonimización reintente el paso.
 func (s *PostgresStorer) AnonymizeCredential(ctx context.Context, userID uuid.UUID, opaqueEmail string) error {
-	_, _ = userID, opaqueEmail
-	return s.execTx(ctx, func(_ *sqlx.Tx) error {
-		// T162: UPDATE credentials (email opaco, hash inutilizable, `anonymized`)
-		// + DELETE de authorization_codes no consumidos del usuario.
-		return ErrNotImplemented
+	return s.execTx(ctx, func(tx *sqlx.Tx) error {
+		res, err := tx.ExecContext(ctx, anonymizeCredentialQuery, userID, opaqueEmail, StatusAnonymized)
+		if err != nil {
+			return wrap("anonimizar credencial", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return wrap("anonimizar credencial", err)
+		}
+		if n == 0 {
+			return wrap("anonimizar credencial", ErrNotFound)
+		}
+		if _, err := tx.ExecContext(ctx, deleteUnconsumedAuthCodesQuery, userID); err != nil {
+			return wrap("descartar códigos de autorización pendientes", err)
+		}
+		return nil
 	})
+}
+
+// ── protección ante intentos fallidos de inicio de sesión ──────────────────
+
+const incrementFailedLoginQuery = `
+UPDATE credentials
+   SET failed_login_attempts = failed_login_attempts + 1, updated_at = now()
+ WHERE id = $1
+RETURNING failed_login_attempts`
+
+const lockCredentialQuery = `
+UPDATE credentials
+   SET locked_until = $2, failed_login_attempts = 0, updated_at = now()
+ WHERE id = $1`
+
+// RegisterFailedLogin incrementa el contador y bloquea la cuenta al alcanzar el
+// umbral, en una sola transacción: entre leer el contador y decidir si bloquea no
+// puede colarse otro intento fallido concurrente que se cuente dos veces sobre el
+// mismo umbral, o que dos peticiones simultáneas activen el bloqueo cada una por
+// su cuenta y disparen dos alertas de seguridad para el mismo episodio.
+func (s *PostgresStorer) RegisterFailedLogin(
+	ctx context.Context,
+	userID uuid.UUID,
+	threshold int32,
+	lockDuration time.Duration,
+) (bool, error) {
+	var locked bool
+	err := s.execTx(ctx, func(tx *sqlx.Tx) error {
+		var attempts int32
+		if err := tx.GetContext(ctx, &attempts, incrementFailedLoginQuery, userID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return wrap("registrar intento fallido", ErrNotFound)
+			}
+			return wrap("registrar intento fallido", err)
+		}
+		if attempts < threshold {
+			return nil
+		}
+		locked = true
+		if _, err := tx.ExecContext(ctx, lockCredentialQuery, userID, time.Now().Add(lockDuration)); err != nil {
+			return wrap("bloquear credencial", err)
+		}
+		return nil
+	})
+	return locked, err
+}
+
+const resetFailedLoginsQuery = `
+UPDATE credentials
+   SET failed_login_attempts = 0, locked_until = NULL, updated_at = now()
+ WHERE id = $1 AND failed_login_attempts <> 0`
+
+// ResetFailedLogins limpia el contador tras un login válido.
+//
+// El WHERE evita una escritura innecesaria en el camino más común —un login
+// correcto sin fallos previos—, que es exactamente el caso que ocurre en cada
+// autenticación exitosa de la plataforma.
+func (s *PostgresStorer) ResetFailedLogins(ctx context.Context, userID uuid.UUID) error {
+	if _, err := s.db.ExecContext(ctx, resetFailedLoginsQuery, userID); err != nil {
+		return wrap("reiniciar intentos fallidos", err)
+	}
+	return nil
 }
 
 // ── oauth_clients ───────────────────────────────────────────────────────────

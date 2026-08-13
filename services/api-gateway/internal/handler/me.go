@@ -6,7 +6,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	authv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/auth/v1"
+	commonv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/common/v1"
+	learningv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/learning/v1"
 	orchestratorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/orchestrator/v1"
+	simulatorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/simulator/v1"
 	usersv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/users/v1"
 )
 
@@ -171,4 +175,117 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusAccepted, SagaAccepted{SagaID: resp.GetSagaId()})
+}
+
+// GetActivityReport ≡ `GET /me/report` (FR-018).
+func (h *Handler) GetActivityReport(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	resp, err := h.clients.Users.GetActivityReport(r.Context(), &usersv1.UserRef{UserId: claims.UserID})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, activityReportToDTO(resp))
+}
+
+// ChangePassword ≡ `PATCH /me/password` (FR-005).
+//
+// El usuario sale del token, igual que en el resto de `/me/*`: aceptar un
+// `user_id` en el cuerpo abriría la puerta a que alguien cambiara la
+// contraseña de otra persona conociendo su identificador.
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	var body ChangePasswordRequest
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	if _, err := h.clients.Auth.ChangePassword(r.Context(), &authv1.ChangePasswordRequest{
+		UserId:          claims.UserID,
+		CurrentPassword: body.CurrentPassword,
+		NewPassword:     body.NewPassword,
+	}); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	// La respuesta lleva la confirmación de que las sesiones abiertas se
+	// invalidaron (FR-005): no debe quedar cacheada, igual que cualquier otra
+	// respuesta de identidad.
+	noStore(w)
+	writeJSON(w, http.StatusOK, OpAck{Success: true})
+}
+
+// GetPersonalData ≡ `GET /me/data` (FR-029: derecho de acceso, Ley 1581).
+//
+// Combina cuatro llamadas gRPC — nunca una lectura cruzada de base de datos
+// (Principio III) — porque el titular del dato tiene derecho a verlo TODO en
+// un solo ejercicio del derecho, no artículo por artículo en cuatro pantallas
+// distintas. Los historiales se acotan a una página razonable
+// ([maxPageSize]): es una vista de consulta, no una exportación masiva —quien
+// necesite más allá de eso ya tiene `GET /quizzes/{quizId}` (vía Aprendizaje)
+// y `GET /simulators/history` paginados por su cuenta.
+func (h *Handler) GetPersonalData(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+	ctx := r.Context()
+	page := &commonv1.PageRequest{PageSize: maxPageSize}
+
+	profile, err := h.clients.Users.GetProfile(ctx, &usersv1.UserRef{UserId: claims.UserID})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+	progress, err := h.clients.Users.GetProgress(ctx, &usersv1.UserRef{UserId: claims.UserID})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+	// `QuizId` vacío pide TODOS los cuestionarios, igual que hace
+	// `Users.GetActivityReport` internamente para contarlos.
+	attempts, err := h.clients.Learning.ListAttempts(ctx, &learningv1.ListAttemptsRequest{
+		UserId: claims.UserID, Page: page,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+	history, err := h.clients.Simulator.ListHistory(ctx, &simulatorv1.ListHistoryRequest{
+		UserId: claims.UserID, Page: page,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	attemptItems := make([]QuizAttempt, 0, len(attempts.GetItems()))
+	for _, a := range attempts.GetItems() {
+		attemptItems = append(attemptItems, attemptToDTO(a))
+	}
+	historyItems := make([]SimulationHistoryEntry, 0, len(history.GetItems()))
+	for _, entry := range history.GetItems() {
+		historyItems = append(historyItems, historyEntryToDTO(entry))
+	}
+
+	writeJSON(w, http.StatusOK, PersonalData{
+		Profile:      profileToDTO(profile),
+		Progress:     progressToDTO(progress),
+		QuizAttempts: pageOf(attemptItems, attempts.GetPage()),
+		Simulations:  pageOf(historyItems, history.GetPage()),
+	})
 }

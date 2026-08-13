@@ -1,0 +1,53 @@
+<section>
+  <h1>Tus notificaciones</h1>
+
+  @switch (state()) {
+    @case ('loading') {
+      <p>Cargando notificaciones…</p>
+    }
+    @case ('error') {
+      <p class="fc-banner fc-banner--error">No pudimos cargar tu bandeja. Intenta de nuevo.</p>
+    }
+    @case ('ready') {
+      @if (items().length === 0) {
+        <p>No tienes notificaciones todavía.</p>
+      } @else {
+        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2)">
+          @for (item of items(); track item.id) {
+            <li>
+              <button
+                type="button"
+                class="fc-module"
+                style="width: 100%; text-align: left; border: none; cursor: pointer; padding: 0"
+                [style.opacity]="item.read_state === 'read' ? 0.6 : 1"
+                (click)="markRead(item)"
+              >
+                <div class="fc-module-body" style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-2)">
+                  <div>
+                    <span class="fc-label">{{ typeLabel(item.type) }}</span>
+                    @if (item.read_state === 'unread') {
+                      <span class="fc-help" style="margin-left: var(--space-2)">● no leída</span>
+                    }
+                  </div>
+                  <time class="fc-help" [attr.datetime]="item.created_at">{{ item.created_at | date: 'medium' }}</time>
+                </div>
+              </button>
+            </li>
+          }
+        </ul>
+
+        @if (nextPageToken()) {
+          <button
+            type="button"
+            class="fc-btn fc-btn--secondary"
+            style="margin-top: var(--space-4)"
+            [disabled]="loadingMore()"
+            (click)="loadMore()"
+          >
+            {{ loadingMore() ? 'Cargando…' : 'Cargar más' }}
+          </button>
+        }
+      }
+    }
+  }
+</section>

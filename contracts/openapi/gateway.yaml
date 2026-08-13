@@ -372,6 +372,11 @@ paths:
       summary: Consultar progreso (FR-014)
       responses:
         '200': { description: Progreso, content: { application/json: { schema: { $ref: '#/components/schemas/Progress' } } } }
+  /me/report:
+    get:
+      summary: Reporte estadístico de actividad (FR-018)
+      responses:
+        '200': { description: Reporte de actividad }
   /me/notifications:
     get:
       summary: Bandeja in-app con estado de lectura (FR-023)
@@ -395,3 +400,14 @@ paths:
       summary: Solicitar eliminación de cuenta (Saga de anonimización, FR-030)
       responses:
         '202': { description: Solicitud aceptada; anonimización en proceso (SLA ≤ 15 días hábiles, SC-011) }
+  /me/password:
+    patch:
+      summary: Cambiar la contraseña (FR-005). Exige la contraseña actual.
+      responses:
+        '200': { description: Contraseña actualizada; sesiones abiertas invalidadas }
+        '401': { description: La contraseña actual no coincide }
+  /me/data:
+    get:
+      summary: Consulta completa de datos personales del titular (FR-029) — perfil, progreso, historial de cuestionarios e historial de simulaciones.
+      responses:
+        '200': { description: Datos personales completos }

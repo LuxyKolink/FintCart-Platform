@@ -20,7 +20,7 @@ import (
 // listado repartido por diez archivos es donde se cuela una ruta editorial sin
 // comprobación de rol.
 //
-// Las rutas siguen `contracts/openapi/gateway.yaml`: **19 rutas y 20 operaciones**.
+// Las rutas siguen `contracts/openapi/gateway.yaml`: **22 rutas y 23 operaciones**.
 //
 // Los dos números conviene desglosarlos porque el contrato, tal como estaba escrito,
 // no los daba directamente. `paths:` declara 16 rutas y 17 operaciones —`/me/profile`
@@ -40,6 +40,16 @@ import (
 // gRPC, pero ningún handler del Gateway lo servía por REST. Sin ella la SPA no tiene
 // forma de pedir las preguntas de un cuestionario antes de responderlo — solo existía
 // el POST que califica respuestas ya dadas. La añade la implementación de T105.
+//
+// Las rutas 20, 21 y 22 son `PATCH /me/password`, `GET /me/data` y `GET /me/report`
+// (T137/T145/T148, FR-005/FR-029/FR-018): ninguna estaba en el OpenAPI original.
+// `ChangePassword` no tenía ni siquiera RPC en `auth.proto` hasta esta implementación
+// (ver la nota de `ChangePasswordRequest` allí); la vista completa de datos
+// personales que exige el derecho de acceso de la Ley 1581 no tenía dónde vivir —no
+// es un simple proxy de un único RPC, sino la combinación de perfil, progreso,
+// cuestionarios y simulaciones en una sola respuesta (ver `me.go::GetPersonalData`)—;
+// y `UsersService.GetActivityReport` tenía RPC y capa de aplicación (T135) pero
+// ningún handler REST lo servía todavía.
 
 // Deps son las dependencias transversales del router.
 //
@@ -127,9 +137,12 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.Get("/me/profile", h.GetProfile)
 		r.Patch("/me/profile", h.UpdateProfile)
 		r.Get("/me/progress", h.GetProgress)
+		r.Get("/me/report", h.GetActivityReport)
 		r.Get("/me/notifications", h.ListNotifications)
 		r.Post("/me/notifications/{id}/read", h.MarkNotificationRead)
 		r.Delete("/me/account", h.DeleteAccount)
+		r.Patch("/me/password", h.ChangePassword)
+		r.Get("/me/data", h.GetPersonalData)
 
 		// ── Editorial: exige rol ───────────────────────────────────────────
 		//

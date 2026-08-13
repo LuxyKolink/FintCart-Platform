@@ -339,4 +339,46 @@ describe('LearningService.ListAttempts', () => {
     expect(first.items).toHaveLength(2);
     expect(first.page?.next_page_token).toBe('2');
   });
+
+  // `quiz_id` vacío lista TODOS los cuestionarios del usuario. Es lo que usa
+  // `UsersService.GetActivityReport` (plan.md N-02) y `GET /me/data` del Gateway
+  // (FR-029) para contar/leer sin conocer cada `quiz_id` de antemano.
+  it('quiz_id vacío lista los intentos de todos los cuestionarios', async () => {
+    const { controller } = await newController();
+    await controller.gradeAndStoreAttempt({ user_id: IDS.user, quiz_id: IDS.quiz, answers: {} });
+
+    const response = await controller.listAttempts({ user_id: IDS.user, quiz_id: '', page: undefined });
+
+    expect(response.items).toHaveLength(1);
+    expect(response.page?.total_size).toBe('1');
+  });
+});
+
+// ── FR-030: paso de anonimización de Aprendizaje ────────────────────────────
+
+describe('LearningService.AnonymizeAttempts', () => {
+  it('acepta un user_id válido y no borra el historial', async () => {
+    const { controller } = await newController();
+    await controller.gradeAndStoreAttempt({ user_id: IDS.user, quiz_id: IDS.quiz, answers: {} });
+
+    await expect(controller.anonymizeAttempts({ user_id: IDS.user })).resolves.toEqual({
+      success: true,
+      code: '',
+      message: '',
+    });
+
+    // No-op deliberado (ver `GradingService.anonymizeAttempts`): el historial
+    // sigue intacto, porque `quiz_attempts` no tiene PII que disociar.
+    const response = await controller.listAttempts({
+      user_id: IDS.user,
+      quiz_id: IDS.quiz,
+      page: undefined,
+    });
+    expect(response.items).toHaveLength(1);
+  });
+
+  it('rechaza un user_id que no es UUID', async () => {
+    const { controller } = await newController();
+    await expectRpcCode(controller.anonymizeAttempts({ user_id: NOT_A_UUID }), GrpcStatus.INVALID_ARGUMENT);
+  });
 });

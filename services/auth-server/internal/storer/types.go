@@ -16,12 +16,14 @@ import (
 
 // CredentialRow ≡ tabla `credentials`.
 type CredentialRow struct {
-	ID           uuid.UUID `db:"id"`
-	Email        string    `db:"email"`
-	PasswordHash string    `db:"password_hash"`
-	LoginStatus  string    `db:"login_status"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
+	ID                  uuid.UUID  `db:"id"`
+	Email               string     `db:"email"`
+	PasswordHash        string     `db:"password_hash"`
+	LoginStatus         string     `db:"login_status"`
+	FailedLoginAttempts int32      `db:"failed_login_attempts"`
+	LockedUntil         *time.Time `db:"locked_until"`
+	CreatedAt           time.Time  `db:"created_at"`
+	UpdatedAt           time.Time  `db:"updated_at"`
 }
 
 // Estados de `credentials.login_status`, replicados del CHECK del esquema.

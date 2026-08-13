@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"sync"
 )
 
 // Reporte estadístico de actividad (FR-018).
@@ -46,18 +48,77 @@ type ActivityReport struct {
 }
 
 // GetActivityReport agrega el dato propio con los dos remotos.
-func (s *Server) GetActivityReport(_ context.Context, userID string) (ActivityReport, error) {
-	if _, err := parseUserID(userID); err != nil {
+//
+// Los cuatro conteos se piden en paralelo con el MISMO contexto: si el llamador
+// tiene un plazo, un participante remoto lento no debe consumirlo entero antes de
+// que los demás siquiera empiecen. Un fallo en cualquiera de los cuatro hace
+// fallar el reporte COMPLETO en lugar de sustituir el contador ausente por cero:
+// un reporte que dijera «cero simulaciones» cuando en realidad el Simulador no
+// respondió sería un dato falso, y en un reporte de actividad eso es peor que no
+// tener reporte.
+func (s *Server) GetActivityReport(ctx context.Context, userID string) (ActivityReport, error) {
+	id, err := parseUserID(userID)
+	if err != nil {
 		return ActivityReport{}, err
 	}
-	// T160 implementa:
-	//   1. `store.GetProgress` y `store.CountArticleViews` (datos propios).
-	//   2. `attempts.CountAttempts` y `sims.CountSimulations` en paralelo, con el
-	//      contexto propagado para que un servicio lento no bloquee el reporte
-	//      completo más allá del deadline del llamador.
-	//   3. Decidir qué hacer si un servicio remoto no responde. Es una decisión de
-	//      dominio, no de transporte: un reporte con un contador ausente puede ser
-	//      preferible a ningún reporte, pero no puede presentarse como si el
-	//      contador fuera cero.
-	return ActivityReport{}, ErrNotImplemented
+
+	var (
+		wg                                     sync.WaitGroup
+		points                                 int32
+		articlesViewed, attempted, simulations int64
+		errs                                   [4]error
+	)
+
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		progress, err := s.store.GetProgress(ctx, id)
+		if err != nil {
+			errs[0] = fmt.Errorf("leer progreso: %w", err)
+			return
+		}
+		points = progress.Points
+	}()
+	go func() {
+		defer wg.Done()
+		n, err := s.store.CountArticleViews(ctx, id)
+		if err != nil {
+			errs[1] = fmt.Errorf("contar artículos vistos: %w", err)
+			return
+		}
+		articlesViewed = n
+	}()
+	go func() {
+		defer wg.Done()
+		n, err := s.attempts.CountAttempts(ctx, userID)
+		if err != nil {
+			errs[2] = fmt.Errorf("contar intentos de cuestionario: %w", err)
+			return
+		}
+		attempted = n
+	}()
+	go func() {
+		defer wg.Done()
+		n, err := s.sims.CountSimulations(ctx, userID)
+		if err != nil {
+			errs[3] = fmt.Errorf("contar simulaciones: %w", err)
+			return
+		}
+		simulations = n
+	}()
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			return ActivityReport{}, fmt.Errorf("obtener reporte de actividad: %w", err)
+		}
+	}
+
+	return ActivityReport{
+		UserID:           userID,
+		Points:           points,
+		ArticlesViewed:   articlesViewed,
+		QuizzesAttempted: attempted,
+		SimulationsRun:   simulations,
+	}, nil
 }

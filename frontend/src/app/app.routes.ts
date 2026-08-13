@@ -61,5 +61,33 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/simulators/forms/simulator-form.component').then((m) => m.SimulatorFormComponent),
   },
+  {
+    path: 'perfil',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/profile/profile.component').then((m) => m.ProfileComponent),
+  },
+  {
+    path: 'perfil/reporte',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/profile/report/report.component').then((m) => m.ReportComponent),
+  },
+  {
+    path: 'perfil/contrasena',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/profile/password/password.component').then((m) => m.PasswordComponent),
+  },
+  {
+    path: 'perfil/eliminar-cuenta',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/profile/delete-account/delete-account.component').then((m) => m.DeleteAccountComponent),
+  },
+  {
+    path: 'notificaciones',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/notifications/notifications.component').then((m) => m.NotificationsComponent),
+  },
   { path: '**', redirectTo: 'catalogo' },
 ];

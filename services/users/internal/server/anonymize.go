@@ -2,6 +2,20 @@ package server
 
 import (
 	"context"
+	"fmt"
+)
+
+// anonymizedEmailDomain y anonymizedDisplayName son los valores opacos con los
+// que FR-030 sustituye los datos personales.
+//
+// El correo opaco INCLUYE el `user_id`: es lo que lo mantiene único entre cuentas
+// anonimizadas sin necesitar una consulta extra ni un generador aleatorio. El
+// dominio `.invalid` es el reservado por RFC 2606 para direcciones que
+// deliberadamente no deben resolver a nada — no es un descuido si algún día se le
+// intenta enviar un correo, es la garantía de que no puede llegar.
+const (
+	anonymizedEmailDomain = "anonimizado.fintcart.invalid"
+	anonymizedDisplayName = "Usuario anonimizado"
 )
 
 // Anonimización de la cuenta (FR-030): paso de la saga de anonimización
@@ -17,14 +31,15 @@ import (
 // Es idempotente: repetir la anonimización de una cuenta ya anonimizada no es un
 // error. La saga puede reintentar el paso y no hay compensación posible para un
 // dato personal ya destruido, así que el paso está diseñado para no necesitarla.
-func (s *Server) AnonymizeProfile(_ context.Context, userID string) error {
-	if _, err := parseUserID(userID); err != nil {
+func (s *Server) AnonymizeProfile(ctx context.Context, userID string) error {
+	id, err := parseUserID(userID)
+	if err != nil {
 		return err
 	}
-	// T161 implementa la generación de los valores opacos y la llamada a
-	// `store.AnonymizeProfile`. El correo opaco debe seguir siendo único entre
-	// cuentas anonimizadas: el índice único parcial de `profiles` solo cubre las
-	// activas, pero dos filas anonimizadas con el mismo correo harían imposible
-	// distinguirlas en una auditoría posterior.
-	return ErrNotImplemented
+
+	opaqueEmail := fmt.Sprintf("%s@%s", id, anonymizedEmailDomain)
+	if err := s.store.AnonymizeProfile(ctx, id, opaqueEmail, anonymizedDisplayName); err != nil {
+		return fmt.Errorf("anonimizar perfil: %w", err)
+	}
+	return nil
 }

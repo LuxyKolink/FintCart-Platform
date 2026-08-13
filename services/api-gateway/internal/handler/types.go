@@ -283,6 +283,15 @@ type Progress struct {
 	Points int32  `json:"points"`
 }
 
+// ActivityReport ≡ `GET /me/report` (FR-018).
+type ActivityReport struct {
+	UserID           string `json:"user_id"`
+	Points           int32  `json:"points"`
+	ArticlesViewed   int64  `json:"articles_viewed"`
+	QuizzesAttempted int64  `json:"quizzes_attempted"`
+	SimulationsRun   int64  `json:"simulations_run"`
+}
+
 // InAppNotification ≡ `components.schemas.InAppNotification` más `payload`.
 //
 // Ver `inAppToDTO` en `mapping.go` para por qué se añade el payload y por qué se
@@ -300,6 +309,44 @@ type Page[T any] struct {
 	Items         []T    `json:"items"`
 	NextPageToken string `json:"next_page_token,omitempty"`
 	TotalSize     int64  `json:"total_size"`
+}
+
+// ── DTO de contraseña y derechos Ley 1581 ───────────────────────────────────
+
+// ChangePasswordRequest ≡ `PATCH /me/password` (FR-005).
+//
+// Exige la contraseña ACTUAL: quien llama ya está autenticado, así que la
+// prueba de identidad apropiada para un cambio voluntario es la contraseña
+// vigente, no un token de un solo uso (ese es el restablecimiento por correo,
+// que no tiene ruta propia todavía — ver `auth.proto::ChangePasswordRequest`).
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// QuizAttempt ≡ un elemento del historial de cuestionarios dentro de
+// `GET /me/data` (FR-029). `Score` es `string` decimal, igual que en
+// `QuizGradeResult` (Principio VIII).
+type QuizAttempt struct {
+	AttemptID string `json:"attempt_id"`
+	AttemptNo int32  `json:"attempt_no"`
+	Score     string `json:"score"`
+	CreatedAt string `json:"created_at"`
+}
+
+// PersonalData ≡ `GET /me/data`: la vista de consulta completa del titular
+// que exige el derecho de acceso de la Ley 1581 (FR-029).
+//
+// Combina cuatro fuentes con una sola llamada al borde para que el ejercicio
+// del derecho no obligue al usuario a visitar cuatro pantallas distintas —
+// perfil y progreso (Usuarios), cuestionarios (Aprendizaje) y simulaciones
+// (Simulador) — cada una obtenida por gRPC y nunca por lectura cruzada de base
+// de datos (Principio III).
+type PersonalData struct {
+	Profile      Profile                     `json:"profile"`
+	Progress     Progress                    `json:"progress"`
+	QuizAttempts Page[QuizAttempt]           `json:"quiz_attempts"`
+	Simulations  Page[SimulationHistoryEntry] `json:"simulations"`
 }
 
 // ── serialización ───────────────────────────────────────────────────────────

@@ -45,11 +45,21 @@ import (
 type fakeAuth struct {
 	authv1.AuthServiceClient
 
-	validate func(*authv1.ValidateCredentialsRequest) (*authv1.ValidateCredentialsResponse, error)
-	issue    func(*authv1.IssueAuthCodeRequest) (*authv1.IssueAuthCodeResponse, error)
-	exchange func(*authv1.ExchangeCodeRequest) (*authv1.TokenResponse, error)
-	refresh  func(*authv1.RefreshTokenRequest) (*authv1.TokenResponse, error)
-	revoked  []string
+	validate       func(*authv1.ValidateCredentialsRequest) (*authv1.ValidateCredentialsResponse, error)
+	issue          func(*authv1.IssueAuthCodeRequest) (*authv1.IssueAuthCodeResponse, error)
+	exchange       func(*authv1.ExchangeCodeRequest) (*authv1.TokenResponse, error)
+	refresh        func(*authv1.RefreshTokenRequest) (*authv1.TokenResponse, error)
+	revoked        []string
+	lastChangePass *authv1.ChangePasswordRequest
+	changePassErr  error
+}
+
+func (f *fakeAuth) ChangePassword(_ context.Context, in *authv1.ChangePasswordRequest, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
+	f.lastChangePass = in
+	if f.changePassErr != nil {
+		return nil, f.changePassErr
+	}
+	return &commonv1.OpResult{Success: true}, nil
 }
 
 func (f *fakeAuth) ValidateCredentials(_ context.Context, in *authv1.ValidateCredentialsRequest, _ ...grpc.CallOption) (*authv1.ValidateCredentialsResponse, error) {
@@ -99,6 +109,12 @@ func (f *fakeUsers) GetProgress(_ context.Context, in *usersv1.UserRef, _ ...grp
 	return &usersv1.ProgressView{UserId: in.GetUserId(), Points: 120}, nil
 }
 
+func (f *fakeUsers) GetActivityReport(_ context.Context, in *usersv1.UserRef, _ ...grpc.CallOption) (*usersv1.ActivityReport, error) {
+	return &usersv1.ActivityReport{
+		UserId: in.GetUserId(), Points: 120, ArticlesViewed: 4, QuizzesAttempted: 3, SimulationsRun: 2,
+	}, nil
+}
+
 func (f *fakeUsers) ListInAppNotifications(_ context.Context, _ *usersv1.ListInAppRequest, _ ...grpc.CallOption) (*usersv1.ListInAppResponse, error) {
 	return f.inbox, nil
 }
@@ -114,6 +130,14 @@ type fakeLearning struct {
 	lastDraft   *learningv1.CreateDraftRequest
 	lastPublish *learningv1.ApprovePublishRequest
 	articles    *learningv1.ListPublishedResponse
+	attempts    *learningv1.ListAttemptsResponse
+}
+
+func (f *fakeLearning) ListAttempts(_ context.Context, _ *learningv1.ListAttemptsRequest, _ ...grpc.CallOption) (*learningv1.ListAttemptsResponse, error) {
+	if f.attempts == nil {
+		return &learningv1.ListAttemptsResponse{}, nil
+	}
+	return f.attempts, nil
 }
 
 func (f *fakeLearning) CreateDraft(_ context.Context, in *learningv1.CreateDraftRequest, _ ...grpc.CallOption) (*learningv1.ArticleVersion, error) {
@@ -325,9 +349,12 @@ func TestProtectedRoutesRejectAnonymousRequests(t *testing.T) {
 		{http.MethodGet, "/me/profile"},
 		{http.MethodPatch, "/me/profile"},
 		{http.MethodGet, "/me/progress"},
+		{http.MethodGet, "/me/report"},
 		{http.MethodGet, "/me/notifications"},
 		{http.MethodPost, "/me/notifications/n-1/read"},
 		{http.MethodDelete, "/me/account"},
+		{http.MethodPatch, "/me/password"},
+		{http.MethodGet, "/me/data"},
 		{http.MethodPost, "/editorial/articles"},
 		{http.MethodPost, "/editorial/versions/v-1/submit"},
 		{http.MethodPost, "/editorial/versions/v-1/publish"},
@@ -722,6 +749,82 @@ func TestMarkReadSendsTheUserFromTheToken(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	require.Equal(t, testUserID, h.users.lastMark.GetUserId())
 	require.Equal(t, "n-1", h.users.lastMark.GetNotificationId())
+}
+
+// ── FR-018: reporte estadístico de actividad ────────────────────────────────
+
+func TestActivityReportSendsTheUserFromTheToken(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+
+	rec := h.do(t, http.MethodGet, "/me/report", "", true)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	report := decode[handler.ActivityReport](t, rec)
+	require.Equal(t, testUserID, report.UserID)
+	require.EqualValues(t, 3, report.QuizzesAttempted)
+	require.EqualValues(t, 2, report.SimulationsRun)
+}
+
+// ── FR-005: cambio de contraseña ────────────────────────────────────────────
+
+func TestChangePasswordSendsTheUserFromTheToken(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+
+	rec := h.do(t, http.MethodPatch, "/me/password",
+		`{"current_password":"actual-123","new_password":"nueva-456"}`, true)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, testUserID, h.auth.lastChangePass.GetUserId())
+	require.Equal(t, "actual-123", h.auth.lastChangePass.GetCurrentPassword())
+	require.Equal(t, "nueva-456", h.auth.lastChangePass.GetNewPassword())
+}
+
+// TestChangePasswordTranslatesAWrongCurrentPassword: Auth rechaza con
+// Unauthenticated y el borde tiene que devolver un 401 legible, no un 500.
+func TestChangePasswordTranslatesAWrongCurrentPassword(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, func(h *harness, _ *handler.Deps) {
+		h.auth.changePassErr = status.Error(codes.Unauthenticated, "credenciales inválidas")
+	})
+
+	rec := h.do(t, http.MethodPatch, "/me/password",
+		`{"current_password":"mala","new_password":"nueva-456"}`, true)
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+// ── FR-029: consulta completa de datos personales ───────────────────────────
+
+func TestPersonalDataCombinesTheFourSources(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, func(h *harness, _ *handler.Deps) {
+		h.users.profile = &usersv1.Profile{Email: "ana@fintcart.co", DisplayName: "Ana"}
+		h.learning.attempts = &learningv1.ListAttemptsResponse{
+			Items: []*learningv1.ListAttemptsResponse_Attempt{
+				{AttemptId: "at-1", AttemptNo: 1, Score: "85.50", CreatedAt: "2026-08-01T12:00:00Z"},
+			},
+			Page: &commonv1.PageResponse{TotalSize: 1},
+		}
+		h.simulator.history = &simulatorv1.ListHistoryResponse{
+			Items: []*simulatorv1.ListHistoryResponse_Entry{
+				{SimulationId: "sim-1", CalcType: simulatorv1.CalcType_CALC_TYPE_CREDITO, Currency: "COP"},
+			},
+			Page: &commonv1.PageResponse{TotalSize: 1},
+		}
+	})
+
+	rec := h.do(t, http.MethodGet, "/me/data", "", true)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	data := decode[handler.PersonalData](t, rec)
+	require.Equal(t, "ana@fintcart.co", data.Profile.Email)
+	require.Equal(t, int32(120), data.Progress.Points)
+	require.Len(t, data.QuizAttempts.Items, 1)
+	// La calificación cruza el borde SIN tocarse (Principio VIII): ni redondeo
+	// ni reformateo, byte a byte lo que devolvió Aprendizaje.
+	require.Equal(t, "85.50", data.QuizAttempts.Items[0].Score)
+	require.Len(t, data.Simulations.Items, 1)
+	require.Equal(t, "credito", data.Simulations.Items[0].CalcType)
 }
 
 // TestPatchProfileDistinguishesAbsentFromEmpty es el motivo de que los campos de

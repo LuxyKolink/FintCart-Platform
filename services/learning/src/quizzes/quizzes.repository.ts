@@ -149,15 +149,29 @@ ON CONFLICT (article_id) DO UPDATE
    SET attempt_count = EXCLUDED.attempt_count,
        avg_score     = EXCLUDED.avg_score`;
 
+/**
+ * `quiz_id` es OPCIONAL: un `NULL` en `$2` (nunca una cadena vacía, que no es un
+ * UUID válido para la columna) lista los intentos de TODOS los cuestionarios del
+ * usuario. Es lo que necesita `UsersService.GetActivityReport` para contar
+ * `quizzes_attempted` sin conocer cada `quiz_id` uno por uno (plan.md N-02) y lo
+ * que necesita `GET /me/data` del Gateway para el historial completo del titular
+ * (FR-029) — ver [[QuizzesRepository.listAttempts]].
+ *
+ * El orden es por `created_at` y no por `attempt_no`: `attempt_no` solo es
+ * consecutivo DENTRO de un cuestionario, así que ordenar por él con varios
+ * cuestionarios mezclados no reflejaría qué se respondió más recientemente. El
+ * desempate por `id` evita que dos intentos con la misma marca —posible si dos
+ * llegan en la misma transacción— cambien de orden entre páginas.
+ */
 const LIST_ATTEMPTS_SQL = `
 SELECT id, attempt_no, score::text AS score, created_at
   FROM quiz_attempts
- WHERE user_id = $1 AND quiz_id = $2
- ORDER BY attempt_no DESC
+ WHERE user_id = $1 AND ($2::uuid IS NULL OR quiz_id = $2::uuid)
+ ORDER BY created_at DESC, id DESC
  LIMIT $3 OFFSET $4`;
 
 const COUNT_ATTEMPTS_SQL = `
-SELECT count(*) AS total FROM quiz_attempts WHERE user_id = $1 AND quiz_id = $2`;
+SELECT count(*) AS total FROM quiz_attempts WHERE user_id = $1 AND ($2::uuid IS NULL OR quiz_id = $2::uuid)`;
 
 // ── filas ───────────────────────────────────────────────────────────────────
 
@@ -302,16 +316,25 @@ export class QuizzesRepository {
     throw storageError('registrar el intento', new Error('reintentos agotados'));
   }
 
-  /** Historial completo y paginado de intentos (FR-016, FR-029). */
+  /**
+   * Historial completo y paginado de intentos (FR-016, FR-029).
+   *
+   * `quizId` vacío significa «todos los cuestionarios» — ver la nota de
+   * [[LIST_ATTEMPTS_SQL]]. Se traduce a `null` aquí y no antes: es la frontera
+   * entre «cadena vacía del contrato» y «ausencia de filtro para el driver», y
+   * mezclarla con la validación de la capa de aplicación (`grading.service.ts`)
+   * repartiría esta misma decisión en dos sitios.
+   */
   public async listAttempts(
     userId: string,
     quizId: string,
     page: Page,
   ): Promise<Paged<AttemptSummary>> {
+    const quizFilter = quizId === '' ? null : quizId;
     try {
       const [rows, count] = await Promise.all([
-        this.pool.query<AttemptRow>(LIST_ATTEMPTS_SQL, [userId, quizId, page.limit, page.offset]),
-        this.pool.query<{ total: string }>(COUNT_ATTEMPTS_SQL, [userId, quizId]),
+        this.pool.query<AttemptRow>(LIST_ATTEMPTS_SQL, [userId, quizFilter, page.limit, page.offset]),
+        this.pool.query<{ total: string }>(COUNT_ATTEMPTS_SQL, [userId, quizFilter]),
       ]);
 
       return {
@@ -319,7 +342,8 @@ export class QuizzesRepository {
         total: parseCount(count.rows[0]?.total),
       };
     } catch (err) {
-      throw storageError(`listar los intentos del cuestionario ${quizId}`, err);
+      const scope = quizId === '' ? 'todos los cuestionarios' : `el cuestionario ${quizId}`;
+      throw storageError(`listar los intentos de ${scope}`, err);
     }
   }
 }

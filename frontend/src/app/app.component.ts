@@ -18,6 +18,8 @@ import { AuthService } from './core/auth/auth.service';
           <a routerLink="/catalogo">Catálogo</a>
           <a routerLink="/simuladores">Simuladores</a>
           <a routerLink="/progreso">Tu progreso</a>
+          <a routerLink="/notificaciones">Notificaciones</a>
+          <a routerLink="/perfil">Tu perfil</a>
           <button type="button" class="fc-topbar__logout" (click)="onLogout()">Cerrar sesión</button>
         </nav>
       }

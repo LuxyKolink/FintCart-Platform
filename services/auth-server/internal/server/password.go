@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 	"unicode/utf8"
 )
 
@@ -68,8 +69,14 @@ func ValidatePasswordPolicy(plain string) error {
 	}
 }
 
-// ChangePassword sustituye la contraseña de una credencial existente.
-func (s *Server) ChangePassword(ctx context.Context, userID, newPassword string) error {
+// ChangePassword sustituye la contraseña de una credencial existente (FR-005).
+//
+// Exige la contraseña ACTUAL: quien llama es un usuario ya autenticado que actúa
+// desde su perfil (a diferencia de un restablecimiento por enlace de correo, que
+// no tiene RPC propio todavía — ver el comentario de `ChangePasswordRequest` en
+// `auth.proto`), así que la prueba de identidad apropiada es la contraseña
+// vigente y no un token de un solo uso.
+func (s *Server) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
 	id, err := parseUserID(userID)
 	if err != nil {
 		return err
@@ -77,6 +84,19 @@ func (s *Server) ChangePassword(ctx context.Context, userID, newPassword string)
 	if err := ValidatePasswordPolicy(newPassword); err != nil {
 		return err
 	}
+
+	cred, err := s.store.GetCredential(ctx, id)
+	if err != nil {
+		return fmt.Errorf("leer credencial: %w", err)
+	}
+	ok, err := s.hasher.Verify(cred.PasswordHash, currentPassword)
+	if err != nil {
+		return fmt.Errorf("verificar contraseña actual: %w", err)
+	}
+	if !ok {
+		return ErrUnauthenticated
+	}
+
 	hash, err := s.hasher.Hash(newPassword)
 	if err != nil {
 		return fmt.Errorf("derivar hash de contraseña: %w", err)
@@ -84,8 +104,24 @@ func (s *Server) ChangePassword(ctx context.Context, userID, newPassword string)
 	if err := s.store.UpdatePasswordHash(ctx, id, hash); err != nil {
 		return fmt.Errorf("actualizar hash de contraseña: %w", err)
 	}
-	// T051 completa el flujo: cambiar la contraseña DEBE invalidar las sesiones
-	// abiertas (los refresh tokens del usuario), o un atacante que ya tenga una
-	// sesión la conserva justo cuando la víctima cree haberla cerrado.
+
+	// Cambiar la contraseña DEBE invalidar las sesiones abiertas (los refresh
+	// tokens del usuario), o un atacante que ya tenga una sesión la conserva justo
+	// cuando la víctima cree haberla cerrado. Si esto falla se propaga como error:
+	// la contraseña ya cambió, pero devolver éxito sin haber cerrado las sesiones
+	// antiguas prometería una garantía de seguridad que no se cumplió.
+	if err := s.tokens.InvalidateFamily(ctx, id); err != nil {
+		return fmt.Errorf("invalidar sesiones tras el cambio de contraseña: %w", err)
+	}
+
+	s.events.Publish(ctx, Event{
+		Type:     EventAuthPasswordChanged,
+		ActorRef: id.String(),
+		Payload: map[string]any{
+			"user_id":    id.String(),
+			"email":      cred.Email,
+			"changed_at": time.Now().UTC().Format(time.RFC3339),
+		},
+	})
 	return nil
 }

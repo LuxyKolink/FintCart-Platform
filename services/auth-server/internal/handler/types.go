@@ -17,13 +17,13 @@ import (
 // Los tipos que cruzan son de dominio (`server.TokenPair`, `server.Introspection`),
 // nunca proto — la conversión ocurre en `mapping.go`.
 //
-// Nótese lo que NO aparece en esta lista: `ChangePassword` y
-// `ClientCredentialsToken` existen en la capa de aplicación pero no se exponen por
-// este contrato gRPC, porque `AuthService` no los declara. El flujo M2M lo
-// atenderá el borde a través de `ExchangeCode`/`Introspect` según lo defina T052, y
-// el cambio de contraseña llega con su propio RPC cuando el contrato lo incluya.
-// Una interfaz que enumerase métodos sin RPC detrás mentiría sobre la superficie
-// real del servicio.
+// Nótese lo que NO aparece en esta lista: `ClientCredentialsToken` existe en la
+// capa de aplicación pero no se expone por este contrato gRPC, porque
+// `AuthService` no lo declara. El flujo M2M lo atenderá el borde a través de
+// `ExchangeCode`/`Introspect` según lo defina T052. `ChangePassword` SÍ aparece
+// desde que `auth.proto` ganó su propio RPC (FR-005) — una interfaz que
+// enumerase métodos sin RPC detrás mentiría sobre la superficie real del
+// servicio.
 type Service interface {
 	CreateCredential(ctx context.Context, userID, email, password string) error
 	IssueVerificationToken(ctx context.Context, userID string) (server.VerificationToken, error)
@@ -39,4 +39,5 @@ type Service interface {
 	Revoke(ctx context.Context, token, tokenTypeHint string) error
 	Introspect(ctx context.Context, accessToken string) (server.Introspection, error)
 	RevokeAndAnonymizeCredential(ctx context.Context, userID string) error
+	ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }

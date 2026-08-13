@@ -124,24 +124,67 @@ func (s *Server) MarkEmailVerified(ctx context.Context, userID string) error {
 }
 
 // GetProfile devuelve el perfil completo con preferencias y roles (FR-017).
-func (s *Server) GetProfile(_ context.Context, userID string) (Profile, error) {
-	if _, err := parseUserID(userID); err != nil {
+//
+// Son tres lecturas explícitas y no una única consulta con JOIN: las preferencias
+// son un documento JSONB y aplanarlo en el SQL mezclaría el mapeo con la consulta
+// (Principio IX regla 3, «DTO ≠ dominio ≠ fila»).
+func (s *Server) GetProfile(ctx context.Context, userID string) (Profile, error) {
+	id, err := parseUserID(userID)
+	if err != nil {
 		return Profile{}, err
 	}
-	// T158: las tres lecturas (perfil, preferencias, roles) y el ensamblado con
-	// `profileFromRows`. Se dejan explícitas y no dentro de una única consulta con
-	// JOIN porque las preferencias son un documento JSONB y aplanarlo en el SQL
-	// mezclaría el mapeo con la consulta.
-	return Profile{}, ErrNotImplemented
+
+	profile, err := s.store.GetProfile(ctx, id)
+	if err != nil {
+		return Profile{}, fmt.Errorf("leer perfil: %w", err)
+	}
+	prefs, err := s.store.GetPreferences(ctx, id)
+	if err != nil {
+		return Profile{}, fmt.Errorf("leer preferencias: %w", err)
+	}
+	roles, err := s.store.GetRoles(ctx, id)
+	if err != nil {
+		return Profile{}, fmt.Errorf("leer roles: %w", err)
+	}
+
+	return profileFromRows(profile, prefs, roles), nil
 }
 
 // UpdateProfile aplica una rectificación de datos personales (FR-029).
-func (s *Server) UpdateProfile(_ context.Context, userID, displayName string, preferences map[string]string) error {
-	if _, err := parseUserID(userID); err != nil {
+//
+// `displayName` vacío y `preferences` vacío significan «no cambies esto», no
+// «bórralo»: el contrato gRPC no tiene máscara de campos (ver el comentario del
+// Gateway en `handler/me.go::UpdateProfile`), así que esta es la única señal
+// disponible para distinguir ausencia de vaciado intencional.
+func (s *Server) UpdateProfile(ctx context.Context, userID, displayName string, preferences map[string]string) error {
+	id, err := parseUserID(userID)
+	if err != nil {
 		return err
 	}
-	// T159: validar el nombre, convertir el mapa con `preferencesToRow` y escribir
-	// nombre y preferencias en la misma transacción del storer.
-	_, _ = displayName, preferences
-	return ErrNotImplemented
+
+	if displayName != "" {
+		name, err := normalizeDisplayName(displayName)
+		if err != nil {
+			return err
+		}
+		if err := s.store.UpdateDisplayName(ctx, id, name); err != nil {
+			return fmt.Errorf("actualizar nombre visible: %w", err)
+		}
+	}
+
+	if len(preferences) > 0 {
+		current, err := s.store.GetPreferences(ctx, id)
+		if err != nil {
+			return fmt.Errorf("leer preferencias actuales: %w", err)
+		}
+		row, err := preferencesToRow(id, current, preferences)
+		if err != nil {
+			return err
+		}
+		if err := s.store.UpsertPreferences(ctx, row); err != nil {
+			return fmt.Errorf("guardar preferencias: %w", err)
+		}
+	}
+
+	return nil
 }

@@ -274,13 +274,45 @@ func (s *PostgresStorer) GetRoles(ctx context.Context, userID uuid.UUID) ([]Role
 	return rows, nil
 }
 
+const anonymizeProfileQuery = `
+UPDATE profiles
+   SET email = $2, display_name = $3, account_status = 'anonymized', updated_at = now()
+ WHERE id = $1`
+
+// purgeInAppPayloadsQuery vacía el contenido de la bandeja del usuario.
+//
+// Las filas NO se borran —el historial de que hubo notificaciones puede importar
+// para auditoría—, pero su `payload` sí puede contener el nombre visible que se
+// acaba de anonimizar (p. ej. «¡Hola, Ana!» en un recordatorio), así que se
+// sustituye por un objeto vacío en lugar de dejarlo con datos personales.
+const purgeInAppPayloadsQuery = `UPDATE inapp_notifications SET payload = '{}'::JSONB WHERE user_id = $1`
+
 // AnonymizeProfile reescribe el perfil y purga los datos personales de la
 // bandeja in-app en una sola transacción (FR-030).
+//
+// Es idempotente: un `UPDATE` sobre una cuenta ya anonimizada vuelve a escribir
+// los mismos valores opacos y no falla. La saga de anonimización puede reintentar
+// el paso sin que eso sea un problema.
 func (s *PostgresStorer) AnonymizeProfile(ctx context.Context, userID uuid.UUID, opaqueEmail, opaqueName string) error {
-	_, _, _ = userID, opaqueEmail, opaqueName
-	return s.execTx(ctx, func(_ *sqlx.Tx) error {
-		// T161 implementa el UPDATE de `profiles` + el borrado de payloads de
-		// `inapp_notifications`, que pueden contener el nombre o el correo.
-		return ErrNotImplemented
+	return s.execTx(ctx, func(tx *sqlx.Tx) error {
+		res, err := tx.ExecContext(ctx, anonymizeProfileQuery, userID, opaqueEmail, opaqueName)
+		if err != nil {
+			// Una violación de unicidad aquí solo puede venir del correo opaco: la
+			// derivación de `server.AnonymizeProfile` lo hace único por construcción
+			// (contiene el `user_id`), así que `classify` la traduce a [ErrConflict] sin
+			// que este código tenga que interpretarla de forma distinta.
+			return classify("anonimizar perfil", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return classify("anonimizar perfil", err)
+		}
+		if n == 0 {
+			return wrap("anonimizar perfil", ErrNotFound)
+		}
+		if _, err := tx.ExecContext(ctx, purgeInAppPayloadsQuery, userID); err != nil {
+			return classify("purgar bandeja in-app", err)
+		}
+		return nil
 	})
 }

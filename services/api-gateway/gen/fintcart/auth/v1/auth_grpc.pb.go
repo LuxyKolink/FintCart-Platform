@@ -30,6 +30,7 @@ const (
 	AuthService_Revoke_FullMethodName                       = "/fintcart.auth.v1.AuthService/Revoke"
 	AuthService_Introspect_FullMethodName                   = "/fintcart.auth.v1.AuthService/Introspect"
 	AuthService_RevokeAndAnonymizeCredential_FullMethodName = "/fintcart.auth.v1.AuthService/RevokeAndAnonymizeCredential"
+	AuthService_ChangePassword_FullMethodName               = "/fintcart.auth.v1.AuthService/ChangePassword"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -70,6 +71,13 @@ type AuthServiceClient interface {
 	Introspect(ctx context.Context, in *IntrospectRequest, opts ...grpc.CallOption) (*IntrospectResponse, error)
 	// Paso de la Saga de anonimización (FR-030): revoca y anonimiza la credencial.
 	RevokeAndAnonymizeCredential(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// Cambia la contraseña de una cuenta activa (FR-005). Exige la contraseña
+	// ACTUAL: a diferencia del restablecimiento por enlace de correo (fuera del
+	// alcance de este contrato — no tiene RPC propio todavía), este flujo lo invoca
+	// un usuario YA AUTENTICADO desde su perfil, así que la prueba de identidad es
+	// la contraseña vigente y no un token de un solo uso. Invalida las sesiones
+	// abiertas (refresh tokens) y publica `auth.password_changed`.
+	ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
 }
 
 type authServiceClient struct {
@@ -180,6 +188,16 @@ func (c *authServiceClient) RevokeAndAnonymizeCredential(ctx context.Context, in
 	return out, nil
 }
 
+func (c *authServiceClient) ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, AuthService_ChangePassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations should embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -218,6 +236,13 @@ type AuthServiceServer interface {
 	Introspect(context.Context, *IntrospectRequest) (*IntrospectResponse, error)
 	// Paso de la Saga de anonimización (FR-030): revoca y anonimiza la credencial.
 	RevokeAndAnonymizeCredential(context.Context, *UserRef) (*v1.OpResult, error)
+	// Cambia la contraseña de una cuenta activa (FR-005). Exige la contraseña
+	// ACTUAL: a diferencia del restablecimiento por enlace de correo (fuera del
+	// alcance de este contrato — no tiene RPC propio todavía), este flujo lo invoca
+	// un usuario YA AUTENTICADO desde su perfil, así que la prueba de identidad es
+	// la contraseña vigente y no un token de un solo uso. Invalida las sesiones
+	// abiertas (refresh tokens) y publica `auth.password_changed`.
+	ChangePassword(context.Context, *ChangePasswordRequest) (*v1.OpResult, error)
 }
 
 // UnimplementedAuthServiceServer should be embedded to have
@@ -256,6 +281,9 @@ func (UnimplementedAuthServiceServer) Introspect(context.Context, *IntrospectReq
 }
 func (UnimplementedAuthServiceServer) RevokeAndAnonymizeCredential(context.Context, *UserRef) (*v1.OpResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RevokeAndAnonymizeCredential not implemented")
+}
+func (UnimplementedAuthServiceServer) ChangePassword(context.Context, *ChangePasswordRequest) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChangePassword not implemented")
 }
 func (UnimplementedAuthServiceServer) testEmbeddedByValue() {}
 
@@ -457,6 +485,24 @@ func _AuthService_RevokeAndAnonymizeCredential_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_ChangePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangePasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ChangePassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ChangePassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ChangePassword(ctx, req.(*ChangePasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -503,6 +549,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RevokeAndAnonymizeCredential",
 			Handler:    _AuthService_RevokeAndAnonymizeCredential_Handler,
+		},
+		{
+			MethodName: "ChangePassword",
+			Handler:    _AuthService_ChangePassword_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
