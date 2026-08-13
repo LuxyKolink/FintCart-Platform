@@ -1,0 +1,94 @@
+@switch (state()) {
+  @case ('not-found') {
+    <p class="fc-banner fc-banner--error">Esa calculadora no existe.</p>
+  }
+  @case ('ready') {
+    @if (definition(); as def) {
+      <section style="max-width: 640px; margin: 0 auto">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
+          <h1>{{ def.label }}</h1>
+          <a class="fc-btn fc-btn--secondary" routerLink="/simuladores">Cambiar calculadora</a>
+        </div>
+        <p class="fc-help">{{ def.description }}</p>
+
+        @if (def.modes.length > 1) {
+          <nav style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4)">
+            @for (m of def.modes; track m.value) {
+              <button
+                type="button"
+                class="fc-btn"
+                [class.fc-btn--primary]="mode()?.value === m.value"
+                [class.fc-btn--secondary]="mode()?.value !== m.value"
+                (click)="selectModeValue(m.value)"
+              >
+                {{ m.label }}
+              </button>
+            }
+          </nav>
+        }
+
+        @if (mode(); as m) {
+          <form class="fc-module" [formGroup]="form()" (ngSubmit)="onSubmit()">
+            <div class="fc-module-body">
+              @if (errorMessage()) {
+                <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+              }
+              @if (crossFieldError()) {
+                <p class="fc-banner fc-banner--error">
+                  Indica al menos un depósito inicial o un aporte mensual mayor que cero.
+                </p>
+              }
+
+              @for (field of m.fields; track field.key) {
+                <div class="fc-field">
+                  <label class="fc-label" [for]="field.key">{{ field.label }}</label>
+                  @switch (field.kind) {
+                    @case ('select') {
+                      <select class="fc-input" [id]="field.key" [formControlName]="field.key">
+                        @for (opt of field.options; track opt.value) {
+                          <option [value]="opt.value">{{ opt.label }}</option>
+                        }
+                      </select>
+                    }
+                    @case ('periods') {
+                      <input class="fc-input" [id]="field.key" type="text" inputmode="numeric" [formControlName]="field.key" />
+                    }
+                    @default {
+                      <input
+                        class="fc-input"
+                        [id]="field.key"
+                        type="text"
+                        inputmode="decimal"
+                        placeholder="0.00"
+                        [formControlName]="field.key"
+                      />
+                    }
+                  }
+                  @if (field.help) {
+                    <span class="fc-help">{{ field.help }}</span>
+                  }
+                  @if (fieldError(field.key); as err) {
+                    <span class="fc-help" style="color: var(--color-danger-strong, #c0392b)">{{ err }}</span>
+                  }
+                </div>
+              }
+
+              <button class="fc-btn fc-btn--primary fc-btn--block" type="submit" [disabled]="submitState() === 'submitting'">
+                {{ submitState() === 'submitting' ? 'Calculando…' : result() ? 'Actualizar resultado' : 'Calcular' }}
+              </button>
+            </div>
+          </form>
+
+          @if (result(); as r) {
+            <div style="margin-top: var(--space-4)">
+              <fc-simulation-result [fields]="m.resultFields" [result]="r.result" />
+              <a class="fc-btn fc-btn--secondary" style="margin-top: var(--space-2); display: inline-block" routerLink="/simuladores/historial">
+                Ver historial
+              </a>
+            </div>
+          }
+        }
+      </section>
+    }
+  }
+}

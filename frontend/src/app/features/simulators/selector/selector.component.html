@@ -1,0 +1,17 @@
+<section>
+  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
+    <h1>Simuladores financieros</h1>
+    <a class="fc-btn fc-btn--secondary" routerLink="/simuladores/historial">Ver tu historial</a>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4)">
+    @for (calc of calculators; track calc.calcType) {
+      <a class="fc-module" [routerLink]="['/simuladores', calc.calcType]" style="display: block; color: inherit">
+        <header>{{ calc.label }}</header>
+        <div class="fc-module-body">
+          <p class="fc-help" style="margin: 0">{{ calc.description }}</p>
+        </div>
+      </a>
+    }
+  </div>
+</section>

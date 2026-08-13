@@ -1,0 +1,67 @@
+<section>
+  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
+    <h1>Tu historial de simulaciones</h1>
+    <a class="fc-btn fc-btn--secondary" routerLink="/simuladores">Nueva simulación</a>
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <p>Cargando historial…</p>
+    }
+    @case ('error') {
+      <p class="fc-banner fc-banner--error">No pudimos cargar tu historial. Intenta de nuevo.</p>
+    }
+    @case ('ready') {
+      @if (entries().length === 0) {
+        <p>Todavía no has ejecutado ninguna simulación.</p>
+      } @else {
+        <div style="display: flex; flex-direction: column; gap: var(--space-4)">
+          @for (entry of entries(); track entry.simulation_id) {
+            <article class="fc-module">
+              <header style="display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2)">
+                <span>{{ calcLabel(entry) }}</span>
+                <time class="fc-help" [attr.datetime]="entry.created_at">{{ entry.created_at | date: 'medium' }}</time>
+              </header>
+              <div class="fc-module-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4)">
+                <div>
+                  <p class="fc-label" style="margin: 0 0 var(--space-1)">Parámetros</p>
+                  <dl style="margin: 0">
+                    @for (row of inputRows(entry); track row.label) {
+                      <div style="display: flex; justify-content: space-between; gap: var(--space-2)">
+                        <dt class="fc-help">{{ row.label }}</dt>
+                        <dd class="fc-num" style="margin: 0">{{ row.value }}</dd>
+                      </div>
+                    }
+                  </dl>
+                </div>
+                <div>
+                  <p class="fc-label" style="margin: 0 0 var(--space-1)">Resultado</p>
+                  <dl style="margin: 0">
+                    @for (row of resultRows(entry); track row.label) {
+                      <div style="display: flex; justify-content: space-between; gap: var(--space-2)">
+                        <dt class="fc-help">{{ row.label }}</dt>
+                        <dd class="fc-num" style="margin: 0">{{ row.value }}</dd>
+                      </div>
+                    }
+                  </dl>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+
+        @if (nextPageToken()) {
+          <button
+            type="button"
+            class="fc-btn fc-btn--secondary"
+            style="margin-top: var(--space-4)"
+            [disabled]="loadingMore()"
+            (click)="loadMore()"
+          >
+            {{ loadingMore() ? 'Cargando…' : 'Cargar más' }}
+          </button>
+        }
+      }
+    }
+  }
+</section>

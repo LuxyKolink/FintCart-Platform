@@ -42,5 +42,24 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/learning/progress/progress.component').then((m) => m.ProgressComponent),
   },
+  {
+    path: 'simuladores',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/simulators/selector/selector.component').then((m) => m.SelectorComponent),
+  },
+  {
+    // Antes de ':calcType': una ruta estática pierde contra un segmento dinámico si
+    // el orden se invierte, y 'historial' quedaría interpretado como un calcType.
+    path: 'simuladores/historial',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/simulators/history/history.component').then((m) => m.HistoryComponent),
+  },
+  {
+    path: 'simuladores/:calcType',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/simulators/forms/simulator-form.component').then((m) => m.SimulatorFormComponent),
+  },
   { path: '**', redirectTo: 'catalogo' },
 ];

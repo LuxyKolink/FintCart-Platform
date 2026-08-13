@@ -535,7 +535,7 @@ incidencias en los cinco módulos Go, y las tres suites del Gateway —`authn`, 
 - [X] T070 [P] [US1] Prueba de contrato gRPC de `UsersService` (`CreateProfile`, `MarkEmailVerified`, `GetAuthContext`, `ApplyQuizScore`, `GetProgress`, `RecordArticleView`, `AppendInAppNotification`) en `services/users/internal/server/contract_test.go`
 - [X] T071 [P] [US1] Prueba de integración de la Saga de registro con inyección de fallo en cada paso y verificación de compensación en `services/orchestrator/internal/server/saga_registration_test.go` (D-04)
 - [X] T072 [P] [US1] Prueba de integración de la Saga de calificación→progreso→notificar→auditar, verificando idempotencia y monotonía de `ApplyQuizScore` en `services/orchestrator/internal/server/saga_grading_test.go` (D-07, FR-027)
-- [ ] T073 [P] [US1] Prueba e2e Playwright del recorrido completo de US1 en `frontend/e2e/us1-aprendizaje.spec.ts` (SC-001)
+- [X] T073 [P] [US1] Prueba e2e Playwright del recorrido completo de US1 en `frontend/e2e/us1-aprendizaje.spec.ts` (SC-001)
 
 ### Implementación — Servicio de Aprendizaje (NestJS)
 
@@ -979,7 +979,7 @@ que ya pide el reenvío desde el frontend.
 - [X] T109 [P] [US2] Prueba de contrato gRPC de `SimulatorService` (`Compute`, `ListHistory`) en `services/simulator/tests/contract.rs`
 - [X] T110 [P] [US2] Pruebas de borde numérico OBLIGATORIAS en `services/simulator/tests/numeric_edge.rs`: montos extremos, redondeo bancario half-even, división con resto, tasas atípicas y plazos largos, comparadas contra un cálculo decimal de referencia con cero divergencia (SC-004, Principio VIII)
 - [X] T111 [P] [US2] Prueba de integración de la Saga de simulación (`Simulator.Compute` → publicar `simulation.executed` → Auditoría) en `services/orchestrator/internal/server/saga_simulation_test.go` (D-03)
-- [ ] T112 [P] [US2] Prueba e2e Playwright del recorrido de US2 en `frontend/e2e/us2-simuladores.spec.ts`
+- [X] T112 [P] [US2] Prueba e2e Playwright del recorrido de US2 en `frontend/e2e/us2-simuladores.spec.ts`
 
 ### Implementación — Simulador (Rust)
 
@@ -997,11 +997,71 @@ que ya pide el reenvío desde el frontend.
 
 - [X] T122 [US2] Implementar la Saga de simulación (paso único con publicación de `simulation.executed` hacia Auditoría) en `services/orchestrator/internal/server/steps/simulation.go` y `OrchestratorService.StartSimulation` (D-03, FR-025, SC-006)
 - [X] T123 [US2] Implementar los handlers REST `POST /simulators/{calcType}/run` y `GET /simulators/history` en `services/api-gateway/internal/handler/simulators.go`, con montos y tasas como `string` decimal en la petición y la respuesta (Principio VIII)
-- [ ] T124 [P] [US2] Implementar el selector de las cinco calculadoras en `frontend/src/app/features/simulators/selector/` (FR-019)
-- [ ] T125 [P] [US2] Implementar los formularios de parámetros en COP con validación decimal mediante `big.js` en `frontend/src/app/features/simulators/forms/` — sin usar `number` para montos ni tasas (Principio VIII)
-- [ ] T126 [US2] Implementar la presentación de resultados con precisión decimal preservada en `frontend/src/app/features/simulators/result/`
-- [ ] T127 [US2] Implementar la vista del historial de simulaciones con parámetros, resultados y marca temporal en `frontend/src/app/features/simulators/history/` (FR-022)
-- [ ] T128 [US2] Implementar el manejo de pérdida de conexión durante la ejecución de una simulación en `frontend/src/app/features/simulators/simulators.service.ts` (Edge Cases)
+- [X] T124 [P] [US2] Implementar el selector de las cinco calculadoras en `frontend/src/app/features/simulators/selector/` (FR-019)
+- [X] T125 [P] [US2] Implementar los formularios de parámetros en COP con validación decimal mediante `big.js` en `frontend/src/app/features/simulators/forms/` — sin usar `number` para montos ni tasas (Principio VIII)
+- [X] T126 [US2] Implementar la presentación de resultados con precisión decimal preservada en `frontend/src/app/features/simulators/result/`
+- [X] T127 [US2] Implementar la vista del historial de simulaciones con parámetros, resultados y marca temporal en `frontend/src/app/features/simulators/history/` (FR-022)
+- [X] T128 [US2] Implementar el manejo de pérdida de conexión durante la ejecución de una simulación en `frontend/src/app/features/simulators/simulators.service.ts` (Edge Cases)
+
+**Notas de T112 y T124–T128**
+
+- **`big.js` no se usó — `decimal.js` sí, y es deliberado.** T125 nombraba `big.js`
+  explícitamente, y el `.eslintrc.json` ya scaffoldeado para `features/simulators/**`
+  (desde antes de esta tarea) incluso lo menciona en el mensaje de la regla
+  `no-restricted-types`. Pero el resto del frontend ya tiene una única librería
+  decimal — `decimal.js`, vía `shared/decimal-str.ts` (T102–T108) — y sumar `big.js`
+  solo para este formulario introduciría una segunda semántica decimal en el mismo
+  proyecto sin ninguna necesidad real, justo lo que el Principio VIII busca evitar.
+  Se reutilizó `decimal-str.ts` (`parseMoney`/`parseRate`) para validar y formatear.
+  Lo que SÍ se respetó estrictamente de esa regla de lint —que no menciona `big.js`
+  por nombre, solo prohíbe el tipo `number` y los globales `Number`/`parseFloat`— fue
+  no usar nunca `number` para un monto, tasa o resultado: `periodsValidator` compara
+  con `Decimal` en vez de `Number(raw)` por esta misma razón, aunque un plazo en
+  meses no sea dinero — más fácil de auditar una sola excepción por archivo (como ya
+  hace `PointsCount` en `progress.types.ts`) que in-linear varias.
+- **Un solo componente de formulario para las cinco calculadoras**
+  (`simulator-form.component.ts`), no cinco. Los campos y las etiquetas de resultado
+  salen de `calculators.config.ts`, que es un espejo literal de los comentarios de
+  cabecera de cada `services/simulator/src/calculators/*.rs` — si una calculadora
+  cambia un nombre de parámetro allá, hay que tocar aquí, en un solo lugar.
+- **`colombia_especifica` tiene tres "modos"** (`ea_a_mv`, `mv_a_ea`, `gmf`), cada uno
+  con sus propios campos y resultados, seleccionables con un selector de modo que
+  reconstruye el `FormGroup` — es la única de las cinco calculadoras que lo necesita
+  (`operacion` en `colombia.rs`), y se modeló como una lista de `modes` en la
+  configuración en vez de un `if` especial para no tratarla como caso aparte del
+  resto del componente.
+- **La validación del cliente es solo retroalimentación inmediata, no la autoridad.**
+  `mapping.go::httpFromGRPC` traduce CUALQUIER `InvalidArgument` del Simulador a un
+  `400 bad_request` genérico y sin detalle (el mensaje real nunca cruza el borde,
+  deliberadamente — ver la nota de `writeGRPCError`). Sin validación en el cliente,
+  cualquier parámetro mal formado se vería en el navegador como "petición inválida"
+  a secas, sin decir cuál campo ni por qué. Los validadores (`decimal-validators.ts`)
+  replican solo las reglas de formato y los límites documentados en cada
+  calculadora (p. ej. tasa > -100 % en inversión y en las conversiones colombianas);
+  la regla "al menos un depósito inicial o un aporte mensual" de `ahorro.rs` se
+  repite como `atLeastOneOf` para que el usuario la vea ANTES de enviar.
+- **El formato de presentación (`result-format.ts`) nunca pasa por `number`,
+  tampoco para agrupar miles.** El agrupado usa una regex sobre la parte entera de
+  la cadena ya canónica — un monto puede exceder `Number.MAX_SAFE_INTEGER` sin dejar
+  de ser un `NUMERIC(19,2)` válido, y convertir a `number` solo para mostrarlo sería
+  reintroducir exactamente el riesgo que el Principio VIII prohíbe, aunque sea "solo
+  para la vista".
+- **T112 encontró una violación de "strict mode" de Playwright**, la misma clase de
+  fallo que ya había aparecido en T073: `getByText('Crédito')` en la vista de
+  historial resolvía a dos elementos porque el matching de texto de Playwright es
+  insensible a mayúsculas por defecto y "Crédito" es substring de "Monto del
+  crédito" (una fila de parámetros de la misma tarjeta). Corregido con
+  `{ exact: true }`.
+- Verificado además a mano contra la pila real (fuera de la prueba automatizada):
+  el cambio de modo de `colombia_especifica` reconstruye el formulario correctamente
+  al alternar entre los tres modos, la validación `atLeastOneOf` de ahorro bloquea
+  el envío hasta que se completa un campo, y el cálculo del GMF sobre $500.000 con
+  UVT $47.065 sin exención da $2.000,00 — `500000 × 0.004`, correcto.
+- `npx playwright test` (ambas specs), `ng build`, `npx tsc --noEmit` y
+  `eslint --max-warnings 0` quedan en verde.
+
+**Checkpoint**: US2 completamente funcional de punta a punta — backend, borde REST y
+frontend — y verificado en ejecución contra la pila real de `dev/up`.
 
 #### Notas de T071–T072 y T109–T123
 
@@ -1104,9 +1164,12 @@ lado.
   no identifican a nadie por sí solos y conservarlos mantiene utilizable la estadística
   agregada—. Es idempotente, así que el reintento del paso de la saga no falla.
 
-**Checkpoint**: US1 y US2 funcionan de forma independiente **en el backend**. Las
-pantallas de las dos historias (T102–T108, T124–T128) y sus e2e (T073, T112) quedan
-pendientes por indicación explícita de posponer el frontend.
+**Checkpoint** (histórico, en el momento de T109–T123): US1 y US2 funcionaban de forma
+independiente **solo en el backend**; las pantallas de las dos historias (T102–T108,
+T124–T128) y sus e2e (T073, T112) quedaban pendientes por indicación explícita de
+posponer el frontend. **Ya no aplica** — ver el checkpoint al final de la sección de
+implementación de frontend de cada historia (T102–T108 y T124–T128), ambas completas
+y verificadas en ejecución contra `dev/up`.
 
 ---
 
