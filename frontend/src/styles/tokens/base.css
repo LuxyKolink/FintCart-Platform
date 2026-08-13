@@ -1,0 +1,99 @@
+/* ============================================================
+   FintCart — base element styling & primitives
+   Light, opinionated resets that make raw HTML look "on brand".
+   Reusable structural primitives (.fc-module, .fc-link) live here so
+   specimen cards and kits share the portal vocabulary.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  color: var(--text-body);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--text-strong);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-snug);
+  margin: 0 0 0.4em;
+  text-wrap: balance;
+}
+
+p { margin: 0 0 0.85em; text-wrap: pretty; }
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+a:hover { color: var(--text-link-hover); text-decoration: underline; text-underline-offset: 2px; }
+
+small { font-size: var(--fs-xs); }
+
+code, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }
+
+::selection { background: var(--gold-200); color: var(--warm-900); }
+
+:focus-visible {
+  outline: 2px solid var(--purple-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Numeric / money figures */
+.fc-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* Eyebrow / kicker label */
+.fc-eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The signature portal "module box": bordered card with a header bar */
+.fc-module {
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+.fc-module > header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-module-header);
+  border-bottom: var(--border-hairline) solid var(--border-default);
+  border-left: var(--border-accent) solid var(--brand-primary);
+  font-family: var(--font-sans);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
+  color: var(--text-strong);
+}
+.fc-module > .fc-module-body { padding: var(--space-3); }
+
+/* Portal link list (sidebar services) */
+.fc-linklist { list-style: none; margin: 0; padding: 0; }
+.fc-linklist li { border-bottom: var(--border-hairline) dotted var(--border-default); }
+.fc-linklist li:last-child { border-bottom: 0; }
+.fc-linklist a {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--fs-sm); color: var(--text-link);
+}
+.fc-linklist a:hover { background: var(--purple-50); text-decoration: none; }

@@ -20,7 +20,7 @@ import (
 // listado repartido por diez archivos es donde se cuela una ruta editorial sin
 // comprobación de rol.
 //
-// Las rutas siguen `contracts/openapi/gateway.yaml`: **18 rutas y 19 operaciones**.
+// Las rutas siguen `contracts/openapi/gateway.yaml`: **19 rutas y 20 operaciones**.
 //
 // Los dos números conviene desglosarlos porque el contrato, tal como estaba escrito,
 // no los daba directamente. `paths:` declara 16 rutas y 17 operaciones —`/me/profile`
@@ -35,6 +35,11 @@ import (
 // consecuencia; ver la nota de T055–T059 en `tasks.md` y el encabezado OAuth2 de
 // `auth.go`, donde se documenta la desviación respecto de RFC 6749 §3.1 que impone
 // esta arquitectura.
+//
+// La ruta 19 es `GET /quizzes/{quizId}`: `learning.proto` ya exponía `GetQuiz` por
+// gRPC, pero ningún handler del Gateway lo servía por REST. Sin ella la SPA no tiene
+// forma de pedir las preguntas de un cuestionario antes de responderlo — solo existía
+// el POST que califica respuestas ya dadas. La añade la implementación de T105.
 
 // Deps son las dependencias transversales del router.
 //
@@ -109,6 +114,7 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		// Catálogo y cuestionarios: cualquier usuario autenticado.
 		r.Get("/catalog/articles", h.ListArticles)
 		r.Get("/catalog/articles/{articleId}", h.GetArticle)
+		r.Get("/quizzes/{quizId}", h.GetQuiz)
 		r.Post("/quizzes/{quizId}/attempts", h.SubmitQuizAttempt)
 
 		// Simuladores.

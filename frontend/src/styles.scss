@@ -1,0 +1,116 @@
+/* Overrides propios de la app por encima del sistema de diseño (`src/styles/styles.css`). */
+
+body {
+  min-height: 100vh;
+}
+
+/* Primitivas de formulario compartidas — inspiradas en design/components/forms/*.jsx. */
+
+.fc-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.fc-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+.fc-input,
+.fc-select {
+  height: 38px;
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--fs-base);
+  color: var(--text-body);
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.fc-input:focus-visible,
+.fc-select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--border-focus);
+}
+
+.fc-help {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-error-text {
+  font-size: var(--fs-xs);
+  color: var(--red-500, #b3261e);
+}
+
+.fc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-base);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: filter var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.fc-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.fc-btn:not(:disabled):hover {
+  filter: brightness(0.95);
+}
+.fc-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+.fc-btn--block {
+  display: flex;
+  width: 100%;
+}
+.fc-btn--primary {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  border: 1px solid var(--brand-primary);
+}
+.fc-btn--secondary {
+  background: var(--surface-card);
+  color: var(--text-strong);
+  border: 1px solid var(--border-strong);
+}
+.fc-btn--ghost {
+  background: transparent;
+  color: var(--text-link);
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+.fc-banner {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-4);
+}
+.fc-banner--error {
+  background: var(--red-50, #fcebe8);
+  color: var(--red-600, #7c2714);
+  border: 1px solid var(--red-100, #f7ccc4);
+}
+.fc-banner--success {
+  background: var(--green-50);
+  color: var(--green-600);
+  border: 1px solid var(--green-100);
+}
+.fc-banner--info {
+  background: var(--purple-50);
+  color: var(--purple-600);
+  border: 1px solid var(--purple-100);
+}

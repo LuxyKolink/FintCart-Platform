@@ -117,12 +117,46 @@ type SagaAccepted struct {
 // ── DTO de aprendizaje ──────────────────────────────────────────────────────
 
 // Article ≡ `components.schemas.Article`.
+//
+// `QuizIDs` no está en el OpenAPI original (se añadió aquí junto con el mapeo
+// en `articleToDTO`): sin él, la SPA no tiene forma de enlazar «leer artículo»
+// con «iniciar su cuestionario» (FR-011 → FR-012, escenario 2 de `spec.md`) —
+// `learning.proto` ya lo expone (`Article.quiz_ids`), solo faltaba cruzar el borde.
 type Article struct {
-	ArticleID        string `json:"article_id"`
-	Title            string `json:"title"`
-	Category         string `json:"category"`
-	Body             string `json:"body"`
-	CurrentVersionNo int32  `json:"current_version_no"`
+	ArticleID        string   `json:"article_id"`
+	Title            string   `json:"title"`
+	Category         string   `json:"category"`
+	Body             string   `json:"body"`
+	CurrentVersionNo int32    `json:"current_version_no"`
+	QuizIDs          []string `json:"quiz_ids"`
+}
+
+// Quiz ≡ `GET /quizzes/{quizId}` (FR-009). `PassThreshold` es `string` decimal
+// (Principio VIII): es el umbral de aprobación, no un entero de conteo.
+type Quiz struct {
+	QuizID        string     `json:"quiz_id"`
+	ArticleID     string     `json:"article_id"`
+	Title         string     `json:"title"`
+	PassThreshold string     `json:"pass_threshold"`
+	Questions     []Question `json:"questions"`
+}
+
+// Question ≡ una pregunta de `Quiz`. `Weight` es `string` decimal por la misma
+// razón que `PassThreshold`; no lleva la opción correcta — calificar es de
+// Aprendizaje, no del borde.
+type Question struct {
+	QuestionID string   `json:"question_id"`
+	Prompt     string   `json:"prompt"`
+	Options    []Option `json:"options"`
+	Weight     string   `json:"weight"`
+}
+
+// Option ≡ una alternativa de respuesta. `Key` es lo que viaja de vuelta en
+// `SubmitAttemptRequest.Answers` (question_id → option_key); `Text` es lo único
+// que se muestra.
+type Option struct {
+	Key  string `json:"key"`
+	Text string `json:"text"`
 }
 
 // QuizGradeResult ≡ `components.schemas.QuizGradeResult`.

@@ -29,7 +29,6 @@
       }
     },
     {
-      "//": "Principio VIII (NON-NEGOTIABLE): la SPA muestra y envía montos y tasas. Deben viajar y renderizarse como string decimal; big.js solo para operar.",
       "files": [
         "src/app/features/simulators/**/*.ts",
         "src/app/features/learning/progress/**/*.ts",

@@ -1,0 +1,35 @@
+@switch (state()) {
+  @case ('loading') {
+    <p>Cargando tu progreso…</p>
+  }
+  @case ('error') {
+    <p class="fc-banner fc-banner--error">No pudimos cargar tu progreso. Intenta de nuevo.</p>
+  }
+  @case ('ready') {
+    @if (progress(); as p) {
+      <section class="fc-module" style="max-width: 480px">
+        <header>Tu progreso</header>
+        <div class="fc-module-body">
+          <p class="fc-num" style="font-size: var(--fs-3xl); margin-bottom: var(--space-2)">
+            {{ p.points }} puntos
+          </p>
+          <div
+            role="progressbar"
+            [attr.aria-valuenow]="withinMilestone(p.points)"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            style="background: var(--surface-sunken); border-radius: var(--radius-pill); height: 12px; overflow: hidden"
+          >
+            <div
+              [style.width.%]="withinMilestone(p.points)"
+              style="background: var(--brand-accent); height: 100%; transition: width var(--dur-slow) var(--ease-out)"
+            ></div>
+          </div>
+          <p class="fc-help" style="margin-top: var(--space-2)">
+            {{ withinMilestone(p.points) }} / 100 hacia los {{ nextMilestone(p.points) }} puntos
+          </p>
+        </div>
+      </section>
+    }
+  }
+}

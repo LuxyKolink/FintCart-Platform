@@ -1,0 +1,123 @@
+/* ============================================================
+   FintCart — Color tokens
+   "El portal financiero": warm Colombian palette (tomato-coral + marigold)
+   with a portal-purple interactive accent. Borders & warm paper neutrals
+   carry the dense, editorial web-portal look.
+   ============================================================ */
+
+:root {
+  /* ---------- Base palette ---------- */
+
+  /* Warm paper neutrals — the substrate of the whole portal */
+  --warm-50:  #FBF8F2;
+  --warm-100: #F5EFE3;
+  --warm-200: #EBE2D2;
+  --warm-300: #DDD1BC;
+  --warm-400: #C3B49A;
+  --warm-500: #998A72;
+  --warm-600: #6E6353;
+  --warm-700: #4C4339;
+  --warm-800: #2E2822;
+  --warm-900: #1C1815;
+
+  /* Coral / "tomate" — primary brand, energetic Colombian red-orange */
+  --coral-50:  #FCEFEA;
+  --coral-100: #F8D8CC;
+  --coral-200: #F1B09B;
+  --coral-300: #E8866A;
+  --coral-400: #DE4D2B;
+  --coral-500: #C53F20;
+  --coral-600: #A2331A;
+  --coral-700: #7C2714;
+
+  /* Marigold — Colombian yellow, accent / progress / highlight */
+  --gold-50:  #FEF6E0;
+  --gold-100: #FCE9B4;
+  --gold-200: #F8D571;
+  --gold-300: #F2BB2E;
+  --gold-400: #EE9B00;
+  --gold-500: #C97F00;
+  --gold-600: #9A6200;
+
+  /* Portal purple — interactive, links, focus (the retro-portal signature) */
+  --purple-50:  #F2EBFB;
+  --purple-100: #E0CCF6;
+  --purple-200: #C4A0ED;
+  --purple-300: #A06FE0;
+  --purple-400: #7E40D0;
+  --purple-500: #6A1FB0;
+  --purple-600: #571892;
+  --purple-700: #421270;
+
+  /* Growth green — money / positive / success */
+  --green-50:  #E6F4EC;
+  --green-100: #C3E6D2;
+  --green-400: #1F8A4C;
+  --green-500: #16713C;
+  --green-600: #0F542C;
+
+  /* Alert red — danger / negative */
+  --red-50:   #FCEBE8;
+  --red-100:  #F7CCC4;
+  --red-400:  #C2341D;
+  --red-500:  #9E2716;
+
+  /* ---------- Semantic aliases ---------- */
+
+  /* Surfaces */
+  --surface-page:    var(--warm-50);
+  --surface-card:    #FFFFFF;
+  --surface-sunken:  var(--warm-100);
+  --surface-inset:   var(--warm-200);
+  --surface-inverse: var(--warm-900);
+  --surface-module-header: var(--warm-100);
+
+  /* Text / ink */
+  --text-strong:  var(--warm-900);
+  --text-body:    var(--warm-800);
+  --text-muted:   var(--warm-600);
+  --text-faint:   var(--warm-500);
+  --text-inverse: var(--warm-50);
+  --text-link:    var(--purple-500);
+  --text-link-hover: var(--purple-600);
+  --text-on-brand: #FFFFFF;
+
+  /* Brand */
+  --brand-primary:       var(--coral-400);
+  --brand-primary-hover: var(--coral-500);
+  --brand-primary-press: var(--coral-600);
+  --brand-accent:        var(--gold-400);
+  --brand-accent-soft:   var(--gold-100);
+  --brand-interactive:   var(--purple-500);
+
+  /* Borders — central to the portal module look */
+  --border-subtle:  var(--warm-200);
+  --border-default: var(--warm-300);
+  --border-strong:  var(--warm-400);
+  --border-focus:   var(--purple-400);
+
+  /* Feedback */
+  --success: var(--green-400);
+  --success-soft: var(--green-50);
+  --warning: var(--gold-500);
+  --warning-soft: var(--gold-50);
+  --danger:  var(--red-400);
+  --danger-soft: var(--red-50);
+  --info:    var(--purple-500);
+  --info-soft: var(--purple-50);
+
+  /* Finance data */
+  --value-up:   var(--green-400);
+  --value-down: var(--red-400);
+  --value-flat: var(--warm-500);
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 3px var(--purple-100);
+
+  /* Category accents (catalog topic chips) */
+  --cat-ahorro:     var(--green-400);
+  --cat-credito:    var(--coral-400);
+  --cat-presupuesto:var(--gold-500);
+  --cat-inversion:  var(--purple-500);
+  --cat-colombia:   #1565A8;
+}

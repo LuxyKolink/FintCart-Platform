@@ -1,0 +1,63 @@
+@switch (state()) {
+  @case ('loading') {
+    <p>Cargando cuestionario…</p>
+  }
+  @case ('error') {
+    <p class="fc-banner fc-banner--error">No pudimos cargar el cuestionario. Intenta de nuevo.</p>
+  }
+  @case ('ready') {
+    @if (result(); as r) {
+      <section class="fc-module" style="max-width: 480px; margin: var(--space-8) auto">
+        <header>Resultado</header>
+        <div class="fc-module-body">
+          <p class="fc-banner" [class.fc-banner--success]="r.passed" [class.fc-banner--error]="!r.passed">
+            {{ r.passed ? '¡Aprobaste!' : 'No alcanzaste el puntaje mínimo esta vez.' }}
+          </p>
+          <p class="fc-num" style="font-size: var(--fs-2xl)">{{ formatScore(r.score) }}</p>
+          <p class="fc-help">Intento n.º {{ r.attempt_no }} · Puntos acumulados: {{ r.points_after }}</p>
+          <a class="fc-btn fc-btn--primary fc-btn--block" routerLink="/progreso">Ver tu progreso</a>
+        </div>
+      </section>
+    } @else {
+      @if (quiz(); as q) {
+        <section class="fc-module" style="max-width: 640px; margin: 0 auto">
+          <header>{{ q.title }}</header>
+          <div class="fc-module-body">
+            @if (resumedFromDraft()) {
+              <p class="fc-banner fc-banner--info">
+                Retomamos tus respuestas de un intento anterior sin terminar.
+                <button type="button" class="fc-btn fc-btn--ghost" (click)="restart()">Empezar de nuevo</button>
+              </p>
+            }
+            @if (submitState() === 'error') {
+              <p class="fc-banner fc-banner--error">
+                No pudimos enviar tus respuestas — puede que perdieras la conexión. Tus respuestas siguen guardadas, intenta de nuevo.
+              </p>
+            }
+
+            @for (question of q.questions; track question.question_id) {
+              <fieldset style="border: 0; padding: 0; margin: 0 0 var(--space-5)">
+                <legend class="fc-label" style="margin-bottom: var(--space-2)">{{ question.prompt }}</legend>
+                @for (option of question.options; track option.key) {
+                  <label style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0">
+                    <input
+                      type="radio"
+                      [name]="question.question_id"
+                      [checked]="answers()[question.question_id] === option.key"
+                      (change)="setAnswer(question.question_id, option.key)"
+                    />
+                    {{ option.text }}
+                  </label>
+                }
+              </fieldset>
+            }
+
+            <button class="fc-btn fc-btn--primary fc-btn--block" type="button" [disabled]="!allAnswered || submitState() === 'submitting'" (click)="onSubmit()">
+              {{ submitState() === 'submitting' ? 'Enviando…' : 'Enviar respuestas' }}
+            </button>
+          </div>
+        </section>
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+<section>
+  <h1>Catálogo de artículos</h1>
+
+  @if (allCategories().length > 0) {
+    <nav class="fc-linklist" style="display: flex; flex-wrap: wrap; border: none; margin-bottom: var(--space-4)">
+      <button
+        type="button"
+        class="fc-btn"
+        [class.fc-btn--primary]="activeCategory() === null"
+        [class.fc-btn--secondary]="activeCategory() !== null"
+        style="margin: 0 var(--space-2) var(--space-2) 0"
+        (click)="selectCategory(null)"
+      >
+        Todas
+      </button>
+      @for (category of allCategories(); track category) {
+        <button
+          type="button"
+          class="fc-btn"
+          [class.fc-btn--primary]="activeCategory() === category"
+          [class.fc-btn--secondary]="activeCategory() !== category"
+          style="margin: 0 var(--space-2) var(--space-2) 0"
+          (click)="selectCategory(category)"
+        >
+          {{ category }}
+        </button>
+      }
+    </nav>
+  }
+
+  @switch (state()) {
+    @case ('loading') {
+      <p>Cargando artículos…</p>
+    }
+    @case ('error') {
+      <p class="fc-banner fc-banner--error">No pudimos cargar el catálogo. Intenta de nuevo.</p>
+    }
+    @case ('ready') {
+      @if (articles().length === 0) {
+        <p>Todavía no hay artículos publicados en esta categoría.</p>
+      } @else {
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4)">
+          @for (article of articles(); track article.article_id) {
+            <a class="fc-module" [routerLink]="['/articulos', article.article_id]" style="display: block; color: inherit">
+              <header>{{ article.category }}</header>
+              <div class="fc-module-body">
+                <h3 style="margin: 0">{{ article.title }}</h3>
+              </div>
+            </a>
+          }
+        </div>
+      }
+    }
+  }
+</section>

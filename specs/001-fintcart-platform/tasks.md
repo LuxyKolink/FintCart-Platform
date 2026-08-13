@@ -875,15 +875,96 @@ que ya pide el reenvío desde el frontend.
 
 ### Implementación — Frontend Angular
 
-- [ ] T102 [P] [US1] Implementar el flujo OAuth2 Authorization Code + PKCE con `angular-oauth2-oidc`, el interceptor de JWT y los guards de rol en `frontend/src/app/core/auth/` (FR-003, Principio VII)
-- [ ] T103 [P] [US1] Implementar las pantallas de registro y verificación de correo en `frontend/src/app/features/auth/`
-- [ ] T104 [P] [US1] Implementar el catálogo por categorías y la vista de artículo en `frontend/src/app/features/learning/catalog/` y `frontend/src/app/features/learning/article/` (FR-010, FR-011)
-- [ ] T105 [US1] Implementar la ejecución del cuestionario, el envío de respuestas y la presentación de la calificación en `frontend/src/app/features/learning/quiz/` (FR-011, FR-012)
-- [ ] T106 [US1] Implementar la barra de progreso en puntos acumulados en `frontend/src/app/features/learning/progress/` consumiendo `GET /me/progress` (FR-014)
-- [ ] T107 [US1] Implementar el manejo de cuestionario abandonado (cierre de pestaña / pérdida de conexión): no registrar resultado y permitir reanudar o reiniciar en sesión posterior, en `frontend/src/app/features/learning/quiz/quiz-state.service.ts` (Edge Cases)
-- [ ] T108 [US1] Implementar el manejo de enlace de verificación expirado o correo no recibido, con reenvío, en `frontend/src/app/features/auth/verify-email.component.ts` (Edge Cases)
+- [X] T102 [P] [US1] Implementar el flujo OAuth2 Authorization Code + PKCE con `angular-oauth2-oidc`, el interceptor de JWT y los guards de rol en `frontend/src/app/core/auth/` (FR-003, Principio VII)
+- [X] T103 [P] [US1] Implementar las pantallas de registro y verificación de correo en `frontend/src/app/features/auth/`
+- [X] T104 [P] [US1] Implementar el catálogo por categorías y la vista de artículo en `frontend/src/app/features/learning/catalog/` y `frontend/src/app/features/learning/article/` (FR-010, FR-011)
+- [X] T105 [US1] Implementar la ejecución del cuestionario, el envío de respuestas y la presentación de la calificación en `frontend/src/app/features/learning/quiz/` (FR-011, FR-012)
+- [X] T106 [US1] Implementar la barra de progreso en puntos acumulados en `frontend/src/app/features/learning/progress/` consumiendo `GET /me/progress` (FR-014)
+- [X] T107 [US1] Implementar el manejo de cuestionario abandonado (cierre de pestaña / pérdida de conexión): no registrar resultado y permitir reanudar o reiniciar en sesión posterior, en `frontend/src/app/features/learning/quiz/quiz-state.service.ts` (Edge Cases)
+- [X] T108 [US1] Implementar el manejo de enlace de verificación expirado o correo no recibido, con reenvío, en `frontend/src/app/features/auth/verify-email.component.ts` (Edge Cases)
 
-**Checkpoint**: US1 completamente funcional y verificable de forma independiente — MVP entregable.
+**Notas de T073 y T102–T108**
+
+- **T013 estaba marcada `[X]` sin estarlo.** `frontend/` solo tenía `package.json` y
+  carpetas vacías — sin `angular.json`, `tsconfig*.json`, `main.ts` ni `app.component.ts`.
+  Nada de T102–T108 podía compilar sin ese arranque, así que se reconstruyó aquí (Angular
+  19 standalone, `esbuild`) en vez de abrir una tarea aparte.
+- **`angular-oauth2-oidc` no encaja con el borde real y no se usa.** Esa librería asume
+  el flujo estándar (`GET /authorize` con redirección de navegador y el código volviendo
+  por query param). `services/api-gateway/internal/handler/auth.go` sirve en su lugar dos
+  endpoints JSON (`POST /oauth/authorize`, `POST /oauth/token`) porque Auth no expone REST
+  (Principio II) — el propio archivo documenta la desviación de RFC 6749 §3.1. PKCE se
+  implementa a mano con Web Crypto en `core/auth/pkce.ts`; ver el encabezado de ese archivo.
+- **Dos huecos reales del borde REST, corregidos antes de poder implementar T104/T105**:
+  1. `Article` (DTO REST) no traía `quiz_ids` aunque `learning.proto` ya lo declaraba —
+     `articleToDTO` lo descartaba. Sin él, leer un artículo no daba forma de enlazar a su
+     cuestionario (escenario 2 de `spec.md`). Corregido en `types.go`/`mapping.go`/`gateway.yaml`.
+  2. **`GET /quizzes/{quizId}` no existía.** `learning.proto` ya exponía `GetQuiz` por gRPC
+     y el stub del cliente estaba generado, pero ningún handler ni ruta del Gateway lo
+     servía — solo estaba el POST que califica respuestas ya dadas. Sin poder pedir las
+     preguntas, no hay cuestionario que responder. Añadidos `GetQuiz` en `learning.go`,
+     la ruta en `routes.go` (19 rutas / 20 operaciones, antes 18/19) y los DTO
+     `Quiz`/`Question`/`Option` en `types.go` + `gateway.yaml`. `go build` + `go test
+     ./...` en verde en los tres commits.
+  3. **`oauth_clients` parecía no tener ninguna fila — pero sí la tenía.** `dev/seed`
+     (no una migración) ya registra `fintcart-spa` de forma idempotente
+     (`ON CONFLICT (client_id) DO NOTHING`), con su propio comentario de cabecera
+     explicando por qué NO es una migración: `golang-migrate` versiona el ESQUEMA, y
+     una migración que insertara este cliente de desarrollo lo llevaría también a
+     producción (Principio XI). Se había creado por error una migración duplicada
+     (`20260812120000_seed_spa_oauth_client.{up,down}.sql`) con un `redirect_uri` y
+     unos `scopes` inventados, distintos a los reales de `dev/seed`
+     (`http://localhost:4200/auth/callback`, scopes `perfil,catalogo,simulador,progreso`).
+     Al correr `dev/up` + `dev/migrate` por primera vez contra un volumen de Postgres
+     que YA tenía la fila de `dev/seed` de una ejecución anterior, la migración chocó
+     con la restricción única y quedó "dirty". Eliminada la migración; reparado el
+     estado de `schema_migrations` con `migrate force`; corregidos
+     `environment.ts`/`environment.development.ts` para usar el `redirect_uri` y los
+     `scopes` reales del cliente sembrado por `dev/seed`.
+- **Reenvío de verificación (T108) resuelto como ya anotaban T069/T074–T082**: sin
+  endpoint dedicado, `verify-email.component.ts` reintenta con `POST /auth/register` sobre
+  el mismo correo y distingue 409 ("ya verificado") de 202 ("reenviado").
+- **Ruta y query params del enlace de verificación fijados por el correo real**, no
+  inventados: `services/notification/src/email/templates.ts::verificationLink` genera
+  `${APP_BASE_URL}/auth/verify-email?user_id=...&token=...` — la SPA enruta exactamente
+  ahí y lee `token`, no `verification_token` (ese nombre es solo el del campo en el
+  cuerpo de `POST /auth/verify-email`).
+- **`.eslintrc.json` tenía una clave `"//"` de comentario dentro de `overrides[1]`**,
+  que no es JSON Schema válido para ESLint — `npx eslint` fallaba con cualquier
+  configuración, en cualquier archivo, desde antes de esta tarea. Eliminada la clave;
+  `npx eslint "src/**/*.{ts,html}" "e2e/**/*.ts" --max-warnings 0` queda en verde.
+- **T073**: `frontend/playwright.config.ts` tampoco existía. La spec
+  (`e2e/us1-aprendizaje.spec.ts`) corre el recorrido completo contra la pila real de
+  `dev/up` — sin dobles de red — y usa la API de MailHog (`e2e/support/mailhog.ts`) para
+  extraer el enlace de verificación del correo capturado, porque no hay backdoor de
+  pruebas en Auth.
+- **Corrida real contra `dev/up` (Docker disponible en esta sesión) — encontró y
+  corrigió tres bugs reales que ninguna verificación estática había detectado**:
+  1. **`AuthService` rompía el arranque de TODA la SPA.** Usaba propiedades de
+     parámetro del constructor (`constructor(private readonly tokens: TokenStorageService)`)
+     pero el inicializador de campo `claimsSignal = signal(this.readClaims())` —que lee
+     `this.tokens`— se ejecuta ANTES de que el cuerpo del constructor asigne esa
+     propiedad. Cada página lanzaba `TypeError: Cannot read properties of undefined
+     (reading 'getAccessToken')` al construir el servicio, dejando `<fc-root>` vacío.
+     Corregido usando `inject()` en inicializadores de campo (declarados antes de
+     `claimsSignal`) en vez de propiedades de parámetro — `auth.service.ts`.
+  2. **`waitForVerificationLink` (helper de prueba) no decodificaba quoted-printable.**
+     `notification` envía el correo con `Content-Transfer-Encoding: quoted-printable`
+     (MIME estándar por los acentos del español), pero `Content.Body` de la API de
+     MailHog lo devuelve tal cual llegó por SMTP — un salto de línea suave (`=\n`)
+     partía la URL a la mitad y `=3D` reemplazaba cada `=` del query string,
+     corrompiendo `user_id`/`token`. Añadido `decodeQuotedPrintable` en
+     `e2e/support/mailhog.ts` antes de aplicar el regex.
+  3. **Aserción de `us1-aprendizaje.spec.ts` con violación de "strict mode".**
+     `getByText(/\d+ puntos/)` resolvía a dos elementos (`.fc-num` y el texto de ayuda
+     `0 / 100 hacia los 100 puntos`, que también matchea el patrón). Acotado a
+     `page.locator('.fc-num')`.
+  - Tras las tres correcciones, `npx playwright test` pasa en verde de punta a punta:
+    registro → verificación de correo (MailHog real) → login → catálogo → artículo →
+    cuestionario → progreso. También en verde: `go build`/`go test ./...` (Gateway,
+    auth-server), `ng build` (dev y producción), `eslint --max-warnings 0`.
+
+**Checkpoint**: US1 completamente funcional y verificado en ejecución contra la pila real de `dev/up` — MVP entregable, confirmado de punta a punta, no solo por compilación estática.
 
 ---
 

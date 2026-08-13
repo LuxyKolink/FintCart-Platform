@@ -1,0 +1,55 @@
+/* ============================================================
+   FintCart — Typography tokens
+   Noto Sans JP (heading sans, JP-portal character) · Roboto (UI/body)
+   · IBM Plex Mono (money & data). Portal density → compact base size.
+   ============================================================ */
+
+:root {
+  /* Families */
+  --font-display: 'Noto Sans JP', system-ui, -apple-system, 'Segoe UI', sans-serif; /* headings */
+  --font-sans:    'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;        /* body & UI */
+  --font-mono:    'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;               /* money & data */
+
+  /* Weights */
+  --fw-regular:  400; /* @kind font */
+  --fw-medium:   500; /* @kind font */
+  --fw-semibold: 600; /* @kind font */
+  --fw-bold:     700; /* @kind font */
+  --fw-black:    800; /* @kind font */
+
+  /* Type scale (px) — dense portal, base 15 */
+  --fs-2xs: 11px;
+  --fs-xs:  12px;
+  --fs-sm:  13px;
+  --fs-base:15px;
+  --fs-md:  16px;
+  --fs-lg:  18px;
+  --fs-xl:  20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 30px;
+  --fs-4xl: 38px;
+  --fs-5xl: 48px;
+  --fs-6xl: 60px;
+
+  /* Line heights */
+  --lh-tight:   1.1;  /* @kind font */
+  --lh-snug:    1.25; /* @kind font */
+  --lh-normal:  1.45; /* @kind font */
+  --lh-relaxed: 1.65; /* @kind font */
+
+  /* Letter spacing */
+  --ls-tight:  -0.02em; /* @kind font */
+  --ls-snug:   -0.01em; /* @kind font */
+  --ls-normal: 0;       /* @kind font */
+  --ls-wide:   0.04em;  /* @kind font */
+  --ls-caps:   0.08em;  /* @kind font */
+
+  /* Semantic roles */
+  --text-display-font: var(--font-display);
+  --text-display-weight: var(--fw-bold);
+  --text-heading-font: var(--font-display);
+  --text-eyebrow-font: var(--font-sans);
+  --text-body-font: var(--font-sans);
+  --text-ui-font: var(--font-sans);
+  --text-data-font: var(--font-mono);
+}

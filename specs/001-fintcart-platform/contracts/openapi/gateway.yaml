@@ -50,6 +50,29 @@ components:
         category: { type: string }
         body: { type: string }
         current_version_no: { type: integer }
+        quiz_ids: { type: array, items: { type: string, format: uuid } }
+    Option:
+      type: object
+      properties:
+        key: { type: string }
+        text: { type: string }
+    Question:
+      type: object
+      properties:
+        question_id: { type: string, format: uuid }
+        prompt: { type: string }
+        options: { type: array, items: { $ref: '#/components/schemas/Option' } }
+        weight: { $ref: '#/components/schemas/DecimalString' }
+    Quiz:
+      type: object
+      properties:
+        quiz_id: { type: string, format: uuid }
+        article_id: { type: string, format: uuid }
+        title: { type: string }
+        pass_threshold: { $ref: '#/components/schemas/DecimalString' }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/Question' }
     QuizGradeResult:
       type: object
       properties:
@@ -144,6 +167,15 @@ paths:
         - { name: articleId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         '200': { description: Artículo, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        '404': { description: No encontrado }
+
+  /quizzes/{quizId}:
+    get:
+      summary: Consultar preguntas de un cuestionario (FR-009)
+      parameters:
+        - { name: quizId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Cuestionario, content: { application/json: { schema: { $ref: '#/components/schemas/Quiz' } } } }
         '404': { description: No encontrado }
 
   /quizzes/{quizId}/attempts:

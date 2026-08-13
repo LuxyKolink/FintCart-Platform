@@ -48,6 +48,22 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, articleToDTO(resp))
 }
 
+// GetQuiz ≡ `GET /quizzes/{quizId}` (FR-009).
+//
+// Faltaba: `learning.proto` ya exponía `GetQuiz` por gRPC, pero ningún handler del
+// Gateway lo enrutaba (ver la nota en `routes.go`). Sin este endpoint la SPA no
+// tiene forma de mostrar las preguntas antes de que el usuario responda.
+func (h *Handler) GetQuiz(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.clients.Learning.GetQuiz(r.Context(), &learningv1.QuizRef{
+		QuizId: chi.URLParam(r, "quizId"),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, quizToDTO(resp))
+}
+
 // SubmitQuizAttempt ≡ `POST /quizzes/{quizId}/attempts` (FR-012, FR-016).
 //
 // Va al ORQUESTADOR, no a Aprendizaje: calificar toca dos servicios —el intento en

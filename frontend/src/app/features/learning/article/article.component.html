@@ -1,0 +1,31 @@
+@switch (state()) {
+  @case ('loading') {
+    <p>Cargando artículo…</p>
+  }
+  @case ('not-found') {
+    <p class="fc-banner fc-banner--error">
+      Este artículo ya no está disponible — puede haber sido despublicado o reemplazado.
+    </p>
+    <a class="fc-btn fc-btn--secondary" routerLink="/catalogo">Volver al catálogo</a>
+  }
+  @case ('error') {
+    <p class="fc-banner fc-banner--error">No pudimos cargar el artículo. Intenta de nuevo.</p>
+  }
+  @case ('ready') {
+    @if (article(); as a) {
+      <article class="fc-module">
+        <header>{{ a.category }}</header>
+        <div class="fc-module-body">
+          <h1>{{ a.title }}</h1>
+          <div style="white-space: pre-wrap; line-height: var(--lh-relaxed)">{{ a.body }}</div>
+
+          @if (a.quiz_ids.length > 0) {
+            <a class="fc-btn fc-btn--primary" [routerLink]="['/cuestionarios', a.quiz_ids[0]]" style="margin-top: var(--space-4)">
+              Iniciar cuestionario
+            </a>
+          }
+        </div>
+      </article>
+    }
+  }
+}

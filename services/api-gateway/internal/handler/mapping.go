@@ -60,6 +60,30 @@ func articleToDTO(a *learningv1.Article) Article {
 		Category:         a.GetCategory(),
 		Body:             a.GetBody(),
 		CurrentVersionNo: a.GetCurrentVersionNo(),
+		QuizIDs:          a.GetQuizIds(),
+	}
+}
+
+func quizToDTO(q *learningv1.Quiz) Quiz {
+	questions := make([]Question, 0, len(q.GetQuestions()))
+	for _, question := range q.GetQuestions() {
+		options := make([]Option, 0, len(question.GetOptions()))
+		for _, opt := range question.GetOptions() {
+			options = append(options, Option{Key: opt.GetKey(), Text: opt.GetText()})
+		}
+		questions = append(questions, Question{
+			QuestionID: question.GetQuestionId(),
+			Prompt:     question.GetPrompt(),
+			Options:    options,
+			Weight:     question.GetWeight(),
+		})
+	}
+	return Quiz{
+		QuizID:        q.GetQuizId(),
+		ArticleID:     q.GetArticleId(),
+		Title:         q.GetTitle(),
+		PassThreshold: q.GetPassThreshold(),
+		Questions:     questions,
 	}
 }
 
