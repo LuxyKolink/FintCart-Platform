@@ -97,6 +97,14 @@ export interface RevokeRequest {
   token_type_hint: string;
 }
 
+export interface ChangePasswordRequest {
+  user_id: string;
+  /** se verifica contra el hash vigente */
+  current_password: string;
+  /** se hashea con Argon2id; nunca se persiste/loguea en claro */
+  new_password: string;
+}
+
 export interface IntrospectRequest {
   access_token: string;
 }
@@ -1140,6 +1148,98 @@ export const RevokeRequest: MessageFns<RevokeRequest> = {
     const message = createBaseRevokeRequest();
     message.token = object.token ?? "";
     message.token_type_hint = object.token_type_hint ?? "";
+    return message;
+  },
+};
+
+function createBaseChangePasswordRequest(): ChangePasswordRequest {
+  return { user_id: "", current_password: "", new_password: "" };
+}
+
+export const ChangePasswordRequest: MessageFns<ChangePasswordRequest> = {
+  encode(message: ChangePasswordRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.user_id !== "") {
+      writer.uint32(10).string(message.user_id);
+    }
+    if (message.current_password !== "") {
+      writer.uint32(18).string(message.current_password);
+    }
+    if (message.new_password !== "") {
+      writer.uint32(26).string(message.new_password);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ChangePasswordRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseChangePasswordRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.user_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.current_password = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.new_password = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ChangePasswordRequest {
+    return {
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      current_password: isSet(object.current_password) ? globalThis.String(object.current_password) : "",
+      new_password: isSet(object.new_password) ? globalThis.String(object.new_password) : "",
+    };
+  },
+
+  toJSON(message: ChangePasswordRequest): unknown {
+    const obj: any = {};
+    if (message.user_id !== "") {
+      obj.user_id = message.user_id;
+    }
+    if (message.current_password !== "") {
+      obj.current_password = message.current_password;
+    }
+    if (message.new_password !== "") {
+      obj.new_password = message.new_password;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ChangePasswordRequest>, I>>(base?: I): ChangePasswordRequest {
+    return ChangePasswordRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ChangePasswordRequest>, I>>(object: I): ChangePasswordRequest {
+    const message = createBaseChangePasswordRequest();
+    message.user_id = object.user_id ?? "";
+    message.current_password = object.current_password ?? "";
+    message.new_password = object.new_password ?? "";
     return message;
   },
 };

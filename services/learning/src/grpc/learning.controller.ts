@@ -7,14 +7,6 @@
  *
  * Lo que NO hace: no consulta la base, no valida reglas de negocio y no calcula nada.
  * Si aquí apareciera un `Decimal`, estaría en la capa equivocada.
- *
- * ## Los RPC que faltan
- *
- * `CreateDraft`, `UpdateDraft`, `SubmitForReview`, `ApproveAndPublish` y `Archive`
- * no se registran todavía: son el flujo editorial (US4). No declararlos es MEJOR
- * que declararlos devolviendo un error propio — gRPC responde `UNIMPLEMENTED` por
- * sí solo, que es exactamente lo que son, y un cliente puede distinguirlo de un
- * fallo del servidor.
  */
 import { Controller } from '@nestjs/common';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
@@ -25,23 +17,41 @@ import { DomainError, messageOf } from '../common/errors';
 import { DecimalStrError } from '../common/decimal-str';
 import { GradingService } from '../grading/grading.service';
 import { JsonLogger } from '../common/observability';
+import { PublishingService } from '../publishing/publishing.service';
 import { QuizzesService } from '../quizzes/quizzes.service';
 import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type {
+  ApprovePublishRequest,
   ArticleRef,
   Article as ArticlePb,
+  ArticleVersion as ArticleVersionPb,
+  CreateDraftRequest,
   GradeRequest,
   GradeResponse as GradeResponsePb,
   ListAttemptsRequest,
   ListAttemptsResponse as ListAttemptsResponsePb,
   ListPublishedRequest,
   ListPublishedResponse as ListPublishedResponsePb,
+  ListVersionsRequest,
+  ListVersionsResponse as ListVersionsResponsePb,
   QuizRef,
   Quiz as QuizPb,
+  UpdateDraftRequest,
+  UpsertQuizRequest,
   UserRef,
+  VersionRef,
 } from '../pb/fintcart/learning/v1/learning';
 
-import { articleToPb, attemptsToPb, catalogToPb, gradeToPb, okResult, quizToPb } from './mapping';
+import {
+  articleToPb,
+  attemptsToPb,
+  catalogToPb,
+  gradeToPb,
+  okResult,
+  quizToPb,
+  versionToPb,
+  versionsToPb,
+} from './mapping';
 
 /** Nombre del servicio en el contrato; debe coincidir con el `.proto`. */
 const SERVICE = 'LearningService';
@@ -54,6 +64,7 @@ export class LearningController {
     private readonly articles: ArticlesService,
     private readonly quizzes: QuizzesService,
     private readonly grading: GradingService,
+    private readonly publishing: PublishingService,
   ) {}
 
   /** Catálogo publicado por categoría (FR-010, SC-009). */
@@ -112,6 +123,99 @@ export class LearningController {
       await this.grading.anonymizeAttempts(request.user_id ?? '');
       return okResult();
     });
+  }
+
+  // ── Flujo editorial (US4, FR-007/FR-008/FR-013) ───────────────────────────
+
+  /** Borrador nuevo, o nueva versión de un artículo existente (FR-007, FR-013). */
+  @GrpcMethod(SERVICE, 'CreateDraft')
+  public async createDraft(request: CreateDraftRequest): Promise<ArticleVersionPb> {
+    return this.guard('CreateDraft', async () =>
+      versionToPb(
+        await this.publishing.createDraft(
+          request.title ?? '',
+          request.category ?? '',
+          request.body ?? '',
+          request.editor_id ?? '',
+          request.article_id ?? '',
+        ),
+      ),
+    );
+  }
+
+  /** Edita el cuerpo de un borrador propio (FR-007). */
+  @GrpcMethod(SERVICE, 'UpdateDraft')
+  public async updateDraft(request: UpdateDraftRequest): Promise<ArticleVersionPb> {
+    return this.guard('UpdateDraft', async () =>
+      versionToPb(
+        await this.publishing.updateDraft(request.version_id ?? '', request.editor_id ?? '', request.body ?? ''),
+      ),
+    );
+  }
+
+  /** `borrador → en_revision` (FR-008). */
+  @GrpcMethod(SERVICE, 'SubmitForReview')
+  public async submitForReview(request: VersionRef): Promise<OpResultPb> {
+    return this.guard('SubmitForReview', async () => {
+      await this.publishing.submitForReview(request.version_id ?? '', request.actor_id ?? '');
+      return okResult();
+    });
+  }
+
+  /** `en_revision → publicado`, coordinador ≠ autor (FR-008). */
+  @GrpcMethod(SERVICE, 'ApproveAndPublish')
+  public async approveAndPublish(request: ApprovePublishRequest): Promise<OpResultPb> {
+    return this.guard('ApproveAndPublish', async () => {
+      await this.publishing.approveAndPublish(request.version_id ?? '', request.coordinator_id ?? '');
+      return okResult();
+    });
+  }
+
+  /** `publicado → archivado`. */
+  @GrpcMethod(SERVICE, 'Archive')
+  public async archive(request: VersionRef): Promise<OpResultPb> {
+    return this.guard('Archive', async () => {
+      await this.publishing.archive(request.version_id ?? '');
+      return okResult();
+    });
+  }
+
+  /** Historial de versiones, bandeja de revisión o borradores propios (FR-013). */
+  @GrpcMethod(SERVICE, 'ListVersions')
+  public async listVersions(request: ListVersionsRequest): Promise<ListVersionsResponsePb> {
+    return this.guard('ListVersions', async () =>
+      versionsToPb(
+        await this.publishing.listVersions(
+          {
+            articleId: request.article_id ?? '',
+            state: request.state ?? '',
+            editorId: request.editor_id ?? '',
+          },
+          request.page,
+        ),
+      ),
+    );
+  }
+
+  /** Reemplazo completo de un cuestionario (FR-009, T162). */
+  @GrpcMethod(SERVICE, 'UpsertQuiz')
+  public async upsertQuiz(request: UpsertQuizRequest): Promise<QuizPb> {
+    return this.guard('UpsertQuiz', async () =>
+      quizToPb(
+        await this.quizzes.upsertQuiz(
+          request.quiz_id ?? '',
+          request.article_id ?? '',
+          request.title ?? '',
+          request.pass_threshold ?? '',
+          (request.questions ?? []).map((q) => ({
+            prompt: q.prompt ?? '',
+            options: q.options ?? {},
+            correctKey: q.correct_key ?? '',
+            weight: q.weight ?? '',
+          })),
+        ),
+      ),
+    );
   }
 
   /**

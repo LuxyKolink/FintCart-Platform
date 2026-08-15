@@ -10,7 +10,11 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../common/database.module';
 import { ArticlesRepository } from '../articles/articles.repository';
 import { ArticlesService } from '../articles/articles.service';
+import { EventsModule } from '../events/events.module';
 import { GradingService } from '../grading/grading.service';
+import { PublishingRepository } from '../publishing/publishing.repository';
+import { PublishingService } from '../publishing/publishing.service';
+import { VersioningService } from '../publishing/versioning.service';
 import { QuizzesRepository } from '../quizzes/quizzes.repository';
 import { QuizzesService } from '../quizzes/quizzes.service';
 
@@ -21,8 +25,9 @@ import { LearningController } from './learning.controller';
   // módulo, no globalmente: sin esta línea, `PG_POOL` no es visible para los
   // repositorios aunque el raíz lo importe, y el proceso falla al construir el
   // contenedor con un mensaje que señala al repositorio y no a la importación que
-  // falta.
-  imports: [DatabaseModule],
+  // falta. `EventsModule` entra por la misma razón: `EventsPublisher` lo necesita
+  // `PublishingService` (T163).
+  imports: [DatabaseModule, EventsModule],
   controllers: [LearningController],
   providers: [
     ArticlesRepository,
@@ -30,6 +35,9 @@ import { LearningController } from './learning.controller';
     QuizzesRepository,
     QuizzesService,
     GradingService,
+    PublishingRepository,
+    PublishingService,
+    VersioningService,
   ],
 })
 export class LearningModule {}

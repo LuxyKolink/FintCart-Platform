@@ -16,12 +16,16 @@ import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type { ArticleDetail, ArticleSummary } from '../articles/articles.repository';
 import type { CatalogPage } from '../articles/articles.service';
 import type { AttemptsPage, GradeResult } from '../grading/grading.service';
+import type { VersionsPage } from '../publishing/publishing.service';
+import type { VersionRow } from '../publishing/publishing.repository';
 import type { Quiz, QuizQuestion } from '../quizzes/quizzes.repository';
 import type {
   Article as ArticlePb,
+  ArticleVersion as ArticleVersionPb,
   GradeResponse as GradeResponsePb,
   ListAttemptsResponse as ListAttemptsResponsePb,
   ListPublishedResponse as ListPublishedResponsePb,
+  ListVersionsResponse as ListVersionsResponsePb,
   Question as QuestionPb,
   Quiz as QuizPb,
 } from '../pb/fintcart/learning/v1/learning';
@@ -115,6 +119,29 @@ export function gradeToPb(result: GradeResult): GradeResponsePb {
     // consumidor del contrato.
     score: format(result.score),
     passed: result.passed,
+  };
+}
+
+/** Versión → `ArticleVersion`. */
+export function versionToPb(version: VersionRow): ArticleVersionPb {
+  return {
+    version_id: version.versionId,
+    article_id: version.articleId,
+    version_no: version.versionNo,
+    state: version.state,
+    created_by: version.createdBy,
+    approved_by: version.approvedBy,
+    created_at: version.createdAt,
+    published_at: version.publishedAt,
+    body: version.body,
+  };
+}
+
+/** Página de versiones → `ListVersionsResponse`. */
+export function versionsToPb(page: VersionsPage): ListVersionsResponsePb {
+  return {
+    items: page.items.map(versionToPb),
+    page: { next_page_token: page.nextPageToken, total_size: String(page.totalSize) },
   };
 }
 

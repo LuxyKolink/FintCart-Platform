@@ -1,0 +1,137 @@
+<section>
+  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
+    <h1>{{ version() === null ? 'Nuevo artículo' : 'Editar borrador' }}</h1>
+    <a class="fc-btn fc-btn--secondary" routerLink="/editorial/borradores">Mis borradores</a>
+  </div>
+
+  @switch (loadState()) {
+    @case ('loading') {
+      <p>Cargando borrador…</p>
+    }
+    @case ('not-found') {
+      <p class="fc-banner fc-banner--error">No encontramos ese borrador, o ya no es tuyo.</p>
+    }
+    @case ('ready') {
+      @if (errorMessage()) {
+        <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+      }
+
+      @if (version() === null) {
+        <!-- Modo crear (FR-007) -->
+        <section class="fc-module">
+          <header>Datos del artículo</header>
+          <div class="fc-module-body">
+            <form [formGroup]="articleForm" (ngSubmit)="onCreateArticle()">
+              <div class="fc-field">
+                <label class="fc-label" for="title">Título</label>
+                <input class="fc-input" id="title" type="text" formControlName="title" />
+              </div>
+              <div class="fc-field">
+                <label class="fc-label" for="category">Categoría</label>
+                <input class="fc-input" id="category" type="text" formControlName="category" />
+              </div>
+              <div class="fc-field">
+                <label class="fc-label" for="body">Cuerpo</label>
+                <textarea class="fc-input" id="body" rows="8" formControlName="body"></textarea>
+              </div>
+              <button class="fc-btn fc-btn--primary" type="submit" [disabled]="articleSaveState() === 'saving'">
+                {{ articleSaveState() === 'saving' ? 'Creando…' : 'Crear borrador' }}
+              </button>
+            </form>
+          </div>
+        </section>
+      } @else {
+        <p class="fc-help">Estado actual: <strong>{{ version()?.state }}</strong></p>
+
+        <!-- Cuerpo del borrador -->
+        <section class="fc-module">
+          <header>Cuerpo del artículo</header>
+          <div class="fc-module-body">
+            <form [formGroup]="bodyForm" (ngSubmit)="onSaveBody()">
+              <div class="fc-field">
+                <label class="fc-label" for="body2">Cuerpo</label>
+                <textarea class="fc-input" id="body2" rows="8" formControlName="body"></textarea>
+              </div>
+              <button class="fc-btn fc-btn--secondary" type="submit" [disabled]="articleSaveState() === 'saving'">
+                {{ articleSaveState() === 'saving' ? 'Guardando…' : 'Guardar cambios' }}
+              </button>
+              @if (articleSaveState() === 'saved') {
+                <span class="fc-help" style="margin-left: var(--space-2)">Guardado.</span>
+              }
+            </form>
+          </div>
+        </section>
+
+        <!-- Cuestionario (FR-009, T162) -->
+        <section class="fc-module" style="margin-top: var(--space-4)">
+          <header>Cuestionario</header>
+          <div class="fc-module-body">
+            @if (quizErrorMessage()) {
+              <p class="fc-banner fc-banner--error">{{ quizErrorMessage() }}</p>
+            }
+            <form [formGroup]="quizForm" (ngSubmit)="onSaveQuiz()">
+              <div class="fc-field">
+                <label class="fc-label" for="quizTitle">Título del cuestionario</label>
+                <input class="fc-input" id="quizTitle" type="text" formControlName="title" />
+              </div>
+              <div class="fc-field">
+                <label class="fc-label" for="passThreshold">Umbral de aprobación (0–100)</label>
+                <input class="fc-input" id="passThreshold" type="text" formControlName="passThreshold" />
+              </div>
+
+              @for (question of questions.controls; track $index; let i = $index) {
+                <fieldset [formGroup]="question" style="border: var(--border-hairline) solid var(--border-default); border-radius: var(--radius-2); padding: var(--space-3); margin-bottom: var(--space-3)">
+                  <legend>Pregunta {{ i + 1 }}</legend>
+                  <div class="fc-field">
+                    <label class="fc-label">Enunciado</label>
+                    <input class="fc-input" type="text" formControlName="prompt" />
+                  </div>
+                  <div style="display: grid; grid-template-columns: auto 1fr; gap: var(--space-2); align-items: center">
+                    <input type="radio" formControlName="correctKey" value="a" [attr.aria-label]="'Opción A correcta'" />
+                    <input class="fc-input" type="text" placeholder="Opción A" formControlName="optionA" />
+                    <input type="radio" formControlName="correctKey" value="b" [attr.aria-label]="'Opción B correcta'" />
+                    <input class="fc-input" type="text" placeholder="Opción B" formControlName="optionB" />
+                    <input type="radio" formControlName="correctKey" value="c" [attr.aria-label]="'Opción C correcta'" />
+                    <input class="fc-input" type="text" placeholder="Opción C (opcional)" formControlName="optionC" />
+                    <input type="radio" formControlName="correctKey" value="d" [attr.aria-label]="'Opción D correcta'" />
+                    <input class="fc-input" type="text" placeholder="Opción D (opcional)" formControlName="optionD" />
+                  </div>
+                  <div class="fc-field">
+                    <label class="fc-label">Peso</label>
+                    <input class="fc-input" type="text" formControlName="weight" />
+                  </div>
+                  @if (questions.length > 1) {
+                    <button type="button" class="fc-btn fc-btn--ghost" (click)="removeQuestion(i)">Quitar pregunta</button>
+                  }
+                </fieldset>
+              }
+
+              <button type="button" class="fc-btn fc-btn--ghost" (click)="addQuestion()">Añadir pregunta</button>
+              <button class="fc-btn fc-btn--secondary" type="submit" [disabled]="quizSaveState() === 'saving'" style="margin-left: var(--space-2)">
+                {{ quizSaveState() === 'saving' ? 'Guardando…' : quiz() === null ? 'Crear cuestionario' : 'Actualizar cuestionario' }}
+              </button>
+              @if (quizSaveState() === 'saved') {
+                <span class="fc-help" style="margin-left: var(--space-2)">Cuestionario guardado.</span>
+              }
+            </form>
+          </div>
+        </section>
+
+        <!-- Enviar a revisión (FR-008) -->
+        @if (version()?.state === 'borrador') {
+          <button
+            class="fc-btn fc-btn--primary"
+            type="button"
+            style="margin-top: var(--space-4)"
+            [disabled]="submitState() === 'saving'"
+            (click)="onSubmitForReview()"
+          >
+            {{ submitState() === 'saving' ? 'Enviando…' : 'Enviar a revisión' }}
+          </button>
+        } @else if (version()?.state === 'en_revision') {
+          <p class="fc-banner fc-banner--success">Enviado a revisión. Un coordinador editorial distinto debe aprobarlo.</p>
+        }
+      }
+    }
+  }
+</section>

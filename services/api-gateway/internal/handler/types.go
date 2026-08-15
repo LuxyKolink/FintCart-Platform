@@ -185,14 +185,45 @@ type CreateDraftRequest struct {
 	Body     string `json:"body"`
 }
 
-// ArticleVersion ≡ la respuesta de creación de borrador.
+// ArticleVersion ≡ la respuesta de creación de borrador y cada fila del historial
+// (FR-013, T157–T161).
 type ArticleVersion struct {
-	VersionID  string `json:"version_id"`
-	ArticleID  string `json:"article_id"`
-	VersionNo  int32  `json:"version_no"`
-	State      string `json:"state"`
-	CreatedBy  string `json:"created_by"`
-	ApprovedBy string `json:"approved_by,omitempty"`
+	VersionID   string `json:"version_id"`
+	ArticleID   string `json:"article_id"`
+	VersionNo   int32  `json:"version_no"`
+	State       string `json:"state"`
+	CreatedBy   string `json:"created_by"`
+	ApprovedBy  string `json:"approved_by,omitempty"`
+	CreatedAt   string `json:"created_at"`
+	PublishedAt string `json:"published_at,omitempty"`
+	Body        string `json:"body,omitempty"`
+}
+
+// UpdateDraftRequest ≡ `PATCH /editorial/versions/{versionId}` (FR-007).
+//
+// No lleva `editor_id` por el mismo motivo que `CreateDraftRequest`: sale del token.
+type UpdateDraftRequest struct {
+	Body string `json:"body"`
+}
+
+// UpsertQuizRequest ≡ `POST /editorial/quizzes` y `PUT /editorial/quizzes/{quizId}`
+// (FR-009, T162). `ArticleID` solo se usa al CREAR (`PUT` ignora el que llegue, porque
+// el cuestionario ya tiene el suyo); ver `editorial.go::UpsertQuiz`.
+type UpsertQuizRequest struct {
+	ArticleID     string          `json:"article_id,omitempty"`
+	Title         string          `json:"title"`
+	PassThreshold string          `json:"pass_threshold"`
+	Questions     []QuestionInput `json:"questions"`
+}
+
+// QuestionInput ≡ una pregunta de `UpsertQuizRequest`. Lleva la clave correcta —al
+// contrario que `Question`, la de LECTURA— porque quien la manda es quien la escribió;
+// nunca sale por `GetQuiz` (ver la cabecera de `quizzes.repository.ts` en Aprendizaje).
+type QuestionInput struct {
+	Prompt     string            `json:"prompt"`
+	Options    map[string]string `json:"options"`
+	CorrectKey string            `json:"correct_key"`
+	Weight     string            `json:"weight"`
 }
 
 // OpAck es el acuse de una operación de comando sin recurso que devolver.
@@ -343,9 +374,9 @@ type QuizAttempt struct {
 // (Simulador) — cada una obtenida por gRPC y nunca por lectura cruzada de base
 // de datos (Principio III).
 type PersonalData struct {
-	Profile      Profile                     `json:"profile"`
-	Progress     Progress                    `json:"progress"`
-	QuizAttempts Page[QuizAttempt]           `json:"quiz_attempts"`
+	Profile      Profile                      `json:"profile"`
+	Progress     Progress                     `json:"progress"`
+	QuizAttempts Page[QuizAttempt]            `json:"quiz_attempts"`
 	Simulations  Page[SimulationHistoryEntry] `json:"simulations"`
 }
 

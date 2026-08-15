@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
+import { roleGuard } from './core/auth/role.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'catalogo' },
@@ -88,6 +89,36 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/notifications/notifications.component').then((m) => m.NotificationsComponent),
+  },
+  {
+    // `roleGuard` ya comprueba autenticación (FR-006): un usuario final que llegue
+    // aquí sin sesión se redirige a login, y con sesión pero sin rol editorial se
+    // redirige al catálogo — el guard nombrado en T170 (`editorial.guard.ts`) no se
+    // crea aparte porque `role.guard.ts` ya es genérico y reutilizable; ver la nota de
+    // T167–T170 en `tasks.md`.
+    path: 'editorial',
+    canActivate: [roleGuard('editor', 'coordinador_editorial')],
+    loadComponent: () => import('./features/editorial/editor/editor.component').then((m) => m.EditorComponent),
+  },
+  {
+    path: 'editorial/versiones/:versionId',
+    canActivate: [roleGuard('editor', 'coordinador_editorial')],
+    loadComponent: () => import('./features/editorial/editor/editor.component').then((m) => m.EditorComponent),
+  },
+  {
+    path: 'editorial/borradores',
+    canActivate: [roleGuard('editor', 'coordinador_editorial')],
+    loadComponent: () => import('./features/editorial/versions/versions.component').then((m) => m.VersionsComponent),
+  },
+  {
+    path: 'editorial/articulos/:articleId/versiones',
+    canActivate: [roleGuard('editor', 'coordinador_editorial')],
+    loadComponent: () => import('./features/editorial/versions/versions.component').then((m) => m.VersionsComponent),
+  },
+  {
+    path: 'editorial/revision',
+    canActivate: [roleGuard('coordinador_editorial')],
+    loadComponent: () => import('./features/editorial/review/review.component').then((m) => m.ReviewComponent),
   },
   { path: '**', redirectTo: 'catalogo' },
 ];

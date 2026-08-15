@@ -48,6 +48,16 @@ export interface ArticleVersion {
   created_by: string;
   /** vacío hasta aprobación; DEBE diferir de created_by */
   approved_by: string;
+  /** RFC-3339 */
+  created_at: string;
+  /** RFC-3339; vacío si no está publicada (FR-013) */
+  published_at: string;
+  /**
+   * Presente en las cuatro respuestas (`CreateDraft`/`UpdateDraft`/`ApproveAndPublish`
+   * vía OpResult no aplica; `ListVersions` sí): reabrir un borrador propio para seguir
+   * editándolo exige poder leer su cuerpo actual, y no hay otro RPC que lo devuelva.
+   */
+  body: string;
 }
 
 export interface CreateDraftRequest {
@@ -56,6 +66,12 @@ export interface CreateDraftRequest {
   body: string;
   /** rol editor (FR-006) */
   editor_id: string;
+  /**
+   * Vacío: crea un artículo NUEVO (con su versión 1). No vacío: crea una nueva versión
+   * en borrador de un artículo YA EXISTENTE (FR-013) — `title`/`category` se ignoran en
+   * ese caso, porque viven en `articles` y son compartidos por todas sus versiones.
+   */
+  article_id: string;
 }
 
 export interface UpdateDraftRequest {
@@ -140,8 +156,52 @@ export interface GradeResponse {
   passed: boolean;
 }
 
+export interface ListVersionsRequest {
+  /** vacío = cualquier artículo */
+  article_id: string;
+  /** vacío = cualquier estado */
+  state: string;
+  /** vacío = cualquier editor (created_by) */
+  editor_id: string;
+  page?: PageRequest | undefined;
+}
+
+export interface ListVersionsResponse {
+  items: ArticleVersion[];
+  page?: PageResponse | undefined;
+}
+
+export interface QuestionInput {
+  prompt: string;
+  /** clave -> enunciado */
+  options: { [key: string]: string };
+  correct_key: string;
+  /** [decimal] */
+  weight: string;
+}
+
+export interface QuestionInput_OptionsEntry {
+  key: string;
+  value: string;
+}
+
+export interface UpsertQuizRequest {
+  /** vacío = crear */
+  quiz_id: string;
+  /** requerido al crear */
+  article_id: string;
+  title: string;
+  /** [decimal] */
+  pass_threshold: string;
+  questions: QuestionInput[];
+}
+
 export interface ListAttemptsRequest {
   user_id: string;
+  /**
+   * quiz_id VACÍO lista los intentos de TODOS los cuestionarios del usuario
+   * (FR-016/FR-018/FR-029) — no se exige que sea UUID en ese caso.
+   */
   quiz_id: string;
   page?: PageRequest | undefined;
 }
@@ -410,7 +470,17 @@ export const QuizRef: MessageFns<QuizRef> = {
 };
 
 function createBaseArticleVersion(): ArticleVersion {
-  return { version_id: "", article_id: "", version_no: 0, state: "", created_by: "", approved_by: "" };
+  return {
+    version_id: "",
+    article_id: "",
+    version_no: 0,
+    state: "",
+    created_by: "",
+    approved_by: "",
+    created_at: "",
+    published_at: "",
+    body: "",
+  };
 }
 
 export const ArticleVersion: MessageFns<ArticleVersion> = {
@@ -432,6 +502,15 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
     }
     if (message.approved_by !== "") {
       writer.uint32(50).string(message.approved_by);
+    }
+    if (message.created_at !== "") {
+      writer.uint32(58).string(message.created_at);
+    }
+    if (message.published_at !== "") {
+      writer.uint32(66).string(message.published_at);
+    }
+    if (message.body !== "") {
+      writer.uint32(74).string(message.body);
     }
     return writer;
   },
@@ -491,6 +570,30 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
           message.approved_by = reader.string();
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.created_at = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.published_at = reader.string();
+          continue;
+        }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          message.body = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -508,6 +611,9 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
       state: isSet(object.state) ? globalThis.String(object.state) : "",
       created_by: isSet(object.created_by) ? globalThis.String(object.created_by) : "",
       approved_by: isSet(object.approved_by) ? globalThis.String(object.approved_by) : "",
+      created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : "",
+      published_at: isSet(object.published_at) ? globalThis.String(object.published_at) : "",
+      body: isSet(object.body) ? globalThis.String(object.body) : "",
     };
   },
 
@@ -531,6 +637,15 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
     if (message.approved_by !== "") {
       obj.approved_by = message.approved_by;
     }
+    if (message.created_at !== "") {
+      obj.created_at = message.created_at;
+    }
+    if (message.published_at !== "") {
+      obj.published_at = message.published_at;
+    }
+    if (message.body !== "") {
+      obj.body = message.body;
+    }
     return obj;
   },
 
@@ -545,12 +660,15 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
     message.state = object.state ?? "";
     message.created_by = object.created_by ?? "";
     message.approved_by = object.approved_by ?? "";
+    message.created_at = object.created_at ?? "";
+    message.published_at = object.published_at ?? "";
+    message.body = object.body ?? "";
     return message;
   },
 };
 
 function createBaseCreateDraftRequest(): CreateDraftRequest {
-  return { title: "", category: "", body: "", editor_id: "" };
+  return { title: "", category: "", body: "", editor_id: "", article_id: "" };
 }
 
 export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
@@ -566,6 +684,9 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     }
     if (message.editor_id !== "") {
       writer.uint32(34).string(message.editor_id);
+    }
+    if (message.article_id !== "") {
+      writer.uint32(42).string(message.article_id);
     }
     return writer;
   },
@@ -609,6 +730,14 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
           message.editor_id = reader.string();
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.article_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -624,6 +753,7 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
       category: isSet(object.category) ? globalThis.String(object.category) : "",
       body: isSet(object.body) ? globalThis.String(object.body) : "",
       editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : "",
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
     };
   },
 
@@ -641,6 +771,9 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     if (message.editor_id !== "") {
       obj.editor_id = message.editor_id;
     }
+    if (message.article_id !== "") {
+      obj.article_id = message.article_id;
+    }
     return obj;
   },
 
@@ -653,6 +786,7 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     message.category = object.category ?? "";
     message.body = object.body ?? "";
     message.editor_id = object.editor_id ?? "";
+    message.article_id = object.article_id ?? "";
     return message;
   },
 };
@@ -1726,6 +1860,523 @@ export const GradeResponse: MessageFns<GradeResponse> = {
   },
 };
 
+function createBaseListVersionsRequest(): ListVersionsRequest {
+  return { article_id: "", state: "", editor_id: "", page: undefined };
+}
+
+export const ListVersionsRequest: MessageFns<ListVersionsRequest> = {
+  encode(message: ListVersionsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.article_id !== "") {
+      writer.uint32(10).string(message.article_id);
+    }
+    if (message.state !== "") {
+      writer.uint32(18).string(message.state);
+    }
+    if (message.editor_id !== "") {
+      writer.uint32(26).string(message.editor_id);
+    }
+    if (message.page !== undefined) {
+      PageRequest.encode(message.page, writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListVersionsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListVersionsRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.article_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.state = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.editor_id = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.page = PageRequest.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListVersionsRequest {
+    return {
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : "",
+      page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
+    };
+  },
+
+  toJSON(message: ListVersionsRequest): unknown {
+    const obj: any = {};
+    if (message.article_id !== "") {
+      obj.article_id = message.article_id;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.editor_id !== "") {
+      obj.editor_id = message.editor_id;
+    }
+    if (message.page !== undefined) {
+      obj.page = PageRequest.toJSON(message.page);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListVersionsRequest>, I>>(base?: I): ListVersionsRequest {
+    return ListVersionsRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListVersionsRequest>, I>>(object: I): ListVersionsRequest {
+    const message = createBaseListVersionsRequest();
+    message.article_id = object.article_id ?? "";
+    message.state = object.state ?? "";
+    message.editor_id = object.editor_id ?? "";
+    message.page = (object.page !== undefined && object.page !== null)
+      ? PageRequest.fromPartial(object.page)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseListVersionsResponse(): ListVersionsResponse {
+  return { items: [], page: undefined };
+}
+
+export const ListVersionsResponse: MessageFns<ListVersionsResponse> = {
+  encode(message: ListVersionsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.items) {
+      ArticleVersion.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.page !== undefined) {
+      PageResponse.encode(message.page, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListVersionsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListVersionsResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.items.push(ArticleVersion.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.page = PageResponse.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListVersionsResponse {
+    return {
+      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => ArticleVersion.fromJSON(e)) : [],
+      page: isSet(object.page) ? PageResponse.fromJSON(object.page) : undefined,
+    };
+  },
+
+  toJSON(message: ListVersionsResponse): unknown {
+    const obj: any = {};
+    if (message.items?.length) {
+      obj.items = message.items.map((e) => ArticleVersion.toJSON(e));
+    }
+    if (message.page !== undefined) {
+      obj.page = PageResponse.toJSON(message.page);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListVersionsResponse>, I>>(base?: I): ListVersionsResponse {
+    return ListVersionsResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListVersionsResponse>, I>>(object: I): ListVersionsResponse {
+    const message = createBaseListVersionsResponse();
+    message.items = object.items?.map((e) => ArticleVersion.fromPartial(e)) || [];
+    message.page = (object.page !== undefined && object.page !== null)
+      ? PageResponse.fromPartial(object.page)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseQuestionInput(): QuestionInput {
+  return { prompt: "", options: {}, correct_key: "", weight: "" };
+}
+
+export const QuestionInput: MessageFns<QuestionInput> = {
+  encode(message: QuestionInput, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.prompt !== "") {
+      writer.uint32(10).string(message.prompt);
+    }
+    Object.entries(message.options).forEach(([key, value]) => {
+      QuestionInput_OptionsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    if (message.correct_key !== "") {
+      writer.uint32(26).string(message.correct_key);
+    }
+    if (message.weight !== "") {
+      writer.uint32(34).string(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QuestionInput {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseQuestionInput();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.prompt = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          const entry2 = QuestionInput_OptionsEntry.decode(reader, reader.uint32());
+          if (entry2.value !== undefined) {
+            message.options[entry2.key] = entry2.value;
+          }
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.correct_key = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.weight = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QuestionInput {
+    return {
+      prompt: isSet(object.prompt) ? globalThis.String(object.prompt) : "",
+      options: isObject(object.options)
+        ? Object.entries(object.options).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+          acc[key] = String(value);
+          return acc;
+        }, {})
+        : {},
+      correct_key: isSet(object.correct_key) ? globalThis.String(object.correct_key) : "",
+      weight: isSet(object.weight) ? globalThis.String(object.weight) : "",
+    };
+  },
+
+  toJSON(message: QuestionInput): unknown {
+    const obj: any = {};
+    if (message.prompt !== "") {
+      obj.prompt = message.prompt;
+    }
+    if (message.options) {
+      const entries = Object.entries(message.options);
+      if (entries.length > 0) {
+        obj.options = {};
+        entries.forEach(([k, v]) => {
+          obj.options[k] = v;
+        });
+      }
+    }
+    if (message.correct_key !== "") {
+      obj.correct_key = message.correct_key;
+    }
+    if (message.weight !== "") {
+      obj.weight = message.weight;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<QuestionInput>, I>>(base?: I): QuestionInput {
+    return QuestionInput.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<QuestionInput>, I>>(object: I): QuestionInput {
+    const message = createBaseQuestionInput();
+    message.prompt = object.prompt ?? "";
+    message.options = Object.entries(object.options ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
+    message.correct_key = object.correct_key ?? "";
+    message.weight = object.weight ?? "";
+    return message;
+  },
+};
+
+function createBaseQuestionInput_OptionsEntry(): QuestionInput_OptionsEntry {
+  return { key: "", value: "" };
+}
+
+export const QuestionInput_OptionsEntry: MessageFns<QuestionInput_OptionsEntry> = {
+  encode(message: QuestionInput_OptionsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QuestionInput_OptionsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseQuestionInput_OptionsEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QuestionInput_OptionsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: QuestionInput_OptionsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<QuestionInput_OptionsEntry>, I>>(base?: I): QuestionInput_OptionsEntry {
+    return QuestionInput_OptionsEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<QuestionInput_OptionsEntry>, I>>(object: I): QuestionInput_OptionsEntry {
+    const message = createBaseQuestionInput_OptionsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseUpsertQuizRequest(): UpsertQuizRequest {
+  return { quiz_id: "", article_id: "", title: "", pass_threshold: "", questions: [] };
+}
+
+export const UpsertQuizRequest: MessageFns<UpsertQuizRequest> = {
+  encode(message: UpsertQuizRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.quiz_id !== "") {
+      writer.uint32(10).string(message.quiz_id);
+    }
+    if (message.article_id !== "") {
+      writer.uint32(18).string(message.article_id);
+    }
+    if (message.title !== "") {
+      writer.uint32(26).string(message.title);
+    }
+    if (message.pass_threshold !== "") {
+      writer.uint32(34).string(message.pass_threshold);
+    }
+    for (const v of message.questions) {
+      QuestionInput.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpsertQuizRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpsertQuizRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.quiz_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.article_id = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.title = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.pass_threshold = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.questions.push(QuestionInput.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpsertQuizRequest {
+    return {
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
+      title: isSet(object.title) ? globalThis.String(object.title) : "",
+      pass_threshold: isSet(object.pass_threshold) ? globalThis.String(object.pass_threshold) : "",
+      questions: globalThis.Array.isArray(object?.questions)
+        ? object.questions.map((e: any) => QuestionInput.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: UpsertQuizRequest): unknown {
+    const obj: any = {};
+    if (message.quiz_id !== "") {
+      obj.quiz_id = message.quiz_id;
+    }
+    if (message.article_id !== "") {
+      obj.article_id = message.article_id;
+    }
+    if (message.title !== "") {
+      obj.title = message.title;
+    }
+    if (message.pass_threshold !== "") {
+      obj.pass_threshold = message.pass_threshold;
+    }
+    if (message.questions?.length) {
+      obj.questions = message.questions.map((e) => QuestionInput.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpsertQuizRequest>, I>>(base?: I): UpsertQuizRequest {
+    return UpsertQuizRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpsertQuizRequest>, I>>(object: I): UpsertQuizRequest {
+    const message = createBaseUpsertQuizRequest();
+    message.quiz_id = object.quiz_id ?? "";
+    message.article_id = object.article_id ?? "";
+    message.title = object.title ?? "";
+    message.pass_threshold = object.pass_threshold ?? "";
+    message.questions = object.questions?.map((e) => QuestionInput.fromPartial(e)) || [];
+    return message;
+  },
+};
+
 function createBaseListAttemptsRequest(): ListAttemptsRequest {
   return { user_id: "", quiz_id: "", page: undefined };
 }
@@ -2062,6 +2713,36 @@ export const LearningServiceService = {
     responseSerialize: (value: OpResult) => Buffer.from(OpResult.encode(value).finish()),
     responseDeserialize: (value: Buffer) => OpResult.decode(value),
   },
+  /**
+   * Trazabilidad histórica (FR-013): historial de un artículo, bandeja de revisión
+   * del coordinador (`state=en_revision`) y borradores propios de un editor
+   * (`editor_id`), según qué filtros vengan rellenos — todos opcionales, vacío ⇒ sin
+   * filtrar por ese campo (misma convención que `ListAttemptsRequest.quiz_id`).
+   */
+  listVersions: {
+    path: "/fintcart.learning.v1.LearningService/ListVersions",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: ListVersionsRequest) => Buffer.from(ListVersionsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => ListVersionsRequest.decode(value),
+    responseSerialize: (value: ListVersionsResponse) => Buffer.from(ListVersionsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => ListVersionsResponse.decode(value),
+  },
+  /**
+   * Cuestionarios del flujo editorial (FR-009): reemplazo COMPLETO del cuestionario y
+   * sus preguntas en una sola llamada, no un CRUD por pregunta — evita dejar un
+   * cuestionario a medio editar visible entre dos llamadas. `quiz_id` vacío crea uno
+   * nuevo.
+   */
+  upsertQuiz: {
+    path: "/fintcart.learning.v1.LearningService/UpsertQuiz",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: UpsertQuizRequest) => Buffer.from(UpsertQuizRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => UpsertQuizRequest.decode(value),
+    responseSerialize: (value: Quiz) => Buffer.from(Quiz.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => Quiz.decode(value),
+  },
   /** Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018). */
   listPublished: {
     path: "/fintcart.learning.v1.LearningService/ListPublished",
@@ -2133,6 +2814,20 @@ export interface LearningServiceServer extends UntypedServiceImplementation {
   /** Aprobación/publicación (FR-008): SOLO coordinador editorial y ≠ editor creador. */
   approveAndPublish: handleUnaryCall<ApprovePublishRequest, OpResult>;
   archive: handleUnaryCall<VersionRef, OpResult>;
+  /**
+   * Trazabilidad histórica (FR-013): historial de un artículo, bandeja de revisión
+   * del coordinador (`state=en_revision`) y borradores propios de un editor
+   * (`editor_id`), según qué filtros vengan rellenos — todos opcionales, vacío ⇒ sin
+   * filtrar por ese campo (misma convención que `ListAttemptsRequest.quiz_id`).
+   */
+  listVersions: handleUnaryCall<ListVersionsRequest, ListVersionsResponse>;
+  /**
+   * Cuestionarios del flujo editorial (FR-009): reemplazo COMPLETO del cuestionario y
+   * sus preguntas en una sola llamada, no un CRUD por pregunta — evita dejar un
+   * cuestionario a medio editar visible entre dos llamadas. `quiz_id` vacío crea uno
+   * nuevo.
+   */
+  upsertQuiz: handleUnaryCall<UpsertQuizRequest, Quiz>;
   /** Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018). */
   listPublished: handleUnaryCall<ListPublishedRequest, ListPublishedResponse>;
   getArticle: handleUnaryCall<ArticleRef, Article>;
@@ -2222,6 +2917,48 @@ export interface LearningServiceClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  /**
+   * Trazabilidad histórica (FR-013): historial de un artículo, bandeja de revisión
+   * del coordinador (`state=en_revision`) y borradores propios de un editor
+   * (`editor_id`), según qué filtros vengan rellenos — todos opcionales, vacío ⇒ sin
+   * filtrar por ese campo (misma convención que `ListAttemptsRequest.quiz_id`).
+   */
+  listVersions(
+    request: ListVersionsRequest,
+    callback: (error: ServiceError | null, response: ListVersionsResponse) => void,
+  ): ClientUnaryCall;
+  listVersions(
+    request: ListVersionsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: ListVersionsResponse) => void,
+  ): ClientUnaryCall;
+  listVersions(
+    request: ListVersionsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: ListVersionsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * Cuestionarios del flujo editorial (FR-009): reemplazo COMPLETO del cuestionario y
+   * sus preguntas en una sola llamada, no un CRUD por pregunta — evita dejar un
+   * cuestionario a medio editar visible entre dos llamadas. `quiz_id` vacío crea uno
+   * nuevo.
+   */
+  upsertQuiz(
+    request: UpsertQuizRequest,
+    callback: (error: ServiceError | null, response: Quiz) => void,
+  ): ClientUnaryCall;
+  upsertQuiz(
+    request: UpsertQuizRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Quiz) => void,
+  ): ClientUnaryCall;
+  upsertQuiz(
+    request: UpsertQuizRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Quiz) => void,
   ): ClientUnaryCall;
   /** Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018). */
   listPublished(

@@ -96,3 +96,147 @@ func (h *Handler) ApproveAndPublish(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, opToDTO(resp))
 }
+
+// CreateVersion ≡ `POST /editorial/articles/{articleId}/versions` (FR-013).
+//
+// Es `CreateDraft` con `article_id` relleno desde la URL: `learning.proto` documenta
+// que en ese caso `title`/`category` se ignoran (viven en `articles`, no por versión).
+// Ruta propia y no un campo opcional en `POST /editorial/articles` porque las dos
+// operaciones tienen identificadores de recurso distintos en la URL — una crea, la otra
+// versiona uno que ya existe — y REST los distingue por la ruta, no por el cuerpo.
+func (h *Handler) CreateVersion(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	var body UpdateDraftRequest
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	resp, err := h.clients.Learning.CreateDraft(r.Context(), &learningv1.CreateDraftRequest{
+		Body:      body.Body,
+		EditorId:  claims.UserID,
+		ArticleId: chi.URLParam(r, "articleId"),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, versionToDTO(resp))
+}
+
+// UpdateDraft ≡ `PATCH /editorial/versions/{versionId}` (FR-007).
+func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	var body UpdateDraftRequest
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	resp, err := h.clients.Learning.UpdateDraft(r.Context(), &learningv1.UpdateDraftRequest{
+		VersionId: chi.URLParam(r, "versionId"),
+		Body:      body.Body,
+		EditorId:  claims.UserID,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, versionToDTO(resp))
+}
+
+// ArchiveVersion ≡ `POST /editorial/versions/{versionId}/archive`.
+func (h *Handler) ArchiveVersion(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.clients.Learning.Archive(r.Context(), &learningv1.VersionRef{
+		VersionId: chi.URLParam(r, "versionId"),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, opToDTO(resp))
+}
+
+// ListVersions ≡ `GET /editorial/versions` (FR-013).
+//
+// Una sola ruta sirve tres vistas distintas según qué filtros llegan rellenos:
+// historial de un artículo (`article_id`), bandeja de revisión del coordinador
+// (`state=en_revision`) y borradores propios de un editor (`editor_id`) — la misma
+// consulta que ya resuelve `LearningService.ListVersions`.
+func (h *Handler) ListVersions(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.clients.Learning.ListVersions(r.Context(), &learningv1.ListVersionsRequest{
+		ArticleId: r.URL.Query().Get("article_id"),
+		State:     r.URL.Query().Get("state"),
+		EditorId:  r.URL.Query().Get("editor_id"),
+		Page:      pageRequestFrom(r),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	items := make([]ArticleVersion, 0, len(resp.GetItems()))
+	for _, v := range resp.GetItems() {
+		items = append(items, versionToDTO(v))
+	}
+	writeJSON(w, http.StatusOK, pageOf(items, resp.GetPage()))
+}
+
+// CreateQuiz ≡ `POST /editorial/quizzes` (FR-009, T162).
+func (h *Handler) CreateQuiz(w http.ResponseWriter, r *http.Request) {
+	var body UpsertQuizRequest
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	resp, err := h.clients.Learning.UpsertQuiz(r.Context(), &learningv1.UpsertQuizRequest{
+		ArticleId:     body.ArticleID,
+		Title:         body.Title,
+		PassThreshold: body.PassThreshold,
+		Questions:     questionInputsToProto(body.Questions),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, quizToDTO(resp))
+}
+
+// UpdateQuiz ≡ `PUT /editorial/quizzes/{quizId}` (FR-009, T162).
+//
+// `ArticleID` del cuerpo se ignora: `Aprendizaje` conserva el `article_id` original de
+// un cuestionario existente (ver el comentario de `UpsertQuizRequest` en el `.proto`).
+func (h *Handler) UpdateQuiz(w http.ResponseWriter, r *http.Request) {
+	var body UpsertQuizRequest
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	resp, err := h.clients.Learning.UpsertQuiz(r.Context(), &learningv1.UpsertQuizRequest{
+		QuizId:        chi.URLParam(r, "quizId"),
+		Title:         body.Title,
+		PassThreshold: body.PassThreshold,
+		Questions:     questionInputsToProto(body.Questions),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, quizToDTO(resp))
+}

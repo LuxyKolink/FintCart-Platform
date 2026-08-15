@@ -20,7 +20,7 @@ import (
 // listado repartido por diez archivos es donde se cuela una ruta editorial sin
 // comprobación de rol.
 //
-// Las rutas siguen `contracts/openapi/gateway.yaml`: **22 rutas y 23 operaciones**.
+// Las rutas siguen `contracts/openapi/gateway.yaml`: **28 rutas y 29 operaciones**.
 //
 // Los dos números conviene desglosarlos porque el contrato, tal como estaba escrito,
 // no los daba directamente. `paths:` declara 16 rutas y 17 operaciones —`/me/profile`
@@ -50,6 +50,16 @@ import (
 // cuestionarios y simulaciones en una sola respuesta (ver `me.go::GetPersonalData`)—;
 // y `UsersService.GetActivityReport` tenía RPC y capa de aplicación (T135) pero
 // ningún handler REST lo servía todavía.
+//
+// Las rutas 23–28 son el resto del flujo editorial que T055–T059 dejó sin exponer
+// (US4, T157–T166): `POST /editorial/articles/{articleId}/versions` (nueva versión de
+// un artículo existente, FR-013), `PATCH /editorial/versions/{versionId}` (editar un
+// borrador propio), `POST /editorial/versions/{versionId}/archive`,
+// `GET /editorial/versions` (historial/bandeja de revisión/borradores propios, según
+// filtros) y `POST /editorial/quizzes` + `PUT /editorial/quizzes/{quizId}` (FR-009).
+// Ninguna estaba en el contrato original: `CreateDraft`/`UpdateDraft` no llevaban
+// `article_id`, y `ListVersions`/`UpsertQuiz` no existían como RPC hasta esta
+// implementación (ver el comentario de esos mensajes en `learning.proto`).
 
 // Deps son las dependencias transversales del router.
 //
@@ -155,7 +165,18 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(RequireRole(RoleEditor, RoleCoordinadorEditoria))
 			r.Post("/editorial/articles", h.CreateDraft)
+			r.Post("/editorial/articles/{articleId}/versions", h.CreateVersion)
+			r.Patch("/editorial/versions/{versionId}", h.UpdateDraft)
 			r.Post("/editorial/versions/{versionId}/submit", h.SubmitForReview)
+			r.Post("/editorial/versions/{versionId}/archive", h.ArchiveVersion)
+			// Bandeja de revisión, historial de versiones y borradores propios
+			// (FR-013): las tres vistas comparten ruta y se distinguen por los
+			// parámetros de consulta (`state`, `article_id`, `editor_id`). No exige
+			// SOLO coordinador porque un editor también necesita ver sus propios
+			// borradores.
+			r.Get("/editorial/versions", h.ListVersions)
+			r.Post("/editorial/quizzes", h.CreateQuiz)
+			r.Put("/editorial/quizzes/{quizId}", h.UpdateQuiz)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(RequireRole(RoleCoordinadorEditoria))

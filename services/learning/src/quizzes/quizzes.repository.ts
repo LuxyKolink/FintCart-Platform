@@ -23,7 +23,7 @@ import type { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../common/database.module';
 import { parseCount, type Count } from '../common/counts';
 import { parseScore } from '../common/decimal-str';
-import { storageError } from '../common/errors';
+import { DomainError, notFound, storageError } from '../common/errors';
 import type { Page } from '../common/pagination';
 import { execTx } from '../common/tx';
 
@@ -57,6 +57,25 @@ export interface GradingKey {
   readonly passThreshold: Decimal;
   /** `question_id` → clave correcta y peso. */
   readonly answers: ReadonlyMap<string, { readonly correctKey: string; readonly weight: Decimal }>;
+}
+
+/** Una pregunta a escribir, con su clave de corrección (T162, flujo editorial). */
+export interface QuestionInput {
+  readonly prompt: string;
+  readonly options: Readonly<Record<string, string>>;
+  readonly correctKey: string;
+  /** Cadena decimal canónica — el llamador ya la validó con `parseScore`. */
+  readonly weight: string;
+}
+
+/** Reemplazo COMPLETO de un cuestionario (T162). `quizId` vacío ⇒ crear uno nuevo. */
+export interface UpsertQuizInput {
+  readonly quizId: string;
+  readonly articleId: string;
+  readonly title: string;
+  /** Cadena decimal canónica — el llamador ya la validó con `parseScore`. */
+  readonly passThreshold: string;
+  readonly questions: readonly QuestionInput[];
 }
 
 /** Intento persistido. */
@@ -173,6 +192,24 @@ SELECT id, attempt_no, score::text AS score, created_at
 const COUNT_ATTEMPTS_SQL = `
 SELECT count(*) AS total FROM quiz_attempts WHERE user_id = $1 AND ($2::uuid IS NULL OR quiz_id = $2::uuid)`;
 
+// `id` sale de `gen_random_uuid()` explícito y no del `DEFAULT` de la columna — ver el
+// comentario equivalente de `publishing.repository.ts::INSERT_ARTICLE_SQL`.
+const INSERT_QUIZ_SQL = `
+INSERT INTO quizzes (id, article_id, title, pass_threshold)
+VALUES (gen_random_uuid(), $1, $2, $3)
+RETURNING id, article_id`;
+
+const UPDATE_QUIZ_SQL = `
+UPDATE quizzes SET title = $2, pass_threshold = $3
+ WHERE id = $1
+RETURNING id, article_id`;
+
+const DELETE_QUESTIONS_SQL = `DELETE FROM questions WHERE quiz_id = $1`;
+
+const INSERT_QUESTION_SQL = `
+INSERT INTO questions (id, quiz_id, prompt, options, correct_key, weight, position)
+VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`;
+
 // ── filas ───────────────────────────────────────────────────────────────────
 
 interface QuizRow {
@@ -257,6 +294,88 @@ export class QuizzesRepository {
       };
     } catch (err) {
       throw storageError(`leer la clave de corrección del cuestionario ${quizId}`, err);
+    }
+  }
+
+  /**
+   * Reemplaza COMPLETO un cuestionario y sus preguntas (T162), en una transacción.
+   *
+   * Se BORRA e INSERTA de nuevo en lugar de un CRUD por pregunta: un cuestionario a
+   * medio editar —tres preguntas nuevas y dos viejas conviviendo— es peor que no poder
+   * editar una pregunta suelta, y el `position` de cada una queda exactamente en el
+   * orden del array de entrada sin tener que reconciliar índices.
+   *
+   * `quizId` vacío crea un cuestionario NUEVO; no vacío reemplaza uno existente y
+   * conserva su `article_id` (el de la entrada se ignora en ese caso — ver el
+   * comentario de `UpsertQuizRequest` en el `.proto`).
+   *
+   * @throws {DomainError} `not_found` si `quizId` no existe (al actualizar) o
+   *   `articleId` no existe (al crear); `storage` si alguna `correct_key` no está entre
+   *   las opciones de su pregunta (CHECK `questions_correct_key_in_options`).
+   */
+  public async upsertQuiz(input: UpsertQuizInput): Promise<Quiz> {
+    try {
+      return await execTx(this.pool, async (client: PoolClient) => {
+        const row =
+          input.quizId === ''
+            ? await client.query<{ id: string; article_id: string }>(INSERT_QUIZ_SQL, [
+                input.articleId,
+                input.title,
+                input.passThreshold,
+              ])
+            : await client.query<{ id: string; article_id: string }>(UPDATE_QUIZ_SQL, [
+                input.quizId,
+                input.title,
+                input.passThreshold,
+              ]);
+        const quiz = row.rows[0];
+        if (quiz === undefined) {
+          throw notFound(
+            input.quizId === '' ? `no existe el artículo ${input.articleId}` : `no existe el cuestionario ${input.quizId}`,
+          );
+        }
+
+        await client.query(DELETE_QUESTIONS_SQL, [quiz.id]);
+        for (const [index, question] of input.questions.entries()) {
+          await client.query(INSERT_QUESTION_SQL, [
+            quiz.id,
+            question.prompt,
+            JSON.stringify(question.options),
+            question.correctKey,
+            question.weight,
+            index + 1,
+          ]);
+        }
+
+        return {
+          quizId: quiz.id,
+          articleId: quiz.article_id,
+          title: input.title,
+          passThreshold: parseScore(input.passThreshold),
+          // Las preguntas se devuelven tal como se enviaron, SIN releerlas: el `INSERT`
+          // ya confirmó (dentro de esta misma transacción) que son válidas, y una
+          // relectura solo repetiría en otra consulta lo que este método ya sabe.
+          // `questionId` queda vacío porque `INSERT_QUESTION_SQL` no lo devuelve — el
+          // llamador (`UpsertQuiz` por gRPC) no lo necesita: quien edita un cuestionario
+          // vuelve a mandarlo completo la próxima vez, no por pregunta suelta.
+          questions: input.questions.map((q) => ({
+            questionId: '',
+            prompt: q.prompt,
+            options: Object.entries(q.options)
+              .map(([key, text]) => ({ key, text }))
+              .sort((a, b) => a.key.localeCompare(b.key)),
+            weight: parseScore(q.weight),
+          })),
+        };
+      });
+    } catch (err) {
+      if (err instanceof DomainError) {
+        throw err;
+      }
+      throw storageError(
+        input.quizId === '' ? `crear el cuestionario de ${input.articleId}` : `editar el cuestionario ${input.quizId}`,
+        err,
+      );
     }
   }
 

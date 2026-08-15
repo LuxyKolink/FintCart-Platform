@@ -25,6 +25,8 @@ const (
 	LearningService_SubmitForReview_FullMethodName      = "/fintcart.learning.v1.LearningService/SubmitForReview"
 	LearningService_ApproveAndPublish_FullMethodName    = "/fintcart.learning.v1.LearningService/ApproveAndPublish"
 	LearningService_Archive_FullMethodName              = "/fintcart.learning.v1.LearningService/Archive"
+	LearningService_ListVersions_FullMethodName         = "/fintcart.learning.v1.LearningService/ListVersions"
+	LearningService_UpsertQuiz_FullMethodName           = "/fintcart.learning.v1.LearningService/UpsertQuiz"
 	LearningService_ListPublished_FullMethodName        = "/fintcart.learning.v1.LearningService/ListPublished"
 	LearningService_GetArticle_FullMethodName           = "/fintcart.learning.v1.LearningService/GetArticle"
 	LearningService_GetQuiz_FullMethodName              = "/fintcart.learning.v1.LearningService/GetQuiz"
@@ -48,6 +50,16 @@ type LearningServiceClient interface {
 	// Aprobación/publicación (FR-008): SOLO coordinador editorial y ≠ editor creador.
 	ApproveAndPublish(ctx context.Context, in *ApprovePublishRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
 	Archive(ctx context.Context, in *VersionRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// Trazabilidad histórica (FR-013): historial de un artículo, bandeja de revisión
+	// del coordinador (`state=en_revision`) y borradores propios de un editor
+	// (`editor_id`), según qué filtros vengan rellenos — todos opcionales, vacío ⇒ sin
+	// filtrar por ese campo (misma convención que `ListAttemptsRequest.quiz_id`).
+	ListVersions(ctx context.Context, in *ListVersionsRequest, opts ...grpc.CallOption) (*ListVersionsResponse, error)
+	// Cuestionarios del flujo editorial (FR-009): reemplazo COMPLETO del cuestionario y
+	// sus preguntas en una sola llamada, no un CRUD por pregunta — evita dejar un
+	// cuestionario a medio editar visible entre dos llamadas. `quiz_id` vacío crea uno
+	// nuevo.
+	UpsertQuiz(ctx context.Context, in *UpsertQuizRequest, opts ...grpc.CallOption) (*Quiz, error)
 	// Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018).
 	ListPublished(ctx context.Context, in *ListPublishedRequest, opts ...grpc.CallOption) (*ListPublishedResponse, error)
 	GetArticle(ctx context.Context, in *ArticleRef, opts ...grpc.CallOption) (*Article, error)
@@ -113,6 +125,26 @@ func (c *learningServiceClient) Archive(ctx context.Context, in *VersionRef, opt
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(v1.OpResult)
 	err := c.cc.Invoke(ctx, LearningService_Archive_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *learningServiceClient) ListVersions(ctx context.Context, in *ListVersionsRequest, opts ...grpc.CallOption) (*ListVersionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListVersionsResponse)
+	err := c.cc.Invoke(ctx, LearningService_ListVersions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *learningServiceClient) UpsertQuiz(ctx context.Context, in *UpsertQuizRequest, opts ...grpc.CallOption) (*Quiz, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Quiz)
+	err := c.cc.Invoke(ctx, LearningService_UpsertQuiz_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +226,16 @@ type LearningServiceServer interface {
 	// Aprobación/publicación (FR-008): SOLO coordinador editorial y ≠ editor creador.
 	ApproveAndPublish(context.Context, *ApprovePublishRequest) (*v1.OpResult, error)
 	Archive(context.Context, *VersionRef) (*v1.OpResult, error)
+	// Trazabilidad histórica (FR-013): historial de un artículo, bandeja de revisión
+	// del coordinador (`state=en_revision`) y borradores propios de un editor
+	// (`editor_id`), según qué filtros vengan rellenos — todos opcionales, vacío ⇒ sin
+	// filtrar por ese campo (misma convención que `ListAttemptsRequest.quiz_id`).
+	ListVersions(context.Context, *ListVersionsRequest) (*ListVersionsResponse, error)
+	// Cuestionarios del flujo editorial (FR-009): reemplazo COMPLETO del cuestionario y
+	// sus preguntas en una sola llamada, no un CRUD por pregunta — evita dejar un
+	// cuestionario a medio editar visible entre dos llamadas. `quiz_id` vacío crea uno
+	// nuevo.
+	UpsertQuiz(context.Context, *UpsertQuizRequest) (*Quiz, error)
 	// Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018).
 	ListPublished(context.Context, *ListPublishedRequest) (*ListPublishedResponse, error)
 	GetArticle(context.Context, *ArticleRef) (*Article, error)
@@ -228,6 +270,12 @@ func (UnimplementedLearningServiceServer) ApproveAndPublish(context.Context, *Ap
 }
 func (UnimplementedLearningServiceServer) Archive(context.Context, *VersionRef) (*v1.OpResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Archive not implemented")
+}
+func (UnimplementedLearningServiceServer) ListVersions(context.Context, *ListVersionsRequest) (*ListVersionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListVersions not implemented")
+}
+func (UnimplementedLearningServiceServer) UpsertQuiz(context.Context, *UpsertQuizRequest) (*Quiz, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpsertQuiz not implemented")
 }
 func (UnimplementedLearningServiceServer) ListPublished(context.Context, *ListPublishedRequest) (*ListPublishedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListPublished not implemented")
@@ -353,6 +401,42 @@ func _LearningService_Archive_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LearningServiceServer).Archive(ctx, req.(*VersionRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LearningService_ListVersions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListVersionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).ListVersions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_ListVersions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).ListVersions(ctx, req.(*ListVersionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LearningService_UpsertQuiz_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertQuizRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).UpsertQuiz(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_UpsertQuiz_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).UpsertQuiz(ctx, req.(*UpsertQuizRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -491,6 +575,14 @@ var LearningService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Archive",
 			Handler:    _LearningService_Archive_Handler,
+		},
+		{
+			MethodName: "ListVersions",
+			Handler:    _LearningService_ListVersions_Handler,
+		},
+		{
+			MethodName: "UpsertQuiz",
+			Handler:    _LearningService_UpsertQuiz_Handler,
 		},
 		{
 			MethodName: "ListPublished",

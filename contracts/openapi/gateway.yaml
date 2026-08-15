@@ -317,6 +317,61 @@ paths:
       responses:
         '200': { description: Publicado }
         '403': { description: El coordinador no puede ser el editor creador (FR-008) }
+  /editorial/articles/{articleId}/versions:
+    post:
+      summary: Nueva versión en borrador de un artículo existente (FR-013, rol editor)
+      description: >
+        `title`/`category` no aplican: viven en el artículo y son compartidos por
+        todas sus versiones. `version_no` es estrictamente incremental.
+      parameters:
+        - { name: articleId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201': { description: Nueva versión en borrador creada }
+  /editorial/versions/{versionId}:
+    patch:
+      summary: Editar el cuerpo de un borrador propio (rol editor)
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Actualizado }
+        '404': { description: No existe, no es un borrador propio, o ya no está en borrador }
+  /editorial/versions/{versionId}/archive:
+    post:
+      summary: Archivar una versión publicada (rol editor o coordinador editorial)
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Archivado }
+  /editorial/versions:
+    get:
+      summary: Historial de versiones, bandeja de revisión o borradores propios (FR-013)
+      description: >
+        Una sola ruta con tres usos según qué filtros lleguen rellenos:
+        `article_id` (historial de un artículo), `state=en_revision` (bandeja del
+        coordinador) o `editor_id` (borradores propios).
+      parameters:
+        - { name: article_id, in: query, schema: { type: string, format: uuid } }
+        - { name: state, in: query, schema: { type: string, enum: [borrador, en_revision, publicado, archivado] } }
+        - { name: editor_id, in: query, schema: { type: string, format: uuid } }
+        - { name: page_size, in: query, schema: { type: integer } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Página de versiones }
+  /editorial/quizzes:
+    post:
+      summary: Crear un cuestionario para un artículo (FR-009, rol editor)
+      responses:
+        '201': { description: Cuestionario creado }
+  /editorial/quizzes/{quizId}:
+    put:
+      summary: Reemplazar completo un cuestionario existente y sus preguntas (FR-009)
+      description: >
+        Reemplazo COMPLETO, no un CRUD por pregunta: la petición manda todas las
+        preguntas que debe tener el cuestionario tras la llamada.
+      parameters:
+        - { name: quizId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Cuestionario actualizado }
 
   # --- Simulador (vía Orquestador para auditoría, D-03) ---
   /simulators/{calcType}/run:

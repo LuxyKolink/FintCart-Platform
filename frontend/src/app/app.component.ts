@@ -19,6 +19,12 @@ import { AuthService } from './core/auth/auth.service';
           <a routerLink="/simuladores">Simuladores</a>
           <a routerLink="/progreso">Tu progreso</a>
           <a routerLink="/notificaciones">Notificaciones</a>
+          @if (auth.hasRole('editor', 'coordinador_editorial')) {
+            <a routerLink="/editorial">Editorial</a>
+          }
+          @if (auth.hasRole('coordinador_editorial')) {
+            <a routerLink="/editorial/revision">Revisión</a>
+          }
           <a routerLink="/perfil">Tu perfil</a>
           <button type="button" class="fc-topbar__logout" (click)="onLogout()">Cerrar sesión</button>
         </nav>

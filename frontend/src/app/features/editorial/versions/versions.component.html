@@ -1,0 +1,45 @@
+<section>
+  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
+    <h1>{{ articleId() === null ? 'Mis borradores' : 'Historial de versiones' }}</h1>
+    @if (articleId() === null) {
+      <a class="fc-btn fc-btn--secondary" routerLink="/editorial">Nuevo artículo</a>
+    }
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <p>Cargando…</p>
+    }
+    @case ('error') {
+      <p class="fc-banner fc-banner--error">No pudimos cargar el historial. Intenta de nuevo.</p>
+    }
+    @case ('ready') {
+      @if (items().length === 0) {
+        <p>Todavía no hay versiones aquí.</p>
+      } @else {
+        <div style="display: flex; flex-direction: column; gap: var(--space-3)">
+          @for (v of items(); track v.version_id) {
+            <article class="fc-module">
+              <div class="fc-module-body" style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap">
+                <div>
+                  <p style="margin: 0"><strong>Versión {{ v.version_no }}</strong> — {{ v.state }}</p>
+                  <p class="fc-help" style="margin: 0">
+                    Creada {{ v.created_at | date: 'medium' }}
+                    @if (v.published_at) {
+                      · publicada {{ v.published_at | date: 'medium' }}
+                    }
+                  </p>
+                </div>
+                @if (v.state === 'borrador' && isMine(v)) {
+                  <a class="fc-btn fc-btn--secondary" [routerLink]="['/editorial/versiones', v.version_id]" [queryParams]="{ articleId: v.article_id }">
+                    Seguir editando
+                  </a>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+    }
+  }
+</section>

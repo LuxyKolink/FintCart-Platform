@@ -99,13 +99,33 @@ func quizToDTO(q *learningv1.Quiz) Quiz {
 
 func versionToDTO(v *learningv1.ArticleVersion) ArticleVersion {
 	return ArticleVersion{
-		VersionID:  v.GetVersionId(),
-		ArticleID:  v.GetArticleId(),
-		VersionNo:  v.GetVersionNo(),
-		State:      v.GetState(),
-		CreatedBy:  v.GetCreatedBy(),
-		ApprovedBy: v.GetApprovedBy(),
+		VersionID:   v.GetVersionId(),
+		ArticleID:   v.GetArticleId(),
+		VersionNo:   v.GetVersionNo(),
+		State:       v.GetState(),
+		CreatedBy:   v.GetCreatedBy(),
+		ApprovedBy:  v.GetApprovedBy(),
+		CreatedAt:   v.GetCreatedAt(),
+		PublishedAt: v.GetPublishedAt(),
+		Body:        v.GetBody(),
 	}
+}
+
+// questionInputsToProto ≡ `QuestionInput` (DTO, con `correct_key`) → `QuestionInput`
+// (proto). A diferencia del resto de este archivo, aquí SÍ cruza una clave correcta:
+// quien manda un `UpsertQuizRequest` es quien la escribió, y `GetQuiz`/`quizToDTO`
+// —la ruta de LECTURA— sigue sin devolverla nunca.
+func questionInputsToProto(items []QuestionInput) []*learningv1.QuestionInput {
+	out := make([]*learningv1.QuestionInput, 0, len(items))
+	for _, q := range items {
+		out = append(out, &learningv1.QuestionInput{
+			Prompt:     q.Prompt,
+			Options:    q.Options,
+			CorrectKey: q.CorrectKey,
+			Weight:     q.Weight,
+		})
+	}
+	return out
 }
 
 // quizGradeToDTO copia `score` SIN tocarlo (Principio VIII).

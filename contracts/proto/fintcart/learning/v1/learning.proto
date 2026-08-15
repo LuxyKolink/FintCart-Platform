@@ -17,6 +17,18 @@ service LearningService {
   rpc ApproveAndPublish(ApprovePublishRequest) returns (fintcart.common.v1.OpResult);
   rpc Archive(VersionRef) returns (fintcart.common.v1.OpResult);
 
+  // Trazabilidad histórica (FR-013): historial de un artículo, bandeja de revisión
+  // del coordinador (`state=en_revision`) y borradores propios de un editor
+  // (`editor_id`), según qué filtros vengan rellenos — todos opcionales, vacío ⇒ sin
+  // filtrar por ese campo (misma convención que `ListAttemptsRequest.quiz_id`).
+  rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
+
+  // Cuestionarios del flujo editorial (FR-009): reemplazo COMPLETO del cuestionario y
+  // sus preguntas en una sola llamada, no un CRUD por pregunta — evita dejar un
+  // cuestionario a medio editar visible entre dos llamadas. `quiz_id` vacío crea uno
+  // nuevo.
+  rpc UpsertQuiz(UpsertQuizRequest) returns (Quiz);
+
   // Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018).
   rpc ListPublished(ListPublishedRequest) returns (ListPublishedResponse);
   rpc GetArticle(ArticleRef) returns (Article);
@@ -45,6 +57,12 @@ message ArticleVersion {
   string state = 4; // borrador | en_revision | publicado | archivado
   string created_by = 5;
   string approved_by = 6; // vacío hasta aprobación; DEBE diferir de created_by
+  string created_at = 7;   // RFC-3339
+  string published_at = 8; // RFC-3339; vacío si no está publicada (FR-013)
+  // Presente en las cuatro respuestas (`CreateDraft`/`UpdateDraft`/`ApproveAndPublish`
+  // vía OpResult no aplica; `ListVersions` sí): reabrir un borrador propio para seguir
+  // editándolo exige poder leer su cuerpo actual, y no hay otro RPC que lo devuelva.
+  string body = 9;
 }
 
 message CreateDraftRequest {
@@ -52,6 +70,10 @@ message CreateDraftRequest {
   string category = 2;
   string body = 3;
   string editor_id = 4; // rol editor (FR-006)
+  // Vacío: crea un artículo NUEVO (con su versión 1). No vacío: crea una nueva versión
+  // en borrador de un artículo YA EXISTENTE (FR-013) — `title`/`category` se ignoran en
+  // ese caso, porque viven en `articles` y son compartidos por todas sus versiones.
+  string article_id = 5;
 }
 
 message UpdateDraftRequest {
@@ -119,6 +141,31 @@ message GradeResponse {
   int32 attempt_no = 2;
   string score = 3; // [decimal]
   bool passed = 4;
+}
+
+message ListVersionsRequest {
+  string article_id = 1; // vacío = cualquier artículo
+  string state = 2;      // vacío = cualquier estado
+  string editor_id = 3;  // vacío = cualquier editor (created_by)
+  fintcart.common.v1.PageRequest page = 4;
+}
+message ListVersionsResponse {
+  repeated ArticleVersion items = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}
+
+message QuestionInput {
+  string prompt = 1;
+  map<string, string> options = 2; // clave -> enunciado
+  string correct_key = 3;
+  string weight = 4; // [decimal]
+}
+message UpsertQuizRequest {
+  string quiz_id = 1;    // vacío = crear
+  string article_id = 2; // requerido al crear
+  string title = 3;
+  string pass_threshold = 4; // [decimal]
+  repeated QuestionInput questions = 5;
 }
 
 message ListAttemptsRequest {

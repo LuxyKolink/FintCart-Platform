@@ -127,10 +127,14 @@ func (f *fakeUsers) MarkNotificationRead(_ context.Context, in *usersv1.MarkRead
 type fakeLearning struct {
 	learningv1.LearningServiceClient
 
-	lastDraft   *learningv1.CreateDraftRequest
-	lastPublish *learningv1.ApprovePublishRequest
-	articles    *learningv1.ListPublishedResponse
-	attempts    *learningv1.ListAttemptsResponse
+	lastDraft    *learningv1.CreateDraftRequest
+	lastUpdate   *learningv1.UpdateDraftRequest
+	lastPublish  *learningv1.ApprovePublishRequest
+	lastVersions *learningv1.ListVersionsRequest
+	lastQuiz     *learningv1.UpsertQuizRequest
+	articles     *learningv1.ListPublishedResponse
+	attempts     *learningv1.ListAttemptsResponse
+	versions     *learningv1.ListVersionsResponse
 }
 
 func (f *fakeLearning) ListAttempts(_ context.Context, _ *learningv1.ListAttemptsRequest, _ ...grpc.CallOption) (*learningv1.ListAttemptsResponse, error) {
@@ -148,6 +152,32 @@ func (f *fakeLearning) CreateDraft(_ context.Context, in *learningv1.CreateDraft
 func (f *fakeLearning) ApproveAndPublish(_ context.Context, in *learningv1.ApprovePublishRequest, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
 	f.lastPublish = in
 	return &commonv1.OpResult{Success: true}, nil
+}
+
+func (f *fakeLearning) UpdateDraft(_ context.Context, in *learningv1.UpdateDraftRequest, _ ...grpc.CallOption) (*learningv1.ArticleVersion, error) {
+	f.lastUpdate = in
+	return &learningv1.ArticleVersion{VersionId: in.GetVersionId(), State: "borrador", CreatedBy: in.GetEditorId()}, nil
+}
+
+func (f *fakeLearning) Archive(_ context.Context, _ *learningv1.VersionRef, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
+	return &commonv1.OpResult{Success: true}, nil
+}
+
+func (f *fakeLearning) ListVersions(_ context.Context, in *learningv1.ListVersionsRequest, _ ...grpc.CallOption) (*learningv1.ListVersionsResponse, error) {
+	f.lastVersions = in
+	if f.versions == nil {
+		return &learningv1.ListVersionsResponse{}, nil
+	}
+	return f.versions, nil
+}
+
+func (f *fakeLearning) UpsertQuiz(_ context.Context, in *learningv1.UpsertQuizRequest, _ ...grpc.CallOption) (*learningv1.Quiz, error) {
+	f.lastQuiz = in
+	quizID := in.GetQuizId()
+	if quizID == "" {
+		quizID = "quiz-nuevo"
+	}
+	return &learningv1.Quiz{QuizId: quizID, ArticleId: in.GetArticleId(), Title: in.GetTitle(), PassThreshold: in.GetPassThreshold()}, nil
 }
 
 func (f *fakeLearning) ListPublished(_ context.Context, _ *learningv1.ListPublishedRequest, _ ...grpc.CallOption) (*learningv1.ListPublishedResponse, error) {
@@ -356,8 +386,14 @@ func TestProtectedRoutesRejectAnonymousRequests(t *testing.T) {
 		{http.MethodPatch, "/me/password"},
 		{http.MethodGet, "/me/data"},
 		{http.MethodPost, "/editorial/articles"},
+		{http.MethodPost, "/editorial/articles/a-1/versions"},
+		{http.MethodPatch, "/editorial/versions/v-1"},
 		{http.MethodPost, "/editorial/versions/v-1/submit"},
+		{http.MethodPost, "/editorial/versions/v-1/archive"},
 		{http.MethodPost, "/editorial/versions/v-1/publish"},
+		{http.MethodGet, "/editorial/versions"},
+		{http.MethodPost, "/editorial/quizzes"},
+		{http.MethodPut, "/editorial/quizzes/q-1"},
 	} {
 		rec := h.do(t, route.method, route.target, `{}`, false)
 		require.Equal(t, http.StatusUnauthorized, rec.Code,
@@ -420,6 +456,74 @@ func TestActorAlwaysComesFromTheToken(t *testing.T) {
 	rec = h.do(t, http.MethodPost, "/editorial/versions/v-1/publish", `{}`, true)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, testUserID, h.learning.lastPublish.GetCoordinatorId())
+}
+
+// TestCreateVersionSendsTheArticleIdFromTheURL cubre T161/FR-013: la nueva versión de
+// un artículo existente va con `article_id` de la URL y `editor_id` del token, nunca
+// del cuerpo.
+func TestCreateVersionSendsTheArticleIdFromTheURL(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, withRoles(handler.RoleEditor))
+
+	rec := h.do(t, http.MethodPost, "/editorial/articles/art-1/versions", `{"body":"nuevo cuerpo"}`, true)
+
+	require.Equal(t, http.StatusCreated, rec.Code)
+	require.Equal(t, "art-1", h.learning.lastDraft.GetArticleId())
+	require.Equal(t, testUserID, h.learning.lastDraft.GetEditorId())
+	require.Equal(t, "nuevo cuerpo", h.learning.lastDraft.GetBody())
+}
+
+// TestUpdateDraftSendsTheEditorFromTheToken cubre T157/FR-007.
+func TestUpdateDraftSendsTheEditorFromTheToken(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, withRoles(handler.RoleEditor))
+
+	rec := h.do(t, http.MethodPatch, "/editorial/versions/v-1", `{"body":"editado"}`, true)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "v-1", h.learning.lastUpdate.GetVersionId())
+	require.Equal(t, testUserID, h.learning.lastUpdate.GetEditorId())
+	require.Equal(t, "editado", h.learning.lastUpdate.GetBody())
+}
+
+// TestListVersionsForwardsTheQueryFilters cubre T166/FR-013: la misma ruta sirve
+// historial, bandeja de revisión y borradores propios según qué filtros lleguen.
+func TestListVersionsForwardsTheQueryFilters(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, withRoles(handler.RoleCoordinadorEditoria))
+	h.learning.versions = &learningv1.ListVersionsResponse{
+		Items: []*learningv1.ArticleVersion{{VersionId: "v-1", State: "en_revision"}},
+		Page:  &commonv1.PageResponse{TotalSize: 1},
+	}
+
+	rec := h.do(t, http.MethodGet, "/editorial/versions?state=en_revision", "", true)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "en_revision", h.learning.lastVersions.GetState())
+	require.Contains(t, rec.Body.String(), `"version_id":"v-1"`)
+}
+
+// TestUpsertQuizCreatesAndUpdates cubre T162/FR-009: `POST` crea (quiz_id vacío),
+// `PUT /{quizId}` actualiza uno existente y el `article_id` del cuerpo se ignora en
+// la actualización.
+func TestUpsertQuizCreatesAndUpdates(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, withRoles(handler.RoleEditor))
+
+	body := `{"article_id":"art-1","title":"t","pass_threshold":"60.00","questions":[
+		{"prompt":"p","options":{"a":"x","b":"y"},"correct_key":"a","weight":"1.00"}
+	]}`
+
+	rec := h.do(t, http.MethodPost, "/editorial/quizzes", body, true)
+	require.Equal(t, http.StatusCreated, rec.Code)
+	require.Equal(t, "", h.learning.lastQuiz.GetQuizId())
+	require.Equal(t, "art-1", h.learning.lastQuiz.GetArticleId())
+	require.Len(t, h.learning.lastQuiz.GetQuestions(), 1)
+	require.Equal(t, "a", h.learning.lastQuiz.GetQuestions()[0].GetCorrectKey())
+
+	rec = h.do(t, http.MethodPut, "/editorial/quizzes/quiz-1", body, true)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "quiz-1", h.learning.lastQuiz.GetQuizId())
 }
 
 // TestRevokedSessionIsRejectedImmediately cubre FR-004.
