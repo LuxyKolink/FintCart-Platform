@@ -67,6 +67,7 @@ export class GradingService {
     userId: string,
     quizId: string,
     answers: Readonly<Record<string, string>>,
+    idempotencyKey: string | null = null,
   ): Promise<GradeResult> {
     requireUuid('user_id', userId);
     requireUuid('quiz_id', quizId);
@@ -101,6 +102,7 @@ export class GradingService {
       // tramo (Principio VIII).
       format(score),
       answers,
+      idempotencyKey,
     );
 
     return {

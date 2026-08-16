@@ -214,6 +214,36 @@ func TestGradingSagaResumesWithoutDuplicatingTheInbox(t *testing.T) {
 	require.Equal(t, storer.StatusCompleted, store.row(t, onlySaga(t, store)).Status)
 }
 
+// TestGradingSagaRetriesTheGradingStepWithTheSameIdempotencyKey corta el avance
+// JUSTO DESPUÉS de que `Learning.GradeAndStoreAttempt` tuvo éxito — el primer avance,
+// antes de que `TestGradingSagaResumesWithoutApplyingTheScoreTwice` empiece a
+// interesarse por lo que pasa más adelante. Sin una clave de idempotencia ESTABLE
+// entre las dos llamadas, ese reintento dejaría un intento FANTASMA en el historial
+// del usuario (T176, SC-008, FR-016) — el mismo defecto que
+// `TestSimulationSagaRetriesTheComputeStepWithTheSameIdempotencyKey` corrigió del
+// lado del Simulador. Lo que se comprueba aquí es la mitad que le toca al
+// Orquestador; la otra mitad —que Aprendizaje de verdad dedupe por esa clave— la
+// cubre `quizzes.repository.spec.ts`.
+func TestGradingSagaRetriesTheGradingStepWithTheSameIdempotencyKey(t *testing.T) {
+	t.Parallel()
+	store, users, learning := newMemStore(), newFakeUsers(), newFakeLearning(gradeScore, true)
+	store.advanceFail, store.advanceErr = 1, errors.New("la base se cayó al confirmar el avance")
+
+	engine := newGradingEngine(store, users, learning)
+	_, err := runGrading(t, engine)
+	require.Error(t, err, "el avance no confirmado tiene que salir como error")
+	require.Equal(t, storer.StatusRunning, store.row(t, onlySaga(t, store)).Status)
+
+	require.NoError(t, engine.Resume(context.Background(), 10))
+	require.True(t, engine.Wait(waitTimeout))
+
+	require.Equal(t, storer.StatusCompleted, store.row(t, onlySaga(t, store)).Status)
+	require.Len(t, learning.requests, 2, "Do se repitió: el primer intento no llegó a confirmarse")
+	require.NotEmpty(t, learning.requests[0].GetIdempotencyKey())
+	require.Equal(t, learning.requests[0].GetIdempotencyKey(), learning.requests[1].GetIdempotencyKey(),
+		"las dos llamadas deben identificarse como el MISMO intento ante Aprendizaje")
+}
+
 // TestGradingSagaNeverErasesTheAttempt: el primer paso no tiene compensación, y eso es
 // una decisión, no un olvido.
 //

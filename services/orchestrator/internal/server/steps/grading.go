@@ -63,6 +63,13 @@ func GradingDefinition(c Clients) Definition {
 
 					resp, err := c.Learning.GradeAndStoreAttempt(ctx, &learningv1.GradeRequest{
 						UserId: userID, QuizId: quizID, Answers: answers,
+						// El `saga_id` es estable entre reintentos del MISMO paso (T176):
+						// si `GradeAndStoreAttempt` tiene éxito pero el motor no llega a
+						// confirmar el avance (`saga.go::run`, comentario junto a
+						// `advance`), la reanudación vuelve a llamar a este `Do` con la
+						// misma clave, y Aprendizaje devuelve el intento ya guardado en
+						// vez de dejar uno fantasma en el historial (FR-016).
+						IdempotencyKey: st.SagaID,
 					})
 					if err != nil {
 						return nil, fmt.Errorf("calificar el cuestionario %s de %s: %w", quizID, userID, err)

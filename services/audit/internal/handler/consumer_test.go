@@ -56,8 +56,13 @@ func (a *acks) Reject(tag uint64, requeue bool) error {
 }
 
 // fakeStore recuerda lo que se insertó y puede fallar a voluntad.
+//
+// Deduplica por `id` igual que el `ON CONFLICT (id, occurred_at) DO NOTHING` real
+// (`storer_postgres.go`): sin esto, una prueba de idempotencia contra el doble no
+// probaría nada, porque el doble aceptaría un duplicado que la base real descartaría.
 type fakeStore struct {
 	appended []storer.EntryRow
+	seen     map[string]bool
 	err      error
 }
 
@@ -65,6 +70,14 @@ func (f *fakeStore) Append(_ context.Context, e storer.EntryRow) error {
 	if f.err != nil {
 		return f.err
 	}
+	if f.seen == nil {
+		f.seen = make(map[string]bool)
+	}
+	key := e.ID.String() + "|" + e.OccurredAt.String()
+	if f.seen[key] {
+		return nil
+	}
+	f.seen[key] = true
 	f.appended = append(f.appended, e)
 	return nil
 }
@@ -240,4 +253,92 @@ func TestCancellationIsAnOrderlyStop(t *testing.T) {
 	cancel()
 
 	require.NoError(t, newTestConsumer(&fakeStore{}).Run(ctx, make(chan amqp.Delivery)))
+}
+
+// ── esquema de evento (productor): los 11 eventos del catálogo ────────────
+//
+// T172 (D-13). El consumidor de Auditoría es intencionalmente agnóstico al
+// `event_type` (registra CUALQUIER operación, ver `resultOf`): lo que hay que
+// verificar no es que reconozca cada evento, sino que los ONCE payloads que
+// `contracts/events/events-catalog.md` promete como esquema se acepten, se
+// almacenen íntegros en `context`, y que ningún campo decimal (`score`) cruce
+// como número JSON (Principio VIII) — un `float64` ahí sería un redondeo que
+// nadie notaría hasta una auditoría regulatoria.
+
+func TestAllElevenCatalogEventsAreAcceptedAndStored(t *testing.T) {
+	t.Parallel()
+
+	// Espejo de "Esquemas de payload (resumen)" en events-catalog.md. Los eventos
+	// sin sección propia (`user.email_verified`, `auth.security_alert`,
+	// `auth.session_revoked`) llevan el mínimo que su fila de la tabla implica.
+	cases := map[string]map[string]any{
+		"user.registered": {
+			"user_id": testActor, "email": "persona@ejemplo.co", "display_name": "Persona",
+			"verification_token": "tok-123", "verification_expires_at": "2026-01-01T00:00:00Z",
+		},
+		"user.email_verified":   {"user_id": testActor},
+		"auth.password_changed": {"user_id": testActor, "email": "persona@ejemplo.co", "changed_at": "2026-01-01T00:00:00Z"},
+		"auth.security_alert":   {"user_id": testActor, "reason": "logins_fallidos_repetidos"},
+		"auth.session_revoked":  {"user_id": testActor, "session_id": "s-1"},
+		"learning.article_published": {
+			"article_id": "a-1", "version_no": 3, "title": "T", "category": "ahorro",
+			"approved_by": "u-2", "created_by": "u-1",
+		},
+		"learning.quiz_graded": {
+			"user_id": testActor, "quiz_id": "q-1", "attempt_no": 2, "score": "85.00", "passed": true,
+		},
+		"user.progress_milestone": {"user_id": testActor, "type": "hito_progreso", "payload": map[string]any{"points": 320}},
+		"user.activity":           {"user_id": testActor, "type": "actividad", "payload": map[string]any{"points": 10}},
+		"simulation.executed":     {"user_id": testActor, "simulation_id": "s-1", "calc_type": "credito", "currency": "COP"},
+		"account.anonymized":      {"actor_ref": testActor, "anonymized_at": "2026-01-01T00:00:00Z"},
+	}
+	require.Len(t, cases, 11, "el catálogo declara exactamente 11 eventos")
+
+	for eventType, payload := range cases {
+		t.Run(eventType, func(t *testing.T) {
+			t.Parallel()
+			store, ack := &fakeStore{}, &acks{}
+			body := validEnvelope(t, func(e *Envelope) {
+				e.EventType = eventType
+				e.Payload = payload
+			})
+
+			newTestConsumer(store).handle(context.Background(), deliver(body, ack))
+
+			require.Len(t, store.appended, 1, "el evento se acepta y se almacena")
+			require.Equal(t, []uint64{7}, ack.acked)
+			require.Empty(t, ack.nacked)
+			require.Equal(t, eventType, store.appended[0].Operation)
+
+			var ctxJSON map[string]any
+			require.NoError(t, json.Unmarshal(store.appended[0].Context, &ctxJSON))
+			if score, ok := ctxJSON["score"]; ok {
+				require.IsType(t, "", score, "score debe cruzar como string decimal (Principio VIII)")
+			}
+		})
+	}
+}
+
+// ── consumo idempotente ─────────────────────────────────────────────────────
+
+// TestDuplicateDeliveryIsIdempotent: la entrega del outbox es AT-LEAST-ONCE
+// (research D-07), así que el mismo `event_id` puede llegar dos veces. Las dos
+// entregas deben confirmarse (ack) y solo la primera debe dejar una fila: es el
+// mismo `ON CONFLICT (id, occurred_at) DO NOTHING` que impone `storer_postgres.go`,
+// modelado aquí en el doble (ver `fakeStore.Append`).
+func TestDuplicateDeliveryIsIdempotent(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{}
+	body := validEnvelope(t, func(e *Envelope) { e.EventType = "learning.quiz_graded" })
+
+	first, second := &acks{}, &acks{}
+	consumer := newTestConsumer(store)
+	consumer.handle(context.Background(), deliver(body, first))
+	consumer.handle(context.Background(), deliver(body, second))
+
+	require.Len(t, store.appended, 1, "el duplicado no debe producir una segunda fila")
+	require.Equal(t, []uint64{7}, first.acked, "la primera entrega se confirma")
+	require.Equal(t, []uint64{7}, second.acked, "la segunda TAMBIÉN se confirma: el duplicado no es un fallo")
+	require.Empty(t, first.nacked)
+	require.Empty(t, second.nacked)
 }

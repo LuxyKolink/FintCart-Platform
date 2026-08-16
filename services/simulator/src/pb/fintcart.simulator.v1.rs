@@ -19,6 +19,14 @@ pub struct ComputeRequest {
         ::prost::alloc::string::String,
         ::prost::alloc::string::String,
     >,
+    /// Opcional. Si se repite la MISMA clave, `Compute` devuelve la fila ya
+    /// guardada en vez de insertar una segunda (T176): el motor de sagas del
+    /// Orquestador reintenta un paso cuyo avance no llegó a confirmarse, y sin
+    /// esta clave ese reintento duplicaría la simulación en el historial. Un
+    /// cliente directo (fuera de una saga) puede dejarla vacía; en ese caso cada
+    /// llamada inserta una fila nueva, como antes.
+    #[prost(string, tag = "5")]
+    pub idempotency_key: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ComputeResponse {

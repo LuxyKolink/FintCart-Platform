@@ -175,9 +175,22 @@ impl<R: Simulations> Service<R> {
         // reproducible el historial: si se guardara la versión canonicalizada, el
         // usuario vería en su historial una cifra distinta de la que escribió y no
         // podría contrastarla con lo que recordaba haber pedido.
+        // proto3 no distingue «ausente» de «vacío»: una clave vacía es tratada como
+        // «sin clave» (cada llamada inserta), igual que hace `currency::normalize` con
+        // la moneda por defecto más arriba.
+        let idempotency_key =
+            (!req.idempotency_key.is_empty()).then_some(req.idempotency_key.as_str());
+
         let row = self
             .repo
-            .insert(user_id, kind.as_db(), &currency, &req.inputs, &result)
+            .insert(
+                user_id,
+                kind.as_db(),
+                &currency,
+                &req.inputs,
+                &result,
+                idempotency_key,
+            )
             .await?;
 
         Ok(mapping::compute_response(&row))

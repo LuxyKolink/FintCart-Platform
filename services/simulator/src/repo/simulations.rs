@@ -71,6 +71,12 @@ pub struct HistoryPage {
 pub trait Simulations: Send + Sync + 'static {
     /// Persiste una simulación recién calculada.
     ///
+    /// `idempotency_key`: `None` inserta siempre una fila nueva (llamada directa, fuera
+    /// de una saga). `Some` repite lo que ya se guardó para esa clave en vez de
+    /// duplicar, para que un reintento del paso `simulator.compute` del Orquestador
+    /// (`saga.go::run`: "de ahí que Do deba ser idempotente") no infle el historial
+    /// (T176, SC-008).
+    ///
     /// # Errores
     ///
     /// [`Error::Storage`] si falla la escritura.
@@ -81,6 +87,7 @@ pub trait Simulations: Send + Sync + 'static {
         currency: &str,
         inputs: &HashMap<String, String>,
         result: &HashMap<String, String>,
+        idempotency_key: Option<&str>,
     ) -> Result<SimulationRow>;
 
     /// Devuelve una página del historial del usuario.
@@ -131,6 +138,7 @@ impl Simulations for PgSimulations {
         currency: &str,
         inputs: &HashMap<String, String>,
         result: &HashMap<String, String>,
+        idempotency_key: Option<&str>,
     ) -> Result<SimulationRow> {
         // Los argumentos se clonan para el futuro boxeado de `exec_tx`, que necesita
         // `'static`. Es una copia de dos mapas pequeños frente a una ida y vuelta a
@@ -139,11 +147,21 @@ impl Simulations for PgSimulations {
         let currency = currency.to_owned();
         let inputs = inputs.clone();
         let result = result.clone();
+        let idempotency_key = idempotency_key.map(str::to_owned);
 
         exec_tx(&self.pool, move |tx| {
-            Box::pin(
-                async move { insert(tx, user_id, &calc_type, &currency, &inputs, &result).await },
-            )
+            Box::pin(async move {
+                insert(
+                    tx,
+                    user_id,
+                    &calc_type,
+                    &currency,
+                    &inputs,
+                    &result,
+                    idempotency_key.as_deref(),
+                )
+                .await
+            })
         })
         .await
     }
@@ -181,10 +199,18 @@ const MAX_PAGE_SIZE: i32 = 100;
 /// los valores que la BASE asignó, y calcularlos aquí abriría la puerta a que el
 /// historial afirme un instante distinto del que quedó indexado.
 ///
+/// Con `idempotency_key = Some(_)`, repetir la misma clave no inserta una segunda
+/// fila: `ON CONFLICT ... DO NOTHING` no encuentra `RETURNING` que devolver, y en
+/// ese caso se relee la fila existente por su clave (T176). Sin clave (`None`), el
+/// índice único nunca puede entrar en conflicto —dos `NULL` no son iguales entre
+/// sí para un `UNIQUE`— así que el `INSERT` siempre tiene éxito y este es el único
+/// camino, igual que antes de esta columna.
+///
 /// # Errores
 ///
 /// [`Error::Storage`] si falla la escritura, incluido el rechazo de los CHECK del
-/// Principio VIII.
+/// Principio VIII, o si un conflicto de idempotencia no encuentra luego la fila que
+/// lo causó (inconsistencia que no debería ocurrir dentro de la misma transacción).
 pub async fn insert(
     tx: &mut Transaction<'static, Postgres>,
     user_id: Uuid,
@@ -192,11 +218,13 @@ pub async fn insert(
     currency: &str,
     inputs: &HashMap<String, String>,
     result: &HashMap<String, String>,
+    idempotency_key: Option<&str>,
 ) -> Result<SimulationRow> {
     let row = sqlx::query(
         r"
-        INSERT INTO simulations (user_id, calc_type, currency, inputs, result)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO simulations (user_id, calc_type, currency, inputs, result, idempotency_key)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (idempotency_key) DO NOTHING
         RETURNING id, created_at",
     )
     .bind(user_id)
@@ -204,19 +232,57 @@ pub async fn insert(
     .bind(currency)
     .bind(to_json(inputs))
     .bind(to_json(result))
-    .fetch_one(&mut **tx)
+    .bind(idempotency_key)
+    .fetch_optional(&mut **tx)
     .await
     .map_err(Error::from_sqlx)?;
 
-    Ok(SimulationRow {
-        id: row.try_get("id").map_err(Error::from_sqlx)?,
-        user_id,
-        calc_type: calc_type.to_owned(),
-        currency: currency.to_owned(),
-        inputs: inputs.clone(),
-        result: result.clone(),
-        created_at: row.try_get("created_at").map_err(Error::from_sqlx)?,
+    if let Some(row) = row {
+        return Ok(SimulationRow {
+            id: row.try_get("id").map_err(Error::from_sqlx)?,
+            user_id,
+            calc_type: calc_type.to_owned(),
+            currency: currency.to_owned(),
+            inputs: inputs.clone(),
+            result: result.clone(),
+            created_at: row.try_get("created_at").map_err(Error::from_sqlx)?,
+        });
+    }
+
+    let key = idempotency_key.ok_or_else(|| Error::Storage(sqlx::Error::RowNotFound))?;
+    by_idempotency_key(tx, key)
+        .await?
+        .ok_or_else(|| Error::Storage(sqlx::Error::RowNotFound))
+}
+
+/// Relee la fila que causó el conflicto de `ON CONFLICT ... DO NOTHING` de [`insert`].
+async fn by_idempotency_key(
+    tx: &mut Transaction<'static, Postgres>,
+    idempotency_key: &str,
+) -> Result<Option<SimulationRow>> {
+    let row = sqlx::query(
+        r"
+        SELECT id, user_id, calc_type, currency, inputs, result, created_at
+          FROM simulations
+         WHERE idempotency_key = $1",
+    )
+    .bind(idempotency_key)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(Error::from_sqlx)?;
+
+    row.map(|row| {
+        Ok(SimulationRow {
+            id: row.try_get("id").map_err(Error::from_sqlx)?,
+            user_id: row.try_get("user_id").map_err(Error::from_sqlx)?,
+            calc_type: row.try_get("calc_type").map_err(Error::from_sqlx)?,
+            currency: row.try_get("currency").map_err(Error::from_sqlx)?,
+            inputs: from_json(row.try_get("inputs").map_err(Error::from_sqlx)?)?,
+            result: from_json(row.try_get("result").map_err(Error::from_sqlx)?)?,
+            created_at: row.try_get("created_at").map_err(Error::from_sqlx)?,
+        })
     })
+    .transpose()
 }
 
 /// Lista el historial de un usuario, más recientes primero (FR-022).

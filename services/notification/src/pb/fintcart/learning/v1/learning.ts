@@ -129,6 +129,15 @@ export interface GradeRequest {
   quiz_id: string;
   /** question_id -> option_key */
   answers: { [key: string]: string };
+  /**
+   * Opcional. Si se repite la MISMA clave, `GradeAndStoreAttempt` devuelve el
+   * intento ya guardado en vez de crear uno nuevo (T176): el motor de sagas del
+   * Orquestador reintenta un paso cuyo avance no llegó a confirmarse, y sin esta
+   * clave ese reintento dejaría un intento fantasma en el historial (FR-016). Un
+   * cliente directo (fuera de una saga) puede dejarla vacía; cada llamada
+   * guarda un intento nuevo, como antes.
+   */
+  idempotency_key: string;
 }
 
 export interface GradeRequest_AnswersEntry {
@@ -1554,7 +1563,7 @@ export const Option: MessageFns<Option> = {
 };
 
 function createBaseGradeRequest(): GradeRequest {
-  return { user_id: "", quiz_id: "", answers: {} };
+  return { user_id: "", quiz_id: "", answers: {}, idempotency_key: "" };
 }
 
 export const GradeRequest: MessageFns<GradeRequest> = {
@@ -1568,6 +1577,9 @@ export const GradeRequest: MessageFns<GradeRequest> = {
     Object.entries(message.answers).forEach(([key, value]) => {
       GradeRequest_AnswersEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
     });
+    if (message.idempotency_key !== "") {
+      writer.uint32(34).string(message.idempotency_key);
+    }
     return writer;
   },
 
@@ -1605,6 +1617,14 @@ export const GradeRequest: MessageFns<GradeRequest> = {
           }
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.idempotency_key = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1624,6 +1644,7 @@ export const GradeRequest: MessageFns<GradeRequest> = {
           return acc;
         }, {})
         : {},
+      idempotency_key: isSet(object.idempotency_key) ? globalThis.String(object.idempotency_key) : "",
     };
   },
 
@@ -1644,6 +1665,9 @@ export const GradeRequest: MessageFns<GradeRequest> = {
         });
       }
     }
+    if (message.idempotency_key !== "") {
+      obj.idempotency_key = message.idempotency_key;
+    }
     return obj;
   },
 
@@ -1660,6 +1684,7 @@ export const GradeRequest: MessageFns<GradeRequest> = {
       }
       return acc;
     }, {});
+    message.idempotency_key = object.idempotency_key ?? "";
     return message;
   },
 };

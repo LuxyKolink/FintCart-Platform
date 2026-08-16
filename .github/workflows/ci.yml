@@ -58,10 +58,21 @@ jobs:
         with:
           version: latest
           working-directory: services/${{ matrix.service }}
-          args: --config=${{ github.workspace }}/.golangci.yml
+          # --build-tags=integration: sin efecto en los otros cuatro servicios (no
+          # tienen archivos con ese build tag); en Auditoría cubre
+          # postgres_integration_test.go, que de lo contrario el linter ignoraría.
+          args: --config=${{ github.workspace }}/.golangci.yml --build-tags=integration
       - name: Pruebas
         working-directory: services/${{ matrix.service }}
         run: go test -race -coverprofile=coverage.out ./...
+      - name: Pruebas de integración contra PostgreSQL real (T173/T174, testcontainers)
+        # Solo Auditoría: es el único servicio con pruebas bajo el build tag
+        # `integration` (inmutabilidad y particionado de audit_log — FR-025/FR-031),
+        # separadas de la suite rápida porque necesitan Docker de verdad, que
+        # ubuntu-latest trae preinstalado.
+        if: matrix.service == 'audit'
+        working-directory: services/audit
+        run: go test -tags=integration ./internal/storer/...
 
   # ───────────────────────────── Rust ─────────────────────────────────
   rust:
@@ -165,4 +176,32 @@ jobs:
               fail=1
             fi
           done
+          exit $fail
+      - name: Los comandos dev/... documentados existen, y todo verbo real está documentado
+        # T184: coherencia EXACTA entre README.md/quickstart.md y los scripts de dev/, en
+        # las dos direcciones — ni un comando citado que no exista, ni un verbo real que
+        # falte en la documentación. La lista de verbos se deriva de dev/ en tiempo de
+        # ejecución (no está copiada aquí a mano) para que no pueda quedar desactualizada.
+        run: |
+          fail=0
+          docs=(README.md specs/001-fintcart-platform/quickstart.md)
+          mapfile -t verbs < <(find dev -maxdepth 1 -type f -executable ! -name 'common.sh' -printf '%f\n' | sort)
+          echo "Verbos ejecutables en dev/: ${verbs[*]}"
+
+          referenced="$(grep -hoE 'dev/[A-Za-z][A-Za-z0-9_.-]*' "${docs[@]}" | sed 's#dev/##' | sort -u)"
+          while IFS= read -r ref; do
+            [[ -z "$ref" ]] && continue
+            if [[ ! -e "dev/$ref" ]]; then
+              echo "::error::la documentación cita 'dev/$ref', que no existe en dev/"
+              fail=1
+            fi
+          done <<< "$referenced"
+
+          for verb in "${verbs[@]}"; do
+            if ! grep -qE "dev/$verb\b" "${docs[@]}"; then
+              echo "::error::dev/$verb existe pero no aparece documentado en README.md ni quickstart.md"
+              fail=1
+            fi
+          done
+
           exit $fail

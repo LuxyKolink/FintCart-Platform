@@ -316,6 +316,9 @@ type fakeLearningSvc struct {
 	passed     bool
 	attempts   int
 	anonymized []string
+	// requests recuerda cada llamada a GradeAndStoreAttempt, para poder comprobar
+	// (T176) que un reintento del paso lleva la MISMA IdempotencyKey.
+	requests []*learningv1.GradeRequest
 
 	fail failures
 }
@@ -325,13 +328,15 @@ func newFakeLearning(score string, passed bool) *fakeLearningSvc {
 }
 
 func (f *fakeLearningSvc) GradeAndStoreAttempt(
-	_ context.Context, _ *learningv1.GradeRequest, _ ...grpc.CallOption,
+	_ context.Context, req *learningv1.GradeRequest, _ ...grpc.CallOption,
 ) (*learningv1.GradeResponse, error) {
 	if err := f.fail.check("GradeAndStoreAttempt"); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	f.requests = append(f.requests, req)
 
 	// El intento SIEMPRE se persiste, apruebe o no (FR-016), y el contador nunca
 	// retrocede: es lo que hace que «deshacer un intento» sea falsificar el historial

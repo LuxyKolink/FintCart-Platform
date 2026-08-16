@@ -162,6 +162,52 @@ describe('QuizzesRepository', () => {
     expect(second.attemptNo).toBe(2);
   });
 
+  // T176 (SC-008, FR-016): reproduce el reintento del motor de sagas del
+  // Orquestador —`GradeAndStoreAttempt` tuvo éxito, pero el avance no llegó a
+  // confirmarse, así que el paso se repite con la MISMA clave (`saga_id`).
+  it('repetir la misma clave de idempotencia devuelve el intento existente, no crea uno nuevo', async () => {
+    const { quizzes } = newFixture();
+
+    const first = await quizzes.storeAttempt(
+      IDS.user,
+      IDS.quiz,
+      IDS.article,
+      '50.00',
+      { [IDS.questionA]: 'a' },
+      'saga-77',
+    );
+    const second = await quizzes.storeAttempt(
+      IDS.user,
+      IDS.quiz,
+      IDS.article,
+      '50.00',
+      { [IDS.questionA]: 'a' },
+      'saga-77',
+    );
+
+    expect(second.attemptId).toBe(first.attemptId);
+    expect(second.attemptNo).toBe(first.attemptNo);
+
+    const page = await quizzes.listAttempts(IDS.user, IDS.quiz, { limit: 20, offset: 0 });
+    expect(page.total).toBe(1);
+  });
+
+  // Y el contraste: sin clave, dos llamadas siguen siendo dos intentos — el
+  // comportamiento de antes de T176 para quien no reintenta una saga.
+  it('sin clave de idempotencia, dos llamadas siguen creando dos intentos', async () => {
+    const { quizzes } = newFixture();
+
+    await quizzes.storeAttempt(IDS.user, IDS.quiz, IDS.article, '50.00', {
+      [IDS.questionA]: 'a',
+    });
+    await quizzes.storeAttempt(IDS.user, IDS.quiz, IDS.article, '50.00', {
+      [IDS.questionA]: 'a',
+    });
+
+    const page = await quizzes.listAttempts(IDS.user, IDS.quiz, { limit: 20, offset: 0 });
+    expect(page.total).toBe(2);
+  });
+
   it('un intento peor NO borra ni sustituye al anterior', async () => {
     const { quizzes } = newFixture();
 

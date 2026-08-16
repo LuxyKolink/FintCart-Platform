@@ -59,6 +59,12 @@ func SimulationDefinition(c Clients) Definition {
 						CalcType: simulatorv1.CalcType(calcType),
 						Currency: currency,
 						Inputs:   inputs,
+						// El `saga_id` es estable entre reintentos del MISMO paso (T176):
+						// si `Compute` tiene éxito pero el motor no llega a confirmar el
+						// avance (`saga.go::run`, comentario junto a `advance`), la
+						// reanudación vuelve a llamar a este `Do` con la misma clave, y el
+						// Simulador devuelve la fila ya guardada en vez de duplicarla.
+						IdempotencyKey: st.SagaID,
 					})
 					if err != nil {
 						return nil, fmt.Errorf("ejecutar la simulación de %s: %w", userID, err)

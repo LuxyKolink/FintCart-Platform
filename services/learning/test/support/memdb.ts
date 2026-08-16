@@ -69,7 +69,12 @@ CREATE TABLE quiz_attempts (
     score NUMERIC(6,2) NOT NULL,
     answers JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (user_id, quiz_id, attempt_no)
+    idempotency_key TEXT,
+    UNIQUE (user_id, quiz_id, attempt_no),
+    -- Igual que en la migración real (T176): un UNIQUE estándar no trata dos NULL
+    -- como iguales, así que las llamadas sin clave (la mayoría de las pruebas)
+    -- conviven sin conflicto sin necesitar un índice parcial.
+    UNIQUE (idempotency_key)
 );
 CREATE TABLE article_stats (
     article_id UUID PRIMARY KEY REFERENCES articles (id),

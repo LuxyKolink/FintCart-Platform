@@ -199,6 +199,42 @@ func TestSimulationSagaHasNoCompensation(t *testing.T) {
 	}
 }
 
+// ── at-least-once: la saga se interrumpe y se reanuda (T176, SC-008) ───────
+
+// TestSimulationSagaRetriesTheComputeStepWithTheSameIdempotencyKey corta el avance
+// JUSTO DESPUÉS de que `Simulator.Compute` tuvo éxito, exactamente el hueco que
+// `saga.go::run` documenta junto a `advance`: el paso no se compensa —la fila del
+// historial es lo que hay que conservar—, así que la reanudación vuelve a llamar a
+// `Do`. Sin una clave de idempotencia ESTABLE entre ambas llamadas, esa repetición
+// dejaría dos simulaciones por una sola acción del usuario (inflando FR-022 y el
+// `simulations_run` de `GetActivityReport`, N-02). Lo que se comprueba aquí es la
+// mitad que le toca al Orquestador: que las dos llamadas llevan la MISMA clave — la
+// otra mitad, que el Simulador de verdad dedupe por ella, la cubre
+// `compute_con_la_misma_clave_no_duplica_el_historial` en `tests/contract.rs`.
+func TestSimulationSagaRetriesTheComputeStepWithTheSameIdempotencyKey(t *testing.T) {
+	t.Parallel()
+	store := newMemStore()
+	sim := &fakeSimulator{result: map[string]string{"cuota_mensual": "634514.43"}}
+	// El PRIMER avance (1-based, ver memStore.AdvanceSaga) es el del primer paso
+	// (`simulator.compute`): fallarlo deja el evento de auditoría sin publicar y a
+	// la saga en `running`.
+	store.advanceFail, store.advanceErr = 1, errors.New("la base se cayó al confirmar el avance")
+
+	engine := newSimulationEngine(store, sim)
+	_, err := runSimulation(t, engine, creditInputs())
+	require.Error(t, err, "el avance no confirmado tiene que salir como error")
+	require.Equal(t, storer.StatusRunning, store.row(t, onlySaga(t, store)).Status)
+
+	require.NoError(t, engine.Resume(context.Background(), 10))
+	require.True(t, engine.Wait(waitTimeout))
+
+	require.Equal(t, storer.StatusCompleted, store.row(t, onlySaga(t, store)).Status)
+	require.Len(t, sim.requests, 2, "Do se repitió: el primer intento no llegó a confirmarse")
+	require.NotEmpty(t, sim.requests[0].GetIdempotencyKey())
+	require.Equal(t, sim.requests[0].GetIdempotencyKey(), sim.requests[1].GetIdempotencyKey(),
+		"las dos llamadas deben identificarse como el MISMO intento ante el Simulador")
+}
+
 // Un rechazo del Simulador —un monto no canónico, un plazo irrazonable— llega al
 // borde como error del CLIENTE y no como un 500.
 //

@@ -900,12 +900,19 @@ func (x *Option) GetText() string {
 }
 
 type GradeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	QuizId        string                 `protobuf:"bytes,2,opt,name=quiz_id,json=quizId,proto3" json:"quiz_id,omitempty"`
-	Answers       map[string]string      `protobuf:"bytes,3,rep,name=answers,proto3" json:"answers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // question_id -> option_key
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	UserId  string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	QuizId  string                 `protobuf:"bytes,2,opt,name=quiz_id,json=quizId,proto3" json:"quiz_id,omitempty"`
+	Answers map[string]string      `protobuf:"bytes,3,rep,name=answers,proto3" json:"answers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // question_id -> option_key
+	// Opcional. Si se repite la MISMA clave, `GradeAndStoreAttempt` devuelve el
+	// intento ya guardado en vez de crear uno nuevo (T176): el motor de sagas del
+	// Orquestador reintenta un paso cuyo avance no llegó a confirmarse, y sin esta
+	// clave ese reintento dejaría un intento fantasma en el historial (FR-016). Un
+	// cliente directo (fuera de una saga) puede dejarla vacía; cada llamada
+	// guarda un intento nuevo, como antes.
+	IdempotencyKey string `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GradeRequest) Reset() {
@@ -957,6 +964,13 @@ func (x *GradeRequest) GetAnswers() map[string]string {
 		return x.Answers
 	}
 	return nil
+}
+
+func (x *GradeRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type GradeResponse struct {
@@ -1552,11 +1566,12 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"\x06weight\x18\x04 \x01(\tR\x06weight\".\n" +
 	"\x06Option\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\"\xc7\x01\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"\xf0\x01\n" +
 	"\fGradeRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\aquiz_id\x18\x02 \x01(\tR\x06quizId\x12I\n" +
-	"\aanswers\x18\x03 \x03(\v2/.fintcart.learning.v1.GradeRequest.AnswersEntryR\aanswers\x1a:\n" +
+	"\aanswers\x18\x03 \x03(\v2/.fintcart.learning.v1.GradeRequest.AnswersEntryR\aanswers\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\x1a:\n" +
 	"\fAnswersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"{\n" +

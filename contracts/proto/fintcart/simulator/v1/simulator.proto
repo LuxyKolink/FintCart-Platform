@@ -40,6 +40,13 @@ message ComputeRequest {
   CalcType calc_type = 2;
   string currency = 3;              // default "COP" (FR-020)
   map<string, string> inputs = 4;   // [decimal] todos los montos/tasas como string
+  // Opcional. Si se repite la MISMA clave, `Compute` devuelve la fila ya
+  // guardada en vez de insertar una segunda (T176): el motor de sagas del
+  // Orquestador reintenta un paso cuyo avance no llegó a confirmarse, y sin
+  // esta clave ese reintento duplicaría la simulación en el historial. Un
+  // cliente directo (fuera de una saga) puede dejarla vacía; en ese caso cada
+  // llamada inserta una fila nueva, como antes.
+  string idempotency_key = 5;
 }
 
 message ComputeResponse {

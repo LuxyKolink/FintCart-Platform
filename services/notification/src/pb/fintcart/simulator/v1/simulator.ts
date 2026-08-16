@@ -84,6 +84,15 @@ export interface ComputeRequest {
   currency: string;
   /** [decimal] todos los montos/tasas como string */
   inputs: { [key: string]: string };
+  /**
+   * Opcional. Si se repite la MISMA clave, `Compute` devuelve la fila ya
+   * guardada en vez de insertar una segunda (T176): el motor de sagas del
+   * Orquestador reintenta un paso cuyo avance no llegó a confirmarse, y sin
+   * esta clave ese reintento duplicaría la simulación en el historial. Un
+   * cliente directo (fuera de una saga) puede dejarla vacía; en ese caso cada
+   * llamada inserta una fila nueva, como antes.
+   */
+  idempotency_key: string;
 }
 
 export interface ComputeRequest_InputsEntry {
@@ -194,7 +203,7 @@ export const UserRef: MessageFns<UserRef> = {
 };
 
 function createBaseComputeRequest(): ComputeRequest {
-  return { user_id: "", calc_type: 0, currency: "", inputs: {} };
+  return { user_id: "", calc_type: 0, currency: "", inputs: {}, idempotency_key: "" };
 }
 
 export const ComputeRequest: MessageFns<ComputeRequest> = {
@@ -211,6 +220,9 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
     Object.entries(message.inputs).forEach(([key, value]) => {
       ComputeRequest_InputsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
     });
+    if (message.idempotency_key !== "") {
+      writer.uint32(42).string(message.idempotency_key);
+    }
     return writer;
   },
 
@@ -256,6 +268,14 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
           }
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.idempotency_key = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -276,6 +296,7 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
           return acc;
         }, {})
         : {},
+      idempotency_key: isSet(object.idempotency_key) ? globalThis.String(object.idempotency_key) : "",
     };
   },
 
@@ -299,6 +320,9 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
         });
       }
     }
+    if (message.idempotency_key !== "") {
+      obj.idempotency_key = message.idempotency_key;
+    }
     return obj;
   },
 
@@ -316,6 +340,7 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
       }
       return acc;
     }, {});
+    message.idempotency_key = object.idempotency_key ?? "";
     return message;
   },
 };

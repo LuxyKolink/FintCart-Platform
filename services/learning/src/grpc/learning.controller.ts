@@ -100,6 +100,11 @@ export class LearningController {
           request.user_id ?? '',
           request.quiz_id ?? '',
           request.answers ?? {},
+          // proto3 no distingue «ausente» de «vacío»: sin clave, cada llamada
+          // guarda un intento nuevo, como antes de T176.
+          request.idempotency_key === undefined || request.idempotency_key === ''
+            ? null
+            : request.idempotency_key,
         ),
       ),
     );

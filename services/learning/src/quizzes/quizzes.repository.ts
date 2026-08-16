@@ -144,10 +144,26 @@ SELECT COALESCE(MAX(attempt_no), 0) + 1 AS next_no
   FROM quiz_attempts
  WHERE user_id = $1 AND quiz_id = $2`;
 
+/**
+ * `ON CONFLICT (idempotency_key) DO NOTHING`: si el motor de sagas del
+ * Orquestador reintenta este paso (avance no confirmado, T176), la clave ya
+ * reclamada por el intento ORIGINAL hace que este segundo `INSERT` no devuelva
+ * fila — [[QuizzesRepository.storeAttempt]] relee entonces la existente en vez
+ * de dejar un intento fantasma. Sin `idempotency_key` (`NULL`), el `INSERT`
+ * siempre tiene éxito y se comporta como antes de T176: un `UNIQUE` no considera
+ * dos `NULL` iguales entre sí, así que nunca hay conflicto que resolver. El índice
+ * no es parcial (`quiz_attempts_idempotency_key_unique`, sin `WHERE`) a propósito:
+ * `pg-mem` no soporta `ON CONFLICT (col) WHERE ... DO NOTHING`, y un índice
+ * parcial habría exigido esa cláusula para que Postgres infiriera el arbitraje.
+ */
 const INSERT_ATTEMPT_SQL = `
-INSERT INTO quiz_attempts (user_id, quiz_id, attempt_no, score, answers)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO quiz_attempts (user_id, quiz_id, attempt_no, score, answers, idempotency_key)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (idempotency_key) DO NOTHING
 RETURNING id, attempt_no`;
+
+const FIND_ATTEMPT_BY_IDEMPOTENCY_KEY_SQL = `
+SELECT id, attempt_no FROM quiz_attempts WHERE idempotency_key = $1`;
 
 /**
  * Recalcula los agregados del artículo desde los intentos reales (D-06).
@@ -242,8 +258,32 @@ interface AttemptRow {
 /** Código de PostgreSQL para violación de unicidad. */
 const UNIQUE_VIOLATION = '23505';
 
-/** Reintentos ante colisión de `attempt_no` entre intentos simultáneos. */
-const ATTEMPT_RETRIES: Count = 3;
+/**
+ * Reintentos ante colisión de `attempt_no` entre intentos simultáneos del MISMO
+ * usuario (T175, SC-005: hallazgo real de la prueba de carga).
+ *
+ * 3 —el valor original— bastaba para el caso que el comentario de
+ * [[NEXT_ATTEMPT_NO_SQL]] describe explícitamente: DOS intentos a la vez (dos
+ * pestañas, un reintento de red). Contra el fondo de cuentas de
+ * `k6-scenarios.js`, donde varios VU comparten a propósito una misma cuenta
+ * para no pagar el registro completo por cada uno (ver su comentario), la
+ * concurrencia por cuenta sube de 2 a varias decenas, y 3 reintentos sin ningún
+ * espaciado agotaban la cuota antes de que la carrera se resolviera: el
+ * `INSERT` de esta vuelta ve el `MAX` de la anterior, todavía sin confirmar, y
+ * vuelve a chocar. 10 reintentos con una espera exponencial corta y con
+ * fluctuación (`jitter`, [[backoff]]) resuelven eso reduciendo la probabilidad
+ * de que dos transacciones sigan compitiendo por la MISMA ventana en cada
+ * vuelta, sin convertir una colisión genuina en una espera larga para el caso
+ * normal de dos pestañas.
+ */
+const ATTEMPT_RETRIES: Count = 10;
+
+/** Duerme un intervalo corto y aleatorio antes de reintentar (ver `ATTEMPT_RETRIES`). */
+function backoff(attempt: Count): Promise<void> {
+  const baseMs: Count = Math.min(50 * 2 ** attempt, 400);
+  const jitterMs: Count = Math.random() * baseMs;
+  return new Promise((resolve) => setTimeout(resolve, jitterMs));
+}
 
 @Injectable()
 export class QuizzesRepository {
@@ -397,6 +437,7 @@ export class QuizzesRepository {
     articleId: string,
     score: string,
     answers: Readonly<Record<string, string>>,
+    idempotencyKey: string | null = null,
   ): Promise<StoredAttempt> {
     for (let attempt = 0; attempt < ATTEMPT_RETRIES; attempt += 1) {
       try {
@@ -407,14 +448,36 @@ export class QuizzesRepository {
           ]);
           const inserted = await client.query<{ id: string; attempt_no: Count }>(
             INSERT_ATTEMPT_SQL,
-            [userId, quizId, next.rows[0]?.next_no ?? 1, score, JSON.stringify(answers)],
+            [
+              userId,
+              quizId,
+              next.rows[0]?.next_no ?? 1,
+              score,
+              JSON.stringify(answers),
+              idempotencyKey,
+            ],
           );
           const row = inserted.rows[0];
           if (row === undefined) {
-            // `INSERT ... SELECT` sin filas es imposible aquí —el `SELECT` con
-            // agregado siempre devuelve una—, pero devolver un id vacío en silencio
-            // sería mucho peor que fallar.
-            throw storageError('registrar el intento', new Error('el INSERT no devolvió fila'));
+            // Sin fila: o el `INSERT ... SELECT` fallara sin lanzar (imposible, el
+            // agregado siempre devuelve una), o —el caso real— `idempotencyKey` ya
+            // estaba reclamado por un reintento anterior de esta MISMA saga (T176).
+            // Se relee el intento existente en vez de tratarlo como un fallo.
+            if (idempotencyKey === null) {
+              throw storageError('registrar el intento', new Error('el INSERT no devolvió fila'));
+            }
+            const existing = await client.query<{ id: string; attempt_no: Count }>(
+              FIND_ATTEMPT_BY_IDEMPOTENCY_KEY_SQL,
+              [idempotencyKey],
+            );
+            const found = existing.rows[0];
+            if (found === undefined) {
+              throw storageError(
+                'registrar el intento',
+                new Error('conflicto de idempotencia sin fila que leer'),
+              );
+            }
+            return { attemptId: found.id, attemptNo: found.attempt_no };
           }
 
           await client.query(REFRESH_ARTICLE_STATS_SQL, [articleId]);
@@ -427,6 +490,7 @@ export class QuizzesRepository {
         if (!isUniqueViolation(err) || attempt === ATTEMPT_RETRIES - 1) {
           throw err;
         }
+        await backoff(attempt);
       }
     }
 

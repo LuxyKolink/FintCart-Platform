@@ -228,6 +228,7 @@ describe('LearningService.GradeAndStoreAttempt', () => {
       user_id: IDS.user,
       quiz_id: IDS.quiz,
       answers: { [IDS.questionB]: 'b' },
+      idempotency_key: '',
     });
 
     expect(response.score).toBe('75');
@@ -243,6 +244,7 @@ describe('LearningService.GradeAndStoreAttempt', () => {
       user_id: IDS.user,
       quiz_id: IDS.quiz,
       answers: { [IDS.questionA]: 'a' },
+      idempotency_key: '',
     });
 
     // Excluir del denominador las preguntas en blanco convertiría dejarlas sin
@@ -258,6 +260,7 @@ describe('LearningService.GradeAndStoreAttempt', () => {
       user_id: IDS.user,
       quiz_id: IDS.quiz,
       answers: {},
+      idempotency_key: '',
     });
 
     // FR-016: se guarda TODO intento. Filtrar los reprobados dejaría un historial que
@@ -276,6 +279,7 @@ describe('LearningService.GradeAndStoreAttempt', () => {
         user_id: IDS.user,
         quiz_id: IDS.quiz,
         answers: { [MISSING_UUID]: 'a' },
+        idempotency_key: '',
       }),
       GrpcStatus.INVALID_ARGUMENT,
     );
@@ -295,6 +299,7 @@ describe('LearningService.ListAttempts', () => {
         user_id: IDS.user,
         quiz_id: IDS.quiz,
         answers,
+        idempotency_key: '',
       });
     }
 
@@ -311,7 +316,12 @@ describe('LearningService.ListAttempts', () => {
 
   it('`created_at` sale en RFC-3339 UTC', async () => {
     const { controller } = await newController();
-    await controller.gradeAndStoreAttempt({ user_id: IDS.user, quiz_id: IDS.quiz, answers: {} });
+    await controller.gradeAndStoreAttempt({
+      user_id: IDS.user,
+      quiz_id: IDS.quiz,
+      answers: {},
+      idempotency_key: '',
+    });
 
     const response = await controller.listAttempts({
       user_id: IDS.user,
@@ -327,7 +337,12 @@ describe('LearningService.ListAttempts', () => {
   it('el token de la página siguiente apunta al desplazamiento consumido', async () => {
     const { controller } = await newController();
     for (let i = 0; i < 3; i += 1) {
-      await controller.gradeAndStoreAttempt({ user_id: IDS.user, quiz_id: IDS.quiz, answers: {} });
+      await controller.gradeAndStoreAttempt({
+        user_id: IDS.user,
+        quiz_id: IDS.quiz,
+        answers: {},
+        idempotency_key: '',
+      });
     }
 
     const first = await controller.listAttempts({
@@ -345,9 +360,18 @@ describe('LearningService.ListAttempts', () => {
   // (FR-029) para contar/leer sin conocer cada `quiz_id` de antemano.
   it('quiz_id vacío lista los intentos de todos los cuestionarios', async () => {
     const { controller } = await newController();
-    await controller.gradeAndStoreAttempt({ user_id: IDS.user, quiz_id: IDS.quiz, answers: {} });
+    await controller.gradeAndStoreAttempt({
+      user_id: IDS.user,
+      quiz_id: IDS.quiz,
+      answers: {},
+      idempotency_key: '',
+    });
 
-    const response = await controller.listAttempts({ user_id: IDS.user, quiz_id: '', page: undefined });
+    const response = await controller.listAttempts({
+      user_id: IDS.user,
+      quiz_id: '',
+      page: undefined,
+    });
 
     expect(response.items).toHaveLength(1);
     expect(response.page?.total_size).toBe('1');
@@ -359,7 +383,12 @@ describe('LearningService.ListAttempts', () => {
 describe('LearningService.AnonymizeAttempts', () => {
   it('acepta un user_id válido y no borra el historial', async () => {
     const { controller } = await newController();
-    await controller.gradeAndStoreAttempt({ user_id: IDS.user, quiz_id: IDS.quiz, answers: {} });
+    await controller.gradeAndStoreAttempt({
+      user_id: IDS.user,
+      quiz_id: IDS.quiz,
+      answers: {},
+      idempotency_key: '',
+    });
 
     await expect(controller.anonymizeAttempts({ user_id: IDS.user })).resolves.toEqual({
       success: true,
@@ -379,6 +408,9 @@ describe('LearningService.AnonymizeAttempts', () => {
 
   it('rechaza un user_id que no es UUID', async () => {
     const { controller } = await newController();
-    await expectRpcCode(controller.anonymizeAttempts({ user_id: NOT_A_UUID }), GrpcStatus.INVALID_ARGUMENT);
+    await expectRpcCode(
+      controller.anonymizeAttempts({ user_id: NOT_A_UUID }),
+      GrpcStatus.INVALID_ARGUMENT,
+    );
   });
 });

@@ -135,6 +135,13 @@ message GradeRequest {
   string user_id = 1;
   string quiz_id = 2;
   map<string, string> answers = 3; // question_id -> option_key
+  // Opcional. Si se repite la MISMA clave, `GradeAndStoreAttempt` devuelve el
+  // intento ya guardado en vez de crear uno nuevo (T176): el motor de sagas del
+  // Orquestador reintenta un paso cuyo avance no llegó a confirmarse, y sin esta
+  // clave ese reintento dejaría un intento fantasma en el historial (FR-016). Un
+  // cliente directo (fuera de una saga) puede dejarla vacía; cada llamada
+  // guarda un intento nuevo, como antes.
+  string idempotency_key = 4;
 }
 message GradeResponse {
   string attempt_id = 1;

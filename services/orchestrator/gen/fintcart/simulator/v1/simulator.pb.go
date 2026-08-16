@@ -129,13 +129,20 @@ func (x *UserRef) GetUserId() string {
 }
 
 type ComputeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	CalcType      CalcType               `protobuf:"varint,2,opt,name=calc_type,json=calcType,proto3,enum=fintcart.simulator.v1.CalcType" json:"calc_type,omitempty"`
-	Currency      string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`                                                                       // default "COP" (FR-020)
-	Inputs        map[string]string      `protobuf:"bytes,4,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal] todos los montos/tasas como string
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	CalcType CalcType               `protobuf:"varint,2,opt,name=calc_type,json=calcType,proto3,enum=fintcart.simulator.v1.CalcType" json:"calc_type,omitempty"`
+	Currency string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`                                                                       // default "COP" (FR-020)
+	Inputs   map[string]string      `protobuf:"bytes,4,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal] todos los montos/tasas como string
+	// Opcional. Si se repite la MISMA clave, `Compute` devuelve la fila ya
+	// guardada en vez de insertar una segunda (T176): el motor de sagas del
+	// Orquestador reintenta un paso cuyo avance no llegó a confirmarse, y sin
+	// esta clave ese reintento duplicaría la simulación en el historial. Un
+	// cliente directo (fuera de una saga) puede dejarla vacía; en ese caso cada
+	// llamada inserta una fila nueva, como antes.
+	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ComputeRequest) Reset() {
@@ -194,6 +201,13 @@ func (x *ComputeRequest) GetInputs() map[string]string {
 		return x.Inputs
 	}
 	return nil
+}
+
+func (x *ComputeRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type ComputeResponse struct {
@@ -450,12 +464,13 @@ const file_fintcart_simulator_v1_simulator_proto_rawDesc = "" +
 	"\n" +
 	"%fintcart/simulator/v1/simulator.proto\x12\x15fintcart.simulator.v1\x1a\x1ffintcart/common/v1/common.proto\"\"\n" +
 	"\aUserRef\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x89\x02\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xb2\x02\n" +
 	"\x0eComputeRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12<\n" +
 	"\tcalc_type\x18\x02 \x01(\x0e2\x1f.fintcart.simulator.v1.CalcTypeR\bcalcType\x12\x1a\n" +
 	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x12I\n" +
-	"\x06inputs\x18\x04 \x03(\v21.fintcart.simulator.v1.ComputeRequest.InputsEntryR\x06inputs\x1a9\n" +
+	"\x06inputs\x18\x04 \x03(\v21.fintcart.simulator.v1.ComputeRequest.InputsEntryR\x06inputs\x12'\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x1a9\n" +
 	"\vInputsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xde\x01\n" +

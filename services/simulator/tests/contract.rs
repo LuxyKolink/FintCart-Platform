@@ -44,6 +44,8 @@ const USER: &str = "3f0f8b2e-2c53-4a2c-9f0a-1d2e3f4a5b6c";
 #[derive(Default, Clone)]
 struct FakeRepo {
     rows: Arc<Mutex<Vec<SimulationRow>>>,
+    /// `idempotency_key` → `id` de la fila que lo reclamó primero (T176).
+    keys: Arc<Mutex<HashMap<String, Uuid>>>,
     /// Fabrica el error con el que falla toda operación, si se configuró.
     ///
     /// Es una FÁBRICA y no un error guardado porque [`Error`] no es `Clone` —envuelve
@@ -57,6 +59,7 @@ impl FakeRepo {
     fn failing(make: impl Fn() -> Error + Send + Sync + 'static) -> Self {
         Self {
             rows: Arc::default(),
+            keys: Arc::default(),
             fail: Some(Arc::new(make)),
         }
     }
@@ -78,8 +81,26 @@ impl Simulations for FakeRepo {
         currency: &str,
         inputs: &HashMap<String, String>,
         result: &HashMap<String, String>,
+        idempotency_key: Option<&str>,
     ) -> Result<SimulationRow> {
         self.check()?;
+
+        // Espejo en memoria del `ON CONFLICT (idempotency_key) DO NOTHING` real
+        // (T176): con clave repetida, devuelve la fila ya guardada en vez de crear
+        // una segunda.
+        if let Some(key) = idempotency_key {
+            if let Some(existing) = self.keys.lock().unwrap().get(key).and_then(|id| {
+                self.rows
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .find(|r| r.id == *id)
+                    .cloned()
+            }) {
+                return Ok(existing);
+            }
+        }
+
         let row = SimulationRow {
             id: Uuid::new_v4(),
             user_id,
@@ -90,6 +111,9 @@ impl Simulations for FakeRepo {
             created_at: Utc::now(),
         };
         self.rows.lock().unwrap().push(row.clone());
+        if let Some(key) = idempotency_key {
+            self.keys.lock().unwrap().insert(key.to_owned(), row.id);
+        }
         Ok(row)
     }
 
@@ -175,6 +199,7 @@ fn credit_request() -> ComputeRequest {
         .into_iter()
         .map(|(k, v)| (k.to_owned(), v.to_owned()))
         .collect(),
+        idempotency_key: String::new(),
     }
 }
 
@@ -338,6 +363,45 @@ async fn compute_si_explica_que_parametro_esta_mal() {
         "el error debe nombrar el parámetro: {:?}",
         status.message()
     );
+}
+
+/// T176 (SC-008): reproduce el reintento del motor de sagas del Orquestador —el
+/// paso `simulator.compute` tuvo éxito, pero el avance no se confirmó, así que
+/// `Do` se vuelve a llamar con la MISMA `idempotency_key`. Sin la clave, esto
+/// habría dejado dos filas por una sola acción del usuario.
+#[tokio::test]
+async fn compute_con_la_misma_clave_no_duplica_el_historial() {
+    let repo = FakeRepo::default();
+    let mut client = start(repo.clone()).await;
+
+    let mut req = credit_request();
+    req.idempotency_key = "saga-77".to_owned();
+
+    let first = client.compute(req.clone()).await.unwrap().into_inner();
+    let second = client.compute(req).await.unwrap().into_inner();
+
+    assert_eq!(
+        first.simulation_id, second.simulation_id,
+        "la segunda llamada debe devolver la MISMA fila, no crear otra"
+    );
+    assert_eq!(
+        repo.rows.lock().unwrap().len(),
+        1,
+        "una sola fila en el historial pese a las dos llamadas"
+    );
+}
+
+/// Y el contraste: sin clave, dos llamadas siguen siendo dos simulaciones — el
+/// comportamiento de antes de T176 para quien no reintenta una saga.
+#[tokio::test]
+async fn compute_sin_clave_sigue_insertando_una_fila_por_llamada() {
+    let repo = FakeRepo::default();
+    let mut client = start(repo.clone()).await;
+
+    client.compute(credit_request()).await.unwrap();
+    client.compute(credit_request()).await.unwrap();
+
+    assert_eq!(repo.rows.lock().unwrap().len(), 2);
 }
 
 // ── ListHistory ─────────────────────────────────────────────────────────────
