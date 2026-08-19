@@ -1,0 +1,54 @@
+<!-- @dsCard group="Learner App" viewport="1440x900" name="Portal de aprendizaje" subtitle="Portal denso 2010 + Frutiger Aero, 3 columnas, sin scroll" -->
+<!-- @startingPoint section="Learner App" subtitle="Portal de aprendizaje (3 columnas, 1440x900)" viewport="1440x900" -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fintcart · Portal de aprendizaje</title>
+<link rel="icon" href="../../assets/logo/fintcart-eye.svg">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  #fit {
+    width: 100vw; height: 100vh; display: grid; place-items: center; overflow: hidden;
+    background:
+      radial-gradient(900px 600px at 12% 8%, rgba(238,155,0,0.16), transparent 60%),
+      radial-gradient(900px 700px at 88% 12%, rgba(106,31,176,0.14), transparent 60%),
+      radial-gradient(1000px 800px at 70% 100%, rgba(222,77,43,0.14), transparent 60%),
+      linear-gradient(160deg, #FBF8F2, #F2EAE0);
+  }
+  #stage {
+    width: 1440px; height: 900px; flex: none; position: relative; overflow: hidden;
+    transform-origin: center center;
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(28,24,21,0.22), 0 6px 20px rgba(28,24,21,0.12);
+    background:
+      radial-gradient(700px 500px at 18% 0%, rgba(248,213,113,0.30), transparent 55%),
+      radial-gradient(700px 600px at 100% 20%, rgba(192,160,236,0.28), transparent 55%),
+      radial-gradient(800px 600px at 60% 110%, rgba(241,176,155,0.30), transparent 55%),
+      linear-gradient(160deg, #FCF9F4, #F4ECE1);
+  }
+  #root { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage"><div id="root" style="display:grid;place-items:center;color:var(--text-faint);font-family:var(--font-sans)">Cargando Fintcart…</div></div></div>
+<script>
+  (function () {
+    var stage = document.getElementById('stage');
+    function fit() {
+      var s = Math.min(window.innerWidth / 1440, window.innerHeight / 900);
+      stage.style.transform = 'scale(' + s + ')';
+    }
+    window.addEventListener('resize', fit); fit();
+  })();
+</script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" src="portal.js"></script>
+</body>
+</html>

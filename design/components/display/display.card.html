@@ -1,0 +1,61 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Display" subtitle="Badge · Tag · Avatar · ProgressBar" -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { margin: 0; padding: 22px; background: var(--surface-page); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+  .lbl { font: var(--fw-bold) var(--fs-2xs)/1.4 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin: 0 0 9px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+  const { Badge, Tag, Avatar, ProgressBar } = window.FintCartDesignSystem_cf1e0c;
+  function Demo() {
+    return (
+      <div>
+        <p className="lbl">Badges — estados editoriales</p>
+        <div className="row">
+          <Badge tone="neutral">Borrador</Badge>
+          <Badge tone="warning">En revisión</Badge>
+          <Badge tone="success" variant="solid">Publicado</Badge>
+          <Badge tone="brand">Nuevo</Badge>
+          <Badge tone="info">v3</Badge>
+          <Badge tone="danger">Despublicado</Badge>
+        </div>
+        <p className="lbl">Tags — categorías del catálogo</p>
+        <div className="row">
+          <Tag color="var(--cat-ahorro)" active>Ahorro</Tag>
+          <Tag color="var(--cat-credito)">Crédito</Tag>
+          <Tag color="var(--cat-presupuesto)">Presupuesto</Tag>
+          <Tag color="var(--cat-inversion)">Inversión</Tag>
+          <Tag color="var(--cat-colombia)">Contexto Colombia</Tag>
+        </div>
+        <div className="row" style={{ gap: 20, alignItems: 'center' }}>
+          <div>
+            <p className="lbl">Avatares</p>
+            <div className="row" style={{ margin: 0 }}>
+              <Avatar name="Valentina Ríos" />
+              <Avatar name="Carlos Mejía" tone="var(--brand-primary)" />
+              <Avatar name="Editor" size={28} tone="var(--gold-500)" />
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <p className="lbl">Progreso</p>
+            <ProgressBar value={680} max={1000} label="Puntos de progreso" showValue />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>
