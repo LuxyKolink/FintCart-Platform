@@ -34,6 +34,17 @@ export interface Config {
    */
   readonly smtpRequireTls: boolean;
   /**
+   * Credenciales SMTP, si el relé las exige.
+   *
+   * Ausentes por defecto porque MailHog (el relé de desarrollo) no las pide. Un
+   * proveedor real como Gmail SÍ, y sin ellas `nodemailer` fallaría cada envío con un
+   * error de autenticación indistinguible de una contraseña mal copiada — de ahí que
+   * `loadConfig` exija que las dos aparezcan juntas o ninguna, en vez de dejar que una
+   * mitad ausente se descubra en el primer envío fallido.
+   */
+  readonly smtpUser?: string | undefined;
+  readonly smtpPassword?: string | undefined;
+  /**
    * Base pública de la SPA, sin barra final (p. ej. `https://app.fintcart.co`).
    *
    * Se usa para componer el enlace de verificación. Es configuración de DESPLIEGUE y
@@ -113,6 +124,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError(`faltan variables de entorno obligatorias: ${missing.join(', ')}`);
   }
 
+  const smtpUser = nonEmpty(env.SMTP_USER);
+  const smtpPassword = nonEmpty(env.SMTP_PASSWORD);
+  if ((smtpUser === undefined) !== (smtpPassword === undefined)) {
+    throw new ConfigError(
+      'SMTP_USER y SMTP_PASSWORD deben aparecer juntas o ninguna de las dos',
+    );
+  }
+
   return {
     dbAddr: required.DB_ADDR as string,
     amqpAddr: required.AMQP_ADDR as string,
@@ -120,6 +139,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     smtpAddr: required.SMTP_ADDR as string,
     smtpFrom: required.SMTP_FROM as string,
     smtpRequireTls: boolFlag(env.SMTP_REQUIRE_TLS, true, 'SMTP_REQUIRE_TLS'),
+    smtpUser,
+    smtpPassword,
     // La barra final se recorta aquí, una vez, en lugar de en cada plantilla: dos
     // sitios que compongan la URL acabarían discrepando en un `//` que unos
     // servidores toleran y otros no.
@@ -152,6 +173,17 @@ function positiveInt(raw: string | undefined, fallback: number, name: string): n
     throw new ConfigError(`${name} debe ser un entero positivo, no ${JSON.stringify(raw)}`);
   }
   return parsed;
+}
+
+/**
+ * Trata una variable ausente o vacía como no dada.
+ *
+ * Igual que en `SMTP_REQUIRE_TLS`, una variable declarada sin valor es lo que deja una
+ * plantilla de despliegue a medio rellenar — no debe distinguirse de no haberla
+ * escrito.
+ */
+function nonEmpty(raw: string | undefined): string | undefined {
+  return raw === undefined || raw === '' ? undefined : raw;
 }
 
 /**

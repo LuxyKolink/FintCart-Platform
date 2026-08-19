@@ -62,3 +62,30 @@ describe('SMTP_REQUIRE_TLS', () => {
     );
   });
 });
+
+describe('SMTP_USER / SMTP_PASSWORD', () => {
+  it('son opcionales cuando ninguna de las dos está (MailHog)', () => {
+    const config = loadConfig(baseEnv());
+    expect(config.smtpUser).toBeUndefined();
+    expect(config.smtpPassword).toBeUndefined();
+  });
+
+  it('se aceptan juntas', () => {
+    const config = loadConfig(
+      baseEnv({ SMTP_USER: 'no-reply@fintcart.co', SMTP_PASSWORD: 'app-password' }),
+    );
+    expect(config.smtpUser).toBe('no-reply@fintcart.co');
+    expect(config.smtpPassword).toBe('app-password');
+  });
+
+  it.each([
+    { SMTP_USER: 'no-reply@fintcart.co' },
+    { SMTP_PASSWORD: 'app-password' },
+  ])('rechaza que solo una de las dos esté presente (%j)', (overrides) => {
+    // Una credencial a medias no debe fallar en silencio en el primer envío: es más
+    // barato descubrirla en el arranque que en un correo de verificación perdido.
+    expect(() => loadConfig(baseEnv(overrides))).toThrow(
+      /SMTP_USER y SMTP_PASSWORD/,
+    );
+  });
+});

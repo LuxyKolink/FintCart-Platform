@@ -1,0 +1,142 @@
+# Nivel de DATOS de Fintcart, para la máquina SIN IP pública del despliegue en las
+# máquinas del colegio — "pg_fintcart2" pese al nombre, ver README.md §Máquinas.
+#
+# Aloja las 7 instancias PostgreSQL, Redis y RabbitMQ — nada más. La otra máquina
+# (deploy/vps/compose.app.yaml) aloja los 8 servicios y el frontend, y les llega por
+# red a los puertos publicados aquí. Ningún servicio de aplicación corre en esta
+# máquina, y ninguna base ni el broker corren en la otra: la separación es física, no
+# solo de configuración.
+#
+# Los 7 Postgres van UNO POR SERVICIO (Principio III): son procesos de motor
+# independientes, no una base compartida con 7 esquemas, así que no existe ninguna
+# credencial capaz de ver dos bases a la vez.
+#
+# Uso, en ESTA máquina:
+#   cp deploy/vps/.env.data.example deploy/vps/.env.data   # y rellenar contraseñas reales
+#   docker compose -f deploy/vps/compose.data.yaml --env-file deploy/vps/.env.data up -d
+#
+# Los puertos publicados DEBEN quedar restringidos por firewall a la IP de la máquina
+# de aplicación exclusivamente — ver README.md §Firewall. Publicarlos sin esa
+# restricción expone 7 bases y un broker directamente a Internet.
+
+name: fintcart-data
+
+networks:
+  fintcart-data:
+    driver: bridge
+
+x-postgres-common: &postgres-common
+  image: postgres:16-alpine
+  networks: [fintcart-data]
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U fintcart"]
+    interval: 5s
+    timeout: 3s
+    retries: 20
+
+services:
+  postgres-auth:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?falta PG_PASSWORD en .env.data}
+      POSTGRES_DB: auth_db
+    ports: ["5433:5432"]
+    volumes: [pg-auth:/var/lib/postgresql/data]
+
+  postgres-users:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?falta PG_PASSWORD en .env.data}
+      POSTGRES_DB: users_db
+    ports: ["5434:5432"]
+    volumes: [pg-users:/var/lib/postgresql/data]
+
+  postgres-learning:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?falta PG_PASSWORD en .env.data}
+      POSTGRES_DB: learning_db
+    ports: ["5435:5432"]
+    volumes: [pg-learning:/var/lib/postgresql/data]
+
+  postgres-simulator:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?falta PG_PASSWORD en .env.data}
+      POSTGRES_DB: simulator_db
+    ports: ["5436:5432"]
+    volumes: [pg-simulator:/var/lib/postgresql/data]
+
+  postgres-notification:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?falta PG_PASSWORD en .env.data}
+      POSTGRES_DB: notification_db
+    ports: ["5437:5432"]
+    volumes: [pg-notification:/var/lib/postgresql/data]
+
+  postgres-audit:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?falta PG_PASSWORD en .env.data}
+      POSTGRES_DB: audit_db
+    ports: ["5438:5432"]
+    volumes: [pg-audit:/var/lib/postgresql/data]
+
+  postgres-orchestrator:
+    <<: *postgres-common
+    environment:
+      POSTGRES_USER: fintcart
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?falta PG_PASSWORD en .env.data}
+      POSTGRES_DB: orchestrator_db
+    ports: ["5439:5432"]
+    volumes: [pg-orchestrator:/var/lib/postgresql/data]
+
+  # Sin contraseña (Principio IV: solo Auth y Gateway lo usan, para blacklist JWT y
+  # rate limiting — nada sensible por sí mismo). NO es un descuido: ni auth-server ni
+  # api-gateway saben hablar Redis con AUTH hoy (`redis.Options{Addr: ...}`, sin
+  # `Password`), así que activar `requirepass` aquí rompería el arranque de los dos
+  # con NOAUTH sin ningún cambio de código correspondiente. El control real es el
+  # firewall: ver README.md §Firewall.
+  redis:
+    image: redis:7.4-alpine
+    networks: [fintcart-data]
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.0-management-alpine
+    networks: [fintcart-data]
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: fintcart
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?falta RABBITMQ_PASSWORD en .env.data}
+    ports:
+      - "5672:5672"    # AMQP — la máquina de aplicación se conecta aquí
+      - "15672:15672"  # consola de administración — restringir en el firewall a tu propia IP, no a la de la app
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pg-auth:
+  pg-users:
+  pg-learning:
+  pg-simulator:
+  pg-notification:
+  pg-audit:
+  pg-orchestrator:

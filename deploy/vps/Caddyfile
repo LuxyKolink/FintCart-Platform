@@ -1,0 +1,22 @@
+# Borde HTTPS de la máquina de aplicación (pg_fintcart — la única con IP pública y DNS
+# asignados por el CTIC). Un solo dominio, enrutado por RUTA: HTTPS automático de
+# Caddy (Let's Encrypt) emite el certificado la primera vez que arranca.
+#
+# `/api/*` → Gateway, con el prefijo QUITADO antes de reenviar: el Gateway no conoce
+# `/api`, sus rutas son `/auth/...`, `/catalog/...`, etc. (contracts/openapi/gateway.yaml)
+# — así que `handle_path` (no `handle`) es el que hace falta, porque strip el prefijo
+# del match antes de pasar la petición.
+# Todo lo demás → frontend (el SPA resuelve su propio enrutado de cliente).
+#
+# Requiere que DOMAIN (deploy/vps/.env.app) tenga su registro DNS A apuntando a la IP
+# pública de ESTA máquina antes de arrancar Caddy, o la validación ACME falla.
+
+{$DOMAIN} {
+	handle_path /api/* {
+		reverse_proxy api-gateway:8080
+	}
+
+	handle {
+		reverse_proxy frontend:8080
+	}
+}

@@ -1,0 +1,176 @@
+# Nivel de APLICACIÓN de Fintcart, para la máquina CON IP pública del despliegue en las
+# máquinas del colegio — "pg_fintcart" pese al nombre, ver README.md §Máquinas.
+#
+# Aloja los 8 servicios, el frontend y Caddy (borde HTTPS). Ninguna base de datos ni
+# Redis ni RabbitMQ corren aquí: viven en la otra máquina (deploy/vps/compose.data.yaml)
+# y se llega a ellos por red mediante ${DATA_HOST}.
+#
+# Las imágenes se CONSTRUYEN en esta misma máquina a partir de los Dockerfile de
+# producción (`services/*/Dockerfile`, `frontend/Dockerfile` — multi-stage, sin
+# toolchain de build en la imagen final). No hay registro de contenedores de por
+# medio: para un despliegue puntual de proyecto de curso, construir una vez aquí es
+# más simple que operar un registro, aunque sea más lento que un `pull`.
+#
+# Uso, en ESTA máquina:
+#   cp deploy/vps/.env.app.example deploy/vps/.env.app   # y rellenar valores reales
+#   docker compose -f deploy/vps/compose.app.yaml --env-file deploy/vps/.env.app build
+#   docker compose -f deploy/vps/compose.app.yaml --env-file deploy/vps/.env.app up -d
+#
+# Solo Caddy publica puertos al host (80/443). Los 8 servicios y el frontend se hablan
+# entre sí por la red interna de Compose — no hace falta exponerlos para depurar desde
+# fuera; para eso usar `docker compose exec` o un túnel SSH puntual.
+
+name: fintcart-app
+
+networks:
+  fintcart-app:
+    driver: bridge
+
+x-service-common: &service-common
+  networks: [fintcart-app]
+  restart: unless-stopped
+
+services:
+  auth-server:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/auth-server/Dockerfile }
+    hostname: auth-server
+    environment:
+      DB_ADDR: "postgres://fintcart:${PG_PASSWORD:?falta PG_PASSWORD en .env.app}@${DATA_HOST:?falta DATA_HOST en .env.app}:5433/auth_db?sslmode=disable"
+      REDIS_ADDR: "${DATA_HOST}:6379"
+      AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD:?falta RABBITMQ_PASSWORD en .env.app}@${DATA_HOST}:5672/"
+      USERS_SVC_ADDR: "users:9090"
+      JWT_SIGNING_KEY: "${JWT_SIGNING_KEY:?falta JWT_SIGNING_KEY en .env.app}"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "info"
+
+  users:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/users/Dockerfile }
+    hostname: users
+    environment:
+      DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5434/users_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD}@${DATA_HOST}:5672/"
+      LEARNING_SVC_ADDR: "learning:9090"
+      SIMULATOR_SVC_ADDR: "simulator:9090"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "info"
+
+  learning:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/learning/Dockerfile }
+    hostname: learning
+    environment:
+      DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5435/learning_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD}@${DATA_HOST}:5672/"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "info"
+
+  simulator:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/simulator/Dockerfile }
+    hostname: simulator
+    environment:
+      DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5436/simulator_db?sslmode=disable"
+      GRPC_PORT: "9090"
+      RUST_LOG: "info,sqlx=warn"
+
+  orchestrator:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/orchestrator/Dockerfile }
+    hostname: orchestrator
+    environment:
+      DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5439/orchestrator_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD}@${DATA_HOST}:5672/"
+      AUTH_SVC_ADDR: "auth-server:9090"
+      USERS_SVC_ADDR: "users:9090"
+      LEARNING_SVC_ADDR: "learning:9090"
+      SIMULATOR_SVC_ADDR: "simulator:9090"
+      GRPC_PORT: "9090"
+      LOG_LEVEL: "info"
+
+  notification:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/notification/Dockerfile }
+    hostname: notification
+    environment:
+      DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5437/notification_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD}@${DATA_HOST}:5672/"
+      SMTP_ADDR: "${SMTP_ADDR:-smtp.gmail.com:587}"
+      SMTP_FROM: "${SMTP_FROM:?falta SMTP_FROM en .env.app}"
+      SMTP_USER: "${SMTP_USER:?falta SMTP_USER en .env.app}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:?falta SMTP_PASSWORD en .env.app (contraseña de aplicación de Gmail, no la contraseña normal)}"
+      SMTP_REQUIRE_TLS: "true"
+      APP_BASE_URL: "https://${DOMAIN:?falta DOMAIN en .env.app}"
+      MAX_ATTEMPTS: "3"
+      DISPATCH_INTERVAL_MS: "5000"
+      LOG_LEVEL: "info"
+
+  audit:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/audit/Dockerfile }
+    hostname: audit
+    environment:
+      DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5438/audit_db?sslmode=disable"
+      AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD}@${DATA_HOST}:5672/"
+      LOG_LEVEL: "info"
+
+  api-gateway:
+    <<: *service-common
+    build: { context: ../.., dockerfile: services/api-gateway/Dockerfile }
+    hostname: api-gateway
+    environment:
+      REDIS_ADDR: "${DATA_HOST}:6379"
+      AUTH_SVC_ADDR: "auth-server:9090"
+      USERS_SVC_ADDR: "users:9090"
+      LEARNING_SVC_ADDR: "learning:9090"
+      SIMULATOR_SVC_ADDR: "simulator:9090"
+      ORCHESTRATOR_SVC_ADDR: "orchestrator:9090"
+      JWT_SIGNING_KEY: "${JWT_SIGNING_KEY}"
+      HTTP_PORT: "8080"
+      # Puerto aparte para sondas: por defecto coincide con HTTP_PORT y una de las dos
+      # pierde la carrera de bind (ver el comentario homólogo en dev/docker-compose.yaml).
+      HEALTH_PORT: "8081"
+      RATE_LIMIT_RPM: "${RATE_LIMIT_RPM:-600}"
+      CORS_ALLOWED_ORIGINS: "https://${DOMAIN}"
+      LOG_LEVEL: "info"
+    depends_on:
+      auth-server: { condition: service_started }
+      users: { condition: service_started }
+      learning: { condition: service_started }
+      simulator: { condition: service_started }
+      orchestrator: { condition: service_started }
+
+  frontend:
+    <<: *service-common
+    build: { context: ../.., dockerfile: frontend/Dockerfile }
+    hostname: frontend
+    environment:
+      # URL PÚBLICA bajo /api: no puede ser el hostname interno de Compose
+      # (`api-gateway`), que no resuelve fuera de la red, y no es un subdominio propio
+      # porque solo hay UN dominio asignado — Caddy enruta `/api/*` a este mismo
+      # Gateway quitando el prefijo (ver Caddyfile).
+      API_BASE_URL: "https://${DOMAIN:?falta DOMAIN en .env.app}/api"
+    depends_on:
+      api-gateway: { condition: service_started }
+
+  caddy:
+    image: caddy:2-alpine
+    networks: [fintcart-app]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN:?falta DOMAIN en .env.app}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend: { condition: service_started }
+      api-gateway: { condition: service_started }
+
+volumes:
+  caddy-data:
+  caddy-config:

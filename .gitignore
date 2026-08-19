@@ -14,6 +14,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+!deploy/vps/.env.data.example
+!deploy/vps/.env.app.example
 *.pem
 *.key
 !**/testdata/*.key

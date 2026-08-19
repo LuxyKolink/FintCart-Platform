@@ -22,6 +22,9 @@ export interface SMTPOptions {
    * el 1025) no ofrece STARTTLS y la deducción lo daba por supuesto.
    */
   readonly requireTls: boolean;
+  /** Credenciales SMTP, si el relé las exige (ausentes para MailHog). */
+  readonly user?: string | undefined;
+  readonly password?: string | undefined;
 }
 
 /** Puerto SMTP por defecto si `SMTP_ADDR` no lo incluye. */
@@ -44,6 +47,10 @@ export class SMTPMailer implements Mailer {
       // puertos, que es una decisión de despliegue.
       secure: port === 465,
       requireTLS: port !== 465 && options.requireTls,
+      // `undefined` y no un objeto con campos vacíos: nodemailer intenta AUTH LOGIN en
+      // cuanto `auth` existe, y MailHog no lo soporta — un objeto `{}` rompería el
+      // relé de desarrollo que hoy funciona sin credenciales.
+      auth: options.user !== undefined ? { user: options.user, pass: options.password } : undefined,
       // Una conexión SMTP colgada bloquearía un hueco de concurrencia del despachador
       // indefinidamente. Con plazo, el envío falla, cuenta como intento y se reintenta.
       connectionTimeout: 10_000,

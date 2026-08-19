@@ -65,6 +65,8 @@ async function main(): Promise<void> {
     addr: config.smtpAddr,
     from: config.smtpFrom,
     requireTls: config.smtpRequireTls,
+    user: config.smtpUser,
+    password: config.smtpPassword,
   });
   const metrics = new Metrics();
 

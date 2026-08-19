@@ -40,8 +40,12 @@ prohibición en un acuerdo de caballeros.
 | `fintcart-learning-secrets` | learning | `DB_ADDR`, `AMQP_ADDR` |
 | `fintcart-simulator-secrets` | simulator | `DB_ADDR` |
 | `fintcart-orchestrator-secrets` | orchestrator | `DB_ADDR`, `AMQP_ADDR` |
-| `fintcart-notification-secrets` | notification | `DB_ADDR`, `AMQP_ADDR`, `SMTP_ADDR`, `SMTP_FROM` |
+| `fintcart-notification-secrets` | notification | `DB_ADDR`, `AMQP_ADDR`, `SMTP_ADDR`, `SMTP_FROM`, `SMTP_USER`\*, `SMTP_PASSWORD`\* |
 | `fintcart-audit-secrets` | audit | `DB_ADDR`, `AMQP_ADDR` |
+
+\* `SMTP_USER`/`SMTP_PASSWORD` son opcionales: ausentes las dos, el transporte no
+autentica (el caso de un relé como MailHog); un proveedor real como Gmail las exige y
+`loadConfig` rechaza el arranque si solo una de las dos está.
 
 El Simulador no tiene `AMQP_ADDR` y eso es diseño, no un olvido: **no es productor de
 eventos** (research D-03). Sus operaciones las audita el Orquestador, que es quien lo
