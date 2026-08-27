@@ -1,0 +1,48 @@
+.fc-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fc-progress__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.fc-progress__label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+.fc-progress__value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-progress__track {
+  background: var(--surface-inset);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.fc-progress__track[data-size='sm'] { height: 6px; }
+.fc-progress__track[data-size='md'] { height: 10px; }
+.fc-progress__track[data-size='lg'] { height: 14px; }
+
+.fc-progress__fill {
+  height: 100%;
+  background: var(--brand-accent);
+  border-radius: var(--radius-pill);
+  transition: width var(--dur-slow) var(--ease-out);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.fc-progress__fill[data-tone='primary'] { background: var(--brand-primary); }
+.fc-progress__fill[data-tone='success'] { background: var(--success); }
+.fc-progress__fill[data-tone='warning'] { background: var(--warning); }
+.fc-progress__fill[data-tone='danger'] { background: var(--danger); }

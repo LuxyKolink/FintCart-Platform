@@ -1,0 +1,37 @@
+.fc-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-bold);
+  overflow: hidden;
+  flex: none;
+  border: 2px solid var(--surface-card);
+  box-shadow: 0 0 0 1px var(--border-default);
+}
+
+.fc-avatar[data-size='sm'] { width: 24px; height: 24px; font-size: 10px; }
+.fc-avatar[data-size='md'] { width: 36px; height: 36px; font-size: 14px; }
+.fc-avatar[data-size='lg'] { width: 48px; height: 48px; font-size: 19px; }
+.fc-avatar[data-size='xl'] { width: 64px; height: 64px; font-size: 26px; }
+
+.fc-avatar[data-tone='primary'] { background: var(--brand-interactive); }
+.fc-avatar[data-tone='brand'] { background: var(--brand-primary); }
+.fc-avatar[data-tone='accent'] { background: var(--brand-accent); color: var(--warm-900); }
+.fc-avatar[data-tone='success'] { background: var(--success); }
+.fc-avatar[data-tone='warning'] { background: var(--warning); }
+.fc-avatar[data-tone='danger'] { background: var(--danger); }
+.fc-avatar[data-tone='info'] { background: var(--info); }
+.fc-avatar[data-tone='neutral'] { background: var(--warm-700); }
+
+.fc-avatar--image {
+  background: transparent;
+}
+
+.fc-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

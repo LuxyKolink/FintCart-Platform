@@ -1,0 +1,26 @@
+.fc-card {
+  display: block;
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition:
+    box-shadow var(--dur-base),
+    transform var(--dur-base),
+    border-color var(--dur-base);
+}
+
+.fc-card--padded {
+  padding: var(--space-4);
+}
+
+.fc-card--interactive {
+  cursor: pointer;
+}
+
+.fc-card--interactive:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}

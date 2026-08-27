@@ -1,0 +1,54 @@
+.fc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-card);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1.6;
+  transition: all var(--dur-fast);
+}
+
+.fc-tag:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.fc-tag__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex: none;
+}
+
+.fc-tag[data-category='ahorro']:hover, .fc-tag[data-category='ahorro'].fc-tag--active { border-color: var(--cat-ahorro); }
+.fc-tag[data-category='ahorro'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-ahorro); }
+.fc-tag[data-category='ahorro'] .fc-tag__dot { background: var(--cat-ahorro); }
+
+.fc-tag[data-category='credito']:hover, .fc-tag[data-category='credito'].fc-tag--active { border-color: var(--cat-credito); }
+.fc-tag[data-category='credito'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-credito); }
+.fc-tag[data-category='credito'] .fc-tag__dot { background: var(--cat-credito); }
+
+.fc-tag[data-category='presupuesto']:hover, .fc-tag[data-category='presupuesto'].fc-tag--active { border-color: var(--cat-presupuesto); }
+.fc-tag[data-category='presupuesto'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-presupuesto); }
+.fc-tag[data-category='presupuesto'] .fc-tag__dot { background: var(--cat-presupuesto); }
+
+.fc-tag[data-category='inversion']:hover, .fc-tag[data-category='inversion'].fc-tag--active { border-color: var(--cat-inversion); }
+.fc-tag[data-category='inversion'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-inversion); }
+.fc-tag[data-category='inversion'] .fc-tag__dot { background: var(--cat-inversion); }
+
+.fc-tag[data-category='colombia']:hover, .fc-tag[data-category='colombia'].fc-tag--active { border-color: var(--cat-colombia); }
+.fc-tag[data-category='colombia'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-colombia); }
+.fc-tag[data-category='colombia'] .fc-tag__dot { background: var(--cat-colombia); }
+
+.fc-tag--active {
+  color: var(--text-strong);
+}

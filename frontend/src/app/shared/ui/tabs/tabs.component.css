@@ -1,0 +1,47 @@
+.fc-tabs {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.fc-tabs__tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 9px 14px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--dur-fast),
+    border-color var(--dur-fast);
+}
+
+.fc-tabs__tab:hover:not(.fc-tabs__tab--active) {
+  color: var(--text-body);
+}
+
+.fc-tabs__tab--active {
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  border-bottom-color: var(--brand-interactive);
+}
+
+.fc-tabs__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.fc-tabs__count {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}

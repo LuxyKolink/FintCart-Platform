@@ -1,0 +1,103 @@
+.fc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  box-shadow: var(--shadow-xs);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    filter var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.fc-btn--block {
+  display: flex;
+  width: 100%;
+}
+
+.fc-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.fc-btn:not(:disabled) {
+  cursor: pointer;
+}
+
+.fc-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.fc-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.fc-btn[data-size='sm'] {
+  height: 30px;
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+  gap: 6px;
+}
+.fc-btn[data-size='md'] {
+  height: 38px;
+  padding: 0 16px;
+  font-size: var(--fs-base);
+}
+.fc-btn[data-size='lg'] {
+  height: 46px;
+  padding: 0 22px;
+  font-size: var(--fs-md);
+}
+
+.fc-btn[data-variant='primary'] {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  border: 1px solid var(--brand-primary);
+}
+.fc-btn[data-variant='primary']:not(:disabled):hover {
+  filter: brightness(0.95);
+}
+
+.fc-btn[data-variant='accent'] {
+  background: var(--brand-accent);
+  color: var(--warm-900);
+  border: 1px solid var(--gold-500);
+}
+.fc-btn[data-variant='accent']:not(:disabled):hover {
+  filter: brightness(0.95);
+}
+
+.fc-btn[data-variant='secondary'] {
+  background: var(--surface-card);
+  color: var(--text-strong);
+  border: 1px solid var(--border-strong);
+}
+.fc-btn[data-variant='secondary']:not(:disabled):hover {
+  filter: brightness(0.95);
+}
+
+.fc-btn[data-variant='ghost'] {
+  background: transparent;
+  color: var(--text-link);
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-none);
+}
+.fc-btn[data-variant='ghost']:not(:disabled):hover {
+  background: var(--purple-50);
+}
+
+.fc-btn[data-variant='danger'] {
+  background: var(--danger);
+  color: #fff;
+  border: 1px solid var(--red-500);
+}
+.fc-btn[data-variant='danger']:not(:disabled):hover {
+  filter: brightness(0.95);
+}
