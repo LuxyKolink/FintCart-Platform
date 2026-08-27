@@ -116,23 +116,23 @@ historia puede empezar.
 > no existe cuando se escriban, nacerán en el mismo estilo ad-hoc y habrá que rehacerlas.
 > La migración de las 19 pantallas existentes es el feature **003**, aparte.
 
-- [ ] T032 Scaffolding de `frontend/src/app/shared/ui/` (componentes standalone + barril `index.ts`) y adopción de `design/_adherence.oxlintrc.json` como regla de lint del frontend (FR-083)
-- [ ] T033 Componente `Icon` sobre `lucide-angular` en `frontend/src/app/shared/ui/icon/`, registrando solo los 25 iconos que usan los kits — sustituye el CDN que propone `design/guidelines/brand-iconography.html` (FR-085), que en el VPS del CTIC sería una dependencia externa en tiempo de ejecución. Lucide es una **sustitución** elegida por el design system (`design/README.md:98`), no una marca de FintCart: si aparece un set propio, se cambia aquí y en los kits
-- [ ] T034 Auto-hospedar **IBM Plex Mono**: sustituir el `@import` a `fonts.googleapis.com` de `frontend/src/styles/tokens/fonts.css:9` por los pesos **400, 500 y 600** de `@fontsource/ibm-plex-mono` — son exactamente los que el token pide hoy, así que el resultado visual es idéntico y solo desaparece la petición externa por visitante (FR-085)
-- [ ] T035 [P] `Button` (variantes `primary`/`secondary`, `block`, `iconLeft`) en `frontend/src/app/shared/ui/button/`, portado de `design/components/forms/Button.jsx`
-- [ ] T036 [P] `Input` con `ControlValueAccessor` para formularios reactivos en `frontend/src/app/shared/ui/input/`, portado de `design/components/forms/Input.jsx`
-- [ ] T037 [P] `Checkbox` con `ControlValueAccessor` en `frontend/src/app/shared/ui/checkbox/`, portado de `design/components/forms/Checkbox.jsx`
-- [ ] T038 [P] `Select` con `ControlValueAccessor` en `frontend/src/app/shared/ui/select/`, portado de `design/components/forms/Select.jsx` — lo consume directamente el desplegable de categorías de US1
-- [ ] T039 [P] `Card` en `frontend/src/app/shared/ui/card/`, portado de `design/components/layout/Card.jsx`
-- [ ] T040 [P] `ModuleBox` (caja con borde + barra de cabecera, el patrón central de la estética "portal denso") en `frontend/src/app/shared/ui/module-box/`, portado de `design/components/layout/ModuleBox.jsx`
-- [ ] T041 [P] `Tabs` en `frontend/src/app/shared/ui/tabs/`, portado de `design/components/layout/Tabs.jsx`
-- [ ] T042 [P] `Avatar` en `frontend/src/app/shared/ui/avatar/`, portado de `design/components/display/Avatar.jsx`
-- [ ] T043 [P] `Badge` en `frontend/src/app/shared/ui/badge/`, portado de `design/components/display/Badge.jsx`
-- [ ] T044 [P] `ProgressBar` en `frontend/src/app/shared/ui/progress-bar/`, portado de `design/components/display/ProgressBar.jsx`
-- [ ] T045 [P] `Tag` en `frontend/src/app/shared/ui/tag/`, portado de `design/components/display/Tag.jsx`
-- [ ] T046 [P] Componente `BrandLogo` sobre los 5 SVG de marca en `frontend/src/app/shared/ui/brand-logo/`, y **deduplicar** los assets: hoy están repetidos en `frontend/src/assets/logo/` y `frontend/src/styles/assets/logo/`
-- [ ] T047 Pruebas unitarias y de accesibilidad de los 11 componentes (foco visible con `--focus-ring`, etiqueta asociada a cada control, roles ARIA) en `frontend/src/app/shared/ui/**/*.spec.ts` (FR-084)
-- [ ] T048 Galería interna de verificación visual que reproduzca `design/components/{display,forms,layout}/*.card.html` con los componentes Angular, en `frontend/src/app/shared/ui/gallery/`
+- [x] T032 Scaffolding de `frontend/src/app/shared/ui/` (componentes standalone + barril `index.ts`) y adopción de `design/_adherence.oxlintrc.json` como regla de lint del frontend (FR-083)
+- [x] T033 Componente `Icon` sobre `lucide-angular` en `frontend/src/app/shared/ui/icon/`, registrando solo los 25 iconos que usan los kits — sustituye el CDN que propone `design/guidelines/brand-iconography.html` (FR-085), que en el VPS del CTIC sería una dependencia externa en tiempo de ejecución. Lucide es una **sustitución** elegida por el design system (`design/README.md:98`), no una marca de FintCart: si aparece un set propio, se cambia aquí y en los kits
+- [x] T034 Auto-hospedar **IBM Plex Mono**: sustituir el `@import` a `fonts.googleapis.com` de `frontend/src/styles/tokens/fonts.css:9` por los pesos **400, 500 y 600** de `@fontsource/ibm-plex-mono` — son exactamente los que el token pide hoy, así que el resultado visual es idéntico y solo desaparece la petición externa por visitante (FR-085)
+- [x] T035 [P] `Button` (variantes `primary`/`secondary`, `block`, `iconLeft`) en `frontend/src/app/shared/ui/button/`, portado de `design/components/forms/Button.jsx`
+- [x] T036 [P] `Input` con `ControlValueAccessor` para formularios reactivos en `frontend/src/app/shared/ui/input/`, portado de `design/components/forms/Input.jsx`
+- [x] T037 [P] `Checkbox` con `ControlValueAccessor` en `frontend/src/app/shared/ui/checkbox/`, portado de `design/components/forms/Checkbox.jsx`
+- [x] T038 [P] `Select` con `ControlValueAccessor` en `frontend/src/app/shared/ui/select/`, portado de `design/components/forms/Select.jsx` — lo consume directamente el desplegable de categorías de US1
+- [x] T039 [P] `Card` en `frontend/src/app/shared/ui/card/`, portado de `design/components/layout/Card.jsx`
+- [x] T040 [P] `ModuleBox` (caja con borde + barra de cabecera, el patrón central de la estética "portal denso") en `frontend/src/app/shared/ui/module-box/`, portado de `design/components/layout/ModuleBox.jsx`
+- [x] T041 [P] `Tabs` en `frontend/src/app/shared/ui/tabs/`, portado de `design/components/layout/Tabs.jsx`
+- [x] T042 [P] `Avatar` en `frontend/src/app/shared/ui/avatar/`, portado de `design/components/display/Avatar.jsx`
+- [x] T043 [P] `Badge` en `frontend/src/app/shared/ui/badge/`, portado de `design/components/display/Badge.jsx`
+- [x] T044 [P] `ProgressBar` en `frontend/src/app/shared/ui/progress-bar/`, portado de `design/components/display/ProgressBar.jsx`
+- [x] T045 [P] `Tag` en `frontend/src/app/shared/ui/tag/`, portado de `design/components/display/Tag.jsx`
+- [x] T046 [P] Componente `BrandLogo` sobre los 5 SVG de marca en `frontend/src/app/shared/ui/brand-logo/`, y **deduplicar** los assets: hoy están repetidos en `frontend/src/assets/logo/` y `frontend/src/styles/assets/logo/`
+- [x] T047 Pruebas unitarias y de accesibilidad de los 11 componentes (foco visible con `--focus-ring`, etiqueta asociada a cada control, roles ARIA) en `frontend/src/app/shared/ui/**/*.spec.ts` (FR-084)
+- [x] T048 Galería interna de verificación visual que reproduzca `design/components/{display,forms,layout}/*.card.html` con los componentes Angular, en `frontend/src/app/shared/ui/gallery/`
 
 **Checkpoint**: esquema aplicado, autorización lista y capa de componentes disponible. Las
 historias pueden empezar, y toda pantalla nueva se construye sobre `shared/ui`, nunca sobre
