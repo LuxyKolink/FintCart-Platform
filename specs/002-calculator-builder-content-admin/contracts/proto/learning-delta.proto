@@ -1,0 +1,156 @@
+// DELTA sobre contracts/proto/fintcart/learning/v1/learning.proto
+// Feature 002. NO compila por sí solo: describe adiciones y cambios.
+
+syntax = "proto3";
+package fintcart.learning.v1;
+import "fintcart/common/v1/common.proto";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RPC NUEVOS en LearningService
+// ─────────────────────────────────────────────────────────────────────────────
+service LearningServiceDelta {
+  // ── Catálogo de categorías (FR-032…FR-035) ────────────────────────────────
+  // Administración reservada al rol administrador; el Gateway lo impone.
+  rpc CreateCategory(CreateCategoryRequest) returns (Category);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (Category);
+  // Rechaza con FAILED_PRECONDITION si la categoría tiene artículos publicados,
+  // incluyendo el recuento en el mensaje (FR-035).
+  rpc DeactivateCategory(CategoryRef) returns (fintcart.common.v1.OpResult);
+  // `include_inactive` solo lo usa la pantalla de administración; el desplegable
+  // del editor y el catálogo público piden solo las activas.
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+
+  // ── Sesión de cuestionario (FR-038…FR-042) ────────────────────────────────
+  // SUSTITUYE a GetQuiz como camino de ejecución. Devuelve SOLO las N preguntas
+  // servidas, con las opciones ya barajadas y SIN la clave correcta. `GetQuiz`
+  // se conserva para la vista del editor, donde sí se necesita el banco entero.
+  rpc StartQuizSession(StartQuizSessionRequest) returns (QuizSession);
+
+  // ── Imágenes de artículo (FR-064…FR-067) ──────────────────────────────────
+  // Unaria y no en flujo: el tope duro son 2 MB (research D-13), muy por debajo
+  // del límite de mensaje de gRPC. Un flujo añadiría complejidad sin comprar nada.
+  rpc UploadArticleImage(UploadArticleImageRequest) returns (ArticleImage);
+  rpc GetArticleImage(ArticleImageRef) returns (ArticleImageBlob);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Categorías
+// ─────────────────────────────────────────────────────────────────────────────
+message CategoryRef { string category_id = 1; string actor_id = 2; }
+
+message Category {
+  string category_id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  int32  position = 5;
+  bool   active = 6;
+}
+
+message CreateCategoryRequest {
+  string name = 1;
+  string slug = 2;        // vacío ⇒ derivado del nombre
+  string description = 3;
+  int32  position = 4;
+  string actor_id = 5;    // rol administrador (FR-033)
+}
+
+message UpdateCategoryRequest {
+  string category_id = 1;
+  string name = 2;
+  string description = 3;
+  int32  position = 4;
+  string actor_id = 5;
+}
+
+message ListCategoriesRequest { bool include_inactive = 1; }
+message ListCategoriesResponse { repeated Category items = 1; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sesión de cuestionario
+// ─────────────────────────────────────────────────────────────────────────────
+message StartQuizSessionRequest {
+  string user_id = 1;
+  string quiz_id = 2;
+}
+
+message QuizSession {
+  string session_id = 1;
+  string quiz_id = 2;
+  string title = 3;
+  string pass_threshold = 4;   // [decimal] AHORA porcentaje sobre 100 (FR-041)
+  string expires_at = 5;       // RFC-3339 (research D-17)
+  // Exactamente `questions_to_serve` elementos, o todas las del banco si tiene
+  // menos (FR-038). Ya vienen en el orden servido y con las opciones barajadas.
+  repeated Question questions = 6;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Imágenes
+// ─────────────────────────────────────────────────────────────────────────────
+message ArticleImageRef { string image_id = 1; }
+
+message UploadArticleImageRequest {
+  string article_id = 1;
+  string editor_id = 2;
+  string mime_type = 3;   // image/jpeg | image/png | image/webp
+  bytes  content = 4;     // ≤ 2 MB; se rechaza por encima (FR-066)
+}
+
+message ArticleImage {
+  string image_id = 1;    // SHA-256 hexadecimal del contenido (research D-13)
+  string mime_type = 2;
+  int32  byte_size = 3;
+  int32  width = 4;
+  int32  height = 5;
+}
+
+message ArticleImageBlob {
+  ArticleImage meta = 1;
+  bytes content = 2;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAMPOS AÑADIDOS a mensajes existentes
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Article: `category` (string) queda OBSOLETO en favor de la referencia al
+// catálogo. Se conserva el número de campo 3 con el NOMBRE de la categoría para
+// no romper a los consumidores actuales, y se añade el identificador.
+//   string category = 3;              // (existente) nombre visible
+//   + string category_id = 7;         // FR-034
+//   + string body_doc = 8;            // documento de bloques serializado (D-14)
+
+// ArticleVersion:
+//   string body = 9;                  // (existente) queda obsoleto tras migrar
+//   + string body_doc = 10;           // documento de bloques serializado (D-14)
+
+// CreateDraftRequest:
+//   string category = 2;              // (existente) pasa a IGNORARSE
+//   + string category_id = 6;         // FR-034: obligatorio al crear artículo nuevo
+//   + string body_doc = 7;            // sustituye a `body`
+
+// UpdateDraftRequest:
+//   + string body_doc = 4;
+
+// ListPublishedRequest:
+//   string category = 1;              // (existente) filtro por nombre, se conserva
+//   + string category_id = 3;         // filtro preferente; vacío ⇒ sin filtrar
+
+// Quiz / UpsertQuizRequest:
+//   + int32 questions_to_serve = 6;   // FR-037 (Quiz), = 6 en UpsertQuizRequest
+//   pass_threshold pasa a interpretarse como PORCENTAJE sobre 100 (FR-041)
+
+// GradeRequest:
+//   + string session_id = 5;
+//   CAMBIO DE CONTRATO: `session_id` es OBLIGATORIO. Si `answers` contiene una
+//   pregunta que no está en la sesión, o la sesión venció o ya fue consumida, el
+//   RPC devuelve FAILED_PRECONDITION en vez de calificar (FR-040, FR-042).
+
+// GradeResponse:
+//   string score = 3;                 // [decimal] AHORA porcentaje sobre 100
+//   + string session_id = 5;
+
+// ListAttemptsResponse.Attempt:
+//   string score = 3;                 // [decimal] AHORA porcentaje sobre 100
+//   + repeated string served_question_ids = 5;   // FR-039

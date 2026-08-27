@@ -1,0 +1,212 @@
+// DELTA sobre contracts/proto/fintcart/simulator/v1/simulator.proto
+// Feature 002. NO compila por sí solo: describe adiciones y cambios.
+
+syntax = "proto3";
+package fintcart.simulator.v1;
+import "fintcart/common/v1/common.proto";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RPC NUEVOS en SimulatorService
+// ─────────────────────────────────────────────────────────────────────────────
+service SimulatorServiceDelta {
+  // ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+  // Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por
+  // campo: la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza —
+  // evita dejar una calculadora a medio editar visible entre dos llamadas.
+  // `calculator_id` vacío crea una nueva.
+  rpc UpsertCalculator(UpsertCalculatorRequest) returns (Calculator);
+  rpc GetCalculator(CalculatorRef) returns (Calculator);
+  // `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+  // ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+  rpc ListCalculators(ListCalculatorsRequest) returns (ListCalculatorsResponse);
+  rpc DeleteCalculator(CalculatorRef) returns (fintcart.common.v1.OpResult);
+
+  // Valida SIN guardar: alimenta el aviso en vivo del constructor en el
+  // frontend. Devuelve los mismos errores que UpsertCalculator (FR-046).
+  rpc ValidateDefinition(ValidateDefinitionRequest) returns (ValidateDefinitionResponse);
+
+  // ── Curaduría (FR-052…FR-054) ─────────────────────────────────────────────
+  rpc SubmitCalculatorForReview(CalculatorRef) returns (fintcart.common.v1.OpResult);
+  // Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base.
+  rpc ApproveCalculator(ApproveCalculatorRequest) returns (fintcart.common.v1.OpResult);
+  rpc RejectCalculator(RejectCalculatorRequest) returns (fintcart.common.v1.OpResult);
+
+  // ── Indicadores financieros (FR-055…FR-060) ───────────────────────────────
+  rpc UpsertIndicator(UpsertIndicatorRequest) returns (Indicator);
+  rpc ListIndicators(ListIndicatorsRequest) returns (ListIndicatorsResponse);
+  // Lo consulta el barrido periódico del Orquestador (research D-23), que es
+  // quien publica el evento de aviso: el Simulador NO es productor (Principio V).
+  rpc GetIndicatorCalendarStatus(fintcart.common.v1.PageRequest) returns (IndicatorCalendarStatus);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Definición de calculadora
+// ─────────────────────────────────────────────────────────────────────────────
+message CalculatorRef { string calculator_id = 1; string actor_id = 2; }
+
+// Tipo de un campo de entrada. NO existe un tipo texto: la única entrada de
+// texto del sistema era el discriminador `operacion` de la calculadora
+// colombiana, que research D-16 elimina al separarla en tres definiciones.
+enum InputType {
+  INPUT_TYPE_UNSPECIFIED = 0;
+  INPUT_TYPE_MONTO = 1;
+  INPUT_TYPE_TASA = 2;
+  INPUT_TYPE_ENTERO = 3;
+}
+
+message CalculatorInput {
+  string key = 1;
+  string label = 2;
+  InputType type = 3;
+  string unit = 4;
+  string min_value = 5;      // [decimal] vacío ⇒ sin cota inferior
+  string max_value = 6;      // [decimal] vacío ⇒ sin cota superior
+  string default_value = 7;  // [decimal]
+  bool   required = 8;       // FR-044; opcional habilita presente(campo)
+}
+
+// Regla de validación de dominio, evaluada ANTES que las salidas. Separada de
+// las fórmulas a propósito: es lo que permite el mensaje del autor ("el ingreso
+// mensual debe ser mayor que cero") en vez de un genérico de división por cero.
+message CalculatorValidation {
+  string expression = 1;   // expresión booleana; DEBE cumplirse
+  string message = 2;      // mensaje mostrado si no se cumple
+}
+
+message CalculatorOutput {
+  string key = 1;
+  string label = 2;
+  string expression = 3;
+  int32  scale = 4;        // decimales de redondeo half-even
+  // Opcional. Si viene y evalúa a falso, la salida se OMITE. Necesario:
+  // `inversion` solo emite `valor_futuro_real` si se dio `inflacion_anual`.
+  string when = 5;
+}
+
+message CalculatorDefinition {
+  repeated CalculatorInput inputs = 1;           // ≤ 20 (FR-046)
+  repeated CalculatorValidation validations = 2;
+  repeated CalculatorOutput outputs = 3;         // ≤ 10 (FR-046)
+}
+
+message Calculator {
+  string calculator_id = 1;
+  string owner_id = 2;       // vacío en las siete definiciones semilla
+  string name = 3;
+  string description = 4;
+  bool   is_builtin = 5;
+  string state = 6;          // privada | en_revision | publicada
+  string approved_by = 7;
+  string rejection_reason = 8;
+  int32  version = 9;
+  CalculatorDefinition definition = 10;
+  repeated string indicators_used = 11;  // extraídos del AST al guardar
+}
+
+message UpsertCalculatorRequest {
+  string calculator_id = 1;  // vacío ⇒ crear
+  string owner_id = 2;
+  string name = 3;
+  string description = 4;
+  CalculatorDefinition definition = 5;
+}
+
+message ListCalculatorsRequest {
+  string owner_id = 1;
+  bool   only_published = 2;
+  fintcart.common.v1.PageRequest page = 3;
+}
+message ListCalculatorsResponse {
+  repeated Calculator items = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}
+
+message ValidateDefinitionRequest { CalculatorDefinition definition = 1; }
+message ValidateDefinitionResponse {
+  bool valid = 1;
+  // Vacío si valid. Cada error señala DÓNDE está el problema, no solo que lo
+  // hay: FR-046 exige indicar el error concreto.
+  repeated DefinitionError errors = 2;
+}
+message DefinitionError {
+  string location = 1;   // p. ej. "outputs[1].expression" o "validations[0]"
+  string code = 2;       // campo_inexistente | expresion_mal_formada |
+                         // limite_excedido | indicador_desconocido |
+                         // exponente_no_entero | funcion_desconocida
+  string message = 3;
+}
+
+message ApproveCalculatorRequest {
+  string calculator_id = 1;
+  string coordinator_id = 2;  // rol coordinador_editorial; ≠ owner_id (FR-053)
+}
+message RejectCalculatorRequest {
+  string calculator_id = 1;
+  string coordinator_id = 2;
+  string reason = 3;          // obligatorio (FR-054)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Indicadores financieros
+// ─────────────────────────────────────────────────────────────────────────────
+message Indicator {
+  string indicator_id = 1;
+  string name = 2;          // ^[A-Z][A-Z0-9_]*$ — se referencia como @NOMBRE
+  string value = 3;         // [decimal]
+  string valid_from = 4;    // fecha ISO-8601, inclusive
+  string valid_to = 5;      // fecha ISO-8601, EXCLUSIVA
+  string registered_by = 6;
+}
+
+message UpsertIndicatorRequest {
+  string indicator_id = 1;  // vacío ⇒ crear
+  string name = 2;
+  string value = 3;         // [decimal]
+  string valid_from = 4;
+  string valid_to = 5;
+  string actor_id = 6;      // rol administrador (FR-060)
+  // Solapamiento con otra vigencia del MISMO nombre ⇒ ALREADY_EXISTS (FR-059).
+}
+
+message ListIndicatorsRequest {
+  string name = 1;          // vacío ⇒ todos
+  string on_date = 2;       // vacío ⇒ todas las vigencias; si viene, la vigente
+}
+message ListIndicatorsResponse { repeated Indicator items = 1; }
+
+message IndicatorCalendarStatus {
+  // Indicadores SIN vigencia para la fecha actual (FR-062).
+  repeated string missing_names = 1;
+  // Indicadores cuya vigencia termina dentro de la ventana de aviso (FR-061).
+  repeated ExpiringIndicator expiring = 2;
+}
+message ExpiringIndicator {
+  string name = 1;
+  string valid_to = 2;
+  int32  days_remaining = 3;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAMBIOS a mensajes existentes
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ComputeRequest:
+//   CalcType calc_type = 2;    // (existente) se conserva para las semillas
+//   + string calculator_id = 6;
+//   CAMBIO DE CONTRATO: `calculator_id` es el camino preferente. `calc_type` se
+//   mantiene por compatibilidad y se resuelve a la definición semilla
+//   correspondiente. Exactamente uno de los dos debe venir relleno.
+
+// ComputeResponse:
+//   + int32 calculator_version = 4;              // FR-050
+//   + map<string, string> indicators_used = 5;   // [decimal] snapshot, FR-058
+
+// ListHistoryResponse.Entry:
+//   + string calculator_id = 7;
+//   + int32 calculator_version = 8;
+//   + map<string, string> indicators_used = 9;   // [decimal] FR-058
+
+// AnonymizeHistory: sin cambio de forma. CAMBIO DE COMPORTAMIENTO: además de
+// disociar el historial, pone a NULL `calculators.owner_id` de las calculadoras
+// PUBLICADAS del titular, conservándolas en el catálogo con autoría anonimizada
+// (Edge Cases), y elimina las privadas, que no tienen ya a quién servir.

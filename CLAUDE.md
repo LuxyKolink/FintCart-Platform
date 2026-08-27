@@ -1,10 +1,41 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at
-`specs/001-fintcart-platform/plan.md` (with `research.md`, `data-model.md`,
-`contracts/` and `quickstart.md` in the same directory).
+`specs/002-calculator-builder-content-admin/plan.md` (with `research.md`,
+`data-model.md`, `contracts/` and `quickstart.md` in the same directory).
+La arquitectura base sigue viviendo en `specs/001-fintcart-platform/plan.md`:
+el feature 002 la **enmienda**, no la reemplaza.
 
-## Active Feature: Plataforma Fintcart (`001-fintcart-platform`)
+## Active Feature: Constructor de Calculadoras y Administración (`002-calculator-builder-content-admin`)
+
+Enmienda al feature 001 (implementado y desplegado). Sin servicios ni infraestructura
+nuevos. Requisitos FR-032…FR-082, criterios SC-013…SC-025, decisiones D-13…D-25.
+
+- **Motor de fórmulas (Simulador)**: las calculadoras pasan a ser definiciones
+  parametrizadas — analizador → AST persistido en `JSONB` → evaluador acotado, todo en
+  `rust_decimal`. Las cinco de FR-019 se resiembran como **siete** definiciones semilla.
+  `pot` (exponente entero, exacta) y `potd` (decimal, aproximada) son funciones
+  **separadas**: fundirlas perdería en silencio la exactitud del Principio VIII.
+  `tests/seed_regression.rs` sostiene FR-049 — el código nativo de `src/calculators/` no
+  se borra hasta que esa suite pase.
+- **Cuestionarios**: `GetQuiz` deja de ser el camino de ejecución; `StartQuizSession` sirve
+  N preguntas al azar con opciones barajadas. `score` pasa a **porcentaje sobre 100**.
+  La sesión vive en `learning_db`, **nunca en Redis** (Principio IV).
+- **Contenido**: `articles.category` (texto libre) → catálogo `categories`;
+  `article_versions.body` (texto plano) → `body_doc` en documento de bloques `JSONB` con
+  vocabulario **cerrado**, validado en el servidor. El frontend renderiza por componente:
+  **prohibido `innerHTML` y `bypassSecurityTrust*`**. Imágenes en `BYTEA` con tope de 2 MB
+  e identificador = SHA-256 del contenido.
+- **Administración**: cuarto rol `administrador` (categorías, indicadores anuales, purga);
+  no hereda atribuciones de `coordinador_editorial`. Estado `pending_deletion` con gracia de
+  30 días; el índice único de correo se amplía para reservarlo durante la gracia. **No se
+  guarda hash del correo original**: sería un oráculo de pertenencia (FR-077).
+- **Indicadores**: `financial_indicators` en `simulator_db` con vigencia `daterange` y
+  `EXCLUDE USING gist`; las fórmulas los referencian como `@NOMBRE`; cada simulación guarda
+  el snapshot usado. El Simulador **sigue sin ser productor** de RabbitMQ: el aviso de
+  vencimiento lo publica el Orquestador (igual que D-03).
+
+## Feature Base: Plataforma Fintcart (`001-fintcart-platform`)
 
 Microservicios poliglota + SPA Angular. Restricciones NO negociables (Constitución v1.1.1):
 - **gRPC** interno (Protocol Buffers); **REST solo en el API Gateway** (borde).

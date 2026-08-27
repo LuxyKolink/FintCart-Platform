@@ -1,0 +1,89 @@
+// DELTA sobre contracts/proto/fintcart/users/v1/users.proto
+// Feature 002. NO compila por sí solo: describe adiciones y cambios.
+
+syntax = "proto3";
+package fintcart.users.v1;
+import "fintcart/common/v1/common.proto";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RPC NUEVOS en UsersService
+// ─────────────────────────────────────────────────────────────────────────────
+service UsersServiceDelta {
+  // ── Depuración administrativa (FR-073…FR-076) ─────────────────────────────
+  // Marca la cuenta y fija purge_due_at = now() + 30 días. NO anonimiza: la
+  // anonimización la ejecuta la saga del Orquestador al vencer (research D-20).
+  rpc MarkForPurge(MarkForPurgeRequest) returns (fintcart.common.v1.OpResult);
+
+  // Deshace la marca dentro del período de gracia. Perfil, progreso e historial
+  // quedan intactos porque nunca se tocaron (FR-074).
+  rpc ReactivateAccount(UserRef) returns (fintcart.common.v1.OpResult);
+
+  // Lo consulta el barrido periódico del Orquestador. Que sea un RPC y no una
+  // consulta a la base de Usuarios es el Principio III: "¿qué cuentas están
+  // vencidas?" es dominio de Usuarios y se responde por gRPC.
+  rpc ListAccountsDueForPurge(ListDueForPurgeRequest) returns (ListDueForPurgeResponse);
+
+  // ── Rol administrador (FR-080) ────────────────────────────────────────────
+  rpc AssignRole(AssignRoleRequest) returns (fintcart.common.v1.OpResult);
+  rpc RevokeRole(AssignRoleRequest) returns (fintcart.common.v1.OpResult);
+
+  // Bandeja de administración: buscar cuentas para depurar. Devuelve datos
+  // mínimos, nunca el historial del titular.
+  rpc SearchAccounts(SearchAccountsRequest) returns (SearchAccountsResponse);
+}
+
+message MarkForPurgeRequest {
+  string user_id = 1;
+  string admin_id = 2;   // rol administrador; queda en auditoría (FR-078)
+  string reason = 3;     // opcional; se propaga al evento de auditoría
+}
+
+message ListDueForPurgeRequest {
+  string as_of = 1;      // RFC-3339; vacío ⇒ ahora
+  fintcart.common.v1.PageRequest page = 2;
+}
+message ListDueForPurgeResponse {
+  repeated string user_ids = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}
+
+message AssignRoleRequest {
+  string user_id = 1;
+  string role = 2;       // usuario_final | editor | coordinador_editorial | administrador
+  string actor_id = 3;   // rol administrador
+}
+
+message SearchAccountsRequest {
+  string email_contains = 1;
+  string account_status = 2;  // vacío ⇒ cualquiera
+  fintcart.common.v1.PageRequest page = 3;
+}
+message SearchAccountsResponse {
+  message AccountSummary {
+    string user_id = 1;
+    string email = 2;
+    string display_name = 3;
+    string account_status = 4;   // active | pending_deletion | anonymized
+    string purge_due_at = 5;     // RFC-3339; vacío salvo en pending_deletion
+    repeated string roles = 6;
+  }
+  repeated AccountSummary items = 1;
+  fintcart.common.v1.PageResponse page = 2;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAMBIOS a mensajes existentes
+// ─────────────────────────────────────────────────────────────────────────────
+
+// AuthContext / Profile:
+//   + string account_status = N;   // active | pending_deletion | anonymized
+//   CAMBIO DE CONTRATO: `pending_deletion` DEBE bloquear el acceso pleno igual
+//   que lo hace hoy la falta de verificación de correo, y el frontend debe
+//   ofrecer la reactivación en vez de un error genérico (FR-074).
+
+// El conjunto de valores admitidos en los claims de rol del JWT se amplía con
+// `administrador` (FR-080). Es un cambio de dato, no de forma del mensaje: el
+// Servidor de Autenticación ya emite la lista de roles que le da Usuarios.
+
+// AnonymizeProfile: sin cambio de forma. Sigue siendo idempotente y sin
+// compensación, como documenta services/users/internal/server/anonymize.go:30.

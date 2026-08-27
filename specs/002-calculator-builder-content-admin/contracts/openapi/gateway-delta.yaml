@@ -1,0 +1,234 @@
+> DELTA sobre `contracts/openapi/gateway.yaml`. Feature 002.
+> No es un documento OpenAPI completo: son las rutas y esquemas que se AÑADEN,
+> más los cambios de comportamiento en rutas existentes.
+> Todo monto, tasa y umbral se serializa como `string` decimal (Principio VIII).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RUTAS NUEVAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ── Categorías ──────────────────────────────────────────────────────────────
+  /catalog/categories:
+    get:
+      summary: Categorías activas del catálogo (público y desplegable del editor)
+      security: []          # el catálogo público no exige token
+      responses: { '200': { description: Lista ordenada por `position` } }
+
+  /admin/categories:
+    get:
+      summary: Catálogo completo, incluidas las desactivadas
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+    post:
+      summary: Crear categoría (FR-033)
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+      responses:
+        '201': { description: Creada }
+        '409': { description: Nombre o posición ya en uso entre las activas }
+
+  /admin/categories/{categoryId}:
+    patch:
+      summary: Editar nombre, descripción u orden
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+    delete:
+      summary: Desactivar (lógico, nunca borrado físico — FR-035)
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+      responses:
+        '204': { description: Desactivada }
+        '409':
+          description: >
+            Tiene artículos publicados. El cuerpo incluye `published_count`
+            para que el mensaje al administrador diga cuántos, no solo que no
+            se puede (FR-035).
+
+  # ── Sesión de cuestionario ──────────────────────────────────────────────────
+  /quizzes/{quizId}/session:
+    post:
+      summary: Iniciar intento; devuelve las N preguntas servidas (FR-038)
+      security: [{ oauth2PKCE: [] }]
+      responses:
+        '201':
+          description: >
+            Sesión creada. Incluye `session_id`, `expires_at` y las preguntas
+            YA barajadas y SIN la clave correcta. El cliente no recibe el banco
+            completo en ningún momento.
+
+  # ── Imágenes de artículo ────────────────────────────────────────────────────
+  /editorial/articles/{articleId}/images:
+    post:
+      summary: Subir una imagen (FR-064)
+      security: [{ oauth2PKCE: [] }]   # rol editor
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { description: 'Devuelve `image_id` (SHA-256 del contenido)' }
+        '413': { description: Excede 2 MB }
+        '415': { description: Tipo no admitido (solo jpeg, png, webp) }
+
+  /media/images/{imageId}:
+    get:
+      summary: Servir una imagen
+      security: []
+      responses:
+        '200':
+          description: >
+            Bytes de la imagen. `Cache-Control: public, max-age=31536000, immutable`
+            y `ETag: "{imageId}"`. La caché agresiva es correcta precisamente
+            porque el identificador ES el hash del contenido: una imagen
+            distinta tiene otra URL (research D-13).
+
+  # ── Constructor de calculadoras ─────────────────────────────────────────────
+  /calculators:
+    get:
+      summary: Catálogo de calculadoras publicadas (FR-052)
+      security: []
+    post:
+      summary: Crear calculadora propia (FR-043)
+      security: [{ oauth2PKCE: [] }]
+      responses:
+        '201': { description: Creada, en estado `privada` }
+        '422':
+          description: >
+            Definición inválida. El cuerpo lleva `errors[]` con `location`,
+            `code` y `message` por cada problema, no un mensaje único: FR-046
+            exige señalar el error concreto.
+
+  /calculators/validate:
+    post:
+      summary: Validar sin guardar; alimenta el aviso en vivo del constructor
+      security: [{ oauth2PKCE: [] }]
+
+  /calculators/{calculatorId}:
+    get: { summary: Obtener definición, security: [{ oauth2PKCE: [] }] }
+    put: { summary: Reemplazar definición (crea versión nueva), security: [{ oauth2PKCE: [] }] }
+    delete: { summary: Eliminar calculadora propia, security: [{ oauth2PKCE: [] }] }
+
+  /calculators/{calculatorId}/run:
+    post:
+      summary: Ejecutar (FR-050). Misma saga que `/simulators/{calcType}/run`
+      security: [{ oauth2PKCE: [] }]
+      responses:
+        '200':
+          description: >
+            Resultados como `string` decimal, más `calculator_version` e
+            `indicators_used` (FR-058).
+        '422': { description: 'Valor fuera de rango o validación de dominio incumplida (FR-044)' }
+
+  /me/calculators:
+    get: { summary: Calculadoras propias del usuario (FR-051), security: [{ oauth2PKCE: [] }] }
+
+  /calculators/{calculatorId}/submit:
+    post: { summary: Proponer para el catálogo público (FR-052), security: [{ oauth2PKCE: [] }] }
+
+  /editorial/calculators:
+    get: { summary: Bandeja de calculadoras en revisión, security: [{ oauth2PKCE: [] }] }
+
+  /editorial/calculators/{calculatorId}/approve:
+    post:
+      summary: Aprobar (FR-053)
+      security: [{ oauth2PKCE: [] }]   # rol coordinador_editorial
+      responses:
+        '403': { description: 'El aprobador es el propio autor (FR-053)' }
+
+  /editorial/calculators/{calculatorId}/reject:
+    post:
+      summary: Rechazar con motivo (FR-054)
+      security: [{ oauth2PKCE: [] }]   # rol coordinador_editorial
+
+  # ── Indicadores financieros ─────────────────────────────────────────────────
+  /admin/indicators:
+    get:  { summary: Listar indicadores y vigencias, security: [{ oauth2PKCE: [] }] }
+    post:
+      summary: Registrar indicadores de un período (FR-060)
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+      responses:
+        '201': { description: Registrado }
+        '409': { description: 'Vigencia solapada para el mismo indicador (FR-059)' }
+
+  /admin/indicators/{indicatorId}:
+    patch:  { summary: Corregir valor o vigencia, security: [{ oauth2PKCE: [] }] }
+
+  /admin/indicators/status:
+    get:
+      summary: Estado del procedimiento anual — faltantes y próximos a vencer
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+
+  /indicators/current:
+    get:
+      summary: >
+        Indicadores vigentes hoy. Lo consume el frontend para mostrar la
+        advertencia de FR-062 antes de ejecutar una calculadora que dependa de
+        un indicador sin vigencia.
+      security: []
+
+  # ── Administración de cuentas ───────────────────────────────────────────────
+  /admin/accounts:
+    get:
+      summary: Buscar cuentas para depurar
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+
+  /admin/accounts/{userId}/purge:
+    post:
+      summary: Marcar para depuración; inicia el período de gracia de 30 días (FR-073)
+      security: [{ oauth2PKCE: [] }]   # rol administrador
+      responses:
+        '202':
+          description: >
+            Marcada. El cuerpo devuelve `purge_due_at`. NO anonimiza en este
+            momento: la anonimización la ejecuta el Orquestador al vencer el
+            plazo (research D-20).
+        '409': { description: La cuenta ya está marcada o ya fue anonimizada }
+
+  /me/account/reactivate:
+    post:
+      summary: Reactivar la propia cuenta dentro del período de gracia (FR-074)
+      security: [{ oauth2PKCE: [] }]
+      responses:
+        '200': { description: Reactivada; perfil, progreso e historial intactos }
+        '410': { description: El período de gracia ya venció; la cuenta fue anonimizada }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CAMBIOS DE COMPORTAMIENTO EN RUTAS EXISTENTES
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# GET  /catalog/articles
+#   + parámetro de consulta `categoryId`; `category` (nombre) se conserva.
+#   Cada artículo devuelve `body_doc` en lugar de `body`.
+#
+# POST /quizzes/{quizId}/attempts
+#   CAMBIO INCOMPATIBLE: el cuerpo ahora exige `session_id`. Sin él, o con una
+#   sesión vencida, ya consumida, o con respuestas a preguntas no servidas,
+#   responde 409 en vez de calificar (FR-040, FR-042).
+#   `score` en la respuesta pasa a ser PORCENTAJE sobre 100 (FR-041).
+#
+# POST /editorial/articles  ·  POST /editorial/articles/{articleId}/versions
+# PATCH /editorial/versions/{versionId}
+#   `body` (texto plano) se sustituye por `body_doc` (documento de bloques).
+#   `category` (texto libre) se sustituye por `categoryId`.
+#   422 si el documento contiene un nodo, marca o esquema de enlace no admitido
+#   por el vocabulario cerrado de research D-14. La validación es del servidor:
+#   el esquema del editor en el cliente NO cuenta como validación.
+#
+# GET  /simulators/history
+#   + `calculator_id`, `calculator_version`, `indicators_used` por entrada.
+#
+# GET  /me/profile
+#   + `account_status`. En `pending_deletion` el frontend debe ofrecer la
+#     reactivación en vez de un error genérico.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AUTORIZACIÓN
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Las rutas bajo `/admin/**` exigen el rol `administrador`, verificado por un
+# middleware explícito de la capa de transporte del Gateway (Principio VII), no
+# por ocultar botones en el frontend (FR-081). Las rutas bajo
+# `/editorial/calculators/**` exigen `coordinador_editorial`, NO `administrador`
+# (FR-082): la aprobación de contenido no es atribución del administrador.
