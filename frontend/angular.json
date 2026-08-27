@@ -15,19 +15,39 @@
             "outputPath": "dist/frontend",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": ["zone.js"],
+            "polyfills": [
+              "zone.js"
+            ],
             "tsConfig": "tsconfig.app.json",
             "assets": [
-              { "glob": "**/*", "input": "src/assets", "output": "assets" }
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "assets"
+              }
             ],
-            "styles": ["src/styles/styles.css", "src/styles.scss"],
+            "styles": [
+              "node_modules/@fontsource/ibm-plex-mono/400.css",
+              "node_modules/@fontsource/ibm-plex-mono/500.css",
+              "node_modules/@fontsource/ibm-plex-mono/600.css",
+              "src/styles/styles.css",
+              "src/styles.scss"
+            ],
             "scripts": []
           },
           "configurations": {
             "production": {
               "budgets": [
-                { "type": "initial", "maximumWarning": "1mb", "maximumError": "2mb" },
-                { "type": "anyComponentStyle", "maximumWarning": "8kb", "maximumError": "16kb" }
+                {
+                  "type": "initial",
+                  "maximumWarning": "1mb",
+                  "maximumError": "2mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kb",
+                  "maximumError": "16kb"
+                }
               ],
               "outputHashing": "all"
             },
@@ -49,8 +69,12 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
-            "production": { "buildTarget": "frontend:build:production" },
-            "development": { "buildTarget": "frontend:build:development" }
+            "production": {
+              "buildTarget": "frontend:build:production"
+            },
+            "development": {
+              "buildTarget": "frontend:build:development"
+            }
           },
           "defaultConfiguration": "development",
           "options": {
@@ -60,12 +84,25 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "polyfills": ["zone.js", "zone.js/testing"],
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
             "tsConfig": "tsconfig.spec.json",
             "assets": [
-              { "glob": "**/*", "input": "src/assets", "output": "assets" }
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "assets"
+              }
             ],
-            "styles": ["src/styles/styles.css", "src/styles.scss"],
+            "styles": [
+              "node_modules/@fontsource/ibm-plex-mono/400.css",
+              "node_modules/@fontsource/ibm-plex-mono/500.css",
+              "node_modules/@fontsource/ibm-plex-mono/600.css",
+              "src/styles/styles.css",
+              "src/styles.scss"
+            ],
             "scripts": []
           }
         }

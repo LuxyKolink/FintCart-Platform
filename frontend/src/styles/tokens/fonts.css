@@ -3,10 +3,10 @@
    Headings: Noto Sans JP · Body: Roboto  (both uploaded by the brand,
    variable TTFs in assets/fonts/). Noto Sans JP is metrically designed
    to pair with Roboto, and adds the 2010 JP-portal character.
-   Money/data: IBM Plex Mono (from Google Fonts — no mono uploaded).
+   Money/data: IBM Plex Mono, weights 400/500/600 self-hosted via
+   @fontsource/ibm-plex-mono (wired in angular.json `styles`) — no
+   runtime request to fonts.googleapis.com.
    ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 /* Body — Roboto (variable: width + weight) */
 @font-face {
