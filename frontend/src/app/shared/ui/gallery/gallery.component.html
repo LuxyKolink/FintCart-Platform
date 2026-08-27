@@ -1,0 +1,82 @@
+<div class="fc-gallery">
+  <section class="fc-gallery__section">
+    <h2 class="fc-gallery__title">Marca</h2>
+    <div class="fc-gallery__row">
+      <fc-brand-logo variant="full" [width]="120" [height]="29" />
+      <fc-brand-logo variant="inverse" [width]="120" [height]="29" />
+      <fc-brand-logo variant="mark" />
+      <fc-brand-logo variant="mark-mono" />
+      <fc-brand-logo variant="eye" [width]="44" [height]="32" />
+    </div>
+  </section>
+
+  <section class="fc-gallery__section">
+    <h2 class="fc-gallery__title">Iconos</h2>
+    <div class="fc-gallery__icons">
+      @for (name of iconNames; track name) {
+        <div class="fc-gallery__icon">
+          <fc-icon [name]="name" [size]="22" />
+          <span class="fc-num">{{ name }}</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="fc-gallery__section">
+    <h2 class="fc-gallery__title">Forms — Botones</h2>
+    <div class="fc-gallery__row">
+      <fc-button variant="primary">Guardar</fc-button>
+      <fc-button variant="accent">Empezar</fc-button>
+      <fc-button variant="secondary">Cancelar</fc-button>
+      <fc-button variant="ghost">Ver más</fc-button>
+      <fc-button variant="danger">Eliminar</fc-button>
+      <fc-button variant="primary" [disabled]="true">Deshabilitado</fc-button>
+    </div>
+    <div class="fc-gallery__row">
+      <fc-button size="sm">Pequeño</fc-button>
+      <fc-button size="md">Mediano</fc-button>
+      <fc-button size="lg">Grande</fc-button>
+    </div>
+  </section>
+
+  <section class="fc-gallery__section">
+    <h2 class="fc-gallery__title">Forms — Campos</h2>
+    <div class="fc-gallery__grid2">
+      <fc-input label="Correo electrónico" type="email" placeholder="tu@correo.com" />
+      <fc-input label="Monto" prefix="$" suffix="COP" placeholder="0" />
+      <fc-select label="Categoría" [options]="categoryOptions" />
+      <fc-input label="Contraseña" type="password" error="Mínimo 8 caracteres" />
+    </div>
+    <div class="fc-gallery__row">
+      <fc-checkbox label="Recordarme" />
+      <fc-checkbox label="Acepto la política de datos (Ley 1581)" />
+    </div>
+  </section>
+
+  <section class="fc-gallery__section">
+    <h2 class="fc-gallery__title">Display</h2>
+    <div class="fc-gallery__row">
+      <fc-avatar name="Ana María" />
+      <fc-avatar name="Carlos Ruiz" size="lg" tone="brand" />
+      <fc-badge tone="brand">Publicado</fc-badge>
+      <fc-badge tone="warning">Borrador</fc-badge>
+      <fc-badge tone="success" variant="solid">Aprobado</fc-badge>
+      <fc-tag category="ahorro" [active]="true">Ahorro</fc-tag>
+      <fc-tag category="inversion">Inversión</fc-tag>
+    </div>
+    <div class="fc-gallery__row">
+      <fc-progress-bar [value]="65" label="Progreso del módulo" [showValue]="true" />
+    </div>
+  </section>
+
+  <section class="fc-gallery__section">
+    <h2 class="fc-gallery__title">Layout</h2>
+    <div class="fc-gallery__row">
+      <fc-card [interactive]="true">Tarjeta interactiva</fc-card>
+      <fc-module-box title="Progreso reciente" accent="accent">
+        <p>Contenido del módulo.</p>
+      </fc-module-box>
+    </div>
+    <fc-tabs [tabs]="demoTabs" />
+  </section>
+</div>

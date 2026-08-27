@@ -120,5 +120,12 @@ export const routes: Routes = [
     canActivate: [roleGuard('coordinador_editorial')],
     loadComponent: () => import('./features/editorial/review/review.component').then((m) => m.ReviewComponent),
   },
+  {
+    // Galería interna de verificación visual de shared/ui (T048, quickstart §0).
+    // No es una pantalla de producto: no tiene enlace de navegación ni guard,
+    // solo sirve para contrastar los componentes migrados contra los UI kits.
+    path: 'interno/galeria',
+    loadComponent: () => import('./shared/ui/gallery/gallery.component').then((m) => m.GalleryComponent),
+  },
   { path: '**', redirectTo: 'catalogo' },
 ];
