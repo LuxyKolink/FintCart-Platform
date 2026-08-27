@@ -1,12 +1,37 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at
-`specs/002-calculator-builder-content-admin/plan.md` (with `research.md`,
-`data-model.md`, `contracts/` and `quickstart.md` in the same directory).
-La arquitectura base sigue viviendo en `specs/001-fintcart-platform/plan.md`:
-el feature 002 la **enmienda**, no la reemplaza.
+`specs/003-design-system-frontend/plan.md` (with `research.md` y `quickstart.md`
+en el mismo directorio; ese feature **no tiene** `data-model.md` ni `contracts/`
+porque es exclusivamente de presentación).
+La arquitectura base vive en `specs/001-fintcart-platform/plan.md` y el trabajo
+de dominio en curso en `specs/002-calculator-builder-content-admin/plan.md`.
+Los tres se acumulan: 002 enmienda a 001, y 003 solo toca `frontend/`.
 
-## Active Feature: Constructor de Calculadoras y Administración (`002-calculator-builder-content-admin`)
+## Active Feature: Rediseño del Frontend (`003-design-system-frontend`)
+
+Feature **exclusivamente de presentación**: no toca backend, contratos, eventos ni base de
+datos. Requisitos FR-086…FR-123, criterios SC-027…SC-037, decisiones D-26…D-32.
+
+- **Retira una capa, no añade otra** (nota N-12): `frontend/src/styles.scss` (116 líneas, 15
+  clases artesanales "inspiradas en" el design system) es un **duplicado parcial** de
+  `shared/ui`. Se vacía clase a clase y **su eliminación es el criterio de terminación**. Las
+  primitivas de portal de `tokens/base.css` (`fc-module`, `fc-num`, `fc-eyebrow`,
+  `fc-linklist`) **sí sobreviven**.
+- **Las pruebas e2e NO se modifican** (nota N-13): seleccionan por rol y etiqueta accesible en
+  110 de 112 casos, así que sobreviven al rediseño y fallan si este rompe la accesibilidad. Si
+  una falla, el fallo es del rediseño; ajustar la aserción destruye la única garantía dura.
+- **Responsive definido por primera vez** (D-27): no existe ni un `@media` en todo el
+  frontend. Cuatro puntos de corte como **tokens** (480/768/1024/1280), mínimo 360 px. En el
+  acceso, el panel de marca degrada a banda compacta pero **nunca se oculta** (N-14).
+- **Una cifra monetaria nunca trunca** (N-15): truncar `$1.234.567` a `$1.234…` no es texto
+  incompleto, es un dato falso. Es la expresión visual del Principio VIII.
+- **Frontera con 002** (FR-123): 002 reescribe la superficie de redacción del editor; 003 solo
+  el marco que la rodea. El grupo editorial se migra **el último**.
+- Migración **pantalla por pantalla agrupada por UI kit** (D-28), desplegando kit completo:
+  acceso → aprendizaje → simuladores → perfil → editorial.
+
+## Feature en curso: Constructor de Calculadoras y Administración (`002-calculator-builder-content-admin`)
 
 Enmienda al feature 001 (implementado y desplegado). Sin servicios ni infraestructura
 nuevos. Requisitos FR-032…FR-082, criterios SC-013…SC-025, decisiones D-13…D-25.
