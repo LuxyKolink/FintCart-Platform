@@ -64,7 +64,25 @@
     {
       "files": ["*.html"],
       "extends": ["plugin:@angular-eslint/template/recommended"],
-      "rules": {}
+      "rules": {
+        "@angular-eslint/template/no-inline-styles": "error"
+      }
+    },
+    {
+      "files": ["src/app/features/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/shared/ui/*/*"],
+                "message": "Importa los componentes de shared/ui desde el barril ('app/shared/ui'), no desde los internos del componente."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }
