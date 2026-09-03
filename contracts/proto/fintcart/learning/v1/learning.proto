@@ -43,12 +43,58 @@ service LearningService {
 
   // Saga de anonimización (FR-030): disocia PII de los intentos del usuario.
   rpc AnonymizeAttempts(UserRef) returns (fintcart.common.v1.OpResult);
+
+  // Catálogo de categorías (FR-032…FR-035). Administración reservada al rol
+  // administrador; el Gateway lo impone (FR-081).
+  rpc CreateCategory(CreateCategoryRequest) returns (Category);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (Category);
+  // Rechaza con FAILED_PRECONDITION si la categoría tiene artículos publicados,
+  // incluyendo el recuento en el mensaje (FR-035).
+  rpc DeactivateCategory(CategoryRef) returns (fintcart.common.v1.OpResult);
+  // `include_inactive` solo lo usa la pantalla de administración; el desplegable
+  // del editor y el catálogo público piden solo las activas.
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
 }
 
 message UserRef { string user_id = 1; }
 message ArticleRef { string article_id = 1; }
 message VersionRef { string version_id = 1; string actor_id = 2; }
 message QuizRef { string quiz_id = 1; }
+
+// Categorías del catálogo editorial (FR-032…FR-035). Referencia opaca por `id`;
+// `slug` es el identificador legible para rutas y filtros.
+message CategoryRef {
+  string category_id = 1;
+  string actor_id = 2; // rol administrador (FR-033)
+}
+
+message Category {
+  string category_id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  int32  position = 5;
+  bool   active = 6;
+}
+
+message CreateCategoryRequest {
+  string name = 1;
+  string slug = 2;        // vacío ⇒ derivado del nombre
+  string description = 3;
+  int32  position = 4;
+  string actor_id = 5;    // rol administrador (FR-033)
+}
+
+message UpdateCategoryRequest {
+  string category_id = 1;
+  string name = 2;
+  string description = 3;
+  int32  position = 4;
+  string actor_id = 5;
+}
+
+message ListCategoriesRequest { bool include_inactive = 1; }
+message ListCategoriesResponse { repeated Category items = 1; }
 
 message ArticleVersion {
   string version_id = 1;
@@ -67,6 +113,9 @@ message ArticleVersion {
 
 message CreateDraftRequest {
   string title = 1;
+  // (existente) pasa a IGNORARSE (FR-034): la categoría vive ahora en el catálogo y se
+  // referencia por `category_id`. Se conserva el número de campo para no romper a los
+  // clientes actuales del Gateway mientras se migra la superficie.
   string category = 2;
   string body = 3;
   string editor_id = 4; // rol editor (FR-006)
@@ -74,6 +123,8 @@ message CreateDraftRequest {
   // en borrador de un artículo YA EXISTENTE (FR-013) — `title`/`category` se ignoran en
   // ese caso, porque viven en `articles` y son compartidos por todas sus versiones.
   string article_id = 5;
+  // Obligatorio al crear artículo nuevo (FR-034): referencia al catálogo.
+  string category_id = 6;
 }
 
 message UpdateDraftRequest {
@@ -88,8 +139,11 @@ message ApprovePublishRequest {
 }
 
 message ListPublishedRequest {
+  // Nombre visible de la categoría (filtro heredado de 001, se conserva).
   string category = 1;
   fintcart.common.v1.PageRequest page = 2;
+  // Filtro preferente por referencia al catálogo (FR-034); vacío ⇒ sin filtrar.
+  string category_id = 3;
 }
 message ListPublishedResponse {
   repeated Article items = 1;
@@ -99,10 +153,13 @@ message ListPublishedResponse {
 message Article {
   string article_id = 1;
   string title = 2;
+  // Nombre visible de la categoría. Se conserva (número de campo 3) para no romper a
+  // los consumidores actuales, y queda OBSOLETO en favor de `category_id` (FR-034).
   string category = 3;
   string body = 4;
   int32 current_version_no = 5;
   repeated string quiz_ids = 6;
+  string category_id = 7; // referencia al catálogo (FR-034)
 }
 
 message Quiz {

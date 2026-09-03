@@ -27,6 +27,51 @@ export interface QuizRef {
   quiz_id: string;
 }
 
+/**
+ * Categorías del catálogo editorial (FR-032…FR-035). Referencia opaca por `id`;
+ * `slug` es el identificador legible para rutas y filtros.
+ */
+export interface CategoryRef {
+  category_id: string;
+  /** rol administrador (FR-033) */
+  actor_id: string;
+}
+
+export interface Category {
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string;
+  position: number;
+  active: boolean;
+}
+
+export interface CreateCategoryRequest {
+  name: string;
+  /** vacío ⇒ derivado del nombre */
+  slug: string;
+  description: string;
+  position: number;
+  /** rol administrador (FR-033) */
+  actor_id: string;
+}
+
+export interface UpdateCategoryRequest {
+  category_id: string;
+  name: string;
+  description: string;
+  position: number;
+  actor_id: string;
+}
+
+export interface ListCategoriesRequest {
+  include_inactive: boolean;
+}
+
+export interface ListCategoriesResponse {
+  items: Category[];
+}
+
 export interface ArticleVersion {
   version_id: string;
   article_id: string;
@@ -50,6 +95,11 @@ export interface ArticleVersion {
 
 export interface CreateDraftRequest {
   title: string;
+  /**
+   * (existente) pasa a IGNORARSE (FR-034): la categoría vive ahora en el catálogo y se
+   * referencia por `category_id`. Se conserva el número de campo para no romper a los
+   * clientes actuales del Gateway mientras se migra la superficie.
+   */
   category: string;
   body: string;
   /** rol editor (FR-006) */
@@ -60,6 +110,8 @@ export interface CreateDraftRequest {
    * ese caso, porque viven en `articles` y son compartidos por todas sus versiones.
    */
   article_id: string;
+  /** Obligatorio al crear artículo nuevo (FR-034): referencia al catálogo. */
+  category_id: string;
 }
 
 export interface UpdateDraftRequest {
@@ -75,8 +127,13 @@ export interface ApprovePublishRequest {
 }
 
 export interface ListPublishedRequest {
+  /** Nombre visible de la categoría (filtro heredado de 001, se conserva). */
   category: string;
-  page?: PageRequest | undefined;
+  page?:
+    | PageRequest
+    | undefined;
+  /** Filtro preferente por referencia al catálogo (FR-034); vacío ⇒ sin filtrar. */
+  category_id: string;
 }
 
 export interface ListPublishedResponse {
@@ -87,10 +144,16 @@ export interface ListPublishedResponse {
 export interface Article {
   article_id: string;
   title: string;
+  /**
+   * Nombre visible de la categoría. Se conserva (número de campo 3) para no romper a
+   * los consumidores actuales, y queda OBSOLETO en favor de `category_id` (FR-034).
+   */
   category: string;
   body: string;
   current_version_no: number;
   quiz_ids: string[];
+  /** referencia al catálogo (FR-034) */
+  category_id: string;
 }
 
 export interface Quiz {
@@ -466,6 +529,586 @@ export const QuizRef: MessageFns<QuizRef> = {
   },
 };
 
+function createBaseCategoryRef(): CategoryRef {
+  return { category_id: "", actor_id: "" };
+}
+
+export const CategoryRef: MessageFns<CategoryRef> = {
+  encode(message: CategoryRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.category_id !== "") {
+      writer.uint32(10).string(message.category_id);
+    }
+    if (message.actor_id !== "") {
+      writer.uint32(18).string(message.actor_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CategoryRef {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCategoryRef();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.category_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.actor_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CategoryRef {
+    return {
+      category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
+      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : "",
+    };
+  },
+
+  toJSON(message: CategoryRef): unknown {
+    const obj: any = {};
+    if (message.category_id !== "") {
+      obj.category_id = message.category_id;
+    }
+    if (message.actor_id !== "") {
+      obj.actor_id = message.actor_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CategoryRef>, I>>(base?: I): CategoryRef {
+    return CategoryRef.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CategoryRef>, I>>(object: I): CategoryRef {
+    const message = createBaseCategoryRef();
+    message.category_id = object.category_id ?? "";
+    message.actor_id = object.actor_id ?? "";
+    return message;
+  },
+};
+
+function createBaseCategory(): Category {
+  return { category_id: "", name: "", slug: "", description: "", position: 0, active: false };
+}
+
+export const Category: MessageFns<Category> = {
+  encode(message: Category, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.category_id !== "") {
+      writer.uint32(10).string(message.category_id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.slug !== "") {
+      writer.uint32(26).string(message.slug);
+    }
+    if (message.description !== "") {
+      writer.uint32(34).string(message.description);
+    }
+    if (message.position !== 0) {
+      writer.uint32(40).int32(message.position);
+    }
+    if (message.active !== false) {
+      writer.uint32(48).bool(message.active);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Category {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCategory();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.category_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.slug = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.position = reader.int32();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.active = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Category {
+    return {
+      category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      slug: isSet(object.slug) ? globalThis.String(object.slug) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      position: isSet(object.position) ? globalThis.Number(object.position) : 0,
+      active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
+    };
+  },
+
+  toJSON(message: Category): unknown {
+    const obj: any = {};
+    if (message.category_id !== "") {
+      obj.category_id = message.category_id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.slug !== "") {
+      obj.slug = message.slug;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.position !== 0) {
+      obj.position = Math.round(message.position);
+    }
+    if (message.active !== false) {
+      obj.active = message.active;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Category>, I>>(base?: I): Category {
+    return Category.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Category>, I>>(object: I): Category {
+    const message = createBaseCategory();
+    message.category_id = object.category_id ?? "";
+    message.name = object.name ?? "";
+    message.slug = object.slug ?? "";
+    message.description = object.description ?? "";
+    message.position = object.position ?? 0;
+    message.active = object.active ?? false;
+    return message;
+  },
+};
+
+function createBaseCreateCategoryRequest(): CreateCategoryRequest {
+  return { name: "", slug: "", description: "", position: 0, actor_id: "" };
+}
+
+export const CreateCategoryRequest: MessageFns<CreateCategoryRequest> = {
+  encode(message: CreateCategoryRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.slug !== "") {
+      writer.uint32(18).string(message.slug);
+    }
+    if (message.description !== "") {
+      writer.uint32(26).string(message.description);
+    }
+    if (message.position !== 0) {
+      writer.uint32(32).int32(message.position);
+    }
+    if (message.actor_id !== "") {
+      writer.uint32(42).string(message.actor_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CreateCategoryRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCreateCategoryRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.slug = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.position = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.actor_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CreateCategoryRequest {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      slug: isSet(object.slug) ? globalThis.String(object.slug) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      position: isSet(object.position) ? globalThis.Number(object.position) : 0,
+      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : "",
+    };
+  },
+
+  toJSON(message: CreateCategoryRequest): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.slug !== "") {
+      obj.slug = message.slug;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.position !== 0) {
+      obj.position = Math.round(message.position);
+    }
+    if (message.actor_id !== "") {
+      obj.actor_id = message.actor_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CreateCategoryRequest>, I>>(base?: I): CreateCategoryRequest {
+    return CreateCategoryRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CreateCategoryRequest>, I>>(object: I): CreateCategoryRequest {
+    const message = createBaseCreateCategoryRequest();
+    message.name = object.name ?? "";
+    message.slug = object.slug ?? "";
+    message.description = object.description ?? "";
+    message.position = object.position ?? 0;
+    message.actor_id = object.actor_id ?? "";
+    return message;
+  },
+};
+
+function createBaseUpdateCategoryRequest(): UpdateCategoryRequest {
+  return { category_id: "", name: "", description: "", position: 0, actor_id: "" };
+}
+
+export const UpdateCategoryRequest: MessageFns<UpdateCategoryRequest> = {
+  encode(message: UpdateCategoryRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.category_id !== "") {
+      writer.uint32(10).string(message.category_id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.description !== "") {
+      writer.uint32(26).string(message.description);
+    }
+    if (message.position !== 0) {
+      writer.uint32(32).int32(message.position);
+    }
+    if (message.actor_id !== "") {
+      writer.uint32(42).string(message.actor_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdateCategoryRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdateCategoryRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.category_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.position = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.actor_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpdateCategoryRequest {
+    return {
+      category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      position: isSet(object.position) ? globalThis.Number(object.position) : 0,
+      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : "",
+    };
+  },
+
+  toJSON(message: UpdateCategoryRequest): unknown {
+    const obj: any = {};
+    if (message.category_id !== "") {
+      obj.category_id = message.category_id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.position !== 0) {
+      obj.position = Math.round(message.position);
+    }
+    if (message.actor_id !== "") {
+      obj.actor_id = message.actor_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpdateCategoryRequest>, I>>(base?: I): UpdateCategoryRequest {
+    return UpdateCategoryRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpdateCategoryRequest>, I>>(object: I): UpdateCategoryRequest {
+    const message = createBaseUpdateCategoryRequest();
+    message.category_id = object.category_id ?? "";
+    message.name = object.name ?? "";
+    message.description = object.description ?? "";
+    message.position = object.position ?? 0;
+    message.actor_id = object.actor_id ?? "";
+    return message;
+  },
+};
+
+function createBaseListCategoriesRequest(): ListCategoriesRequest {
+  return { include_inactive: false };
+}
+
+export const ListCategoriesRequest: MessageFns<ListCategoriesRequest> = {
+  encode(message: ListCategoriesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.include_inactive !== false) {
+      writer.uint32(8).bool(message.include_inactive);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListCategoriesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListCategoriesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.include_inactive = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListCategoriesRequest {
+    return { include_inactive: isSet(object.include_inactive) ? globalThis.Boolean(object.include_inactive) : false };
+  },
+
+  toJSON(message: ListCategoriesRequest): unknown {
+    const obj: any = {};
+    if (message.include_inactive !== false) {
+      obj.include_inactive = message.include_inactive;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListCategoriesRequest>, I>>(base?: I): ListCategoriesRequest {
+    return ListCategoriesRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListCategoriesRequest>, I>>(object: I): ListCategoriesRequest {
+    const message = createBaseListCategoriesRequest();
+    message.include_inactive = object.include_inactive ?? false;
+    return message;
+  },
+};
+
+function createBaseListCategoriesResponse(): ListCategoriesResponse {
+  return { items: [] };
+}
+
+export const ListCategoriesResponse: MessageFns<ListCategoriesResponse> = {
+  encode(message: ListCategoriesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.items) {
+      Category.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListCategoriesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListCategoriesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.items.push(Category.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListCategoriesResponse {
+    return { items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => Category.fromJSON(e)) : [] };
+  },
+
+  toJSON(message: ListCategoriesResponse): unknown {
+    const obj: any = {};
+    if (message.items?.length) {
+      obj.items = message.items.map((e) => Category.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListCategoriesResponse>, I>>(base?: I): ListCategoriesResponse {
+    return ListCategoriesResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListCategoriesResponse>, I>>(object: I): ListCategoriesResponse {
+    const message = createBaseListCategoriesResponse();
+    message.items = object.items?.map((e) => Category.fromPartial(e)) || [];
+    return message;
+  },
+};
+
 function createBaseArticleVersion(): ArticleVersion {
   return {
     version_id: "",
@@ -665,7 +1308,7 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
 };
 
 function createBaseCreateDraftRequest(): CreateDraftRequest {
-  return { title: "", category: "", body: "", editor_id: "", article_id: "" };
+  return { title: "", category: "", body: "", editor_id: "", article_id: "", category_id: "" };
 }
 
 export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
@@ -684,6 +1327,9 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     }
     if (message.article_id !== "") {
       writer.uint32(42).string(message.article_id);
+    }
+    if (message.category_id !== "") {
+      writer.uint32(50).string(message.category_id);
     }
     return writer;
   },
@@ -735,6 +1381,14 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
           message.article_id = reader.string();
           continue;
         }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.category_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -751,6 +1405,7 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
       body: isSet(object.body) ? globalThis.String(object.body) : "",
       editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : "",
       article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
+      category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
     };
   },
 
@@ -771,6 +1426,9 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     if (message.article_id !== "") {
       obj.article_id = message.article_id;
     }
+    if (message.category_id !== "") {
+      obj.category_id = message.category_id;
+    }
     return obj;
   },
 
@@ -784,6 +1442,7 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     message.body = object.body ?? "";
     message.editor_id = object.editor_id ?? "";
     message.article_id = object.article_id ?? "";
+    message.category_id = object.category_id ?? "";
     return message;
   },
 };
@@ -957,7 +1616,7 @@ export const ApprovePublishRequest: MessageFns<ApprovePublishRequest> = {
 };
 
 function createBaseListPublishedRequest(): ListPublishedRequest {
-  return { category: "", page: undefined };
+  return { category: "", page: undefined, category_id: "" };
 }
 
 export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
@@ -967,6 +1626,9 @@ export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
     }
     if (message.page !== undefined) {
       PageRequest.encode(message.page, writer.uint32(18).fork()).join();
+    }
+    if (message.category_id !== "") {
+      writer.uint32(26).string(message.category_id);
     }
     return writer;
   },
@@ -994,6 +1656,14 @@ export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
           message.page = PageRequest.decode(reader, reader.uint32());
           continue;
         }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.category_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1007,6 +1677,7 @@ export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
     return {
       category: isSet(object.category) ? globalThis.String(object.category) : "",
       page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
+      category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
     };
   },
 
@@ -1017,6 +1688,9 @@ export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
     }
     if (message.page !== undefined) {
       obj.page = PageRequest.toJSON(message.page);
+    }
+    if (message.category_id !== "") {
+      obj.category_id = message.category_id;
     }
     return obj;
   },
@@ -1030,6 +1704,7 @@ export const ListPublishedRequest: MessageFns<ListPublishedRequest> = {
     message.page = (object.page !== undefined && object.page !== null)
       ? PageRequest.fromPartial(object.page)
       : undefined;
+    message.category_id = object.category_id ?? "";
     return message;
   },
 };
@@ -1113,7 +1788,7 @@ export const ListPublishedResponse: MessageFns<ListPublishedResponse> = {
 };
 
 function createBaseArticle(): Article {
-  return { article_id: "", title: "", category: "", body: "", current_version_no: 0, quiz_ids: [] };
+  return { article_id: "", title: "", category: "", body: "", current_version_no: 0, quiz_ids: [], category_id: "" };
 }
 
 export const Article: MessageFns<Article> = {
@@ -1135,6 +1810,9 @@ export const Article: MessageFns<Article> = {
     }
     for (const v of message.quiz_ids) {
       writer.uint32(50).string(v!);
+    }
+    if (message.category_id !== "") {
+      writer.uint32(58).string(message.category_id);
     }
     return writer;
   },
@@ -1194,6 +1872,14 @@ export const Article: MessageFns<Article> = {
           message.quiz_ids.push(reader.string());
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.category_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1211,6 +1897,7 @@ export const Article: MessageFns<Article> = {
       body: isSet(object.body) ? globalThis.String(object.body) : "",
       current_version_no: isSet(object.current_version_no) ? globalThis.Number(object.current_version_no) : 0,
       quiz_ids: globalThis.Array.isArray(object?.quiz_ids) ? object.quiz_ids.map((e: any) => globalThis.String(e)) : [],
+      category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
     };
   },
 
@@ -1234,6 +1921,9 @@ export const Article: MessageFns<Article> = {
     if (message.quiz_ids?.length) {
       obj.quiz_ids = message.quiz_ids;
     }
+    if (message.category_id !== "") {
+      obj.category_id = message.category_id;
+    }
     return obj;
   },
 
@@ -1248,6 +1938,7 @@ export const Article: MessageFns<Article> = {
     message.body = object.body ?? "";
     message.current_version_no = object.current_version_no ?? 0;
     message.quiz_ids = object.quiz_ids?.map((e) => e) || [];
+    message.category_id = object.category_id ?? "";
     return message;
   },
 };

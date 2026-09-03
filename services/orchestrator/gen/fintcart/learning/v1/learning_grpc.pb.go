@@ -33,6 +33,10 @@ const (
 	LearningService_GradeAndStoreAttempt_FullMethodName = "/fintcart.learning.v1.LearningService/GradeAndStoreAttempt"
 	LearningService_ListAttempts_FullMethodName         = "/fintcart.learning.v1.LearningService/ListAttempts"
 	LearningService_AnonymizeAttempts_FullMethodName    = "/fintcart.learning.v1.LearningService/AnonymizeAttempts"
+	LearningService_CreateCategory_FullMethodName       = "/fintcart.learning.v1.LearningService/CreateCategory"
+	LearningService_UpdateCategory_FullMethodName       = "/fintcart.learning.v1.LearningService/UpdateCategory"
+	LearningService_DeactivateCategory_FullMethodName   = "/fintcart.learning.v1.LearningService/DeactivateCategory"
+	LearningService_ListCategories_FullMethodName       = "/fintcart.learning.v1.LearningService/ListCategories"
 )
 
 // LearningServiceClient is the client API for LearningService service.
@@ -71,6 +75,16 @@ type LearningServiceClient interface {
 	ListAttempts(ctx context.Context, in *ListAttemptsRequest, opts ...grpc.CallOption) (*ListAttemptsResponse, error)
 	// Saga de anonimización (FR-030): disocia PII de los intentos del usuario.
 	AnonymizeAttempts(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// Catálogo de categorías (FR-032…FR-035). Administración reservada al rol
+	// administrador; el Gateway lo impone (FR-081).
+	CreateCategory(ctx context.Context, in *CreateCategoryRequest, opts ...grpc.CallOption) (*Category, error)
+	UpdateCategory(ctx context.Context, in *UpdateCategoryRequest, opts ...grpc.CallOption) (*Category, error)
+	// Rechaza con FAILED_PRECONDITION si la categoría tiene artículos publicados,
+	// incluyendo el recuento en el mensaje (FR-035).
+	DeactivateCategory(ctx context.Context, in *CategoryRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// `include_inactive` solo lo usa la pantalla de administración; el desplegable
+	// del editor y el catálogo público piden solo las activas.
+	ListCategories(ctx context.Context, in *ListCategoriesRequest, opts ...grpc.CallOption) (*ListCategoriesResponse, error)
 }
 
 type learningServiceClient struct {
@@ -211,6 +225,46 @@ func (c *learningServiceClient) AnonymizeAttempts(ctx context.Context, in *UserR
 	return out, nil
 }
 
+func (c *learningServiceClient) CreateCategory(ctx context.Context, in *CreateCategoryRequest, opts ...grpc.CallOption) (*Category, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Category)
+	err := c.cc.Invoke(ctx, LearningService_CreateCategory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *learningServiceClient) UpdateCategory(ctx context.Context, in *UpdateCategoryRequest, opts ...grpc.CallOption) (*Category, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Category)
+	err := c.cc.Invoke(ctx, LearningService_UpdateCategory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *learningServiceClient) DeactivateCategory(ctx context.Context, in *CategoryRef, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, LearningService_DeactivateCategory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *learningServiceClient) ListCategories(ctx context.Context, in *ListCategoriesRequest, opts ...grpc.CallOption) (*ListCategoriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListCategoriesResponse)
+	err := c.cc.Invoke(ctx, LearningService_ListCategories_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LearningServiceServer is the server API for LearningService service.
 // All implementations should embed UnimplementedLearningServiceServer
 // for forward compatibility.
@@ -247,6 +301,16 @@ type LearningServiceServer interface {
 	ListAttempts(context.Context, *ListAttemptsRequest) (*ListAttemptsResponse, error)
 	// Saga de anonimización (FR-030): disocia PII de los intentos del usuario.
 	AnonymizeAttempts(context.Context, *UserRef) (*v1.OpResult, error)
+	// Catálogo de categorías (FR-032…FR-035). Administración reservada al rol
+	// administrador; el Gateway lo impone (FR-081).
+	CreateCategory(context.Context, *CreateCategoryRequest) (*Category, error)
+	UpdateCategory(context.Context, *UpdateCategoryRequest) (*Category, error)
+	// Rechaza con FAILED_PRECONDITION si la categoría tiene artículos publicados,
+	// incluyendo el recuento en el mensaje (FR-035).
+	DeactivateCategory(context.Context, *CategoryRef) (*v1.OpResult, error)
+	// `include_inactive` solo lo usa la pantalla de administración; el desplegable
+	// del editor y el catálogo público piden solo las activas.
+	ListCategories(context.Context, *ListCategoriesRequest) (*ListCategoriesResponse, error)
 }
 
 // UnimplementedLearningServiceServer should be embedded to have
@@ -294,6 +358,18 @@ func (UnimplementedLearningServiceServer) ListAttempts(context.Context, *ListAtt
 }
 func (UnimplementedLearningServiceServer) AnonymizeAttempts(context.Context, *UserRef) (*v1.OpResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AnonymizeAttempts not implemented")
+}
+func (UnimplementedLearningServiceServer) CreateCategory(context.Context, *CreateCategoryRequest) (*Category, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateCategory not implemented")
+}
+func (UnimplementedLearningServiceServer) UpdateCategory(context.Context, *UpdateCategoryRequest) (*Category, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateCategory not implemented")
+}
+func (UnimplementedLearningServiceServer) DeactivateCategory(context.Context, *CategoryRef) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeactivateCategory not implemented")
+}
+func (UnimplementedLearningServiceServer) ListCategories(context.Context, *ListCategoriesRequest) (*ListCategoriesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCategories not implemented")
 }
 func (UnimplementedLearningServiceServer) testEmbeddedByValue() {}
 
@@ -549,6 +625,78 @@ func _LearningService_AnonymizeAttempts_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LearningService_CreateCategory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCategoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).CreateCategory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_CreateCategory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).CreateCategory(ctx, req.(*CreateCategoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LearningService_UpdateCategory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateCategoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).UpdateCategory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_UpdateCategory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).UpdateCategory(ctx, req.(*UpdateCategoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LearningService_DeactivateCategory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CategoryRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).DeactivateCategory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_DeactivateCategory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).DeactivateCategory(ctx, req.(*CategoryRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LearningService_ListCategories_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCategoriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).ListCategories(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_ListCategories_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).ListCategories(ctx, req.(*ListCategoriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LearningService_ServiceDesc is the grpc.ServiceDesc for LearningService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -607,6 +755,22 @@ var LearningService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AnonymizeAttempts",
 			Handler:    _LearningService_AnonymizeAttempts_Handler,
+		},
+		{
+			MethodName: "CreateCategory",
+			Handler:    _LearningService_CreateCategory_Handler,
+		},
+		{
+			MethodName: "UpdateCategory",
+			Handler:    _LearningService_UpdateCategory_Handler,
+		},
+		{
+			MethodName: "DeactivateCategory",
+			Handler:    _LearningService_DeactivateCategory_Handler,
+		},
+		{
+			MethodName: "ListCategories",
+			Handler:    _LearningService_ListCategories_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
