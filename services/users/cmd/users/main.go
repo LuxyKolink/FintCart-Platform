@@ -123,6 +123,27 @@ func run() error {
 		server.NewLearningAttemptCounter(learningv1.NewLearningServiceClient(learningConn)),
 		server.NewSimulatorRunCounter(simulatorv1.NewSimulatorServiceClient(simulatorConn)),
 	)
+
+	// Promoción del primer administrador (D-21, T026). La cuenta indicada por
+	// `BOOTSTRAP_ADMIN_EMAIL` recibe el rol 'administrador' de forma idempotente en
+	// cada arranque; NO se siembra en una migración, porque quedaría un usuario
+	// privilegiado escrito en el repositorio. Si el correo todavía no pertenece a
+	// ninguna cuenta registrada —la promoción puede correr antes de que el registro
+	// de esa cuenta termine— se registra y se continúa: un arranque posterior la
+	// consumará. Cualquier otro fallo sí detiene el arranque: un `BOOTSTRAP_ADMIN_EMAIL`
+	// que no se puede aplicar sería una configuración errónea que conviene ver ya.
+	if cfg.BootstrapAdminEmail != "" {
+		if err := svc.PromoteToAdministrator(ctx, cfg.BootstrapAdminEmail); err != nil {
+			if errors.Is(err, server.ErrNotFound) {
+				logger.Warn(
+					"BOOTSTRAP_ADMIN_EMAIL no corresponde a ninguna cuenta registrada; la promoción se aplicará en un próximo arranque",
+					slog.String("email", cfg.BootstrapAdminEmail))
+			} else {
+				return fmt.Errorf("promover administrador inicial: %w", err)
+			}
+		}
+	}
+
 	h := handler.New(svc)
 
 	// El interceptor de métricas va DESPUÉS del de log en la cadena para medir también
@@ -218,6 +239,10 @@ type config struct {
 	SimulatorAddr string
 	HealthPort    string
 	LogLevel      string
+	// BootstrapAdminEmail es OPCIONAL (D-21): correo de la cuenta que recibe el
+	// rol 'administrador' en cada arranque, de forma idempotente. Vacío = no
+	// promover a nadie. No entra en la lista de obligatorias de `loadConfig`.
+	BootstrapAdminEmail string
 }
 
 // errMissingEnv se devuelve cuando falta una variable obligatoria.
@@ -225,13 +250,14 @@ var errMissingEnv = errors.New("falta una variable de entorno obligatoria")
 
 func loadConfig() (config, error) {
 	cfg := config{
-		DBAddr:        os.Getenv("DB_ADDR"),
-		AMQPAddr:      os.Getenv("AMQP_ADDR"),
-		GRPCPort:      os.Getenv("GRPC_PORT"),
-		LearningAddr:  os.Getenv("LEARNING_SVC_ADDR"),
-		SimulatorAddr: os.Getenv("SIMULATOR_SVC_ADDR"),
-		HealthPort:    os.Getenv("HEALTH_PORT"),
-		LogLevel:      os.Getenv("LOG_LEVEL"),
+		DBAddr:              os.Getenv("DB_ADDR"),
+		AMQPAddr:            os.Getenv("AMQP_ADDR"),
+		GRPCPort:            os.Getenv("GRPC_PORT"),
+		LearningAddr:        os.Getenv("LEARNING_SVC_ADDR"),
+		SimulatorAddr:       os.Getenv("SIMULATOR_SVC_ADDR"),
+		HealthPort:          os.Getenv("HEALTH_PORT"),
+		LogLevel:            os.Getenv("LOG_LEVEL"),
+		BootstrapAdminEmail: os.Getenv("BOOTSTRAP_ADMIN_EMAIL"),
 	}
 
 	// Se comprueban TODAS y se reportan juntas. Fallar en la primera obliga a

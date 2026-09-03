@@ -25,13 +25,15 @@ type Profile struct {
 	Roles         []string
 }
 
-// Roles del sistema (FR-006). Coinciden con el CHECK de `roles_assignment`; la
-// tabla es la última barrera, pero el rechazo tiene que ocurrir aquí para que un
-// rol inválido salga como argumento inválido y no como violación de constraint.
+// Roles del sistema (FR-006 y FR-080). Coinciden con el CHECK de
+// `roles_assignment`; la tabla es la última barrera, pero el rechazo tiene que
+// ocurrir aquí para que un rol inválido salga como argumento inválido y no como
+// violación de constraint.
 const (
 	RoleEndUser              = "usuario_final"
 	RoleEditor               = "editor"
 	RoleEditorialCoordinator = "coordinador_editorial"
+	RoleAdministrator        = "administrador" // FR-080: cuarto rol, independiente del coordinador editorial (FR-082)
 )
 
 // maxDisplayNameLen acota el nombre visible.
@@ -47,8 +49,9 @@ const maxDisplayNameLen = 120
 // El rol inicial es siempre `usuario_final` y NO es un parámetro. Si el rol
 // entrara por el contrato, el paso de una saga —o cualquier cosa que pudiera
 // invocar este RPC interno— podría crear un coordinador editorial, que es la
-// escalada de privilegios más barata que hay. Los ascensos de rol pertenecen al
-// flujo editorial (US3) y tienen su propia ruta.
+// escalada de privilegios más barata que hay. Los ascensos de rol van por
+// `AssignRole`/`RevokeRole` (FR-080), cuyo actor debe tener rol administrador
+// —verificado por el Gateway en el borde (FR-081), no por este servicio—.
 func (s *Server) CreateProfile(ctx context.Context, userID, email, displayName string) error {
 	id, err := parseUserID(userID)
 	if err != nil {

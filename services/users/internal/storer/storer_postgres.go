@@ -128,6 +128,14 @@ ON CONFLICT (user_id) DO NOTHING`
 	insertRoleQuery = `
 INSERT INTO roles_assignment (user_id, role) VALUES ($1, $2)
 ON CONFLICT (user_id, role) DO NOTHING`
+
+	// revokeRoleQuery retira un rol sin tocar el resto. Un `DELETE` por la clave
+	// primaria compuesta no puede afectar a más de una fila ni a otro rol.
+	revokeRoleQuery = `DELETE FROM roles_assignment WHERE user_id = $1 AND role = $2`
+
+	// profileIDByEmailQuery resuelve la cuenta por su correo. La columna es
+	// `CITEXT`, así que la comparación ya es insensible a mayúsculas en la base.
+	profileIDByEmailQuery = `SELECT id FROM profiles WHERE email = $1`
 )
 
 // CreateProfile escribe `profiles`, `preferences`, `progress` y
@@ -272,6 +280,69 @@ func (s *PostgresStorer) GetRoles(ctx context.Context, userID uuid.UUID) ([]Role
 		return nil, classify("leer roles", err)
 	}
 	return rows, nil
+}
+
+// AssignRole otorga un rol a la cuenta (FR-080).
+//
+// La idempotencia la da el `ON CONFLICT ... DO NOTHING`: asignar un rol que la
+// cuenta ya tiene no falla ni duplica. La cuenta inexistente viola la clave
+// foránea hacia `profiles`, y `classify` la traduce a [ErrNotFound] —en este
+// esquema TODA clave ajena apunta a `profiles`, así que no hay ambigüedad—.
+func (s *PostgresStorer) AssignRole(ctx context.Context, userID uuid.UUID, role string) error {
+	if _, err := s.db.ExecContext(ctx, insertRoleQuery, userID, role); err != nil {
+		return classify("asignar rol", err)
+	}
+	return nil
+}
+
+// RevokeRole retira un rol de la cuenta (FR-080).
+//
+// Cero filas afectadas tiene dos causas con consecuencias distintas: la cuenta
+// no existe (la revocación apunta a un perfil ausente, y el cliente debe poder
+// distinguirlo para no creer que la cuenta existe sin ese rol), o la cuenta
+// existe pero no ostenta el rol (un no-op legítimo). Se separan con la consulta
+// de existencia; revocar un rol ya retirado no es un error, igual que en
+// `AssignRole`.
+func (s *PostgresStorer) RevokeRole(ctx context.Context, userID uuid.UUID, role string) error {
+	res, err := s.db.ExecContext(ctx, revokeRoleQuery, userID, role)
+	if err != nil {
+		return classify("revocar rol", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return classify("revocar rol", err)
+	}
+	if n == 0 {
+		var exists bool
+		if err := s.db.GetContext(ctx, &exists,
+			`SELECT EXISTS (SELECT 1 FROM profiles WHERE id = $1)`, userID); err != nil {
+			// Si la comprobación falla, la causa del driver se conserva: devolver un
+			// «no encontrado» inventado haría creer al llamador que la cuenta no existe
+			// cuando lo que pasó es que la base no respondió.
+			return wrap("revocar rol", fmt.Errorf("comprobar existencia del perfil: %w", err))
+		}
+		if !exists {
+			return wrap("revocar rol", ErrNotFound)
+		}
+	}
+	return nil
+}
+
+// ProfileIDByEmail resuelve el identificador de la cuenta que posee `email`.
+//
+// Es la única lectura por correo del esquema y existe para el arranque
+// (BOOTSTRAP_ADMIN_EMAIL, D-21): en el resto de flujos la cuenta ya se conoce por
+// su UUID opaco. Un correo sin cuenta es [ErrNotFound].
+func (s *PostgresStorer) ProfileIDByEmail(ctx context.Context, email string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := s.db.GetContext(ctx, &id, profileIDByEmailQuery, email)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, wrap("buscar cuenta por correo", ErrNotFound)
+	}
+	if err != nil {
+		return uuid.Nil, classify("buscar cuenta por correo", err)
+	}
+	return id, nil
 }
 
 const anonymizeProfileQuery = `

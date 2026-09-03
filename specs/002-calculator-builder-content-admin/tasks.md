@@ -89,7 +89,7 @@ historia puede empezar.
 ### Migraciones de `users_db`
 
 - [ ] T021 [P] Migración emparejada que amplía `profiles_account_status_valid` con `pending_deletion`, añade `purge_due_at` y `purge_requested_by`, y **sustituye `profiles_email_active_uniq` por `profiles_email_reserved_uniq` sobre `('active','pending_deletion')`** — es el cambio del que depende FR-074, en `services/users/migrations/`
-- [ ] T022 [P] Migración emparejada que amplía `roles_assignment_role_valid` con `administrador` en `services/users/migrations/`
+- [X] T022 [P] Migración emparejada que amplía `roles_assignment_role_valid` con `administrador` en `services/users/migrations/`
 
 ### Pruebas de migración
 
@@ -99,10 +99,10 @@ historia puede empezar.
 
 ### Rol `administrador` y autorización
 
-- [ ] T026 Promoción idempotente a `administrador` de la cuenta indicada por `BOOTSTRAP_ADMIN_EMAIL` al arrancar, en `services/users/cmd/users/main.go` — **no se siembra en migración** (research D-21)
-- [ ] T027 Implementar `AssignRole` y `RevokeRole` en `services/users/internal/server/roles.go` y su persistencia en `services/users/internal/storer/storer_postgres.go`
-- [ ] T028 [P] Exponer `AssignRole`/`RevokeRole` en `services/users/internal/handler/handler.go` y declararlos en `services/users/internal/handler/types.go`
-- [ ] T029 Incluir `administrador` en el conjunto de roles emitido en los claims del JWT, en `services/auth-server/internal/server/`
+- [X] T026 Promoción idempotente a `administrador` de la cuenta indicada por `BOOTSTRAP_ADMIN_EMAIL` al arrancar, en `services/users/cmd/users/main.go` — **no se siembra en migración** (research D-21)
+- [X] T027 Implementar `AssignRole` y `RevokeRole` en `services/users/internal/server/roles.go` y su persistencia en `services/users/internal/storer/storer_postgres.go`
+- [X] T028 [P] Exponer `AssignRole`/`RevokeRole` en `services/users/internal/handler/handler.go` y declararlos en `services/users/internal/handler/types.go`
+- [X] T029 Incluir `administrador` en el conjunto de roles emitido en los claims del JWT, en `services/auth-server/internal/server/`
 - [ ] T030 Middleware `requireRole("administrador")` en `services/api-gateway/internal/handler/middleware.go` y su aplicación a `/admin/**` en `routes.go` (FR-081: verificación en el borde, no ocultando la interfaz)
 - [ ] T031 [P] Pruebas del middleware: rol ausente → 403; `coordinador_editorial` NO accede a `/admin/**` (FR-082); administrador NO accede a `/editorial/calculators/**`, en `services/api-gateway/internal/handler/middleware_test.go`
 

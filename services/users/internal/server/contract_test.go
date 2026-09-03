@@ -43,6 +43,7 @@ const (
 	testArticleID = "5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f"
 	testEmail     = "ana@fintcart.co"
 	testName      = "Ana Restrepo"
+	testActorID   = "d1e2f3a4-5b6c-4d7e-8f90-1234567890ab"
 )
 
 // ── doble de la persistencia ────────────────────────────────────────────────
@@ -86,6 +87,20 @@ type fakeStore struct {
 	anonymizedMail string
 	anonymizedName string
 	anonymizeErr   error
+
+	// assignedRoles y revokedRoles registran las llamadas de gestión de roles
+	// (FR-080) para poder comprobar qué pidió `server`, igual que `createdRow`.
+	assignedRoles []struct {
+		userID uuid.UUID
+		role   string
+	}
+	revokedRoles []struct {
+		userID uuid.UUID
+		role   string
+	}
+	roleErr  error
+	emailID  uuid.UUID
+	emailErr error
 }
 
 func newFakeStore() *fakeStore {
@@ -175,6 +190,32 @@ func (f *fakeStore) AnonymizeProfile(_ context.Context, userID uuid.UUID, opaque
 	}
 	f.anonymizedID, f.anonymizedMail, f.anonymizedName = userID, opaqueEmail, opaqueName
 	return nil
+}
+
+func (f *fakeStore) AssignRole(_ context.Context, userID uuid.UUID, role string) error {
+	if f.roleErr != nil {
+		return f.roleErr
+	}
+	f.assignedRoles = append(f.assignedRoles, struct {
+		userID uuid.UUID
+		role   string
+	}{userID, role})
+	return nil
+}
+
+func (f *fakeStore) RevokeRole(_ context.Context, userID uuid.UUID, role string) error {
+	if f.roleErr != nil {
+		return f.roleErr
+	}
+	f.revokedRoles = append(f.revokedRoles, struct {
+		userID uuid.UUID
+		role   string
+	}{userID, role})
+	return nil
+}
+
+func (f *fakeStore) ProfileIDByEmail(context.Context, string) (uuid.UUID, error) {
+	return f.emailID, f.emailErr
 }
 
 // ── dobles de los puertos salientes (plan.md N-02) ──────────────────────────
@@ -817,4 +858,121 @@ func TestAnonymizeProfileGeneratesAnOpaqueUniqueEmail(t *testing.T) {
 	require.Contains(t, store.anonymizedMail, testUserID)
 	require.NotEmpty(t, store.anonymizedName)
 	require.NotContains(t, store.anonymizedMail, testEmail, "el correo opaco no debe filtrar el real")
+}
+
+// ── Roles (FR-080, T027/T028) ───────────────────────────────────────────────
+
+func TestAssignRoleContract(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	client := startServer(t, store)
+
+	_, err := client.AssignRole(context.Background(), &usersv1.AssignRoleRequest{
+		UserId: testUserID, Role: "editor", ActorId: testActorID,
+	})
+	require.NoError(t, err)
+	require.Len(t, store.assignedRoles, 1)
+	require.Equal(t, uuid.MustParse(testUserID), store.assignedRoles[0].userID)
+	require.Equal(t, "editor", store.assignedRoles[0].role)
+}
+
+func TestAssignRoleRejectsInvalidInput(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]*usersv1.AssignRoleRequest{
+		"user_id que no es UUID": {UserId: "no-soy-un-uuid", Role: "editor"},
+		"rol vacío":              {UserId: testUserID, Role: " "},
+		// FR-080 define CUATRO roles; cualquiera fuera del conjunto cerrado tiene que
+		// ser rechazado aquí y no esperar a que el CHECK de la base lo descubra.
+		"rol desconocido": {UserId: testUserID, Role: "superadmin"},
+	}
+
+	for name, req := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			client := startServer(t, newFakeStore())
+
+			_, err := client.AssignRole(context.Background(), req)
+			requireCode(t, err, codes.InvalidArgument)
+		})
+	}
+}
+
+func TestAssignRoleReportsMissingProfileAsNotFound(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.roleErr = storer.ErrNotFound
+	client := startServer(t, store)
+
+	_, err := client.AssignRole(context.Background(), &usersv1.AssignRoleRequest{
+		UserId: testUserID, Role: "coordinador_editorial",
+	})
+	requireCode(t, err, codes.NotFound)
+}
+
+func TestRevokeRoleContract(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	client := startServer(t, store)
+
+	_, err := client.RevokeRole(context.Background(), &usersv1.AssignRoleRequest{
+		UserId: testUserID, Role: "editor", ActorId: testActorID,
+	})
+	require.NoError(t, err)
+	require.Len(t, store.revokedRoles, 1)
+	require.Equal(t, uuid.MustParse(testUserID), store.revokedRoles[0].userID)
+	require.Equal(t, "editor", store.revokedRoles[0].role)
+}
+
+func TestRevokeRoleRejectsAnUnknownRole(t *testing.T) {
+	t.Parallel()
+	client := startServer(t, newFakeStore())
+
+	_, err := client.RevokeRole(context.Background(), &usersv1.AssignRoleRequest{
+		UserId: testUserID, Role: "administradora",
+	})
+	requireCode(t, err, codes.InvalidArgument)
+}
+
+// ── Promoción inicial a administrador (D-21, T026) ──────────────────────────
+
+// Promover sale de la capa de aplicación y no del contrato gRPC —`main.go` llama
+// al `*server.Server` directamente—, así que se prueba construyendo el servicio
+// sobre el doble, igual que hace `startServer` por dentro.
+
+func TestPromoteToAdministratorGrantsTheAdminRole(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.emailID = uuid.MustParse(testUserID)
+	svc := server.New(store, fakeCounter{}, fakeCounter{})
+
+	// El correo entra con espacios: se normaliza antes de buscar, igual que en el
+	// registro (FR-001). La columna es CITEXT, así que la caja no importa.
+	err := svc.PromoteToAdministrator(context.Background(), "  "+testEmail+"  ")
+	require.NoError(t, err)
+	require.Len(t, store.assignedRoles, 1)
+	require.Equal(t, uuid.MustParse(testUserID), store.assignedRoles[0].userID)
+	require.Equal(t, "administrador", store.assignedRoles[0].role)
+}
+
+func TestPromoteToAdministratorSurfacesUnregisteredAccount(t *testing.T) {
+	t.Parallel()
+	store := newFakeStore()
+	store.emailErr = storer.ErrNotFound
+	svc := server.New(store, fakeCounter{}, fakeCounter{})
+
+	// El correo no corresponde a ninguna cuenta registrada: `main.go` registra y
+	// continúa, de modo que un arranque posterior consuma la promoción. Que NO sea
+	// un fallo duro de arranque es lo que evita el callejón sin salida de exigir un
+	// administrador antes de que exista forma de registrarlo.
+	err := svc.PromoteToAdministrator(context.Background(), testEmail)
+	require.ErrorIs(t, err, server.ErrNotFound)
+}
+
+func TestPromoteToAdministratorRejectsAMalformedEmail(t *testing.T) {
+	t.Parallel()
+	svc := server.New(newFakeStore(), fakeCounter{}, fakeCounter{})
+
+	err := svc.PromoteToAdministrator(context.Background(), "no-es-un-correo")
+	require.ErrorIs(t, err, server.ErrInvalidArgument)
 }

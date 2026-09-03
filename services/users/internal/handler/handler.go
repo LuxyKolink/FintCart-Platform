@@ -161,3 +161,23 @@ func (h *Handler) AnonymizeProfile(ctx context.Context, req *usersv1.UserRef) (*
 	}
 	return okResult(), nil
 }
+
+// ── Roles (FR-080) ───────────────────────────────────────────────────────────
+
+// AssignRole y RevokeRole comparten el DTO `AssignRoleRequest`. El `actor_id` no
+// se desempaqueta: la autorización del actor la verificó el Gateway en el borde
+// (FR-081) y este servicio no la repite (ver `server/roles.go`); el identificador
+// viaja en la petición para el registro, no para una decisión de aquí.
+func (h *Handler) AssignRole(ctx context.Context, req *usersv1.AssignRoleRequest) (*commonv1.OpResult, error) {
+	if err := h.svc.AssignRole(ctx, req.GetUserId(), req.GetRole()); err != nil {
+		return nil, grpcError(err)
+	}
+	return okResult(), nil
+}
+
+func (h *Handler) RevokeRole(ctx context.Context, req *usersv1.AssignRoleRequest) (*commonv1.OpResult, error) {
+	if err := h.svc.RevokeRole(ctx, req.GetUserId(), req.GetRole()); err != nil {
+		return nil, grpcError(err)
+	}
+	return okResult(), nil
+}

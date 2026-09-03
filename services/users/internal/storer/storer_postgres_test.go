@@ -217,6 +217,112 @@ func TestGetRolesWithoutRowsIsNotAnError(t *testing.T) {
 	require.Empty(t, roles)
 }
 
+// ── roles (FR-080) ──────────────────────────────────────────────────────────
+
+func TestAssignRoleIsIdempotentByConstruction(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := mustUUID(t, testUserID)
+
+	mock.ExpectExec("INSERT INTO roles_assignment").WithArgs(id, "administrador").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	require.NoError(t, s.AssignRole(context.Background(), id, "administrador"))
+
+	// La idempotencia (D-04/T026: el arranque repite la promoción) la da el
+	// `ON CONFLICT DO NOTHING`, no un `if exists` en Go.
+	require.Contains(t, insertRoleQuery, "ON CONFLICT (user_id, role)")
+	require.Contains(t, insertRoleQuery, "DO NOTHING")
+}
+
+func TestAssignRoleToAMissingProfileIsNotFound(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := mustUUID(t, testUserID)
+
+	mock.ExpectExec("INSERT INTO roles_assignment").WithArgs(id, "editor").
+		WillReturnError(pgErr(pgForeignKeyViolation))
+
+	// Toda clave ajena del esquema apunta a `profiles`: violarla al asignar un rol
+	// significa que la cuenta no existe, y eso debe salir como NOT_FOUND para que el
+	// Gateway no le diga al administrador «rol asignado» a una cuenta fantasma.
+	err := s.AssignRole(context.Background(), id, "editor")
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestRevokeRoleRemovesOnlyThatRole(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := mustUUID(t, testUserID)
+
+	mock.ExpectExec("DELETE FROM roles_assignment").WithArgs(id, "editor").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	require.NoError(t, s.RevokeRole(context.Background(), id, "editor"))
+
+	// El borrado va por la clave primaria compuesta: un `WHERE` por `role` a solas
+	// retiraría el rol a todos los usuarios, y un `WHERE` sin `role` vaciaría la
+	// asignación entera de la cuenta.
+	require.Contains(t, revokeRoleQuery, "user_id = $1 AND role = $2")
+}
+
+func TestRevokeRoleNotHeldIsANoOp(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := mustUUID(t, testUserID)
+
+	// Cero filas afectadas + la cuenta existe = la cuenta simplemente no ostentaba
+	// el rol. Revocar algo que ya se retiró no es un error: el estado final es el
+	// mismo y la interfaz no gana nada distinguiendo los dos casos.
+	mock.ExpectExec("DELETE FROM roles_assignment").WithArgs(id, "editor").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(id).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	require.NoError(t, s.RevokeRole(context.Background(), id, "editor"))
+}
+
+func TestRevokeRoleOnAMissingProfileIsNotFound(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := mustUUID(t, testUserID)
+
+	// Cero filas afectadas + la cuenta NO existe: a diferencia del no-op anterior,
+	// el cliente debe poder distinguirlo —revocar un rol a una cuenta inexistente
+	// delataría una pantalla que ofrece acciones sobre un perfil ya compensado.
+	mock.ExpectExec("DELETE FROM roles_assignment").WithArgs(id, "editor").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(id).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	err := s.RevokeRole(context.Background(), id, "editor")
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestProfileIDByEmailResolvesTheAccount(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+	id := mustUUID(t, testUserID)
+
+	mock.ExpectQuery("SELECT id FROM profiles WHERE email").WithArgs("ana@fintcart.co").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id.String()))
+
+	got, err := s.ProfileIDByEmail(context.Background(), "ana@fintcart.co")
+	require.NoError(t, err)
+	require.Equal(t, id, got)
+}
+
+func TestProfileIDByEmailTranslatesNoRows(t *testing.T) {
+	t.Parallel()
+	s, mock := newMockStorer(t)
+
+	mock.ExpectQuery("SELECT id FROM profiles WHERE email").WithArgs("nadie@fintcart.co").
+		WillReturnRows(sqlmock.NewRows([]string{}))
+
+	_, err := s.ProfileIDByEmail(context.Background(), "nadie@fintcart.co")
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
 // ── progreso: monotonía e idempotencia (D-07, FR-014) ───────────────────────
 
 // expectApplyBestScore programa las tres sentencias de ApplyBestScore y hace que

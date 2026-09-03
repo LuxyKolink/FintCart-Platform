@@ -41,6 +41,16 @@ type Storer interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (ProfileRow, error)
 	UpdateDisplayName(ctx context.Context, userID uuid.UUID, displayName string) error
 	GetRoles(ctx context.Context, userID uuid.UUID) ([]RoleRow, error)
+	// AssignRole otorga un rol a la cuenta. Es idempotente: asignar un rol que la
+	// cuenta ya tiene no falla (el `ON CONFLICT DO NOTHING` lo absorbe). Una cuenta
+	// inexistente viola la clave foránea y sale como [ErrNotFound].
+	AssignRole(ctx context.Context, userID uuid.UUID, role string) error
+	// RevokeRole retira un rol de la cuenta. Revocar un rol no ostentado es un
+	// no-op; revocar de una cuenta inexistente es [ErrNotFound].
+	RevokeRole(ctx context.Context, userID uuid.UUID, role string) error
+	// ProfileIDByEmail resuelve el identificador de la cuenta que posee el correo.
+	// La comparación es insensible a mayúsculas por la columna `CITEXT`.
+	ProfileIDByEmail(ctx context.Context, email string) (uuid.UUID, error)
 	// AnonymizeProfile sustituye los datos personales por valores opacos y pone
 	// `account_status = 'anonymized'` (FR-030). No borra la fila: el progreso y
 	// los agregados deben sobrevivir, y las claves foráneas internas apuntan a

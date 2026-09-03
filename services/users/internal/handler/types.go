@@ -40,6 +40,8 @@ type Service interface {
 	MarkNotificationRead(ctx context.Context, userID, notificationID string) error
 	GetActivityReport(ctx context.Context, userID string) (server.ActivityReport, error)
 	AnonymizeProfile(ctx context.Context, userID string) error
+	AssignRole(ctx context.Context, userID, role string) error
+	RevokeRole(ctx context.Context, userID, role string) error
 }
 
 // Límites de paginación del transporte.
