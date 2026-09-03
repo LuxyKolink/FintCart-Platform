@@ -103,8 +103,8 @@ historia puede empezar.
 - [X] T027 Implementar `AssignRole` y `RevokeRole` en `services/users/internal/server/roles.go` y su persistencia en `services/users/internal/storer/storer_postgres.go`
 - [X] T028 [P] Exponer `AssignRole`/`RevokeRole` en `services/users/internal/handler/handler.go` y declararlos en `services/users/internal/handler/types.go`
 - [X] T029 Incluir `administrador` en el conjunto de roles emitido en los claims del JWT, en `services/auth-server/internal/server/`
-- [ ] T030 Middleware `requireRole("administrador")` en `services/api-gateway/internal/handler/middleware.go` y su aplicación a `/admin/**` en `routes.go` (FR-081: verificación en el borde, no ocultando la interfaz)
-- [ ] T031 [P] Pruebas del middleware: rol ausente → 403; `coordinador_editorial` NO accede a `/admin/**` (FR-082); administrador NO accede a `/editorial/calculators/**`, en `services/api-gateway/internal/handler/middleware_test.go`
+- [X] T030 Middleware `requireRole("administrador")` en `services/api-gateway/internal/handler/middleware.go` y su aplicación a `/admin/**` en `routes.go` (FR-081: verificación en el borde, no ocultando la interfaz)
+- [X] T031 [P] Pruebas del middleware: rol ausente → 403; `coordinador_editorial` NO accede a `/admin/**` (FR-082); administrador NO accede a `/editorial/calculators/**`, en `services/api-gateway/internal/handler/middleware_test.go`
 
 ### Capa de componentes del design system (bloqueante para toda UI)
 
@@ -161,7 +161,7 @@ verificar el filtrado público. No depende de ninguna otra historia.
 - [X] T054 [US1] Controlador gRPC de categorías en `services/learning/src/categories/categories.controller.ts`
 - [X] T055 [US1] Validar `category_id` contra el catálogo en la creación y edición de borradores, en `services/learning/src/articles/` (FR-034)
 - [X] T056 [US1] Publicar `category.deactivated` al desactivar, en `services/learning/src/events/` (consumidor: solo Auditoría)
-- [ ] T057 [US1] Rutas `/catalog/categories` y `/admin/categories[/{categoryId}]` en `services/api-gateway/internal/handler/routes.go`, con traducción del rechazo por artículos publicados a 409 con `published_count`
+- [X] T057 [US1] Rutas `/catalog/categories` y `/admin/categories[/{categoryId}]` en `services/api-gateway/internal/handler/routes.go`, con traducción del rechazo por artículos publicados a 409 con `published_count`
 - [ ] T058 [P] [US1] Pantalla de administración de categorías (alta, edición, reordenamiento, desactivación) en `frontend/src/app/features/admin/categories/`
 - [ ] T059 [US1] Sustituir el `<input>` de texto libre por un `<select>` alimentado por el catálogo en `frontend/src/app/features/editorial/editor/editor.component.html` (hoy es texto libre en la línea 31)
 - [ ] T060 [P] [US1] Filtro por categoría del catálogo público en `frontend/src/app/features/learning/catalog/`

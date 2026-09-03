@@ -127,14 +127,25 @@ func (f *fakeUsers) MarkNotificationRead(_ context.Context, in *usersv1.MarkRead
 type fakeLearning struct {
 	learningv1.LearningServiceClient
 
-	lastDraft    *learningv1.CreateDraftRequest
-	lastUpdate   *learningv1.UpdateDraftRequest
-	lastPublish  *learningv1.ApprovePublishRequest
-	lastVersions *learningv1.ListVersionsRequest
-	lastQuiz     *learningv1.UpsertQuizRequest
-	articles     *learningv1.ListPublishedResponse
-	attempts     *learningv1.ListAttemptsResponse
-	versions     *learningv1.ListVersionsResponse
+	lastDraft        *learningv1.CreateDraftRequest
+	lastUpdate       *learningv1.UpdateDraftRequest
+	lastPublish      *learningv1.ApprovePublishRequest
+	lastVersions     *learningv1.ListVersionsRequest
+	lastQuiz         *learningv1.UpsertQuizRequest
+	lastListPub      *learningv1.ListPublishedRequest
+	lastListCat      *learningv1.ListCategoriesRequest
+	lastCreateCat    *learningv1.CreateCategoryRequest
+	lastUpdateCat    *learningv1.UpdateCategoryRequest
+	lastDeactivate   *learningv1.CategoryRef
+	articles         *learningv1.ListPublishedResponse
+	attempts         *learningv1.ListAttemptsResponse
+	versions         *learningv1.ListVersionsResponse
+	categories       *learningv1.ListCategoriesResponse
+	createCat        *learningv1.Category
+	updateCat        *learningv1.Category
+	createCatErr     error
+	updateCatErr     error
+	deactivateCatErr error
 }
 
 func (f *fakeLearning) ListAttempts(_ context.Context, _ *learningv1.ListAttemptsRequest, _ ...grpc.CallOption) (*learningv1.ListAttemptsResponse, error) {
@@ -180,8 +191,47 @@ func (f *fakeLearning) UpsertQuiz(_ context.Context, in *learningv1.UpsertQuizRe
 	return &learningv1.Quiz{QuizId: quizID, ArticleId: in.GetArticleId(), Title: in.GetTitle(), PassThreshold: in.GetPassThreshold()}, nil
 }
 
-func (f *fakeLearning) ListPublished(_ context.Context, _ *learningv1.ListPublishedRequest, _ ...grpc.CallOption) (*learningv1.ListPublishedResponse, error) {
+func (f *fakeLearning) ListPublished(_ context.Context, in *learningv1.ListPublishedRequest, _ ...grpc.CallOption) (*learningv1.ListPublishedResponse, error) {
+	f.lastListPub = in
 	return f.articles, nil
+}
+
+func (f *fakeLearning) ListCategories(_ context.Context, in *learningv1.ListCategoriesRequest, _ ...grpc.CallOption) (*learningv1.ListCategoriesResponse, error) {
+	f.lastListCat = in
+	if f.categories == nil {
+		return &learningv1.ListCategoriesResponse{}, nil
+	}
+	return f.categories, nil
+}
+
+func (f *fakeLearning) CreateCategory(_ context.Context, in *learningv1.CreateCategoryRequest, _ ...grpc.CallOption) (*learningv1.Category, error) {
+	f.lastCreateCat = in
+	if f.createCatErr != nil {
+		return nil, f.createCatErr
+	}
+	if f.createCat != nil {
+		return f.createCat, nil
+	}
+	return &learningv1.Category{CategoryId: "cat-nueva", Name: in.GetName(), Slug: in.GetSlug(), Position: in.GetPosition(), Active: true}, nil
+}
+
+func (f *fakeLearning) UpdateCategory(_ context.Context, in *learningv1.UpdateCategoryRequest, _ ...grpc.CallOption) (*learningv1.Category, error) {
+	f.lastUpdateCat = in
+	if f.updateCatErr != nil {
+		return nil, f.updateCatErr
+	}
+	if f.updateCat != nil {
+		return f.updateCat, nil
+	}
+	return &learningv1.Category{CategoryId: in.GetCategoryId(), Name: in.GetName(), Position: in.GetPosition(), Active: true}, nil
+}
+
+func (f *fakeLearning) DeactivateCategory(_ context.Context, in *learningv1.CategoryRef, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
+	f.lastDeactivate = in
+	if f.deactivateCatErr != nil {
+		return nil, f.deactivateCatErr
+	}
+	return &commonv1.OpResult{Success: true}, nil
 }
 
 type fakeOrchestrator struct {
@@ -353,6 +403,10 @@ func TestPublicRoutesNeedNoToken(t *testing.T) {
 		{http.MethodPost, "/oauth/token"},
 		{http.MethodPost, "/auth/register"},
 		{http.MethodPost, "/auth/verify-email"},
+		// Las categorías ACTIVAS del catálogo son públicas (feature 002, US1): solo
+		// devuelven nombre/identificador/orden y alimentan el desplegable del editor
+		// incluso antes del login.
+		{http.MethodGet, "/catalog/categories"},
 	} {
 		rec := h.do(t, route.method, route.target, `{}`, false)
 		require.NotEqual(t, http.StatusUnauthorized, rec.Code,
@@ -394,6 +448,11 @@ func TestProtectedRoutesRejectAnonymousRequests(t *testing.T) {
 		{http.MethodGet, "/editorial/versions"},
 		{http.MethodPost, "/editorial/quizzes"},
 		{http.MethodPut, "/editorial/quizzes/q-1"},
+		// Administración: exige token Y rol, pero la comprobación de token va primero.
+		{http.MethodGet, "/admin/categories"},
+		{http.MethodPost, "/admin/categories"},
+		{http.MethodPatch, "/admin/categories/cat-1"},
+		{http.MethodDelete, "/admin/categories/cat-1"},
 	} {
 		rec := h.do(t, route.method, route.target, `{}`, false)
 		require.Equal(t, http.StatusUnauthorized, rec.Code,

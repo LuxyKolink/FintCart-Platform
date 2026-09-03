@@ -18,8 +18,9 @@ import (
 // catálogo sería una fuga de contenido editorial sin aprobar (FR-008).
 func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.clients.Learning.ListPublished(r.Context(), &learningv1.ListPublishedRequest{
-		Category: r.URL.Query().Get("category"),
-		Page:     pageRequestFrom(r),
+		Category:   r.URL.Query().Get("category"),
+		CategoryId: r.URL.Query().Get("category_id"),
+		Page:       pageRequestFrom(r),
 	})
 	if err != nil {
 		h.writeGRPCError(w, r, err)

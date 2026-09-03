@@ -47,11 +47,18 @@ type BlacklistChecker interface {
 	IsBlacklisted(ctx context.Context, jti string) (bool, error)
 }
 
-// Roles de la plataforma (FR-006).
+// Roles de la plataforma (FR-006, FR-080).
+//
+// El cuarto rol, `administrador`, NO hereda las atribuciones del
+// `coordinador_editorial` (FR-082): administra el catálogo, los indicadores y la
+// depuración de cuentas, pero no aprueba ni publica contenido editorial. Que sea
+// un valor más en esta lista y no una relación entre roles es la garantía de que
+// la separación se comprueba con `RequireRole`, no se deduce.
 const (
 	RoleUsuarioFinal        = "usuario_final"
 	RoleEditor              = "editor"
 	RoleCoordinadorEditoria = "coordinador_editorial"
+	RoleAdministrator       = "administrador"
 )
 
 // claimsKey es la clave del contexto donde viajan los claims.

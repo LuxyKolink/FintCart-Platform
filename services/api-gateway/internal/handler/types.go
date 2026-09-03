@@ -122,10 +122,15 @@ type SagaAccepted struct {
 // en `articleToDTO`): sin él, la SPA no tiene forma de enlazar «leer artículo»
 // con «iniciar su cuestionario» (FR-011 → FR-012, escenario 2 de `spec.md`) —
 // `learning.proto` ya lo expone (`Article.quiz_ids`), solo faltaba cruzar el borde.
+//
+// `CategoryID` (FR-034) tampoco estaba: es la referencia al catálogo de
+// categorías. `Category` (el nombre visible) se conserva para no romper a los
+// consumidores actuales.
 type Article struct {
 	ArticleID        string   `json:"article_id"`
 	Title            string   `json:"title"`
 	Category         string   `json:"category"`
+	CategoryID       string   `json:"category_id,omitempty"`
 	Body             string   `json:"body"`
 	CurrentVersionNo int32    `json:"current_version_no"`
 	QuizIDs          []string `json:"quiz_ids"`
@@ -179,10 +184,16 @@ type QuizGradeResult struct {
 // No lleva `editor_id`: el autor sale del token verificado. Si viniera en el cuerpo,
 // cualquier editor podría crear un borrador a nombre de otro y `created_by` dejaría de
 // ser confiable — y con él, el invariante `approved_by ≠ created_by` de FR-008.
+//
+// `CategoryID` (FR-034) es la referencia al catálogo que exige Aprendizaje para un
+// artículo nuevo. `Category` (el nombre libre) se conserva aceptado para no romper a
+// los clientes de 001 mientras migran, pero Aprendizaje lo IGNORA: la categoría vive
+// en el catálogo y se referencia por id (ver `learning.proto`).
 type CreateDraftRequest struct {
-	Title    string `json:"title"`
-	Category string `json:"category"`
-	Body     string `json:"body"`
+	Title      string `json:"title"`
+	Category   string `json:"category"`
+	CategoryID string `json:"category_id,omitempty"`
+	Body       string `json:"body"`
 }
 
 // ArticleVersion ≡ la respuesta de creación de borrador y cada fila del historial
@@ -231,6 +242,52 @@ type OpAck struct {
 	Success bool   `json:"success"`
 	Code    string `json:"code,omitempty"`
 	Message string `json:"message,omitempty"`
+}
+
+// ── DTO de categorías (feature 002, US1) ────────────────────────────────────
+
+// Category ≡ categoría del catálogo editorial (FR-032…FR-035). `Slug` es el
+// identificador legible que NO se edita (reutilizar el de una categoría
+// desactivada rompería rutas históricas); `Active` solo es falso para las
+// desactivadas, que únicamente lista la pantalla de administración.
+type Category struct {
+	CategoryID  string `json:"category_id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description,omitempty"`
+	Position    int32  `json:"position"`
+	Active      bool   `json:"active"`
+}
+
+// CategoryCatalog envuelve la lista de categorías. No va paginada: el catálogo es
+// corto (ordenable a mano) y el contrato la devuelve entera.
+type CategoryCatalog struct {
+	Categories []Category `json:"categories"`
+}
+
+// CategoryInput ≡ cuerpo de `POST /admin/categories` y `PATCH
+// /admin/categories/{categoryId}`.
+//
+// No lleva `actor_id`: el administrador sale del token verificado (ver
+// `admin.go`). `slug` vacío se deriva del nombre y NO se puede editar después, por
+// eso solo está en el alta. En la edición, `position` no está en el cuerpo con
+// puntero: un `0` se interpreta como «deja el orden intacto» (así lo define
+// Aprendizaje), así que el administrador siempre reenvía nombre y descripción tal
+// como están — no hay un tercer estado de «no lo toques» que transmitir.
+type CategoryInput struct {
+	Name        string `json:"name"`
+	Slug        string `json:"slug,omitempty"`
+	Description string `json:"description,omitempty"`
+	Position    int32  `json:"position"`
+}
+
+// CategoryConflict es el `409` de desactivar una categoría con artículos
+// publicados (FR-035). Lleva `published_count` para que el mensaje al
+// administrador diga CUÁNTOS, no solo que no se puede.
+type CategoryConflict struct {
+	Code           string `json:"code"`
+	Message        string `json:"message"`
+	PublishedCount int    `json:"published_count"`
 }
 
 // ── DTO de aprendizaje (envío de cuestionario) ──────────────────────────────

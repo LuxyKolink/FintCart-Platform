@@ -42,10 +42,11 @@ func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := h.clients.Learning.CreateDraft(r.Context(), &learningv1.CreateDraftRequest{
-		Title:    body.Title,
-		Category: body.Category,
-		Body:     body.Body,
-		EditorId: claims.UserID,
+		Title:      body.Title,
+		Category:   body.Category,
+		CategoryId: body.CategoryID,
+		Body:       body.Body,
+		EditorId:   claims.UserID,
 	})
 	if err != nil {
 		h.writeGRPCError(w, r, err)

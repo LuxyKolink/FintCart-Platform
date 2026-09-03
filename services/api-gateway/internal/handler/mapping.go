@@ -68,10 +68,36 @@ func articleToDTO(a *learningv1.Article) Article {
 		ArticleID:        a.GetArticleId(),
 		Title:            a.GetTitle(),
 		Category:         a.GetCategory(),
+		CategoryID:       a.GetCategoryId(),
 		Body:             a.GetBody(),
 		CurrentVersionNo: a.GetCurrentVersionNo(),
 		QuizIDs:          a.GetQuizIds(),
 	}
+}
+
+// categoryToDTO copia la categoría sin interpretarla. `Slug` y `Position` viajan
+// tal cual: el Gateway no es dueño del catálogo, solo lo expone (Principio IX).
+func categoryToDTO(c *learningv1.Category) Category {
+	return Category{
+		CategoryID:  c.GetCategoryId(),
+		Name:        c.GetName(),
+		Slug:        c.GetSlug(),
+		Description: c.GetDescription(),
+		Position:    c.GetPosition(),
+		Active:      c.GetActive(),
+	}
+}
+
+// categoriesToDTO construye el catálogo desde una respuesta `ListCategories`.
+//
+// `items` se normaliza a un slice vacío (nunca `null`), igual que hace `pageOf`:
+// un `"categories": null` haría fallar a cualquier cliente que lo itere.
+func categoriesToDTO(items []*learningv1.Category) CategoryCatalog {
+	catalog := CategoryCatalog{Categories: []Category{}}
+	for _, c := range items {
+		catalog.Categories = append(catalog.Categories, categoryToDTO(c))
+	}
+	return catalog
 }
 
 func quizToDTO(q *learningv1.Quiz) Quiz {

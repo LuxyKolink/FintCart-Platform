@@ -20,7 +20,7 @@ import (
 // listado repartido por diez archivos es donde se cuela una ruta editorial sin
 // comprobación de rol.
 //
-// Las rutas siguen `contracts/openapi/gateway.yaml`: **28 rutas y 29 operaciones**.
+// Las rutas siguen `contracts/openapi/gateway.yaml`: **31 rutas y 34 operaciones**.
 //
 // Los dos números conviene desglosarlos porque el contrato, tal como estaba escrito,
 // no los daba directamente. `paths:` declara 16 rutas y 17 operaciones —`/me/profile`
@@ -60,6 +60,13 @@ import (
 // Ninguna estaba en el contrato original: `CreateDraft`/`UpdateDraft` no llevaban
 // `article_id`, y `ListVersions`/`UpsertQuiz` no existían como RPC hasta esta
 // implementación (ver el comentario de esos mensajes en `learning.proto`).
+//
+// Las rutas 29–31 son el catálogo administrable de categorías (feature 002, US1,
+// T057): `GET /catalog/categories` (PÚBLICA — no exige token: la lista de
+// categorías activas alimenta el desplegable del editor y el filtro del catálogo
+// antes del login), `GET|POST /admin/categories` y `PATCH|DELETE
+// /admin/categories/{categoryId}` (rol `administrador`, T030). Ninguna estaba en
+// el OpenAPI original; el delta de contratos las incorpora (`gateway-delta.yaml`).
 
 // Deps son las dependencias transversales del router.
 //
@@ -126,6 +133,14 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.With(Authenticate(deps.Verifier, deps.Blacklist, h.logger)).Post("/logout", h.Logout)
 	})
 
+	// ── Catálogo de categorías (PÚBLICO, feature 002 US1) ───────────────────
+	//
+	// Es la ÚNICA ruta de `/catalog/*` que no exige token (delta del contrato): solo
+	// devuelve nombre, identificador y orden de las categorías activas —nada sensible—
+	// y la necesita el desplegable del editor y el filtro del catálogo incluso antes de
+	// iniciar sesión. El resto del catálogo sí vive dentro del grupo autenticado.
+	r.Get("/catalog/categories", h.ListActiveCategories)
+
 	// ── Rutas autenticadas ─────────────────────────────────────────────────
 	r.Group(func(r chi.Router) {
 		r.Use(Authenticate(deps.Verifier, deps.Blacklist, h.logger))
@@ -181,6 +196,21 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(RequireRole(RoleCoordinadorEditoria))
 			r.Post("/editorial/versions/{versionId}/publish", h.ApproveAndPublish)
+		})
+
+		// ── Administración: exige rol `administrador` (FR-080, FR-081) ──────
+		//
+		// El rol NO lo hereda nadie: ni un `coordinador_editorial` administra el
+		// catálogo ni un `administrador` aprueba contenido editorial (FR-082). Que
+		// ambas familias de grupos usen `RequireRole` con roles disjuntos es la
+		// garantía de que la separación se mantiene aunque un día el mismo usuario
+		// acumule los dos roles.
+		r.Group(func(r chi.Router) {
+			r.Use(RequireRole(RoleAdministrator))
+			r.Get("/admin/categories", h.ListAllCategories)
+			r.Post("/admin/categories", h.CreateCategory)
+			r.Patch("/admin/categories/{categoryId}", h.UpdateCategory)
+			r.Delete("/admin/categories/{categoryId}", h.DeactivateCategory)
 		})
 	})
 
