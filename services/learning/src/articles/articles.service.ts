@@ -34,16 +34,21 @@ export class ArticlesService {
   /**
    * Catálogo publicado (FR-010, SC-009).
    *
-   * La categoría vacía significa «todas» y no es un error: el catálogo completo es la
-   * vista por defecto de la SPA, y exigir una categoría obligaría al cliente a conocer
-   * la lista antes de poder pedir nada.
+   * «Sin filtrar» se expresa con `categoryId` y `category` vacíos y no es un error: el
+   * catálogo completo es la vista por defecto de la SPA. Cuando `categoryId` no está
+   * vacío se valida como UUID antes de llegar al SQL (el mismo motivo que
+   * `getArticle`); el filtro por nombre es el heredado de 001.
    */
   public async listPublished(
+    categoryId: string,
     category: string,
     page: PageRequestLike | undefined,
   ): Promise<CatalogPage> {
+    if (categoryId !== '' && !UUID.test(categoryId)) {
+      throw invalidArgument(`category_id no es un UUID: ${JSON.stringify(categoryId)}`);
+    }
     const window = resolvePage(page);
-    const result = await this.repository.listPublished(category.trim(), window);
+    const result = await this.repository.listPublished(categoryId, category.trim(), window);
 
     return {
       items: result.items,

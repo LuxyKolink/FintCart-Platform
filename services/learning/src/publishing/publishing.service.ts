@@ -16,6 +16,7 @@ import type { Count } from '../common/counts';
 import { invalidArgument } from '../common/errors';
 import { nextPageToken, resolvePage, type PageRequestLike } from '../common/pagination';
 
+import { CategoriesService } from '../categories/categories.service';
 import { EventsPublisher } from '../events/publisher';
 import { PublishingRepository, type VersionFilter, type VersionRow } from './publishing.repository';
 import { VersioningService } from './versioning.service';
@@ -41,15 +42,20 @@ export class PublishingService {
     private readonly repository: PublishingRepository,
     private readonly versioning: VersioningService,
     private readonly events: EventsPublisher,
+    private readonly categories: CategoriesService,
   ) {}
 
   /**
    * Crea un borrador (FR-007). `articleId` vacío ⇒ artículo nuevo; no vacío ⇒ nueva
    * versión de uno existente (FR-013, delegado a `VersioningService`).
+   *
+   * `categoryId` es obligatorio y debe existir y estar ACTIVA solo al crear un artículo
+   * NUEVO (FR-034): la categoría vive en `articles` y la comparten todas las versiones,
+   * así que una nueva versión de un artículo ya existente la deja intacta.
    */
   public async createDraft(
     title: string,
-    category: string,
+    categoryId: string,
     body: string,
     editorId: string,
     articleId: string,
@@ -67,10 +73,8 @@ export class PublishingService {
     if (title.trim() === '') {
       throw invalidArgument('title no puede estar vacío');
     }
-    if (category.trim() === '') {
-      throw invalidArgument('category no puede estar vacía');
-    }
-    return this.repository.createArticle(title, category, body, editorId);
+    await this.categories.assertActiveCategory(categoryId);
+    return this.repository.createArticle(title, categoryId, body, editorId);
   }
 
   /** Edita el cuerpo de un borrador propio (FR-007). */

@@ -10,6 +10,8 @@
  */
 import type { Pool } from 'pg';
 
+import { CategoriesRepository } from '../src/categories/categories.repository';
+import { CategoriesService } from '../src/categories/categories.service';
 import { EventsPublisher } from '../src/events/publisher';
 import { PublishingRepository } from '../src/publishing/publishing.repository';
 import { PublishingService } from '../src/publishing/publishing.service';
@@ -26,7 +28,11 @@ function newFixture(): { pool: Pool; service: PublishingService } {
   // lanza (ver su cabecera), así que esta prueba no necesita un broker real para
   // comprobar el invariante de dominio.
   const events = new EventsPublisher('amqp://127.0.0.1:1');
-  return { pool, service: new PublishingService(repository, new VersioningService(repository), events) };
+  const categories = new CategoriesService(new CategoriesRepository(pool), events);
+  return {
+    pool,
+    service: new PublishingService(repository, new VersioningService(repository), events, categories),
+  };
 }
 
 describe('PublishingService.approveAndPublish — FR-008', () => {

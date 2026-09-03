@@ -10,12 +10,11 @@
  */
 import { Controller } from '@nestjs/common';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
-import { status as GrpcStatus } from '@grpc/grpc-js';
 
 import { ArticlesService } from '../articles/articles.service';
-import { DomainError, messageOf } from '../common/errors';
-import { DecimalStrError } from '../common/decimal-str';
+import { messageOf } from '../common/errors';
 import { GradingService } from '../grading/grading.service';
+import { clientMessage, codeOf } from '../common/rpc-errors';
 import { JsonLogger } from '../common/observability';
 import { PublishingService } from '../publishing/publishing.service';
 import { QuizzesService } from '../quizzes/quizzes.service';
@@ -67,11 +66,14 @@ export class LearningController {
     private readonly publishing: PublishingService,
   ) {}
 
-  /** Catálogo publicado por categoría (FR-010, SC-009). */
+  /** Catálogo publicado por categoría (FR-010, SC-009). `category_id` es el filtro
+   * preferente de FR-034; `category` (nombre) se conserva para clientes antiguos. */
   @GrpcMethod(SERVICE, 'ListPublished')
   public async listPublished(request: ListPublishedRequest): Promise<ListPublishedResponsePb> {
     return this.guard('ListPublished', async () =>
-      catalogToPb(await this.articles.listPublished(request.category ?? '', request.page)),
+      catalogToPb(
+        await this.articles.listPublished(request.category_id ?? '', request.category ?? '', request.page),
+      ),
     );
   }
 
@@ -132,14 +134,15 @@ export class LearningController {
 
   // ── Flujo editorial (US4, FR-007/FR-008/FR-013) ───────────────────────────
 
-  /** Borrador nuevo, o nueva versión de un artículo existente (FR-007, FR-013). */
+  /** Borrador nuevo, o nueva versión de un artículo existente (FR-007, FR-013). La
+   * categoría se referencia por `category_id` (FR-034); `request.category` se ignora. */
   @GrpcMethod(SERVICE, 'CreateDraft')
   public async createDraft(request: CreateDraftRequest): Promise<ArticleVersionPb> {
     return this.guard('CreateDraft', async () =>
       versionToPb(
         await this.publishing.createDraft(
           request.title ?? '',
-          request.category ?? '',
+          request.category_id ?? '',
           request.body ?? '',
           request.editor_id ?? '',
           request.article_id ?? '',
@@ -241,57 +244,4 @@ export class LearningController {
       throw new RpcException({ code: codeOf(err), message: clientMessage(err) });
     }
   }
-}
-
-/**
- * Traduce el error de dominio al código de estado de gRPC.
- *
- * `DecimalStrError` se traduce aparte porque no es un `DomainError`: lo lanza la
- * frontera decimal cuando un valor almacenado o recibido no respeta la forma canónica.
- * Un `scale`/`range` es un dato que no cabe —culpa del emisor, `INVALID_ARGUMENT`—
- * mientras que un formato roto en un valor que salió de la base es corrupción de datos
- * y merece `INTERNAL`: el cliente no puede hacer nada al respecto.
- */
-function codeOf(err: unknown): GrpcStatus {
-  if (err instanceof DecimalStrError) {
-    return err.code === 'scale' || err.code === 'range'
-      ? GrpcStatus.INVALID_ARGUMENT
-      : GrpcStatus.INTERNAL;
-  }
-
-  if (!(err instanceof DomainError)) {
-    return GrpcStatus.INTERNAL;
-  }
-
-  switch (err.code) {
-    case 'invalid_argument':
-      return GrpcStatus.INVALID_ARGUMENT;
-    case 'not_found':
-      return GrpcStatus.NOT_FOUND;
-    case 'conflict':
-      return GrpcStatus.FAILED_PRECONDITION;
-    case 'forbidden':
-      return GrpcStatus.PERMISSION_DENIED;
-    case 'not_implemented':
-      return GrpcStatus.UNIMPLEMENTED;
-    case 'storage':
-      return GrpcStatus.INTERNAL;
-  }
-}
-
-/**
- * Mensaje que SÍ puede ver el cliente.
- *
- * Un `storage` devuelve un texto fijo: su mensaje lleva la causa del driver, y ahí
- * aparecen nombres de constraint, de tabla y a veces valores de la fila que provocó el
- * conflicto. El detalle queda en el log, que es donde hace falta.
- */
-function clientMessage(err: unknown): string {
-  if (err instanceof DomainError && err.code !== 'storage') {
-    return err.message;
-  }
-  if (err instanceof DecimalStrError && (err.code === 'scale' || err.code === 'range')) {
-    return err.message;
-  }
-  return 'error interno';
 }

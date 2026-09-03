@@ -86,12 +86,14 @@ describe('LearningService.ListPublished', () => {
   it('responde con la forma del contrato', async () => {
     const { controller } = await newController();
 
-    const response = await controller.listPublished({ category: '', page: undefined });
+    const response = await controller.listPublished({ category: '', category_id: '', page: undefined });
 
     expect(response.items[0]).toEqual({
       article_id: IDS.article,
       title: 'Ahorro para principiantes',
       category: 'ahorro',
+      // FR-034: la referencia al catálogo, no solo el nombre visible.
+      category_id: IDS.categoryAhorro,
       // El listado NO lleva cuerpo: devolverlo multiplicaría por cien el tamaño de una
       // página que solo muestra títulos.
       body: '',
@@ -103,7 +105,7 @@ describe('LearningService.ListPublished', () => {
   it('`total_size` sale como string porque es un int64', async () => {
     const { controller } = await newController();
 
-    const response = await controller.listPublished({ category: '', page: undefined });
+    const response = await controller.listPublished({ category: '', category_id: '', page: undefined });
 
     // Un `int64` por encima de 2^53 no cabe en un `number` de JavaScript. Que salga
     // como número aquí funcionaría con un catálogo pequeño y perdería el total exacto
@@ -115,7 +117,7 @@ describe('LearningService.ListPublished', () => {
   it('la última página no devuelve token de continuación', async () => {
     const { controller } = await newController();
 
-    const response = await controller.listPublished({ category: '', page: undefined });
+    const response = await controller.listPublished({ category: '', category_id: '', page: undefined });
 
     // La cadena vacía es la señal de fin. Devolver siempre un token obligaría al
     // cliente a pedir una página más para descubrir que ya no hay nada.
@@ -128,7 +130,27 @@ describe('LearningService.ListPublished', () => {
     // Caer al principio en silencio haría que un cliente con el cursor roto recorriera
     // la primera página para siempre creyendo que avanza.
     await expectRpcCode(
-      controller.listPublished({ category: '', page: { page_size: 10, page_token: 'xxx' } }),
+      controller.listPublished({ category: '', category_id: '', page: { page_size: 10, page_token: 'xxx' } }),
+      GrpcStatus.INVALID_ARGUMENT,
+    );
+  });
+
+  it('filtra por category_id (FR-034)', async () => {
+    const { controller } = await newController();
+
+    const ahorro = await controller.listPublished({ category_id: IDS.categoryAhorro, category: '', page: undefined });
+    const credito = await controller.listPublished({ category_id: IDS.categoryCredito, category: '', page: undefined });
+
+    expect(ahorro.items).toHaveLength(1);
+    expect(ahorro.items[0]?.category_id).toBe(IDS.categoryAhorro);
+    expect(credito.items).toHaveLength(0);
+  });
+
+  it('un category_id mal formado es INVALID_ARGUMENT', async () => {
+    const { controller } = await newController();
+
+    await expectRpcCode(
+      controller.listPublished({ category_id: NOT_A_UUID, category: '', page: undefined }),
       GrpcStatus.INVALID_ARGUMENT,
     );
   });

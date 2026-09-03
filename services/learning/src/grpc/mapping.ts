@@ -12,6 +12,7 @@
  * hacia dentro son los tipos de dominio.
  */
 import { format } from '../common/decimal-str';
+import type { Category } from '../categories/category.types';
 import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type { ArticleDetail, ArticleSummary } from '../articles/articles.repository';
 import type { CatalogPage } from '../articles/articles.service';
@@ -22,6 +23,7 @@ import type { Quiz, QuizQuestion } from '../quizzes/quizzes.repository';
 import type {
   Article as ArticlePb,
   ArticleVersion as ArticleVersionPb,
+  Category as CategoryPb,
   GradeResponse as GradeResponsePb,
   ListAttemptsResponse as ListAttemptsResponsePb,
   ListPublishedResponse as ListPublishedResponsePb,
@@ -56,6 +58,25 @@ function summaryToPb(article: ArticleSummary): ArticlePb {
     body: '',
     current_version_no: article.currentVersionNo,
     quiz_ids: [],
+    category_id: article.categoryId,
+  };
+}
+
+/**
+ * Categoría de dominio → `Category`.
+ *
+ * `position` es un `int32` en el contrato y un cardinal de orden en el dominio: puede
+ * viajar como `number` sin violar el Principio VIII, que prohíbe `number` solo para
+ * valores decimales con escala.
+ */
+export function categoryToPb(category: Category): CategoryPb {
+  return {
+    category_id: category.categoryId,
+    name: category.name,
+    slug: category.slug,
+    description: category.description,
+    position: category.position,
+    active: category.active,
   };
 }
 

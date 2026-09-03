@@ -69,10 +69,11 @@ describe('LearningService.CreateDraft', () => {
 
     const version = await controller.createDraft({
       title: 'Presupuesto familiar',
-      category: 'presupuesto',
+      category: '',
       body: 'Cuerpo del borrador',
       editor_id: IDS.editor,
       article_id: '',
+      category_id: IDS.categoryPresupuesto,
     });
 
     expect(version.version_no).toBe(1);
@@ -90,6 +91,9 @@ describe('LearningService.CreateDraft', () => {
       body: 'Cuerpo revisado',
       editor_id: IDS.editor,
       article_id: IDS.article,
+      // La categoría se IGNORA al crear una nueva versión: vive en `articles` y la
+      // comparten todas las versiones (FR-034).
+      category_id: '',
     });
 
     expect(version.article_id).toBe(IDS.article);
@@ -101,7 +105,46 @@ describe('LearningService.CreateDraft', () => {
     const { controller } = await newController();
 
     await expectRpcCode(
-      controller.createDraft({ title: 't', category: 'c', body: 'b', editor_id: NOT_A_UUID, article_id: '' }),
+      controller.createDraft({
+        title: 't',
+        category: '',
+        body: 'b',
+        editor_id: NOT_A_UUID,
+        article_id: '',
+        category_id: '',
+      }),
+      GrpcStatus.INVALID_ARGUMENT,
+    );
+  });
+
+  it('rechaza una categoría inexistente al crear un artículo nuevo (FR-034)', async () => {
+    const { controller } = await newController();
+
+    await expectRpcCode(
+      controller.createDraft({
+        title: 't',
+        category: '',
+        body: 'b',
+        editor_id: IDS.editor,
+        article_id: '',
+        category_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      }),
+      GrpcStatus.NOT_FOUND,
+    );
+  });
+
+  it('rechaza una categoría INACTIVA al crear un artículo nuevo (FR-034)', async () => {
+    const { controller } = await newController();
+
+    await expectRpcCode(
+      controller.createDraft({
+        title: 't',
+        category: '',
+        body: 'b',
+        editor_id: IDS.editor,
+        article_id: '',
+        category_id: IDS.categoryInactive,
+      }),
       GrpcStatus.INVALID_ARGUMENT,
     );
   });
@@ -119,7 +162,7 @@ describe('LearningService.SubmitForReview → ApproveAndPublish', () => {
 
     expect(ack.success).toBe(true);
 
-    const catalog = await controller.listPublished({ category: '', page: undefined });
+    const catalog = await controller.listPublished({ category: '', category_id: '', page: undefined });
     expect(catalog.items.some((a) => a.article_id === IDS.draftArticle)).toBe(true);
   });
 

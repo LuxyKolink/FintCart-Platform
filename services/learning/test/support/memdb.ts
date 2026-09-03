@@ -26,10 +26,19 @@ import { DataType, newDb, type IMemoryDb } from 'pg-mem';
  * cálculo de `attempt_no`.
  */
 const SCHEMA = `
+CREATE TABLE categories (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    position INTEGER NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE articles (
     id UUID PRIMARY KEY,
     title TEXT NOT NULL,
-    category TEXT NOT NULL,
+    category_id UUID NOT NULL REFERENCES categories (id),
     current_version_id UUID,
     author_id UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -95,6 +104,15 @@ export const IDS = {
   editor: '77777777-7777-4777-8777-777777777777',
   publishedVersion: '88888888-8888-4888-8888-888888888888',
   draftVersion: '99999999-9999-4999-8999-999999999999',
+  // Catálogo de categorías (FR-032). El `name` de la de ahorro es 'ahorro' en
+  // minúsculas a propósito: las pruebas existentes fijan que el nombre visible de la
+  // categoría del artículo publicado es exactamente 'ahorro' (resuelto por JOIN).
+  categoryAhorro: 'aaaaaaaa-1111-4111-8111-111111111111',
+  categoryCredito: 'aaaaaaaa-1111-4111-8111-111111111112',
+  categoryPresupuesto: 'aaaaaaaa-1111-4111-8111-111111111113',
+  categoryInversion: 'aaaaaaaa-1111-4111-8111-111111111114',
+  categorySeguridad: 'aaaaaaaa-1111-4111-8111-111111111115',
+  categoryInactive: 'aaaaaaaa-1111-4111-8111-111111111116',
 } as const;
 
 /** Base en memoria con el esquema y el juego de datos. */
@@ -154,9 +172,17 @@ export function newMemoryFixture(): MemoryFixture {
  */
 function seed(db: IMemoryDb): void {
   db.public.none(`
-    INSERT INTO articles (id, title, category, author_id)
-    VALUES ('${IDS.article}', 'Ahorro para principiantes', 'ahorro', '${IDS.editor}'),
-           ('${IDS.draftArticle}', 'Borrador sin revisar', 'ahorro', '${IDS.editor}');
+    INSERT INTO categories (id, name, slug, description, position, active)
+    VALUES ('${IDS.categoryAhorro}', 'ahorro', 'ahorro', '', 1, TRUE),
+           ('${IDS.categoryCredito}', 'credito', 'credito', '', 2, TRUE),
+           ('${IDS.categoryPresupuesto}', 'presupuesto', 'presupuesto', '', 3, TRUE),
+           ('${IDS.categoryInversion}', 'inversion', 'inversion', '', 4, TRUE),
+           ('${IDS.categorySeguridad}', 'seguridad financiera', 'seguridad-financiera', '', 5, TRUE),
+           ('${IDS.categoryInactive}', 'ahorro antiguo', 'ahorro-antiguo', '', 1, FALSE);
+
+    INSERT INTO articles (id, title, category_id, author_id)
+    VALUES ('${IDS.article}', 'Ahorro para principiantes', '${IDS.categoryAhorro}', '${IDS.editor}'),
+           ('${IDS.draftArticle}', 'Borrador sin revisar', '${IDS.categoryAhorro}', '${IDS.editor}');
 
     INSERT INTO article_versions (id, article_id, version_no, body, state, created_by, approved_by, published_at)
     VALUES ('${IDS.publishedVersion}', '${IDS.article}', 3, 'Cuerpo publicado', 'publicado', '${IDS.editor}', '${IDS.user}', now()),

@@ -10,6 +10,9 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../common/database.module';
 import { ArticlesRepository } from '../articles/articles.repository';
 import { ArticlesService } from '../articles/articles.service';
+import { CategoriesController } from '../categories/categories.controller';
+import { CategoriesRepository } from '../categories/categories.repository';
+import { CategoriesService } from '../categories/categories.service';
 import { EventsModule } from '../events/events.module';
 import { GradingService } from '../grading/grading.service';
 import { PublishingRepository } from '../publishing/publishing.repository';
@@ -28,10 +31,12 @@ import { LearningController } from './learning.controller';
   // falta. `EventsModule` entra por la misma razón: `EventsPublisher` lo necesita
   // `PublishingService` (T163).
   imports: [DatabaseModule, EventsModule],
-  controllers: [LearningController],
+  controllers: [LearningController, CategoriesController],
   providers: [
     ArticlesRepository,
     ArticlesService,
+    CategoriesRepository,
+    CategoriesService,
     QuizzesRepository,
     QuizzesService,
     GradingService,

@@ -40,7 +40,7 @@ describe('PublishingRepository.createArticle', () => {
   it('crea el artículo y su versión 1 en borrador', async () => {
     const { repo } = newFixture();
 
-    const version = await repo.createArticle('Nuevo artículo', 'credito', 'Cuerpo inicial', IDS.editor);
+    const version = await repo.createArticle('Nuevo artículo', IDS.categoryCredito, 'Cuerpo inicial', IDS.editor);
 
     expect(version.versionNo).toBe(1);
     expect(version.state).toBe('borrador');

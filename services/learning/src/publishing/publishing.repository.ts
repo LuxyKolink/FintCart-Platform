@@ -38,9 +38,9 @@ export interface Paged<T> {
 }
 
 /**
- * Versión recién publicada, con `title`/`category` del artículo — viven en `articles`,
- * no en `article_versions`, y hacen falta para el payload de `learning.article_published`
- * (T163, `events-catalog.md`).
+ * Versión recién publicada, con `title` del artículo y el NOMBRE visible de su
+ * categoría — viven en `articles`/`categories`, no en `article_versions`, y hacen falta
+ * para el payload de `learning.article_published` (T163, `events-catalog.md`).
  */
 export interface PublishedVersion extends VersionRow {
   readonly title: string;
@@ -74,7 +74,7 @@ const COLUMNS = `id, article_id, version_no, body, state, created_by, approved_b
 // prueba, y depender de él aquí acoplaría el SQL de producción a una particularidad del
 // doble de pruebas.
 const INSERT_ARTICLE_SQL = `
-INSERT INTO articles (id, title, category, author_id) VALUES (gen_random_uuid(), $1, $2, $3) RETURNING id`;
+INSERT INTO articles (id, title, category_id, author_id) VALUES (gen_random_uuid(), $1, $2, $3) RETURNING id`;
 
 const INSERT_FIRST_VERSION_SQL = `
 INSERT INTO article_versions (id, article_id, version_no, body, created_by)
@@ -119,7 +119,10 @@ RETURNING ${COLUMNS}`;
 
 const SET_CURRENT_VERSION_SQL = `
 UPDATE articles SET current_version_id = $2 WHERE id = $1
-RETURNING title, category`;
+RETURNING title, category_id`;
+
+/** El nombre visible de la categoría vive en `categories`, no en `articles` (FR-034). */
+const CATEGORY_NAME_SQL = `SELECT name FROM categories WHERE id = $1`;
 
 const ARCHIVE_VERSION_SQL = `
 UPDATE article_versions
@@ -153,11 +156,17 @@ SELECT count(*) AS total
 export class PublishingRepository {
   public constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
-  /** Artículo NUEVO con su versión 1 en `borrador` (FR-007). */
-  public async createArticle(title: string, category: string, body: string, editorId: string): Promise<VersionRow> {
+  /**
+   * Artículo NUEVO con su versión 1 en `borrador` (FR-007).
+   *
+   * `categoryId` referencia el catálogo (FR-034); la clave foránea de `articles` es la
+   * defensa de última línea, pero la barrera legible la pone `CategoriesService`
+   * ANTES de llegar aquí.
+   */
+  public async createArticle(title: string, categoryId: string, body: string, editorId: string): Promise<VersionRow> {
     try {
       return await execTx(this.pool, async (client: PoolClient) => {
-        const article = await client.query<{ id: string }>(INSERT_ARTICLE_SQL, [title, category, editorId]);
+        const article = await client.query<{ id: string }>(INSERT_ARTICLE_SQL, [title, categoryId, editorId]);
         const articleId = article.rows[0]?.id;
         if (articleId === undefined) {
           throw storageError('crear el artículo', new Error('el INSERT no devolvió fila'));
@@ -276,12 +285,15 @@ export class PublishingRepository {
 
         const published = await client.query<RawRow>(PUBLISH_VERSION_SQL, [versionId, coordinatorId]);
         const row = mustRow(published.rows[0], 'publicar la versión');
-        const article = await client.query<{ title: string; category: string }>(SET_CURRENT_VERSION_SQL, [
+        const article = await client.query<{ title: string; category_id: string }>(SET_CURRENT_VERSION_SQL, [
           row.article_id,
           row.id,
         ]);
         const articleRow = mustArticleRow(article.rows[0]);
-        return { ...toVersion(row), title: articleRow.title, category: articleRow.category };
+        // Nombre visible de la categoría: hace falta para el payload del evento
+        // `learning.article_published`, que hoy sigue llevando el nombre (T163).
+        const categoryName = await client.query<{ name: string }>(CATEGORY_NAME_SQL, [articleRow.category_id]);
+        return { ...toVersion(row), title: articleRow.title, category: categoryName.rows[0]?.name ?? '' };
       });
     } catch (err) {
       if (err instanceof DomainError) {
@@ -344,7 +356,10 @@ function mustRow(row: RawRow | undefined, operation: string): RawRow {
   return row;
 }
 
-function mustArticleRow(row: { title: string; category: string } | undefined): { title: string; category: string } {
+function mustArticleRow(row: { title: string; category_id: string } | undefined): {
+  title: string;
+  category_id: string;
+} {
   if (row === undefined) {
     throw storageError('leer título/categoría tras publicar', new Error('el UPDATE no devolvió fila'));
   }

@@ -1,6 +1,7 @@
 /**
  * Publicador de eventos de dominio de Aprendizaje (Principio V: Aprendizaje es
- * PRODUCTOR). Hoy el único evento es `learning.article_published` (T163, FR-008).
+ * PRODUCTOR). Hoy publica dos eventos: `learning.article_published` (FR-008, T163) y
+ * `category.deactivated` (FR-035, T056).
  *
  * Publica sobre el exchange `fintcart.events` (topic), que NO se declara aquí: la
  * topología completa —exchange, colas, bindings y dead-letter— la declara el
@@ -10,20 +11,19 @@
  * cambió — el mismo razonamiento que ya sigue el consumidor de Notificación al NO
  * declarar su cola.
  *
- * `learning.article_published` está enlazado SOLO a `audit.q`
- * (`topology.go::BindingsAudit`), no a `notification.q`: la asignación original del
- * catálogo a Notificación era anterior a la aclaración N-03 de `plan.md` (la bandeja
- * in-app la sirve el Servicio de Usuarios, no Notificación, que es consumidor puro sin
- * gRPC). Publicar aquí con `mandatory: true` hace que un binding ausente se vea —el
- * broker devuelve el mensaje— en lugar de perderse en silencio si algún día el catálogo
- * y la topología volvieran a discrepar.
+ * Ambos eventos están enlazados SOLO a `audit.q` (`topology.go::BindingsAudit`), no a
+ * `notification.q`: la asignación original del catálogo a Notificación era anterior a la
+ * aclaración N-03 de `plan.md` (la bandeja in-app la sirve el Servicio de Usuarios, no
+ * Notificación, que es consumidor puro sin gRPC). Publicar aquí con `mandatory: true`
+ * hace que un binding ausente se vea —el broker devuelve el mensaje— en lugar de
+ * perderse en silencio si algún día el catálogo y la topología volvieran a discrepar.
  *
  * No se implementa como outbox transaccional (a diferencia del Orquestador, D-07):
- * publicar DESPUÉS de que `ApproveAndPublish` ya confirmó su transacción es aceptable
- * porque la publicación del artículo YA ES el efecto durable — un evento no entregado
- * degrada la auditoría, no la corrección del catálogo. Ver la nota equivalente de
- * `auth-server/internal/server/credentials.go` sobre por qué ese servicio tampoco tiene
- * outbox.
+ * publicar DESPUÉS de que la operación ya confirmó su transacción (`ApproveAndPublish`,
+ * desactivar una categoría) es aceptable porque ese efecto durable YA EXISTE cuando se
+ * llega aquí — un evento no entregado degrada la auditoría, no la corrección del
+ * catálogo. Ver la nota equivalente de `auth-server/internal/server/credentials.go`
+ * sobre por qué ese servicio tampoco tiene outbox.
  */
 import { randomUUID } from 'node:crypto';
 
@@ -35,6 +35,8 @@ import { JsonLogger } from '../common/observability';
 /** Debe coincidir EXACTAMENTE con `orchestrator/internal/events/topology.go`. */
 const EXCHANGE_NAME = 'fintcart.events';
 const EVENT_ARTICLE_PUBLISHED = 'learning.article_published';
+/** Enlazado SOLO a `audit.q` (FR-035): no hay notificación al usuario. */
+const EVENT_CATEGORY_DEACTIVATED = 'category.deactivated';
 
 /** Sobre común de todos los eventos (`events-catalog.md`), espejo del `Envelope` de Go. */
 interface Envelope {
@@ -55,6 +57,13 @@ export interface ArticlePublishedPayload {
   readonly created_by: string;
 }
 
+/** Payload de `category.deactivated` (`events-catalog-delta.md`, FR-035). */
+export interface CategoryDeactivatedPayload {
+  readonly category_ref: string;
+  readonly slug: string;
+  readonly actor_ref: string;
+}
+
 @Injectable()
 export class EventsPublisher implements OnModuleDestroy {
   private readonly logger = new JsonLogger();
@@ -65,18 +74,34 @@ export class EventsPublisher implements OnModuleDestroy {
   public constructor(private readonly amqpAddr: string) {}
 
   /**
-   * Publica `learning.article_published` (FR-008).
+   * Publica `category.deactivated` (FR-035, T056).
    *
-   * NUNCA lanza: un evento no entregado es una degradación de la auditoría, no un
-   * motivo para que `ApproveAndPublish` —cuya escritura en PostgreSQL YA se
-   * confirmó— responda un error al coordinador que acaba de publicar con éxito.
+   * NUNCA lanza por el mismo motivo que `publishArticlePublished`: la desactivación YA
+   * se confirmó en PostgreSQL cuando `CategoriesService` llega aquí, y un evento no
+   * entregado degrada la auditoría, no la corrección del catálogo.
    */
+  public async publishCategoryDeactivated(actorRef: string, payload: CategoryDeactivatedPayload): Promise<void> {
+    return this.publish(EVENT_CATEGORY_DEACTIVATED, actorRef, payload);
+  }
+
+  /** Publica `learning.article_published` (FR-008). */
   public async publishArticlePublished(actorRef: string, payload: ArticlePublishedPayload): Promise<void> {
+    return this.publish(EVENT_ARTICLE_PUBLISHED, actorRef, payload);
+  }
+
+  /**
+   * Publica un evento. NUNCA lanza: un evento no entregado es una degradación de la
+   * auditoría, no un motivo para que la operación que acaba de confirmar su escritura
+   * responda un error a quien la completó con éxito.
+   */
+  private async publish(eventType: string, actorRef: string, payload: object): Promise<void> {
     const envelope: Envelope = {
       event_id: randomUUID(),
-      event_type: EVENT_ARTICLE_PUBLISHED,
+      event_type: eventType,
       occurred_at: new Date().toISOString(),
       actor_ref: actorRef,
+      // El `...` pasa el objeto a `Record<string, unknown>` y además entrega una COPIA:
+      // el envelope no comparte la referencia con el llamador.
       payload: { ...payload },
     };
 
@@ -87,7 +112,7 @@ export class EventsPublisher implements OnModuleDestroy {
         channel.once('return', onReturn);
         channel.publish(
           EXCHANGE_NAME,
-          EVENT_ARTICLE_PUBLISHED,
+          eventType,
           Buffer.from(JSON.stringify(envelope)),
           { contentType: 'application/json', mandatory: true, persistent: true },
           (err) => {
@@ -135,8 +160,9 @@ export class EventsPublisher implements OnModuleDestroy {
 
   /**
    * Conexión perezosa y cacheada: la mayoría de los procesos de Aprendizaje nunca
-   * publican (solo lo hace `ApproveAndPublish`), así que abrir el canal en el arranque
-   * de TODAS las réplicas gastaría una conexión de RabbitMQ que casi nunca se usa.
+   * publican (solo lo hacen `ApproveAndPublish` y desactivar una categoría), así que
+   * abrir el canal en el arranque de TODAS las réplicas gastaría una conexión de
+   * RabbitMQ que casi nunca se usa.
    *
    * Si el canal o la conexión se cierran (broker reiniciado, red caída), la próxima
    * publicación reconecta: no hay reintento en bucle en segundo plano porque no hay

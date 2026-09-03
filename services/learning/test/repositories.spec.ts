@@ -40,7 +40,7 @@ describe('ArticlesRepository', () => {
   it('el catálogo publicado NO incluye borradores', async () => {
     const { articles } = newFixture();
 
-    const page = await articles.listPublished('', { limit: 20, offset: 0 });
+    const page = await articles.listPublished('', '', { limit: 20, offset: 0 });
 
     // Un borrador filtrado por error no es un fallo cosmético: es contenido sin
     // revisar publicado bajo la marca (FR-008).
@@ -49,14 +49,27 @@ describe('ArticlesRepository', () => {
     expect(page.total).toBe(1);
   });
 
-  it('filtra por categoría y la categoría vacía significa todas', async () => {
+  it('filtra por category_id y los filtros vacíos significan todas', async () => {
     const { articles } = newFixture();
 
-    const ahorro = await articles.listPublished('ahorro', { limit: 20, offset: 0 });
-    const inversion = await articles.listPublished('inversion', { limit: 20, offset: 0 });
+    const ahorro = await articles.listPublished(IDS.categoryAhorro, '', { limit: 20, offset: 0 });
+    const credito = await articles.listPublished(IDS.categoryCredito, '', { limit: 20, offset: 0 });
 
     expect(ahorro.items).toHaveLength(1);
-    expect(inversion.items).toHaveLength(0);
+    expect(ahorro.items[0]?.categoryId).toBe(IDS.categoryAhorro);
+    expect(credito.items).toHaveLength(0);
+  });
+
+  it('conserva el filtro por NOMBRE heredado de 001 (clientes antiguos)', async () => {
+    const { articles } = newFixture();
+
+    const page = await articles.listPublished('', 'ahorro', { limit: 20, offset: 0 });
+
+    // El nombre visible sale del JOIN con `categories` (FR-034): el artículo ya no
+    // guarda la categoría como texto, pero el filtro por el nombre que ve el cliente
+    // sigue resolviéndose.
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]?.category).toBe('ahorro');
   });
 
   it('leer un artículo devuelve su cuerpo, sus cuestionarios y cuenta la vista', async () => {

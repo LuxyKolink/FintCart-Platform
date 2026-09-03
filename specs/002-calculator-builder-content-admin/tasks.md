@@ -150,17 +150,17 @@ verificar el filtrado público. No depende de ninguna otra historia.
 
 ### Pruebas
 
-- [ ] T049 [P] [US1] Prueba de contrato gRPC de `CreateCategory`, `UpdateCategory`, `DeactivateCategory` y `ListCategories` en `services/learning/test/contract/categories.contract.spec.ts`
-- [ ] T050 [P] [US1] Prueba de persistencia contra driver SQL simulado del repositorio de categorías (sentencia emitida y mapeo de filas) en `services/learning/test/categories/categories.repository.spec.ts`
+- [X] T049 [P] [US1] Prueba de contrato gRPC de `CreateCategory`, `UpdateCategory`, `DeactivateCategory` y `ListCategories` en `services/learning/test/contract/categories.contract.spec.ts`
+- [X] T050 [P] [US1] Prueba de persistencia contra driver SQL simulado del repositorio de categorías (sentencia emitida y mapeo de filas) en `services/learning/test/categories/categories.repository.spec.ts`
 
 ### Implementación
 
-- [ ] T051 [P] [US1] Tipos de fila y mapeo de categoría en `services/learning/src/categories/category.types.ts` y `category.mapping.ts` (DTO ≠ dominio ≠ fila, Principio IX)
-- [ ] T052 [US1] Repositorio de categorías en `services/learning/src/categories/categories.repository.ts`, incluida la consulta de recuento de artículos publicados que exige FR-035
-- [ ] T053 [US1] Servicio de categorías en `services/learning/src/categories/categories.service.ts`: alta, edición, reordenamiento y desactivación con rechazo si hay artículos publicados, devolviendo el recuento en el error
-- [ ] T054 [US1] Controlador gRPC de categorías en `services/learning/src/categories/categories.controller.ts`
-- [ ] T055 [US1] Validar `category_id` contra el catálogo en la creación y edición de borradores, en `services/learning/src/articles/` (FR-034)
-- [ ] T056 [US1] Publicar `category.deactivated` al desactivar, en `services/learning/src/events/` (consumidor: solo Auditoría)
+- [X] T051 [P] [US1] Tipos de fila y mapeo de categoría en `services/learning/src/categories/category.types.ts` y `category.mapping.ts` (DTO ≠ dominio ≠ fila, Principio IX)
+- [X] T052 [US1] Repositorio de categorías en `services/learning/src/categories/categories.repository.ts`, incluida la consulta de recuento de artículos publicados que exige FR-035
+- [X] T053 [US1] Servicio de categorías en `services/learning/src/categories/categories.service.ts`: alta, edición, reordenamiento y desactivación con rechazo si hay artículos publicados, devolviendo el recuento en el error
+- [X] T054 [US1] Controlador gRPC de categorías en `services/learning/src/categories/categories.controller.ts`
+- [X] T055 [US1] Validar `category_id` contra el catálogo en la creación y edición de borradores, en `services/learning/src/articles/` (FR-034)
+- [X] T056 [US1] Publicar `category.deactivated` al desactivar, en `services/learning/src/events/` (consumidor: solo Auditoría)
 - [ ] T057 [US1] Rutas `/catalog/categories` y `/admin/categories[/{categoryId}]` en `services/api-gateway/internal/handler/routes.go`, con traducción del rechazo por artículos publicados a 409 con `published_count`
 - [ ] T058 [P] [US1] Pantalla de administración de categorías (alta, edición, reordenamiento, desactivación) en `frontend/src/app/features/admin/categories/`
 - [ ] T059 [US1] Sustituir el `<input>` de texto libre por un `<select>` alimentado por el catálogo en `frontend/src/app/features/editorial/editor/editor.component.html` (hoy es texto libre en la línea 31)

@@ -24,7 +24,10 @@ import { execTx } from '../common/tx';
 export interface ArticleSummary {
   readonly articleId: string;
   readonly title: string;
+  /** Nombre visible de la categoría, resuelto por JOIN con `categories` (FR-034). */
   readonly category: string;
+  /** Referencia al catálogo: `categories.id`. */
+  readonly categoryId: string;
   readonly currentVersionNo: Count;
 }
 
@@ -45,38 +48,43 @@ interface CatalogRow {
   readonly article_id: string;
   readonly title: string;
   readonly category: string;
+  readonly category_id: string;
   readonly version_no: Count;
   readonly body: string;
 }
 
 /**
- * `$1 = ''` como comodín de categoría, en lugar de dos consultas.
- *
- * Con `NULL` habría que escribir `($1::text IS NULL OR a.category = $1)`, y `pg` envía
- * el parámetro sin tipo: PostgreSQL no puede inferirlo y falla con
- * «could not determine data type». La cadena vacía evita el casting y el filtro
- * opcional queda en una sola consulta.
+ * El filtro de categoría se hace por `category_id` (`$1`, nulo = todas) y, en paralelo,
+ * por el NOMBRE visible (`$2`, cadena vacía = todas) para los clientes que todavía usan
+ * el filtro heredado de 001. Los dos filtros se conservan por separado — como hace
+ * `publishing.repository.ts::LIST_VERSIONS_SQL`, los identificadores viajan como `null`
+ * porque una cadena vacía no es un UUID válido para el cast `::uuid`.
  */
 const LIST_PUBLISHED_SQL = `
-SELECT a.id AS article_id, a.title, a.category, v.version_no, v.body
+SELECT a.id AS article_id, a.title, c.name AS category, a.category_id, v.version_no, v.body
   FROM articles a
   JOIN article_versions v ON v.id = a.current_version_id
+  JOIN categories c ON c.id = a.category_id
  WHERE v.state = 'publicado'
-   AND ($1 = '' OR a.category = $1)
+   AND ($1::uuid IS NULL OR a.category_id = $1::uuid)
+   AND ($2 = '' OR c.name = $2)
  ORDER BY a.created_at DESC, a.id
- LIMIT $2 OFFSET $3`;
+ LIMIT $3 OFFSET $4`;
 
 const COUNT_PUBLISHED_SQL = `
 SELECT count(*) AS total
   FROM articles a
   JOIN article_versions v ON v.id = a.current_version_id
+  JOIN categories c ON c.id = a.category_id
  WHERE v.state = 'publicado'
-   AND ($1 = '' OR a.category = $1)`;
+   AND ($1::uuid IS NULL OR a.category_id = $1::uuid)
+   AND ($2 = '' OR c.name = $2)`;
 
 const FIND_PUBLISHED_SQL = `
-SELECT a.id AS article_id, a.title, a.category, v.version_no, v.body
+SELECT a.id AS article_id, a.title, c.name AS category, a.category_id, v.version_no, v.body
   FROM articles a
   JOIN article_versions v ON v.id = a.current_version_id
+  JOIN categories c ON c.id = a.category_id
  WHERE a.id = $1
    AND v.state = 'publicado'`;
 
@@ -101,15 +109,16 @@ ON CONFLICT (article_id) DO UPDATE
 export class ArticlesRepository {
   public constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
-  /** Catálogo publicado, opcionalmente filtrado por categoría. */
-  public async listPublished(category: string, page: Page): Promise<Paged<ArticleSummary>> {
+  /** Catálogo publicado, filtrable por `categoryId` (FR-034) o por nombre (heredado). */
+  public async listPublished(categoryId: string, category: string, page: Page): Promise<Paged<ArticleSummary>> {
     try {
+      const idFilter = categoryId === '' ? null : categoryId;
       // Las dos consultas van sin transacción a propósito: una discrepancia entre el
       // total y la página es intrascendente en un catálogo, y una transacción por
       // listado gastaría una conexión del pool en cada petición de lectura.
       const [rows, count] = await Promise.all([
-        this.pool.query<CatalogRow>(LIST_PUBLISHED_SQL, [category, page.limit, page.offset]),
-        this.pool.query<{ total: string }>(COUNT_PUBLISHED_SQL, [category]),
+        this.pool.query<CatalogRow>(LIST_PUBLISHED_SQL, [idFilter, category, page.limit, page.offset]),
+        this.pool.query<{ total: string }>(COUNT_PUBLISHED_SQL, [idFilter, category]),
       ]);
 
       return {
@@ -165,6 +174,7 @@ function toSummary(row: CatalogRow): ArticleSummary {
     articleId: row.article_id,
     title: row.title,
     category: row.category,
+    categoryId: row.category_id,
     currentVersionNo: row.version_no,
   };
 }
