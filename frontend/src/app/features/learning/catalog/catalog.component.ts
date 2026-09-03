@@ -2,10 +2,18 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { LearningApiService } from '../learning-api.service';
-import { Article } from '../learning.types';
+import { Article, Category } from '../learning.types';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
+/**
+ * Catálogo público de artículos (US1, T060).
+ *
+ * El filtro deja de derivarse de los nombres que trae cada artículo cargado y pasa a
+ * consumir el listado de categorías ACTIVAS de `/catalog/categories` (FR-032): una
+ * categoría sin artículos publicados debe ofrecerse igual en el filtro, y la selección
+ * viaja por `category_id` — el nombre visible nunca es un identificador fiable.
+ */
 @Component({
   selector: 'fc-catalog',
   standalone: true,
@@ -17,29 +25,39 @@ export class CatalogComponent implements OnInit {
 
   protected readonly state = signal<LoadState>('loading');
   protected readonly articles = signal<Article[]>([]);
-  protected readonly allCategories = signal<string[]>([]);
-  protected readonly activeCategory = signal<string | null>(null);
+  protected readonly categories = signal<Category[]>([]);
+  /** `category_id` de la categoría activa, o `null` para «todas». */
+  protected readonly activeCategoryId = signal<string | null>(null);
 
   public ngOnInit(): void {
-    // Primera carga sin filtro: de aquí se derivan las categorías disponibles
-    // (el contrato no expone un listado de categorías propio, FR-010).
+    // La lista de categorías alimenta el filtro en paralelo a la primera carga de
+    // artículos: no depende de que exista un artículo ya publicado en la categoría.
+    this.api.listCategories().subscribe({
+      next: (categories) => this.categories.set(categories),
+      error: () => this.categories.set([]),
+    });
     this.load(undefined);
   }
 
-  protected selectCategory(category: string | null): void {
-    this.activeCategory.set(category);
-    this.load(category ?? undefined);
+  protected selectCategory(categoryId: string | null): void {
+    this.activeCategoryId.set(categoryId);
+    this.load(categoryId ?? undefined);
   }
 
-  private load(category: string | undefined): void {
+  /** Nombre visible de la tarjeta: el que trae el artículo, o el del catálogo. */
+  protected nameOf(article: Article): string {
+    if (article.category) {
+      return article.category;
+    }
+    const hit = this.categories().find((category) => category.category_id === article.category_id);
+    return hit?.name ?? article.category;
+  }
+
+  private load(categoryId: string | undefined): void {
     this.state.set('loading');
-    this.api.listArticles(category).subscribe({
+    this.api.listArticles(categoryId).subscribe({
       next: (page) => {
         this.articles.set(page.items);
-        if (category === undefined) {
-          const seen = new Set(page.items.map((a) => a.category));
-          this.allCategories.set([...seen].sort());
-        }
         this.state.set('ready');
       },
       error: () => this.state.set('error'),

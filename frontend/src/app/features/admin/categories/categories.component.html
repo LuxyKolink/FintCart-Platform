@@ -1,0 +1,140 @@
+<section>
+  <h1>Administración de categorías</h1>
+
+  @if (errorMessage()) {
+    <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+  }
+  @if (successMessage()) {
+    <p class="fc-banner fc-banner--success">{{ successMessage() }}</p>
+  }
+
+  @switch (state()) {
+    @case ('loading') {
+      <p>Cargando categorías…</p>
+    }
+    @case ('error') {
+      <p class="fc-banner fc-banner--error">No pudimos cargar el catálogo de categorías. Intenta de nuevo.</p>
+    }
+    @case ('ready') {
+      <fc-module-box title="Nueva categoría">
+        <form class="fc-admin-form" [formGroup]="createForm" (ngSubmit)="onCreate()">
+          <fc-input
+            label="Nombre"
+            formControlName="name"
+            [error]="
+              createForm.controls.name.invalid && createForm.controls.name.touched
+                ? 'Escribe un nombre para la categoría.'
+                : ''
+            "
+          ></fc-input>
+          <fc-input label="Descripción" formControlName="description" hint="Opcional."></fc-input>
+          <div class="fc-admin-actions">
+            <fc-button type="submit" variant="primary" [disabled]="busy() !== null">
+              {{ busy() === 'create' ? 'Creando…' : 'Crear categoría' }}
+            </fc-button>
+          </div>
+        </form>
+      </fc-module-box>
+
+      <fc-module-box title="Categorías activas">
+        @if (activeCategories().length === 0) {
+          <p>No hay categorías activas todavía. Crea la primera más arriba.</p>
+        } @else {
+          <div class="fc-admin-list">
+            @for (category of activeCategories(); track category.category_id) {
+              @if (editingId() === category.category_id) {
+                <form class="fc-admin-row" [formGroup]="editForm" (ngSubmit)="onSaveEdit(category)">
+                  <div class="fc-admin-field">
+                    <fc-input
+                      label="Nombre"
+                      formControlName="name"
+                      [error]="
+                        editForm.controls.name.invalid && editForm.controls.name.touched
+                          ? 'Escribe un nombre para la categoría.'
+                          : ''
+                      "
+                    ></fc-input>
+                  </div>
+                  <div class="fc-admin-field">
+                    <fc-input label="Descripción" formControlName="description"></fc-input>
+                  </div>
+                  <div class="fc-admin-field">
+                    <fc-input
+                      label="Posición"
+                      type="number"
+                      formControlName="position"
+                      hint="Número de orden entre las activas."
+                      [error]="
+                        editForm.controls.position.invalid && editForm.controls.position.touched
+                          ? 'Escribe un entero mayor que 0.'
+                          : ''
+                      "
+                    ></fc-input>
+                  </div>
+                  <div class="fc-admin-actions">
+                    <fc-button type="submit" variant="primary" [disabled]="busy() !== null">
+                      {{ busy() === 'update' ? 'Guardando…' : 'Guardar cambios' }}
+                    </fc-button>
+                    <fc-button variant="ghost" [disabled]="busy() !== null" (pressed)="cancelEdit()"
+                      >Cancelar</fc-button
+                    >
+                  </div>
+                </form>
+              } @else {
+                <div class="fc-admin-row">
+                  <div class="fc-admin-row__main">
+                    <span class="fc-admin-row__name">{{ category.name }}</span>
+                    <div class="fc-admin-row__meta">
+                      /{{ category.slug }} · posición {{ category.position }}
+                      @if (category.description) {
+                        · {{ category.description }}
+                      }
+                    </div>
+                  </div>
+                  <div class="fc-admin-actions">
+                    <fc-button
+                      variant="secondary"
+                      size="sm"
+                      [disabled]="busy() !== null"
+                      (pressed)="startEdit(category)"
+                    >
+                      Editar
+                    </fc-button>
+                    <fc-button
+                      variant="danger"
+                      size="sm"
+                      [disabled]="busy() !== null"
+                      (pressed)="onDeactivate(category)"
+                    >
+                      Desactivar
+                    </fc-button>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+      </fc-module-box>
+
+      @if (inactiveCategories().length > 0) {
+        <fc-module-box title="Desactivadas">
+          <div class="fc-admin-list">
+            @for (category of inactiveCategories(); track category.category_id) {
+              <div class="fc-admin-row">
+                <div class="fc-admin-row__main">
+                  <span class="fc-admin-row__name">{{ category.name }}</span>
+                  <div class="fc-admin-row__meta">
+                    /{{ category.slug }} · posición {{ category.position }} — ya no se ofrece al editor
+                  </div>
+                </div>
+                <div class="fc-admin-actions">
+                  <fc-badge tone="neutral">Desactivada</fc-badge>
+                </div>
+              </div>
+            }
+          </div>
+        </fc-module-box>
+      }
+    }
+  }
+</section>

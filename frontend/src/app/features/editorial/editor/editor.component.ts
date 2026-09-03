@@ -1,7 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { SelectComponent } from '../../../shared/ui';
+import { LearningApiService } from '../../learning/learning-api.service';
+import { Category } from '../../learning/learning.types';
 import { scoreValidator } from '../decimal-validators';
 import { EditorialApiService, EditorialError } from '../editorial-api.service';
 import { ArticleVersion, Quiz } from '../editorial.types';
@@ -50,18 +53,27 @@ function newQuestionGroup(fb: FormBuilder): QuestionGroup {
 @Component({
   selector: 'fc-editor',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, SelectComponent],
   templateUrl: './editor.component.html',
 })
 export class EditorComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(EditorialApiService);
+  private readonly catalog = inject(LearningApiService);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly loadState = signal<LoadState>('ready');
   protected readonly version = signal<ArticleVersion | null>(null);
   protected readonly articleId = signal<string | null>(null);
   protected readonly quiz = signal<Quiz | null>(null);
+
+  protected readonly categories = signal<Category[]>([]);
+
+  /** Opciones del desplegable de categoría (T059): activas, ordenadas por posición. */
+  protected readonly categoryOptions = computed<{ value: string; label: string }[]>(() => [
+    { value: '', label: 'Selecciona una categoría…' },
+    ...this.categories().map((category) => ({ value: category.category_id, label: category.name })),
+  ]);
 
   protected readonly articleSaveState = signal<SaveState>('idle');
   protected readonly quizSaveState = signal<SaveState>('idle');
@@ -71,7 +83,7 @@ export class EditorComponent implements OnInit {
 
   protected readonly articleForm = this.fb.nonNullable.group({
     title: ['', [Validators.required, Validators.minLength(3)]],
-    category: ['', [Validators.required]],
+    category_id: ['', [Validators.required]],
     body: ['', [Validators.required, Validators.minLength(10)]],
   });
 
@@ -85,10 +97,19 @@ export class EditorComponent implements OnInit {
     questions: this.fb.array([newQuestionGroup(this.fb)]),
   });
 
+  /** El desplegable de categoría se alimenta del catálogo activo (T059, FR-034). */
+  private loadCategories(): void {
+    this.catalog.listCategories().subscribe({
+      next: (categories) => this.categories.set(categories),
+      error: () => this.categories.set([]),
+    });
+  }
+
   public ngOnInit(): void {
     const versionId = this.route.snapshot.paramMap.get('versionId');
     if (versionId === null) {
-      // Modo crear: no hay nada que cargar.
+      // Modo crear: el desplegable de categoría necesita el catálogo antes de guardar.
+      this.loadCategories();
       return;
     }
 

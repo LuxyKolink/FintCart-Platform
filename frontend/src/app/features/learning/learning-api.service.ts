@@ -1,20 +1,28 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { Article, Page, Quiz, QuizGradeResult, SubmitAttemptRequest } from './learning.types';
+import { Article, Category, CategoryCatalog, Page, Quiz, QuizGradeResult, SubmitAttemptRequest } from './learning.types';
 
 @Injectable({ providedIn: 'root' })
 export class LearningApiService {
   private readonly http = inject(HttpClient);
 
-  public listArticles(category?: string): Observable<Page<Article>> {
+  /** Filtra el catálogo público por `category_id` (FR-034) — vacío ⇒ sin filtrar. */
+  public listArticles(categoryId?: string): Observable<Page<Article>> {
     let params = new HttpParams();
-    if (category) {
-      params = params.set('category', category);
+    if (categoryId) {
+      params = params.set('category_id', categoryId);
     }
     return this.http.get<Page<Article>>(`${environment.apiBaseUrl}/catalog/articles`, { params });
+  }
+
+  /** Categorías ACTIVAS (US1): alimenta el desplegable del editor y el filtro público. */
+  public listCategories(): Observable<Category[]> {
+    return this.http
+      .get<CategoryCatalog>(`${environment.apiBaseUrl}/catalog/categories`)
+      .pipe(map((catalog) => catalog.categories));
   }
 
   public getArticle(articleId: string): Observable<Article> {

@@ -3,10 +3,37 @@
 export interface Article {
   article_id: string;
   title: string;
+  /** Nombre visible de la categoría (heredado de 001, conservado para no romper la tarjeta). */
   category: string;
+  /** Referencia al catálogo de categorías (FR-034) — es el filtro preferente. */
+  category_id: string;
   body: string;
   current_version_no: number;
   quiz_ids: string[];
+}
+
+/** Categoría del catálogo administrable (US1) — espejo del proto `learning.v1.Category`. */
+export interface Category {
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string;
+  position: number;
+  active: boolean;
+}
+
+/** Envoltorio de las listas `/catalog/categories` y `/admin/categories`. */
+export interface CategoryCatalog {
+  categories: Category[];
+}
+
+/** Cuerpo de alta/edición (`POST`/`PATCH /admin/categories`) — espejo de `CategoryInput`. */
+export interface CategoryInput {
+  name: string;
+  slug?: string;
+  description?: string;
+  /** `≤ 0` en el alta anexa al final; en la edición deja el orden intacto. */
+  position?: number;
 }
 
 export interface Page<T> {

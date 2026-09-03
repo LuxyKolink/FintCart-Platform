@@ -121,6 +121,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/editorial/review/review.component').then((m) => m.ReviewComponent),
   },
   {
+    // Cuarto rol (FR-081, US1): el administrador NO hereda atribuciones del
+    // coordinador editorial (FR-082), así que la ruta es propia y exclusiva.
+    path: 'admin/categorias',
+    canActivate: [roleGuard('administrador')],
+    loadComponent: () => import('./features/admin/categories/categories.component').then((m) => m.CategoriesComponent),
+  },
+  {
     // Galería interna de verificación visual de shared/ui (T048, quickstart §0).
     // No es una pantalla de producto: no tiene enlace de navegación ni guard,
     // solo sirve para contrastar los componentes migrados contra los UI kits.

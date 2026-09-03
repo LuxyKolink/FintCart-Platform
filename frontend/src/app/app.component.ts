@@ -25,6 +25,9 @@ import { AuthService } from './core/auth/auth.service';
           @if (auth.hasRole('coordinador_editorial')) {
             <a routerLink="/editorial/revision">Revisión</a>
           }
+          @if (auth.hasRole('administrador')) {
+            <a routerLink="/admin/categorias">Administración</a>
+          }
           <a routerLink="/perfil">Tu perfil</a>
           <button type="button" class="fc-topbar__logout" (click)="onLogout()">Cerrar sesión</button>
         </nav>

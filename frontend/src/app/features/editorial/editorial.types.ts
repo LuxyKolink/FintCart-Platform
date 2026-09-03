@@ -20,7 +20,8 @@ export interface ArticleVersion {
 
 export interface CreateDraftRequest {
   title: string;
-  category: string;
+  /** Referencia al catálogo (FR-034) — se escoge del desplegable, no a mano. */
+  category_id: string;
   body: string;
 }
 

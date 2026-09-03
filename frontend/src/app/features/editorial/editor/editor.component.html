@@ -26,10 +26,16 @@
                 <label class="fc-label" for="title">Título</label>
                 <input class="fc-input" id="title" type="text" formControlName="title" />
               </div>
-              <div class="fc-field">
-                <label class="fc-label" for="category">Categoría</label>
-                <input class="fc-input" id="category" type="text" formControlName="category" />
-              </div>
+              <fc-select
+                label="Categoría"
+                formControlName="category_id"
+                [options]="categoryOptions()"
+                [error]="
+                  articleForm.controls.category_id.invalid && articleForm.controls.category_id.touched
+                    ? 'Elige una categoría del catálogo.'
+                    : ''
+                "
+              ></fc-select>
               <div class="fc-field">
                 <label class="fc-label" for="body">Cuerpo</label>
                 <textarea class="fc-input" id="body" rows="8" formControlName="body"></textarea>

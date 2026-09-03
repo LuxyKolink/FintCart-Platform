@@ -162,9 +162,9 @@ verificar el filtrado público. No depende de ninguna otra historia.
 - [X] T055 [US1] Validar `category_id` contra el catálogo en la creación y edición de borradores, en `services/learning/src/articles/` (FR-034)
 - [X] T056 [US1] Publicar `category.deactivated` al desactivar, en `services/learning/src/events/` (consumidor: solo Auditoría)
 - [X] T057 [US1] Rutas `/catalog/categories` y `/admin/categories[/{categoryId}]` en `services/api-gateway/internal/handler/routes.go`, con traducción del rechazo por artículos publicados a 409 con `published_count`
-- [ ] T058 [P] [US1] Pantalla de administración de categorías (alta, edición, reordenamiento, desactivación) en `frontend/src/app/features/admin/categories/`
-- [ ] T059 [US1] Sustituir el `<input>` de texto libre por un `<select>` alimentado por el catálogo en `frontend/src/app/features/editorial/editor/editor.component.html` (hoy es texto libre en la línea 31)
-- [ ] T060 [P] [US1] Filtro por categoría del catálogo público en `frontend/src/app/features/learning/catalog/`
+- [X] T058 [P] [US1] Pantalla de administración de categorías (alta, edición, reordenamiento, desactivación) en `frontend/src/app/features/admin/categories/`
+- [X] T059 [US1] Sustituir el `<input>` de texto libre por un `<select>` alimentado por el catálogo en `frontend/src/app/features/editorial/editor/editor.component.html` (hoy es texto libre en la línea 31)
+- [X] T060 [P] [US1] Filtro por categoría del catálogo público en `frontend/src/app/features/learning/catalog/`
 
 **Checkpoint**: US1 entregable y verificable de forma independiente (SC-025).
 

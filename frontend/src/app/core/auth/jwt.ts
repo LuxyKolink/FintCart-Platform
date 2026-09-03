@@ -7,8 +7,8 @@ export interface AccessTokenClaims {
   scopes?: string[];
 }
 
-/** `usuario_final | editor | coordinador_editorial` (users.proto). */
-export type Role = 'usuario_final' | 'editor' | 'coordinador_editorial';
+/** `usuario_final | editor | coordinador_editorial | administrador` (users.proto, FR-081). */
+export type Role = 'usuario_final' | 'editor' | 'coordinador_editorial' | 'administrador';
 
 function base64UrlDecode(segment: string): string {
   const padded = segment.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(segment.length / 4) * 4, '=');
