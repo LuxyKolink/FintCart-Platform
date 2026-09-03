@@ -38,6 +38,11 @@ service UsersService {
 
   // Saga de anonimización (FR-030).
   rpc AnonymizeProfile(UserRef) returns (fintcart.common.v1.OpResult);
+
+  // Rol administrador (FR-080): asigna o revoca un rol a una cuenta. El actor debe
+  // tener rol administrador; lo verifica el Gateway en el borde (FR-081), no aquí.
+  rpc AssignRole(AssignRoleRequest) returns (fintcart.common.v1.OpResult);
+  rpc RevokeRole(AssignRoleRequest) returns (fintcart.common.v1.OpResult);
 }
 
 message UserRef { string user_id = 1; }
@@ -50,7 +55,7 @@ message CreateProfileRequest {
 
 message AuthContext {
   string user_id = 1;
-  repeated string roles = 2; // usuario_final | editor | coordinador_editorial
+  repeated string roles = 2; // usuario_final | editor | coordinador_editorial | administrador
   string account_status = 3; // active | anonymized
   bool email_verified = 4;
 }
@@ -63,6 +68,12 @@ message Profile {
   string account_status = 5;
   map<string, string> preferences = 6;
   repeated string roles = 7;
+}
+
+message AssignRoleRequest {
+  string user_id = 1;
+  string role = 2;     // usuario_final | editor | coordinador_editorial | administrador
+  string actor_id = 3; // rol administrador (FR-080); queda en auditoría
 }
 
 message UpdateProfileRequest {

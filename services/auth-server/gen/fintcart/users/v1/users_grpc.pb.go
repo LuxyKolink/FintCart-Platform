@@ -33,6 +33,8 @@ const (
 	UsersService_MarkNotificationRead_FullMethodName    = "/fintcart.users.v1.UsersService/MarkNotificationRead"
 	UsersService_GetActivityReport_FullMethodName       = "/fintcart.users.v1.UsersService/GetActivityReport"
 	UsersService_AnonymizeProfile_FullMethodName        = "/fintcart.users.v1.UsersService/AnonymizeProfile"
+	UsersService_AssignRole_FullMethodName              = "/fintcart.users.v1.UsersService/AssignRole"
+	UsersService_RevokeRole_FullMethodName              = "/fintcart.users.v1.UsersService/RevokeRole"
 )
 
 // UsersServiceClient is the client API for UsersService service.
@@ -65,6 +67,10 @@ type UsersServiceClient interface {
 	GetActivityReport(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*ActivityReport, error)
 	// Saga de anonimización (FR-030).
 	AnonymizeProfile(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// Rol administrador (FR-080): asigna o revoca un rol a una cuenta. El actor debe
+	// tener rol administrador; lo verifica el Gateway en el borde (FR-081), no aquí.
+	AssignRole(ctx context.Context, in *AssignRoleRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
+	RevokeRole(ctx context.Context, in *AssignRoleRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
 }
 
 type usersServiceClient struct {
@@ -205,6 +211,26 @@ func (c *usersServiceClient) AnonymizeProfile(ctx context.Context, in *UserRef, 
 	return out, nil
 }
 
+func (c *usersServiceClient) AssignRole(ctx context.Context, in *AssignRoleRequest, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, UsersService_AssignRole_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *usersServiceClient) RevokeRole(ctx context.Context, in *AssignRoleRequest, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, UsersService_RevokeRole_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UsersServiceServer is the server API for UsersService service.
 // All implementations should embed UnimplementedUsersServiceServer
 // for forward compatibility.
@@ -235,6 +261,10 @@ type UsersServiceServer interface {
 	GetActivityReport(context.Context, *UserRef) (*ActivityReport, error)
 	// Saga de anonimización (FR-030).
 	AnonymizeProfile(context.Context, *UserRef) (*v1.OpResult, error)
+	// Rol administrador (FR-080): asigna o revoca un rol a una cuenta. El actor debe
+	// tener rol administrador; lo verifica el Gateway en el borde (FR-081), no aquí.
+	AssignRole(context.Context, *AssignRoleRequest) (*v1.OpResult, error)
+	RevokeRole(context.Context, *AssignRoleRequest) (*v1.OpResult, error)
 }
 
 // UnimplementedUsersServiceServer should be embedded to have
@@ -282,6 +312,12 @@ func (UnimplementedUsersServiceServer) GetActivityReport(context.Context, *UserR
 }
 func (UnimplementedUsersServiceServer) AnonymizeProfile(context.Context, *UserRef) (*v1.OpResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AnonymizeProfile not implemented")
+}
+func (UnimplementedUsersServiceServer) AssignRole(context.Context, *AssignRoleRequest) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssignRole not implemented")
+}
+func (UnimplementedUsersServiceServer) RevokeRole(context.Context, *AssignRoleRequest) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeRole not implemented")
 }
 func (UnimplementedUsersServiceServer) testEmbeddedByValue() {}
 
@@ -537,6 +573,42 @@ func _UsersService_AnonymizeProfile_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UsersService_AssignRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UsersServiceServer).AssignRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UsersService_AssignRole_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UsersServiceServer).AssignRole(ctx, req.(*AssignRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UsersService_RevokeRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UsersServiceServer).RevokeRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UsersService_RevokeRole_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UsersServiceServer).RevokeRole(ctx, req.(*AssignRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UsersService_ServiceDesc is the grpc.ServiceDesc for UsersService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -595,6 +667,14 @@ var UsersService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AnonymizeProfile",
 			Handler:    _UsersService_AnonymizeProfile_Handler,
+		},
+		{
+			MethodName: "AssignRole",
+			Handler:    _UsersService_AssignRole_Handler,
+		},
+		{
+			MethodName: "RevokeRole",
+			Handler:    _UsersService_RevokeRole_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

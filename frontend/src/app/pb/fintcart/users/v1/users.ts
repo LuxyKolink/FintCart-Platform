@@ -22,7 +22,7 @@ export interface CreateProfileRequest {
 
 export interface AuthContext {
   user_id: string;
-  /** usuario_final | editor | coordinador_editorial */
+  /** usuario_final | editor | coordinador_editorial | administrador */
   roles: string[];
   /** active | anonymized */
   account_status: string;
@@ -42,6 +42,14 @@ export interface Profile {
 export interface Profile_PreferencesEntry {
   key: string;
   value: string;
+}
+
+export interface AssignRoleRequest {
+  user_id: string;
+  /** usuario_final | editor | coordinador_editorial | administrador */
+  role: string;
+  /** rol administrador (FR-080); queda en auditoría */
+  actor_id: string;
 }
 
 export interface UpdateProfileRequest {
@@ -647,6 +655,98 @@ export const Profile_PreferencesEntry: MessageFns<Profile_PreferencesEntry> = {
     const message = createBaseProfile_PreferencesEntry();
     message.key = object.key ?? "";
     message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseAssignRoleRequest(): AssignRoleRequest {
+  return { user_id: "", role: "", actor_id: "" };
+}
+
+export const AssignRoleRequest: MessageFns<AssignRoleRequest> = {
+  encode(message: AssignRoleRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.user_id !== "") {
+      writer.uint32(10).string(message.user_id);
+    }
+    if (message.role !== "") {
+      writer.uint32(18).string(message.role);
+    }
+    if (message.actor_id !== "") {
+      writer.uint32(26).string(message.actor_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AssignRoleRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAssignRoleRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.user_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.role = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.actor_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AssignRoleRequest {
+    return {
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      role: isSet(object.role) ? globalThis.String(object.role) : "",
+      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : "",
+    };
+  },
+
+  toJSON(message: AssignRoleRequest): unknown {
+    const obj: any = {};
+    if (message.user_id !== "") {
+      obj.user_id = message.user_id;
+    }
+    if (message.role !== "") {
+      obj.role = message.role;
+    }
+    if (message.actor_id !== "") {
+      obj.actor_id = message.actor_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AssignRoleRequest>, I>>(base?: I): AssignRoleRequest {
+    return AssignRoleRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AssignRoleRequest>, I>>(object: I): AssignRoleRequest {
+    const message = createBaseAssignRoleRequest();
+    message.user_id = object.user_id ?? "";
+    message.role = object.role ?? "";
+    message.actor_id = object.actor_id ?? "";
     return message;
   },
 };

@@ -129,7 +129,7 @@ func (x *CreateProfileRequest) GetDisplayName() string {
 type AuthContext struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Roles         []string               `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`                                      // usuario_final | editor | coordinador_editorial
+	Roles         []string               `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`                                      // usuario_final | editor | coordinador_editorial | administrador
 	AccountStatus string                 `protobuf:"bytes,3,opt,name=account_status,json=accountStatus,proto3" json:"account_status,omitempty"` // active | anonymized
 	EmailVerified bool                   `protobuf:"varint,4,opt,name=email_verified,json=emailVerified,proto3" json:"email_verified,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -286,6 +286,66 @@ func (x *Profile) GetRoles() []string {
 	return nil
 }
 
+type AssignRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Role          string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`                      // usuario_final | editor | coordinador_editorial | administrador
+	ActorId       string                 `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"` // rol administrador (FR-080); queda en auditoría
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssignRoleRequest) Reset() {
+	*x = AssignRoleRequest{}
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssignRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssignRoleRequest) ProtoMessage() {}
+
+func (x *AssignRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssignRoleRequest.ProtoReflect.Descriptor instead.
+func (*AssignRoleRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AssignRoleRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *AssignRoleRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *AssignRoleRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
 type UpdateProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -297,7 +357,7 @@ type UpdateProfileRequest struct {
 
 func (x *UpdateProfileRequest) Reset() {
 	*x = UpdateProfileRequest{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[4]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +369,7 @@ func (x *UpdateProfileRequest) String() string {
 func (*UpdateProfileRequest) ProtoMessage() {}
 
 func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[4]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +382,7 @@ func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
 func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{4}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateProfileRequest) GetUserId() string {
@@ -357,7 +417,7 @@ type ApplyQuizScoreRequest struct {
 
 func (x *ApplyQuizScoreRequest) Reset() {
 	*x = ApplyQuizScoreRequest{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[5]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -369,7 +429,7 @@ func (x *ApplyQuizScoreRequest) String() string {
 func (*ApplyQuizScoreRequest) ProtoMessage() {}
 
 func (x *ApplyQuizScoreRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[5]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -382,7 +442,7 @@ func (x *ApplyQuizScoreRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyQuizScoreRequest.ProtoReflect.Descriptor instead.
 func (*ApplyQuizScoreRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{5}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ApplyQuizScoreRequest) GetUserId() string {
@@ -416,7 +476,7 @@ type ProgressView struct {
 
 func (x *ProgressView) Reset() {
 	*x = ProgressView{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[6]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -428,7 +488,7 @@ func (x *ProgressView) String() string {
 func (*ProgressView) ProtoMessage() {}
 
 func (x *ProgressView) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[6]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -441,7 +501,7 @@ func (x *ProgressView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressView.ProtoReflect.Descriptor instead.
 func (*ProgressView) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{6}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProgressView) GetUserId() string {
@@ -468,7 +528,7 @@ type RecordArticleViewRequest struct {
 
 func (x *RecordArticleViewRequest) Reset() {
 	*x = RecordArticleViewRequest{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[7]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -480,7 +540,7 @@ func (x *RecordArticleViewRequest) String() string {
 func (*RecordArticleViewRequest) ProtoMessage() {}
 
 func (x *RecordArticleViewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[7]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -493,7 +553,7 @@ func (x *RecordArticleViewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordArticleViewRequest.ProtoReflect.Descriptor instead.
 func (*RecordArticleViewRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{7}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RecordArticleViewRequest) GetUserId() string {
@@ -537,7 +597,7 @@ type InAppNotification struct {
 
 func (x *InAppNotification) Reset() {
 	*x = InAppNotification{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[8]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -549,7 +609,7 @@ func (x *InAppNotification) String() string {
 func (*InAppNotification) ProtoMessage() {}
 
 func (x *InAppNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[8]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -562,7 +622,7 @@ func (x *InAppNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InAppNotification.ProtoReflect.Descriptor instead.
 func (*InAppNotification) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{8}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *InAppNotification) GetUserId() string {
@@ -603,7 +663,7 @@ type ListInAppRequest struct {
 
 func (x *ListInAppRequest) Reset() {
 	*x = ListInAppRequest{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[9]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -615,7 +675,7 @@ func (x *ListInAppRequest) String() string {
 func (*ListInAppRequest) ProtoMessage() {}
 
 func (x *ListInAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[9]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -628,7 +688,7 @@ func (x *ListInAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInAppRequest.ProtoReflect.Descriptor instead.
 func (*ListInAppRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{9}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListInAppRequest) GetUserId() string {
@@ -655,7 +715,7 @@ type ListInAppResponse struct {
 
 func (x *ListInAppResponse) Reset() {
 	*x = ListInAppResponse{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[10]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +727,7 @@ func (x *ListInAppResponse) String() string {
 func (*ListInAppResponse) ProtoMessage() {}
 
 func (x *ListInAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[10]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +740,7 @@ func (x *ListInAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInAppResponse.ProtoReflect.Descriptor instead.
 func (*ListInAppResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{10}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListInAppResponse) GetItems() []*ListInAppResponse_Item {
@@ -707,7 +767,7 @@ type MarkReadRequest struct {
 
 func (x *MarkReadRequest) Reset() {
 	*x = MarkReadRequest{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[11]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -719,7 +779,7 @@ func (x *MarkReadRequest) String() string {
 func (*MarkReadRequest) ProtoMessage() {}
 
 func (x *MarkReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[11]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -732,7 +792,7 @@ func (x *MarkReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkReadRequest.ProtoReflect.Descriptor instead.
 func (*MarkReadRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{11}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MarkReadRequest) GetUserId() string {
@@ -762,7 +822,7 @@ type ActivityReport struct {
 
 func (x *ActivityReport) Reset() {
 	*x = ActivityReport{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[12]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +834,7 @@ func (x *ActivityReport) String() string {
 func (*ActivityReport) ProtoMessage() {}
 
 func (x *ActivityReport) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[12]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +847,7 @@ func (x *ActivityReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivityReport.ProtoReflect.Descriptor instead.
 func (*ActivityReport) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{12}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ActivityReport) GetUserId() string {
@@ -838,7 +898,7 @@ type ListInAppResponse_Item struct {
 
 func (x *ListInAppResponse_Item) Reset() {
 	*x = ListInAppResponse_Item{}
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[15]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +910,7 @@ func (x *ListInAppResponse_Item) String() string {
 func (*ListInAppResponse_Item) ProtoMessage() {}
 
 func (x *ListInAppResponse_Item) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_users_v1_users_proto_msgTypes[15]
+	mi := &file_fintcart_users_v1_users_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +923,7 @@ func (x *ListInAppResponse_Item) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInAppResponse_Item.ProtoReflect.Descriptor instead.
 func (*ListInAppResponse_Item) Descriptor() ([]byte, []int) {
-	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{10, 0}
+	return file_fintcart_users_v1_users_proto_rawDescGZIP(), []int{11, 0}
 }
 
 func (x *ListInAppResponse_Item) GetId() string {
@@ -927,7 +987,11 @@ const file_fintcart_users_v1_users_proto_rawDesc = "" +
 	"\x05roles\x18\a \x03(\tR\x05roles\x1a>\n" +
 	"\x10PreferencesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xee\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"[\n" +
+	"\x11AssignRoleRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\x12\x19\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\"\xee\x01\n" +
 	"\x14UpdateProfileRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12Z\n" +
@@ -973,7 +1037,8 @@ const file_fintcart_users_v1_users_proto_rawDesc = "" +
 	"\x06points\x18\x02 \x01(\x05R\x06points\x12'\n" +
 	"\x0farticles_viewed\x18\x03 \x01(\x03R\x0earticlesViewed\x12+\n" +
 	"\x11quizzes_attempted\x18\x04 \x01(\x03R\x10quizzesAttempted\x12'\n" +
-	"\x0fsimulations_run\x18\x05 \x01(\x03R\x0esimulationsRun2\xea\b\n" +
+	"\x0fsimulations_run\x18\x05 \x01(\x03R\x0esimulationsRun2\x8e\n" +
+	"\n" +
 	"\fUsersService\x12V\n" +
 	"\rCreateProfile\x12'.fintcart.users.v1.CreateProfileRequest\x1a\x1c.fintcart.common.v1.OpResult\x12M\n" +
 	"\x11MarkEmailVerified\x12\x1a.fintcart.users.v1.UserRef\x1a\x1c.fintcart.common.v1.OpResult\x12L\n" +
@@ -988,7 +1053,11 @@ const file_fintcart_users_v1_users_proto_rawDesc = "" +
 	"\x16ListInAppNotifications\x12#.fintcart.users.v1.ListInAppRequest\x1a$.fintcart.users.v1.ListInAppResponse\x12X\n" +
 	"\x14MarkNotificationRead\x12\".fintcart.users.v1.MarkReadRequest\x1a\x1c.fintcart.common.v1.OpResult\x12R\n" +
 	"\x11GetActivityReport\x12\x1a.fintcart.users.v1.UserRef\x1a!.fintcart.users.v1.ActivityReport\x12L\n" +
-	"\x10AnonymizeProfile\x12\x1a.fintcart.users.v1.UserRef\x1a\x1c.fintcart.common.v1.OpResultB\xdb\x01\n" +
+	"\x10AnonymizeProfile\x12\x1a.fintcart.users.v1.UserRef\x1a\x1c.fintcart.common.v1.OpResult\x12P\n" +
+	"\n" +
+	"AssignRole\x12$.fintcart.users.v1.AssignRoleRequest\x1a\x1c.fintcart.common.v1.OpResult\x12P\n" +
+	"\n" +
+	"RevokeRole\x12$.fintcart.users.v1.AssignRoleRequest\x1a\x1c.fintcart.common.v1.OpResultB\xdb\x01\n" +
 	"\x15com.fintcart.users.v1B\n" +
 	"UsersProtoP\x01ZPgithub.com/fintcart/platform/services/orchestrator/gen/fintcart/users/v1;usersv1\xa2\x02\x03FUX\xaa\x02\x11Fintcart.Users.V1\xca\x02\x11Fintcart\\Users\\V1\xe2\x02\x1dFintcart\\Users\\V1\\GPBMetadata\xea\x02\x13Fintcart::Users::V1b\x06proto3"
 
@@ -1004,62 +1073,67 @@ func file_fintcart_users_v1_users_proto_rawDescGZIP() []byte {
 	return file_fintcart_users_v1_users_proto_rawDescData
 }
 
-var file_fintcart_users_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_fintcart_users_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_fintcart_users_v1_users_proto_goTypes = []any{
 	(*UserRef)(nil),                  // 0: fintcart.users.v1.UserRef
 	(*CreateProfileRequest)(nil),     // 1: fintcart.users.v1.CreateProfileRequest
 	(*AuthContext)(nil),              // 2: fintcart.users.v1.AuthContext
 	(*Profile)(nil),                  // 3: fintcart.users.v1.Profile
-	(*UpdateProfileRequest)(nil),     // 4: fintcart.users.v1.UpdateProfileRequest
-	(*ApplyQuizScoreRequest)(nil),    // 5: fintcart.users.v1.ApplyQuizScoreRequest
-	(*ProgressView)(nil),             // 6: fintcart.users.v1.ProgressView
-	(*RecordArticleViewRequest)(nil), // 7: fintcart.users.v1.RecordArticleViewRequest
-	(*InAppNotification)(nil),        // 8: fintcart.users.v1.InAppNotification
-	(*ListInAppRequest)(nil),         // 9: fintcart.users.v1.ListInAppRequest
-	(*ListInAppResponse)(nil),        // 10: fintcart.users.v1.ListInAppResponse
-	(*MarkReadRequest)(nil),          // 11: fintcart.users.v1.MarkReadRequest
-	(*ActivityReport)(nil),           // 12: fintcart.users.v1.ActivityReport
-	nil,                              // 13: fintcart.users.v1.Profile.PreferencesEntry
-	nil,                              // 14: fintcart.users.v1.UpdateProfileRequest.PreferencesEntry
-	(*ListInAppResponse_Item)(nil),   // 15: fintcart.users.v1.ListInAppResponse.Item
-	(*v1.PageRequest)(nil),           // 16: fintcart.common.v1.PageRequest
-	(*v1.PageResponse)(nil),          // 17: fintcart.common.v1.PageResponse
-	(*v1.OpResult)(nil),              // 18: fintcart.common.v1.OpResult
+	(*AssignRoleRequest)(nil),        // 4: fintcart.users.v1.AssignRoleRequest
+	(*UpdateProfileRequest)(nil),     // 5: fintcart.users.v1.UpdateProfileRequest
+	(*ApplyQuizScoreRequest)(nil),    // 6: fintcart.users.v1.ApplyQuizScoreRequest
+	(*ProgressView)(nil),             // 7: fintcart.users.v1.ProgressView
+	(*RecordArticleViewRequest)(nil), // 8: fintcart.users.v1.RecordArticleViewRequest
+	(*InAppNotification)(nil),        // 9: fintcart.users.v1.InAppNotification
+	(*ListInAppRequest)(nil),         // 10: fintcart.users.v1.ListInAppRequest
+	(*ListInAppResponse)(nil),        // 11: fintcart.users.v1.ListInAppResponse
+	(*MarkReadRequest)(nil),          // 12: fintcart.users.v1.MarkReadRequest
+	(*ActivityReport)(nil),           // 13: fintcart.users.v1.ActivityReport
+	nil,                              // 14: fintcart.users.v1.Profile.PreferencesEntry
+	nil,                              // 15: fintcart.users.v1.UpdateProfileRequest.PreferencesEntry
+	(*ListInAppResponse_Item)(nil),   // 16: fintcart.users.v1.ListInAppResponse.Item
+	(*v1.PageRequest)(nil),           // 17: fintcart.common.v1.PageRequest
+	(*v1.PageResponse)(nil),          // 18: fintcart.common.v1.PageResponse
+	(*v1.OpResult)(nil),              // 19: fintcart.common.v1.OpResult
 }
 var file_fintcart_users_v1_users_proto_depIdxs = []int32{
-	13, // 0: fintcart.users.v1.Profile.preferences:type_name -> fintcart.users.v1.Profile.PreferencesEntry
-	14, // 1: fintcart.users.v1.UpdateProfileRequest.preferences:type_name -> fintcart.users.v1.UpdateProfileRequest.PreferencesEntry
-	16, // 2: fintcart.users.v1.ListInAppRequest.page:type_name -> fintcart.common.v1.PageRequest
-	15, // 3: fintcart.users.v1.ListInAppResponse.items:type_name -> fintcart.users.v1.ListInAppResponse.Item
-	17, // 4: fintcart.users.v1.ListInAppResponse.page:type_name -> fintcart.common.v1.PageResponse
+	14, // 0: fintcart.users.v1.Profile.preferences:type_name -> fintcart.users.v1.Profile.PreferencesEntry
+	15, // 1: fintcart.users.v1.UpdateProfileRequest.preferences:type_name -> fintcart.users.v1.UpdateProfileRequest.PreferencesEntry
+	17, // 2: fintcart.users.v1.ListInAppRequest.page:type_name -> fintcart.common.v1.PageRequest
+	16, // 3: fintcart.users.v1.ListInAppResponse.items:type_name -> fintcart.users.v1.ListInAppResponse.Item
+	18, // 4: fintcart.users.v1.ListInAppResponse.page:type_name -> fintcart.common.v1.PageResponse
 	1,  // 5: fintcart.users.v1.UsersService.CreateProfile:input_type -> fintcart.users.v1.CreateProfileRequest
 	0,  // 6: fintcart.users.v1.UsersService.MarkEmailVerified:input_type -> fintcart.users.v1.UserRef
 	0,  // 7: fintcart.users.v1.UsersService.GetAuthContext:input_type -> fintcart.users.v1.UserRef
 	0,  // 8: fintcart.users.v1.UsersService.GetProfile:input_type -> fintcart.users.v1.UserRef
-	4,  // 9: fintcart.users.v1.UsersService.UpdateProfile:input_type -> fintcart.users.v1.UpdateProfileRequest
-	5,  // 10: fintcart.users.v1.UsersService.ApplyQuizScore:input_type -> fintcart.users.v1.ApplyQuizScoreRequest
+	5,  // 9: fintcart.users.v1.UsersService.UpdateProfile:input_type -> fintcart.users.v1.UpdateProfileRequest
+	6,  // 10: fintcart.users.v1.UsersService.ApplyQuizScore:input_type -> fintcart.users.v1.ApplyQuizScoreRequest
 	0,  // 11: fintcart.users.v1.UsersService.GetProgress:input_type -> fintcart.users.v1.UserRef
-	7,  // 12: fintcart.users.v1.UsersService.RecordArticleView:input_type -> fintcart.users.v1.RecordArticleViewRequest
-	8,  // 13: fintcart.users.v1.UsersService.AppendInAppNotification:input_type -> fintcart.users.v1.InAppNotification
-	9,  // 14: fintcart.users.v1.UsersService.ListInAppNotifications:input_type -> fintcart.users.v1.ListInAppRequest
-	11, // 15: fintcart.users.v1.UsersService.MarkNotificationRead:input_type -> fintcart.users.v1.MarkReadRequest
+	8,  // 12: fintcart.users.v1.UsersService.RecordArticleView:input_type -> fintcart.users.v1.RecordArticleViewRequest
+	9,  // 13: fintcart.users.v1.UsersService.AppendInAppNotification:input_type -> fintcart.users.v1.InAppNotification
+	10, // 14: fintcart.users.v1.UsersService.ListInAppNotifications:input_type -> fintcart.users.v1.ListInAppRequest
+	12, // 15: fintcart.users.v1.UsersService.MarkNotificationRead:input_type -> fintcart.users.v1.MarkReadRequest
 	0,  // 16: fintcart.users.v1.UsersService.GetActivityReport:input_type -> fintcart.users.v1.UserRef
 	0,  // 17: fintcart.users.v1.UsersService.AnonymizeProfile:input_type -> fintcart.users.v1.UserRef
-	18, // 18: fintcart.users.v1.UsersService.CreateProfile:output_type -> fintcart.common.v1.OpResult
-	18, // 19: fintcart.users.v1.UsersService.MarkEmailVerified:output_type -> fintcart.common.v1.OpResult
-	2,  // 20: fintcart.users.v1.UsersService.GetAuthContext:output_type -> fintcart.users.v1.AuthContext
-	3,  // 21: fintcart.users.v1.UsersService.GetProfile:output_type -> fintcart.users.v1.Profile
-	18, // 22: fintcart.users.v1.UsersService.UpdateProfile:output_type -> fintcart.common.v1.OpResult
-	6,  // 23: fintcart.users.v1.UsersService.ApplyQuizScore:output_type -> fintcart.users.v1.ProgressView
-	6,  // 24: fintcart.users.v1.UsersService.GetProgress:output_type -> fintcart.users.v1.ProgressView
-	18, // 25: fintcart.users.v1.UsersService.RecordArticleView:output_type -> fintcart.common.v1.OpResult
-	18, // 26: fintcart.users.v1.UsersService.AppendInAppNotification:output_type -> fintcart.common.v1.OpResult
-	10, // 27: fintcart.users.v1.UsersService.ListInAppNotifications:output_type -> fintcart.users.v1.ListInAppResponse
-	18, // 28: fintcart.users.v1.UsersService.MarkNotificationRead:output_type -> fintcart.common.v1.OpResult
-	12, // 29: fintcart.users.v1.UsersService.GetActivityReport:output_type -> fintcart.users.v1.ActivityReport
-	18, // 30: fintcart.users.v1.UsersService.AnonymizeProfile:output_type -> fintcart.common.v1.OpResult
-	18, // [18:31] is the sub-list for method output_type
-	5,  // [5:18] is the sub-list for method input_type
+	4,  // 18: fintcart.users.v1.UsersService.AssignRole:input_type -> fintcart.users.v1.AssignRoleRequest
+	4,  // 19: fintcart.users.v1.UsersService.RevokeRole:input_type -> fintcart.users.v1.AssignRoleRequest
+	19, // 20: fintcart.users.v1.UsersService.CreateProfile:output_type -> fintcart.common.v1.OpResult
+	19, // 21: fintcart.users.v1.UsersService.MarkEmailVerified:output_type -> fintcart.common.v1.OpResult
+	2,  // 22: fintcart.users.v1.UsersService.GetAuthContext:output_type -> fintcart.users.v1.AuthContext
+	3,  // 23: fintcart.users.v1.UsersService.GetProfile:output_type -> fintcart.users.v1.Profile
+	19, // 24: fintcart.users.v1.UsersService.UpdateProfile:output_type -> fintcart.common.v1.OpResult
+	7,  // 25: fintcart.users.v1.UsersService.ApplyQuizScore:output_type -> fintcart.users.v1.ProgressView
+	7,  // 26: fintcart.users.v1.UsersService.GetProgress:output_type -> fintcart.users.v1.ProgressView
+	19, // 27: fintcart.users.v1.UsersService.RecordArticleView:output_type -> fintcart.common.v1.OpResult
+	19, // 28: fintcart.users.v1.UsersService.AppendInAppNotification:output_type -> fintcart.common.v1.OpResult
+	11, // 29: fintcart.users.v1.UsersService.ListInAppNotifications:output_type -> fintcart.users.v1.ListInAppResponse
+	19, // 30: fintcart.users.v1.UsersService.MarkNotificationRead:output_type -> fintcart.common.v1.OpResult
+	13, // 31: fintcart.users.v1.UsersService.GetActivityReport:output_type -> fintcart.users.v1.ActivityReport
+	19, // 32: fintcart.users.v1.UsersService.AnonymizeProfile:output_type -> fintcart.common.v1.OpResult
+	19, // 33: fintcart.users.v1.UsersService.AssignRole:output_type -> fintcart.common.v1.OpResult
+	19, // 34: fintcart.users.v1.UsersService.RevokeRole:output_type -> fintcart.common.v1.OpResult
+	20, // [20:35] is the sub-list for method output_type
+	5,  // [5:20] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -1076,7 +1150,7 @@ func file_fintcart_users_v1_users_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fintcart_users_v1_users_proto_rawDesc), len(file_fintcart_users_v1_users_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
