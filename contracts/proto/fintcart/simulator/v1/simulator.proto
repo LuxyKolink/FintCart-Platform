@@ -215,11 +215,21 @@ message ValidateDefinitionResponse {
   repeated DefinitionError errors = 2;
 }
 message DefinitionError {
-  string location = 1;   // p. ej. "outputs[1].expression" o "validations[0]"
+  string location = 1;   // p. ej. "outputs[1].expression", "inputs[0].min_value"
+                         // o "validations[0].message"
   string code = 2;       // campo_inexistente | expresion_mal_formada |
                          // limite_excedido | indicador_desconocido |
                          // exponente_no_entero | funcion_desconocida |
-                         // tipo_incompatible
+                         // tipo_incompatible | definicion_invalida
+                         //
+                         // `definicion_invalida` cubre lo que no está en una fórmula:
+                         // dos entradas con la misma clave, una clave que el lenguaje no
+                         // puede nombrar, una etiqueta vacía, un mínimo mayor que su
+                         // máximo o un valor por defecto fuera de su propio rango. Tuvo
+                         // que ser un código aparte porque `campo_inexistente` dice lo
+                         // contrario de lo que pasa —el campo está declarado dos veces,
+                         // no ausente— y `expresion_mal_formada` mandaría al constructor
+                         // visual a resaltar una expresión que no existe.
   string message = 3;
 }
 
