@@ -74,9 +74,9 @@ historia puede empezar.
 
 - [ ] T011 [P] Migración emparejada `categories` (nombre, slug, descripción, `position`, `active`, índices únicos parciales sobre activas) en `services/learning/migrations/`
 - [ ] T012 Migración emparejada que añade `articles.category_id` **anulable**, la puebla normalizando los valores de `articles.category`, completa hasta 5 categorías si hicieran falta (SC-009), y **solo entonces** impone `NOT NULL` + FK y elimina `category`, en `services/learning/migrations/`
-- [ ] T013 Migración emparejada `quizzes.questions_to_serve` (default 5) y reescala `pass_threshold := 100 * pass_threshold / Σ weight`, reemplazando el CHECK por el rango 0–100, en `services/learning/migrations/`
-- [ ] T014 [P] Migración emparejada `quiz_sessions` (`served` JSONB, `expires_at`, `consumed_at`, índices de barrido) en `services/learning/migrations/`
-- [ ] T015 Migración emparejada que añade `quiz_attempts.session_id` y `served_snapshot`, reescala `score := 100 * score / Σ weight`, reemplaza el CHECK por el rango 0–100, y **emite el recuento de cuestionarios cuyo banco cambió tras su primer intento** (research D-18), en `services/learning/migrations/`
+- [X] T013 Migración emparejada `quizzes.questions_to_serve` (default 5) y reescala `pass_threshold := 100 * pass_threshold / Σ weight`, reemplazando el CHECK por el rango 0–100, en `services/learning/migrations/` — **sin reescala** (001 ya guarda porcentajes; ver D-18 corregida)
+- [X] T014 [P] Migración emparejada `quiz_sessions` (`served` JSONB, `expires_at`, `consumed_at`, índices de barrido) en `services/learning/migrations/`
+- [X] T015 Migración emparejada que añade `quiz_attempts.session_id` y `served_snapshot`, reescala `score := 100 * score / Σ weight`, reemplaza el CHECK por el rango 0–100, y **emite el recuento de cuestionarios cuyo banco cambió tras su primer intento** (research D-18), en `services/learning/migrations/` — **sin reescala de `score`** (001 ya guarda porcentajes); la salvedad persiste solo para `served_snapshot`
 - [ ] T016 [P] Migración emparejada que añade `article_versions.body_doc JSONB` y lo puebla envolviendo cada `body` en párrafos; **`body` NO se elimina aquí** (research D-14), en `services/learning/migrations/`
 - [ ] T017 [P] Migración emparejada `article_images` (PK = SHA-256 hex, `BYTEA` con `STORAGE EXTERNAL`, CHECK de mime y de tope de 2 MB) en `services/learning/migrations/`
 
@@ -180,23 +180,23 @@ veces y comparar conjuntos servidos y calificaciones.
 
 ### Pruebas
 
-- [ ] T061 [P] [US2] Prueba de contrato gRPC de `StartQuizSession` verificando que devuelve exactamente `questions_to_serve` preguntas y **sin** la clave correcta, en `services/learning/test/contract/quiz-session.contract.spec.ts`
-- [ ] T062 [P] [US2] Prueba de que dos sesiones consecutivas del mismo cuestionario difieren en conjunto de preguntas y en orden de opciones (SC-013), en `services/learning/test/quizzes/sampling.spec.ts`
-- [ ] T063 [P] [US2] Prueba de que calificar con una pregunta no servida, con sesión vencida o con sesión ya consumida falla en vez de calificar (FR-040, FR-042), en `services/learning/test/quizzes/grading.spec.ts`
-- [ ] T064 [P] [US2] Prueba de que un banco con menos preguntas que N sirve todas sin error (FR-038), en `services/learning/test/quizzes/sampling.spec.ts`
+- [X] T061 [P] [US2] Prueba de contrato gRPC de `StartQuizSession` verificando que devuelve exactamente `questions_to_serve` preguntas y **sin** la clave correcta, en `services/learning/test/contract/quiz-session.contract.spec.ts`
+- [X] T062 [P] [US2] Prueba de que dos sesiones consecutivas del mismo cuestionario difieren en conjunto de preguntas y en orden de opciones (SC-013), en `services/learning/test/quizzes/sampling.spec.ts` — probado de forma determinista sobre `shuffle`/`sampleServed` con fuente de aleatoriedad fija
+- [X] T063 [P] [US2] Prueba de que calificar con una pregunta no servida, con sesión vencida o con sesión ya consumida falla en vez de calificar (FR-040, FR-042), en `services/learning/test/quizzes/grading.spec.ts`
+- [X] T064 [P] [US2] Prueba de que un banco con menos preguntas que N sirve todas sin error (FR-038), en `services/learning/test/quizzes/sampling.spec.ts`
 
 ### Implementación
 
-- [ ] T065 [P] [US2] Repositorio de sesiones en `services/learning/src/quizzes/sessions.repository.ts` (alta, lectura por id, marcado de consumo, barrido de vencidas)
-- [ ] T066 [US2] Muestreo aleatorio de N preguntas y barajado de opciones en `services/learning/src/quizzes/session.service.ts`, persistiendo **ambos órdenes** en `served` (research D-17)
-- [ ] T067 [US2] `StartQuizSession` en `services/learning/src/quizzes/quizzes.controller.ts`, devolviendo las preguntas sin `correct_key`
-- [ ] T068 [US2] Calificación normalizada `100 × peso_acertado / peso_servido` y rechazo de respuestas fuera de la sesión, en `services/learning/src/grading/grading.service.ts` (FR-040, FR-041)
-- [ ] T069 [US2] Copiar `served` a `quiz_attempts.served_snapshot` al calificar — el historial no puede depender de una sesión que se purga (nota N-07), en `services/learning/src/grading/`
-- [ ] T070 [US2] Añadir `questions_to_serve` a `UpsertQuiz` y validarlo (> 0) en `services/learning/src/quizzes/quizzes.service.ts` (FR-037)
-- [ ] T071 [US2] Barrido de sesiones vencidas en el proceso periódico existente de `services/learning/src/`
-- [ ] T072 [US2] Ruta `POST /quizzes/{quizId}/session` y exigencia de `session_id` en `POST /quizzes/{quizId}/attempts` (409 si es inválida) en `services/api-gateway/internal/handler/routes.go`
-- [ ] T073 [US2] Adaptar el flujo del cuestionario a la sesión en `frontend/src/app/features/learning/quiz/`, propagando `session_id` al enviar
-- [ ] T074 [P] [US2] Campo "preguntas a mostrar" en el editor de cuestionarios en `frontend/src/app/features/editorial/editor/`
+- [X] T065 [P] [US2] Repositorio de sesiones en `services/learning/src/quizzes/sessions.repository.ts` (alta, lectura por id, marcado de consumo, barrido de vencidas)
+- [X] T066 [US2] Muestreo aleatorio de N preguntas y barajado de opciones en `services/learning/src/quizzes/session.service.ts`, persistiendo **ambos órdenes** en `served` (research D-17)
+- [X] T067 [US2] `StartQuizSession` en `services/learning/src/quizzes/quizzes.controller.ts`, devolviendo las preguntas sin `correct_key` — implementado en `src/grpc/learning.controller.ts` (el controlador gRPC de este servicio)
+- [X] T068 [US2] Calificación normalizada `100 × peso_acertado / peso_servido` y rechazo de respuestas fuera de la sesión, en `services/learning/src/grading/grading.service.ts` (FR-040, FR-041)
+- [X] T069 [US2] Copiar `served` a `quiz_attempts.served_snapshot` al calificar — el historial no puede depender de una sesión que se purga (nota N-07), en `services/learning/src/grading/`
+- [X] T070 [US2] Añadir `questions_to_serve` a `UpsertQuiz` y validarlo (> 0) en `services/learning/src/quizzes/quizzes.service.ts` (FR-037)
+- [X] T071 [US2] Barrido de sesiones vencidas en el proceso periódico existente de `services/learning/src/` — no había proceso periódico; se creó `SessionSweeper` (intervalo `SESSION_SWEEP_INTERVAL_MS`, defecto 60 s)
+- [X] T072 [US2] Ruta `POST /quizzes/{quizId}/session` y exigencia de `session_id` en `POST /quizzes/{quizId}/attempts` (409 si es inválida) en `services/api-gateway/internal/handler/routes.go` — también se threadó `session_id` por la saga del Orquestador y se preservó `FAILED_PRECONDITION` (antes caía a `Internal`)
+- [X] T073 [US2] Adaptar el flujo del cuestionario a la sesión en `frontend/src/app/features/learning/quiz/`, propagando `session_id` al enviar — el borrador local de 001 se **acota a las preguntas servidas** al reanudarlo (con sorteo, uno viejo puede referirse a preguntas que esta sesión no sirvió, y enviarlas haría fallar el intento entero); el 409 de sesión vencida o consumida se distingue del fallo de red y ofrece un intento nuevo en vez de reintentar en bucle
+- [X] T074 [P] [US2] Campo "preguntas a mostrar" en el editor de cuestionarios en `frontend/src/app/features/editorial/editor/` — el proto ya devolvía `questions_to_serve` en `Quiz`, pero el DTO de lectura del Gateway no lo exponía: se añadió allí para que el valor sobreviva a reabrir el cuestionario (si no, guardar lo reiniciaría al defecto de FR-037)
 
 **Checkpoint**: US2 entregable (SC-013, SC-014).
 
