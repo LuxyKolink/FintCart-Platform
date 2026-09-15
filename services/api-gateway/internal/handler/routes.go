@@ -150,6 +150,7 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.Get("/catalog/articles", h.ListArticles)
 		r.Get("/catalog/articles/{articleId}", h.GetArticle)
 		r.Get("/quizzes/{quizId}", h.GetQuiz)
+		r.Post("/quizzes/{quizId}/session", h.StartQuizSession)
 		r.Post("/quizzes/{quizId}/attempts", h.SubmitQuizAttempt)
 
 		// Simuladores.

@@ -100,6 +100,32 @@ func categoriesToDTO(items []*learningv1.Category) CategoryCatalog {
 	return catalog
 }
 
+// quizSessionToDTO copia la sesión sin interpretarla. `pass_threshold` y `weight`
+// salen como `string` decimal sin tocarse (Principio VIII), igual que en `quizToDTO`.
+func quizSessionToDTO(s *learningv1.QuizSession) QuizSession {
+	questions := make([]Question, 0, len(s.GetQuestions()))
+	for _, question := range s.GetQuestions() {
+		options := make([]Option, 0, len(question.GetOptions()))
+		for _, opt := range question.GetOptions() {
+			options = append(options, Option{Key: opt.GetKey(), Text: opt.GetText()})
+		}
+		questions = append(questions, Question{
+			QuestionID: question.GetQuestionId(),
+			Prompt:     question.GetPrompt(),
+			Options:    options,
+			Weight:     question.GetWeight(),
+		})
+	}
+	return QuizSession{
+		SessionID:     s.GetSessionId(),
+		QuizID:        s.GetQuizId(),
+		Title:         s.GetTitle(),
+		PassThreshold: s.GetPassThreshold(),
+		ExpiresAt:     s.GetExpiresAt(),
+		Questions:     questions,
+	}
+}
+
 func quizToDTO(q *learningv1.Quiz) Quiz {
 	questions := make([]Question, 0, len(q.GetQuestions()))
 	for _, question := range q.GetQuestions() {
@@ -115,11 +141,12 @@ func quizToDTO(q *learningv1.Quiz) Quiz {
 		})
 	}
 	return Quiz{
-		QuizID:        q.GetQuizId(),
-		ArticleID:     q.GetArticleId(),
-		Title:         q.GetTitle(),
-		PassThreshold: q.GetPassThreshold(),
-		Questions:     questions,
+		QuizID:           q.GetQuizId(),
+		ArticleID:        q.GetArticleId(),
+		Title:            q.GetTitle(),
+		PassThreshold:    q.GetPassThreshold(),
+		QuestionsToServe: q.GetQuestionsToServe(),
+		Questions:        questions,
 	}
 }
 
@@ -152,6 +179,21 @@ func questionInputsToProto(items []QuestionInput) []*learningv1.QuestionInput {
 		})
 	}
 	return out
+}
+
+// defaultQuestionsToServe es el defecto de FR-037: si el editor no envía el campo,
+// cada intento sirve 5 preguntas. Vive en el borde porque es un defecto de la
+// superficie REST (un cuerpo que no trae el campo), no una regla de Aprendizaje.
+const defaultQuestionsToServe int32 = 5
+
+// questionsToServeOr resuelve el campo ausente al defecto. Un `0` es «ausente» en un
+// `int32` de JSON sin puntero; un valor negativo SÍ se deja pasar para que Aprendizaje
+// lo rechace como `invalid_argument` (FR-037) en lugar de normalizarlo en silencio.
+func questionsToServeOr(n int32) int32 {
+	if n == 0 {
+		return defaultQuestionsToServe
+	}
+	return n
 }
 
 // quizGradeToDTO copia `score` SIN tocarlo (Principio VIII).

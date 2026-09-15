@@ -60,9 +60,13 @@ func GradingDefinition(c Clients) Definition {
 					if err != nil {
 						return nil, err
 					}
+					sessionID, err := st.String(payloadSessionID)
+					if err != nil {
+						return nil, err
+					}
 
 					resp, err := c.Learning.GradeAndStoreAttempt(ctx, &learningv1.GradeRequest{
-						UserId: userID, QuizId: quizID, Answers: answers,
+						UserId: userID, QuizId: quizID, Answers: answers, SessionId: sessionID,
 						// El `saga_id` es estable entre reintentos del MISMO paso (T176):
 						// si `GradeAndStoreAttempt` tiene éxito pero el motor no llega a
 						// confirmar el avance (`saga.go::run`, comentario junto a

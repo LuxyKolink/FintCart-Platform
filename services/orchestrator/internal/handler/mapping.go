@@ -58,9 +58,18 @@ func simulationToProto(s server.Simulation) *orchestratorv1.SimulationResult {
 // un servicio interno, con nombres de host y detalle del driver. La causa completa
 // va al log.
 func grpcError(err error) error {
-	switch {
-	case err == nil:
+	// Un error que YA lleva un código gRPC —típicamente de un servicio interno como
+	// Aprendizaje, que rechaza una sesión inválida con FAILED_PRECONDITION— se propaga
+	// tal cual. Colapsarlo a `Internal` aquí convertiría un 409 legítimo en un 500 en el
+	// borde. Los centinelas propios de este servicio NO llevan código y caen en el
+	// switch de abajo.
+	if err == nil {
 		return nil
+	}
+	if st, ok := status.FromError(err); ok && st.Code() != codes.Unknown {
+		return status.Error(st.Code(), st.Message())
+	}
+	switch {
 	case errors.Is(err, server.ErrInvalidArgument):
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, server.ErrUnknownSagaType):

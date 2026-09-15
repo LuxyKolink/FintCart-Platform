@@ -794,7 +794,7 @@ func TestQuizScoreCrossesTheEdgeUntouched(t *testing.T) {
 		AttemptId: "at-1", AttemptNo: 2, Score: "85.55", Passed: true, PointsAfter: 120,
 	}
 
-	rec := h.do(t, http.MethodPost, "/quizzes/q-1/attempts", `{"answers":{"p1":"a"}}`, true)
+	rec := h.do(t, http.MethodPost, "/quizzes/q-1/attempts", `{"session_id":"s-1","answers":{"p1":"a"}}`, true)
 	require.Equal(t, http.StatusCreated, rec.Code)
 	require.Contains(t, rec.Body.String(), `"score":"85.55"`)
 	require.NotContains(t, rec.Body.String(), `"score":85.55`)
@@ -803,6 +803,8 @@ func TestQuizScoreCrossesTheEdgeUntouched(t *testing.T) {
 	// la cuenta de otra persona.
 	require.Equal(t, testUserID, h.orchestrator.lastGrading.GetUserId())
 	require.Equal(t, "q-1", h.orchestrator.lastGrading.GetQuizId())
+	// La sesión se exige y se reenvía al Orquestador (FR-040/FR-042).
+	require.Equal(t, "s-1", h.orchestrator.lastGrading.GetSessionId())
 }
 
 // TestTrailingZerosSurviveTheEdge: `"1500000.00"` no puede volverse `"1500000"` ni

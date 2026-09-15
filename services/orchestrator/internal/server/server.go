@@ -168,7 +168,7 @@ type QuizGrading struct {
 // al Gateway a sondear convertiría una interacción inmediata en un bucle de espera.
 func (s *Server) StartQuizGrading(
 	ctx context.Context,
-	userID, quizID string,
+	userID, quizID, sessionID string,
 	answers map[string]string,
 ) (QuizGrading, error) {
 	if userID == "" || quizID == "" {
@@ -184,9 +184,10 @@ func (s *Server) StartQuizGrading(
 	}
 
 	_, final, err := s.engine.Execute(ctx, storer.SagaCalificacion, map[string]any{
-		"user_id": userID,
-		"quiz_id": quizID,
-		"answers": answers,
+		"user_id":    userID,
+		"quiz_id":    quizID,
+		"session_id": sessionID,
+		"answers":    answers,
 	}, nil)
 	if err != nil {
 		return QuizGrading{}, fmt.Errorf("ejecutar saga de calificación: %w", err)

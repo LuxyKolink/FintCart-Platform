@@ -21,7 +21,7 @@ type Service interface {
 	StartRegistration(ctx context.Context, email, password, displayName string) (string, error)
 	StartEmailVerification(ctx context.Context, userID, verificationToken string) (string, error)
 	StartAccountAnonymization(ctx context.Context, userID string) (string, error)
-	StartQuizGrading(ctx context.Context, userID, quizID string, answers map[string]string) (server.QuizGrading, error)
+	StartQuizGrading(ctx context.Context, userID, quizID, sessionID string, answers map[string]string) (server.QuizGrading, error)
 	StartSimulation(ctx context.Context, userID string, calcType int32, currency string, inputs map[string]string) (server.Simulation, error)
 	GetSagaStatus(ctx context.Context, sagaID string) (server.SagaStatus, error)
 }

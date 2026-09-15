@@ -61,6 +61,7 @@ const (
 	payloadDisplayName = "display_name"
 	payloadQuizID      = "quiz_id"
 	payloadAnswers     = "answers"
+	payloadSessionID   = "session_id"
 	payloadAttemptID   = "attempt_id"
 	payloadAttemptNo   = "attempt_no"
 	payloadScore       = "score"

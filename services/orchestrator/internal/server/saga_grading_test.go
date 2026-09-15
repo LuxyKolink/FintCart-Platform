@@ -33,8 +33,9 @@ import (
 // todo esto pasaría igual; ver `participants_test.go`.
 
 const (
-	gradeQuizID = "77777777-7777-4777-8777-777777777777"
-	gradeScore  = "85.55"
+	gradeQuizID    = "77777777-7777-4777-8777-777777777777"
+	gradeSessionID = "88888888-8888-4888-8888-888888888888"
+	gradeScore     = "85.55"
 )
 
 func newGradingEngine(store storer.Storer, users *fakeUsersSvc, learning *fakeLearningSvc) *Engine {
@@ -47,7 +48,7 @@ func newGradingEngine(store storer.Storer, users *fakeUsersSvc, learning *fakeLe
 // así que no hace falta esperar a ninguna goroutine.
 func runGrading(t *testing.T, engine *Engine) (QuizGrading, error) {
 	t.Helper()
-	return New(engine).StartQuizGrading(context.Background(), testActor, gradeQuizID,
+	return New(engine).StartQuizGrading(context.Background(), testActor, gradeQuizID, gradeSessionID,
 		map[string]string{"q1": "a"})
 }
 

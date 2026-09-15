@@ -67,7 +67,7 @@ func (h *Handler) StartAccountAnonymization(ctx context.Context, req *orchestrat
 // ── sagas síncronas ─────────────────────────────────────────────────────────
 
 func (h *Handler) StartQuizGrading(ctx context.Context, req *orchestratorv1.QuizGradingRequest) (*orchestratorv1.QuizGradingResult, error) {
-	out, err := h.svc.StartQuizGrading(ctx, req.GetUserId(), req.GetQuizId(), req.GetAnswers())
+	out, err := h.svc.StartQuizGrading(ctx, req.GetUserId(), req.GetQuizId(), req.GetSessionId(), req.GetAnswers())
 	if err != nil {
 		return nil, grpcError(err)
 	}

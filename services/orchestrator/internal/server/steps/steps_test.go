@@ -29,9 +29,10 @@ import (
 )
 
 const (
-	testUserID = "3f0f8b2e-2c53-4a2c-9f0a-1d2e3f4a5b6c"
-	testSagaID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
-	testQuizID = "11111111-2222-4333-8444-555555555555"
+	testUserID    = "3f0f8b2e-2c53-4a2c-9f0a-1d2e3f4a5b6c"
+	testSagaID    = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+	testQuizID    = "11111111-2222-4333-8444-555555555555"
+	testSessionID = "22222222-3333-4444-8555-666666666666"
 )
 
 // ── dobles de los participantes ─────────────────────────────────────────────
@@ -355,9 +356,10 @@ func TestEmailVerificationFailsWhenTheSecretIsGone(t *testing.T) {
 
 func gradingState() *State {
 	return newState(map[string]any{
-		payloadUserID:  testUserID,
-		payloadQuizID:  testQuizID,
-		payloadAnswers: map[string]string{"q1": "a"},
+		payloadUserID:    testUserID,
+		payloadQuizID:    testQuizID,
+		payloadSessionID: testSessionID,
+		payloadAnswers:   map[string]string{"q1": "a"},
 	}, nil)
 }
 
@@ -466,9 +468,10 @@ func TestGradingSurvivesAResumedPayload(t *testing.T) {
 	learning := &fakeLearning{resp: &learningv1.GradeResponse{AttemptId: "a1", Score: "50.00"}}
 	def := GradingDefinition(Clients{Learning: learning, Users: &fakeUsers{}})
 	st := newState(map[string]any{
-		payloadUserID:  testUserID,
-		payloadQuizID:  testQuizID,
-		payloadAnswers: map[string]any{"q1": "a", "q2": "b"},
+		payloadUserID:    testUserID,
+		payloadQuizID:    testQuizID,
+		payloadSessionID: testSessionID,
+		payloadAnswers:   map[string]any{"q1": "a", "q2": "b"},
 	}, nil)
 
 	_, err := def.Steps[0].Do(context.Background(), st)

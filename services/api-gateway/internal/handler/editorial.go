@@ -204,10 +204,11 @@ func (h *Handler) CreateQuiz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := h.clients.Learning.UpsertQuiz(r.Context(), &learningv1.UpsertQuizRequest{
-		ArticleId:     body.ArticleID,
-		Title:         body.Title,
-		PassThreshold: body.PassThreshold,
-		Questions:     questionInputsToProto(body.Questions),
+		ArticleId:        body.ArticleID,
+		Title:            body.Title,
+		PassThreshold:    body.PassThreshold,
+		QuestionsToServe: questionsToServeOr(body.QuestionsToServe),
+		Questions:        questionInputsToProto(body.Questions),
 	})
 	if err != nil {
 		h.writeGRPCError(w, r, err)
@@ -229,10 +230,11 @@ func (h *Handler) UpdateQuiz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := h.clients.Learning.UpsertQuiz(r.Context(), &learningv1.UpsertQuizRequest{
-		QuizId:        chi.URLParam(r, "quizId"),
-		Title:         body.Title,
-		PassThreshold: body.PassThreshold,
-		Questions:     questionInputsToProto(body.Questions),
+		QuizId:           chi.URLParam(r, "quizId"),
+		Title:            body.Title,
+		PassThreshold:    body.PassThreshold,
+		QuestionsToServe: questionsToServeOr(body.QuestionsToServe),
+		Questions:        questionInputsToProto(body.Questions),
 	})
 	if err != nil {
 		h.writeGRPCError(w, r, err)

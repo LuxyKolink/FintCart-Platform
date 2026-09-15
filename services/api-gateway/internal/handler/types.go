@@ -139,11 +139,15 @@ type Article struct {
 // Quiz ≡ `GET /quizzes/{quizId}` (FR-009). `PassThreshold` es `string` decimal
 // (Principio VIII): es el umbral de aprobación, no un entero de conteo.
 type Quiz struct {
-	QuizID        string     `json:"quiz_id"`
-	ArticleID     string     `json:"article_id"`
-	Title         string     `json:"title"`
-	PassThreshold string     `json:"pass_threshold"`
-	Questions     []Question `json:"questions"`
+	QuizID        string `json:"quiz_id"`
+	ArticleID     string `json:"article_id"`
+	Title         string `json:"title"`
+	PassThreshold string `json:"pass_threshold"`
+	// QuestionsToServe (FR-037) es cuántas preguntas sortea cada intento. Se expone
+	// también en la LECTURA para que el editor pueda precargarlo al reabrir un
+	// cuestionario; sin él, guardar desde el editor lo reiniciaría al defecto.
+	QuestionsToServe int32      `json:"questions_to_serve"`
+	Questions        []Question `json:"questions"`
 }
 
 // Question ≡ una pregunta de `Quiz`. `Weight` es `string` decimal por la misma
@@ -220,11 +224,15 @@ type UpdateDraftRequest struct {
 // UpsertQuizRequest ≡ `POST /editorial/quizzes` y `PUT /editorial/quizzes/{quizId}`
 // (FR-009, T162). `ArticleID` solo se usa al CREAR (`PUT` ignora el que llegue, porque
 // el cuestionario ya tiene el suyo); ver `editorial.go::UpsertQuiz`.
+//
+// `QuestionsToServe` (FR-037) es cuántas preguntas se sirven por intento; 0 significa
+// «no lo enviaron» y el handler lo resuelve al defecto de 5.
 type UpsertQuizRequest struct {
-	ArticleID     string          `json:"article_id,omitempty"`
-	Title         string          `json:"title"`
-	PassThreshold string          `json:"pass_threshold"`
-	Questions     []QuestionInput `json:"questions"`
+	ArticleID        string          `json:"article_id,omitempty"`
+	Title            string          `json:"title"`
+	PassThreshold    string          `json:"pass_threshold"`
+	QuestionsToServe int32           `json:"questions_to_serve,omitempty"`
+	Questions        []QuestionInput `json:"questions"`
 }
 
 // QuestionInput ≡ una pregunta de `UpsertQuizRequest`. Lleva la clave correcta —al
@@ -297,8 +305,23 @@ type CategoryConflict struct {
 // `Answers` es `map[string]string` (pregunta → opción elegida) tal como lo declara el
 // contrato gRPC. El Gateway no las interpreta: qué opción es correcta y cuánto pesa
 // cada pregunta es dominio de Aprendizaje.
+//
+// `SessionID` es OBLIGATORIO (FR-040/FR-042): la calificación solo acepta respuestas
+// contra la sesión emitida por `POST /quizzes/{quizId}/session`.
 type SubmitAttemptRequest struct {
-	Answers map[string]string `json:"answers"`
+	SessionID string            `json:"session_id"`
+	Answers   map[string]string `json:"answers"`
+}
+
+// QuizSession ≡ `POST /quizzes/{quizId}/session` (FR-038). Las preguntas ya vienen
+// servidas y barajadas; ninguna lleva la clave correcta (la misma garantía que `Quiz`).
+type QuizSession struct {
+	SessionID     string     `json:"session_id"`
+	QuizID        string     `json:"quiz_id"`
+	Title         string     `json:"title"`
+	PassThreshold string     `json:"pass_threshold"`
+	ExpiresAt     string     `json:"expires_at"`
+	Questions     []Question `json:"questions"`
 }
 
 // ── DTO de simuladores ──────────────────────────────────────────────────────
