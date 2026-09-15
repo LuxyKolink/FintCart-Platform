@@ -84,6 +84,14 @@
                 <label class="fc-label" for="passThreshold">Umbral de aprobación (0–100)</label>
                 <input class="fc-input" id="passThreshold" type="text" formControlName="passThreshold" />
               </div>
+              <div class="fc-field">
+                <label class="fc-label" for="questionsToServe">Preguntas a mostrar por intento</label>
+                <input class="fc-input" id="questionsToServe" type="text" inputmode="numeric" formControlName="questionsToServe" />
+                <span class="fc-help">
+                  De todo el banco se sortean estas en cada intento, con las opciones barajadas. Si el banco
+                  tiene menos, se sirven todas.
+                </span>
+              </div>
 
               @for (question of questions.controls; track $index; let i = $index) {
                 <fieldset [formGroup]="question" style="border: var(--border-hairline) solid var(--border-default); border-radius: var(--radius-2); padding: var(--space-3); margin-bottom: var(--space-3)">

@@ -55,16 +55,29 @@ export interface Question {
   weight: string;
 }
 
-export interface Quiz {
+/**
+ * Intento abierto (`POST /quizzes/{quizId}/session`, FR-038) — espejo de `QuizSession`
+ * de `services/api-gateway/internal/handler/types.go`.
+ *
+ * Sustituye a `Quiz` como camino de ejecución: las preguntas ya vienen **sorteadas**
+ * del banco y con las opciones **barajadas**, así que este objeto solo vale para ESTE
+ * intento. Al vencer `expires_at` deja de poder calificarse (FR-042).
+ */
+export interface QuizSession {
+  session_id: string;
   quiz_id: string;
-  article_id: string;
   title: string;
   /** Decimal canónico — usar `shared/decimal-str.ts` para leerlo. */
   pass_threshold: string;
+  /** RFC-3339. */
+  expires_at: string;
+  /** Exactamente `questions_to_serve`, o todas las del banco si tiene menos (FR-038). */
   questions: Question[];
 }
 
 export interface SubmitAttemptRequest {
+  /** Obligatorio desde US2: sin sesión el servidor no califica (FR-040). */
+  session_id: string;
   answers: Record<string, string>;
 }
 

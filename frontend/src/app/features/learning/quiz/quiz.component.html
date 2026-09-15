@@ -19,14 +19,21 @@
         </div>
       </section>
     } @else {
-      @if (quiz(); as q) {
+      @if (session(); as s) {
         <section class="fc-module" style="max-width: 640px; margin: 0 auto">
-          <header>{{ q.title }}</header>
+          <header>{{ s.title }}</header>
           <div class="fc-module-body">
             @if (resumedFromDraft()) {
               <p class="fc-banner fc-banner--info">
                 Retomamos tus respuestas de un intento anterior sin terminar.
                 <button type="button" class="fc-btn fc-btn--ghost" (click)="restart()">Empezar de nuevo</button>
+              </p>
+            }
+            @if (sessionGone()) {
+              <p class="fc-banner fc-banner--error">
+                Este intento ya venció, así que no podemos calificarlo. Tus respuestas
+                siguen guardadas, pero hay que empezar un intento nuevo con preguntas nuevas.
+                <button type="button" class="fc-btn fc-btn--ghost" (click)="restart()">Empezar un intento nuevo</button>
               </p>
             }
             @if (submitState() === 'error') {
@@ -35,7 +42,7 @@
               </p>
             }
 
-            @for (question of q.questions; track question.question_id) {
+            @for (question of s.questions; track question.question_id) {
               <fieldset style="border: 0; padding: 0; margin: 0 0 var(--space-5)">
                 <legend class="fc-label" style="margin-bottom: var(--space-2)">{{ question.prompt }}</legend>
                 @for (option of question.options; track option.key) {

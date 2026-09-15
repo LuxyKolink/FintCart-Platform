@@ -42,6 +42,11 @@ export interface UpsertQuizRequest {
   title: string;
   /** Decimal canónico. */
   pass_threshold: string;
+  /**
+   * Cuántas preguntas sortea cada intento (FR-037). El Gateway lo omite del JSON si va
+   * a 0 y lo resuelve a 5, así que desde aquí SIEMPRE debe viajar un entero > 0.
+   */
+  questions_to_serve: number;
   questions: QuestionInput[];
 }
 
@@ -62,6 +67,8 @@ export interface Quiz {
   article_id: string;
   title: string;
   pass_threshold: string;
+  /** Preguntas sorteadas por intento (FR-037) — se precarga al reabrir el cuestionario. */
+  questions_to_serve: number;
   questions: Question[];
 }
 

@@ -94,6 +94,11 @@ export class EditorComponent implements OnInit {
   protected readonly quizForm = this.fb.nonNullable.group({
     title: ['', [Validators.required]],
     passThreshold: ['70', [scoreValidator({ required: true })]],
+    // Entero positivo (FR-037). Es un RECUENTO de preguntas, no una cifra monetaria:
+    // el Principio VIII rige montos, tasas y valores de indicador, así que aquí sí se
+    // admite `Number`. El patrón rechaza 0, negativos, decimales y ceros a la izquierda
+    // — el Gateway resuelve 0 al defecto de 5, pero eso es una red, no la intención.
+    questionsToServe: ['5', [Validators.required, Validators.pattern(/^[1-9]\d*$/)]],
     questions: this.fb.array([newQuestionGroup(this.fb)]),
   });
 
@@ -210,6 +215,7 @@ export class EditorComponent implements OnInit {
       article_id: artId,
       title: raw.title,
       pass_threshold: raw.passThreshold,
+      questions_to_serve: Number(raw.questionsToServe),
       questions: raw.questions.map((q) => ({
         prompt: q.prompt,
         options: this.optionsOf(q),
@@ -224,6 +230,10 @@ export class EditorComponent implements OnInit {
       next: (quiz) => {
         this.quizSaveState.set('saved');
         this.quiz.set(quiz);
+        // El valor efectivo lo decide el servidor —el Gateway resuelve 0 al defecto de
+        // FR-037—, así que reflejar su respuesta evita que el formulario muestre algo
+        // distinto de lo que quedó guardado.
+        this.quizForm.patchValue({ questionsToServe: String(quiz.questions_to_serve) });
       },
       error: (err: unknown) => {
         this.quizSaveState.set('idle');

@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { Article, Category, CategoryCatalog, Page, Quiz, QuizGradeResult, SubmitAttemptRequest } from './learning.types';
+import { Article, Category, CategoryCatalog, Page, QuizGradeResult, QuizSession, SubmitAttemptRequest } from './learning.types';
 
 @Injectable({ providedIn: 'root' })
 export class LearningApiService {
@@ -29,8 +29,17 @@ export class LearningApiService {
     return this.http.get<Article>(`${environment.apiBaseUrl}/catalog/articles/${articleId}`);
   }
 
-  public getQuiz(quizId: string): Observable<Quiz> {
-    return this.http.get<Quiz>(`${environment.apiBaseUrl}/quizzes/${quizId}`);
+  /**
+   * Abre un intento (US2, FR-038): el servidor sortea `questions_to_serve` preguntas del
+   * banco y baraja sus opciones. Sustituye a `GetQuiz` como camino de ejecución —
+   * `GET /quizzes/{quizId}` sigue existiendo en el contrato, pero ya no es por donde se
+   * rinde un cuestionario.
+   *
+   * El cuerpo va vacío a propósito: quién es el usuario sale del token y cuántas
+   * preguntas se sirven es configuración del cuestionario, no elección del lector.
+   */
+  public startQuizSession(quizId: string): Observable<QuizSession> {
+    return this.http.post<QuizSession>(`${environment.apiBaseUrl}/quizzes/${quizId}/session`, {});
   }
 
   public submitQuizAttempt(quizId: string, body: SubmitAttemptRequest): Observable<QuizGradeResult> {
