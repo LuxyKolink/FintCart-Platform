@@ -14,12 +14,16 @@ use crate::domain::dispatch::{self, Kind};
 use crate::domain::error::Error;
 use crate::grpc::mapping;
 use crate::observability;
-use crate::pb::fintcart::common::v1::OpResult;
+use crate::pb::fintcart::common::v1::{OpResult, PageRequest};
 use crate::pb::fintcart::simulator::v1::simulator_service_server::{
     SimulatorService, SimulatorServiceServer,
 };
 use crate::pb::fintcart::simulator::v1::{
-    CalcType, ComputeRequest, ComputeResponse, ListHistoryRequest, ListHistoryResponse, UserRef,
+    ApproveCalculatorRequest, CalcType, Calculator, CalculatorRef, ComputeRequest, ComputeResponse,
+    Indicator, IndicatorCalendarStatus, ListCalculatorsRequest, ListCalculatorsResponse,
+    ListHistoryRequest, ListHistoryResponse, ListIndicatorsRequest, ListIndicatorsResponse,
+    RejectCalculatorRequest, UpsertCalculatorRequest, UpsertIndicatorRequest, UserRef,
+    ValidateDefinitionRequest, ValidateDefinitionResponse,
 };
 use crate::repo::simulations::Simulations;
 
@@ -84,6 +88,42 @@ fn record<T>(operation: &str, started: Instant, result: &Result<Response<T>, Sta
     observability::observe(operation, &code, started.elapsed());
 }
 
+/// Respuesta uniforme de un RPC todavía sin implementar.
+///
+/// ## Por qué existen estos cuerpos si no implementan nada
+///
+/// El delta de contrato (T002) añadió once RPC al `SimulatorService` en un commit
+/// separado del cambio de lógica, como exige la Constitución §Definición de Contratos. Un
+/// trait con métodos sin implementar **no compila**, así que sin estos cuerpos el crate
+/// entero queda inutilizable: no se pueden ni ejecutar las pruebas del motor de fórmulas,
+/// que no dependen de ninguno de los once. Devolver `unimplemented` es lo que mantiene el
+/// árbol compilable y las pruebas corribles mientras llegan sus tareas.
+///
+/// ## Lo que estos cuerpos NO son
+///
+/// No son una implementación parcial ni un valor por defecto silencioso:
+/// `Status::unimplemented` es un error explícito que un cliente ve como tal. Cada uno
+/// nombra la TAREA que lo implementa, así que quien reciba el error en una prueba de
+/// integración sabe a qué esperar en vez de averiguar por qué el RPC «no hace nada».
+///
+/// Van escritos uno a uno y no generados con una macro: `#[tonic::async_trait]` es un
+/// atributo, y los atributos se expanden **antes** que las macros declarativas, así que
+/// los métodos que produjera una macro llegarían al transformador de `async_trait` ya
+/// tarde y sin la lifetime de la firma del trait.
+///
+/// Devuelve el [`Status`] en lugar del `Result` ya construido por un motivo que el
+/// compilador señala: `Status` ocupa 176 bytes, y una función SÍNCRONA que lo devuelva como
+/// variante de error dispara `clippy::result_large_err`. Los métodos del trait no lo
+/// disparan porque `async_trait` los envuelve en un futuro, pero esta ayuda no. Envolver
+/// aquí y devolver el valor se lleva la decisión al sitio que sí puede tomarla.
+fn pending(rpc: &str, task: &str, started: Instant) -> Status {
+    let status = Status::unimplemented(format!("pendiente de {task}"));
+    // `Response<()>` porque `record` solo mira el CÓDIGO de estado; el tipo del cuerpo le
+    // da igual y nombrarlo obligaría a esta ayuda a ser genérica otra vez.
+    record(rpc, started, &Err::<Response<()>, Status>(status.clone()));
+    status
+}
+
 #[tonic::async_trait]
 impl<R: Simulations> SimulatorService for Service<R> {
     /// Ejecuta una simulación y persiste el historial (FR-019..FR-022).
@@ -144,6 +184,117 @@ impl<R: Simulations> SimulatorService for Service<R> {
         let result = result.map(Response::new);
         record("simulator.AnonymizeHistory", started, &result);
         result
+    }
+
+    // ── Constructor de calculadoras (T090) ────────────────────────────────────
+
+    async fn upsert_calculator(
+        &self,
+        _request: Request<UpsertCalculatorRequest>,
+    ) -> Result<Response<Calculator>, Status> {
+        Err(pending(
+            "simulator.UpsertCalculator",
+            "T090",
+            Instant::now(),
+        ))
+    }
+
+    async fn get_calculator(
+        &self,
+        _request: Request<CalculatorRef>,
+    ) -> Result<Response<Calculator>, Status> {
+        Err(pending("simulator.GetCalculator", "T090", Instant::now()))
+    }
+
+    async fn list_calculators(
+        &self,
+        _request: Request<ListCalculatorsRequest>,
+    ) -> Result<Response<ListCalculatorsResponse>, Status> {
+        Err(pending("simulator.ListCalculators", "T090", Instant::now()))
+    }
+
+    async fn delete_calculator(
+        &self,
+        _request: Request<CalculatorRef>,
+    ) -> Result<Response<OpResult>, Status> {
+        Err(pending(
+            "simulator.DeleteCalculator",
+            "T090",
+            Instant::now(),
+        ))
+    }
+
+    async fn validate_definition(
+        &self,
+        _request: Request<ValidateDefinitionRequest>,
+    ) -> Result<Response<ValidateDefinitionResponse>, Status> {
+        Err(pending(
+            "simulator.ValidateDefinition",
+            "T090",
+            Instant::now(),
+        ))
+    }
+
+    // ── Curaduría (T114) ──────────────────────────────────────────────────────
+
+    async fn submit_calculator_for_review(
+        &self,
+        _request: Request<CalculatorRef>,
+    ) -> Result<Response<OpResult>, Status> {
+        Err(pending(
+            "simulator.SubmitCalculatorForReview",
+            "T114",
+            Instant::now(),
+        ))
+    }
+
+    async fn approve_calculator(
+        &self,
+        _request: Request<ApproveCalculatorRequest>,
+    ) -> Result<Response<OpResult>, Status> {
+        Err(pending(
+            "simulator.ApproveCalculator",
+            "T114",
+            Instant::now(),
+        ))
+    }
+
+    async fn reject_calculator(
+        &self,
+        _request: Request<RejectCalculatorRequest>,
+    ) -> Result<Response<OpResult>, Status> {
+        Err(pending(
+            "simulator.RejectCalculator",
+            "T114",
+            Instant::now(),
+        ))
+    }
+
+    // ── Indicadores financieros (T104) ────────────────────────────────────────
+
+    async fn upsert_indicator(
+        &self,
+        _request: Request<UpsertIndicatorRequest>,
+    ) -> Result<Response<Indicator>, Status> {
+        Err(pending("simulator.UpsertIndicator", "T104", Instant::now()))
+    }
+
+    async fn list_indicators(
+        &self,
+        _request: Request<ListIndicatorsRequest>,
+    ) -> Result<Response<ListIndicatorsResponse>, Status> {
+        Err(pending("simulator.ListIndicators", "T104", Instant::now()))
+    }
+
+    async fn get_indicator_calendar_status(
+        &self,
+        _request: Request<PageRequest>,
+    ) -> Result<Response<IndicatorCalendarStatus>, Status> {
+        Err(pending(
+            "simulator.GetIndicatorCalendarStatus",
+            "T104",
+            Instant::now(),
+        ))
     }
 }
 

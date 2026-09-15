@@ -29,12 +29,25 @@ fn rfc3339(instant: chrono::DateTime<chrono::Utc>) -> String {
 }
 
 /// Convierte la fila recién insertada en la respuesta de `Compute`.
+///
+/// `calculator_version` e `indicators_used` se dejan en su valor neutro porque `Compute`
+/// todavía resuelve por `calc_type` —el camino de compatibilidad de FR-043— y ese camino
+/// no pasa por ninguna definición versionada: no hay versión que citar ni indicador que
+/// snapshotar. Rellenarlos con otra cosa inventaría una procedencia que no existe.
+///
+/// Cuando T091 ejecute por `calculator_id`, esta función recibirá la versión y el
+/// snapshot ya resueltos y los escribirá. El valor 0 y el mapa vacío **no** son un
+/// marcador de «pendiente»: son la respuesta correcta para una simulación que se calculó
+/// con el código nativo y constantes cableadas, que es lo mismo que la migración de T020
+/// registra en las filas históricas.
 #[must_use]
 pub fn compute_response(row: &SimulationRow) -> ComputeResponse {
     ComputeResponse {
         simulation_id: row.id.to_string(),
         result: row.result.clone(),
         computed_at: rfc3339(row.created_at),
+        calculator_version: 0,
+        indicators_used: std::collections::HashMap::new(),
     }
 }
 
@@ -56,6 +69,13 @@ pub fn history_response(page: HistoryPage) -> Result<ListHistoryResponse> {
                 inputs: row.inputs,
                 result: row.result,
                 created_at: rfc3339(row.created_at),
+                // Ver la nota de `compute_response`: mientras la fila no traiga
+                // procedencia —T103 lee las columnas que añadió la migración de T020—, un
+                // historial calculado por el camino de compatibilidad se explica con
+                // `calc_type`, que es lo que sí tiene.
+                calculator_id: String::new(),
+                calculator_version: 0,
+                indicators_used: std::collections::HashMap::new(),
             })
         })
         .collect::<Result<Vec<_>>>()?;

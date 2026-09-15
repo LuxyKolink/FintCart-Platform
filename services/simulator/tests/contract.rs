@@ -200,6 +200,11 @@ fn credit_request() -> ComputeRequest {
         .map(|(k, v)| (k.to_owned(), v.to_owned()))
         .collect(),
         idempotency_key: String::new(),
+        // Vacío a propósito: esta prueba ejercita el camino de COMPATIBILIDAD por
+        // `calc_type` (FR-043), que sigue vigente mientras las siete definiciones semilla
+        // no estén sembradas. Cuando T091 implemente la ejecución por `calculator_id`,
+        // convendrá una prueba hermana que use ese camino, no cambiar esta.
+        calculator_id: String::new(),
     }
 }
 

@@ -5,4 +5,5 @@ pub mod currency;
 pub mod decimal_str;
 pub mod dispatch;
 pub mod error;
+pub mod formula;
 pub mod inputs;
