@@ -20,6 +20,8 @@ import { conflict, invalidArgument, notFound } from '../common/errors';
 import { nextPageToken, resolvePage, type PageRequestLike } from '../common/pagination';
 import type { AttemptSummary, GradingKey } from '../quizzes/quizzes.repository';
 import { QuizzesRepository } from '../quizzes/quizzes.repository';
+import type { ServedQuestion } from '../quizzes/sessions.repository';
+import { SessionsRepository } from '../quizzes/sessions.repository';
 
 /** Resultado de calificar un intento. */
 export interface GradeResult {
@@ -27,6 +29,8 @@ export interface GradeResult {
   readonly attemptNo: Count;
   readonly score: Decimal;
   readonly passed: boolean;
+  /** Sesión que se calificó (FR-039), para devolverla en la respuesta. */
+  readonly sessionId: string;
 }
 
 /** Página del historial de intentos. */
@@ -50,49 +54,73 @@ const SCORE_SCALE: Count = 2;
 
 @Injectable()
 export class GradingService {
-  public constructor(private readonly quizzes: QuizzesRepository) {}
+  public constructor(
+    private readonly quizzes: QuizzesRepository,
+    private readonly sessions: SessionsRepository,
+  ) {}
 
   /**
-   * Califica un intento y lo persiste (FR-012, FR-016).
+   * Califica un intento y lo persiste (FR-012, FR-016, FR-038…FR-042).
    *
    * Lo invoca la Saga de calificación (research D-07), nunca el cliente directamente:
    * el puntaje tiene que llegar a Usuarios en la misma secuencia, y esa coordinación
    * es del Orquestador.
    *
-   * @throws {DomainError} `invalid_argument` si los identificadores no son UUID o las
-   *   respuestas mencionan preguntas ajenas al cuestionario; `not_found` si el
-   *   cuestionario no existe; `conflict` si el cuestionario no tiene preguntas.
+   * El intento se califica SOLO contra las preguntas servidas en la sesión emitida
+   * (FR-040), no contra el banco entero: una respuesta a una pregunta no servida es un
+   * conflicto y no se califica. La sesión, además, debe estar vigente y no consumida.
+   *
+   * @throws {DomainError} `invalid_argument` si los identificadores no son UUID;
+   *   `not_found` si el cuestionario no existe; `conflict` si la sesión no existe, no
+   *   pertenece al usuario o al cuestionario, venció, ya fue consumida, o las
+   *   respuestas mencionan preguntas no servidas.
    */
   public async gradeAndStore(
     userId: string,
     quizId: string,
+    sessionId: string,
     answers: Readonly<Record<string, string>>,
     idempotencyKey: string | null = null,
   ): Promise<GradeResult> {
     requireUuid('user_id', userId);
     requireUuid('quiz_id', quizId);
+    requireUuid('session_id', sessionId);
+
+    // La sesión es la fuente de verdad de QUÉ se sirvió. Se valida antes de tocar el
+    // intento: una sesión vencida, consumida o ajena no puede calificar nada.
+    const session = await this.sessions.findById(sessionId);
+    if (session === null) {
+      throw conflict(`no existe la sesión ${sessionId}`);
+    }
+    if (session.userId !== userId) {
+      throw conflict(`la sesión ${sessionId} no pertenece a ${userId}`);
+    }
+    if (session.quizId !== quizId) {
+      throw conflict(`la sesión ${sessionId} no corresponde al cuestionario ${quizId}`);
+    }
+    if (session.consumedAt !== null) {
+      throw conflict(`la sesión ${sessionId} ya fue consumida (FR-042)`);
+    }
+    if (session.expiresAt.getTime() <= Date.now()) {
+      throw conflict(`la sesión ${sessionId} venció (FR-042)`);
+    }
 
     const key = await this.quizzes.findGradingKey(quizId);
     if (key === null) {
       throw notFound(`no existe el cuestionario ${quizId}`);
     }
-    if (key.answers.size === 0) {
-      // Un cuestionario sin preguntas no se puede calificar: cualquier puntaje sería
-      // inventado. FR-009 exige al menos una, así que esto es un cuestionario a medio
-      // crear y no una entrada legítima.
-      throw conflict(`el cuestionario ${quizId} no tiene preguntas`);
-    }
 
-    // Una respuesta a una pregunta que no es de este cuestionario indica que el
-    // cliente mezcló dos cuestionarios o construyó mal la petición. Ignorarla en
-    // silencio produciría una nota que el usuario no entiende y nadie puede explicar.
+    // Una respuesta a una pregunta NO SERVIDA es un conflicto (FR-040): el cliente
+    // pudo haber mezclado dos sesiones o construido mal la petición. Silenciarlo
+    // produciría una nota que nadie puede explicar.
+    const servedIds = new Set(session.served.map((served) => served.questionId));
     for (const questionId of Object.keys(answers)) {
-      if (!key.answers.has(questionId)) {
-        throw invalidArgument(`la pregunta ${questionId} no pertenece al cuestionario ${quizId}`);
+      if (!servedIds.has(questionId)) {
+        throw conflict(`la pregunta ${questionId} no fue servida en la sesión ${sessionId}`);
       }
     }
 
-    const score = computeScore(key, answers);
+    const score = computeScoreOver(key, session.served, answers);
     const stored = await this.quizzes.storeAttempt(
       userId,
       quizId,
@@ -103,12 +131,20 @@ export class GradingService {
       format(score),
       answers,
       idempotencyKey,
+      sessionId,
+      session.served,
     );
+
+    // Consumir la sesión tras persistir el intento: el orden (primero el intento,
+    // luego la consumición) protege FR-016 — si la consumición fallara, el intento ya
+    // está guardado y la saga puede reintentar con la misma clave de idempotencia.
+    await this.sessions.markConsumed(sessionId);
 
     return {
       attemptId: stored.attemptId,
       attemptNo: stored.attemptNo,
       score,
+      sessionId,
       // `gte` y no `>`: comparar `Decimal` con operadores relacionales de JavaScript
       // los convierte a `number`, que es exactamente lo que este módulo evita.
       passed: score.gte(key.passThreshold),
@@ -179,23 +215,32 @@ export class GradingService {
 }
 
 /**
- * Calcula la calificación sobre 100 con los pesos de cada pregunta.
+ * Calcula la calificación sobre 100 con los pesos de las preguntas SERVIDAS (FR-041).
  *
- * Una pregunta SIN responder cuenta como incorrecta y no se excluye del denominador.
- * Excluirla convertiría dejar preguntas en blanco en una estrategia: quien respondiera
- * solo la que sabe sacaría un 100.
+ * Una pregunta servida SIN responder cuenta como incorrecta y no se excluye del
+ * denominador: excluirla convertiría dejar preguntas en blanco en una estrategia.
  *
- * El redondeo es half-even (bancario) y ocurre UNA vez, al final. Redondear en cada
- * pregunta acumularía el sesgo del redondeo tantas veces como preguntas tenga el
- * cuestionario.
+ * Si una pregunta servida ya no está en el banco (el editor editó el cuestionario
+ * entre la sesión y la calificación), se excluye de numerador y denominador — es la
+ * salvedad de research D-18, no hay forma de conocer el peso histórico servido.
+ *
+ * El redondeo es half-even (bancario) y ocurre UNA vez, al final.
  */
-function computeScore(key: GradingKey, answers: Readonly<Record<string, string>>): Decimal {
+function computeScoreOver(
+  key: GradingKey,
+  served: readonly ServedQuestion[],
+  answers: Readonly<Record<string, string>>,
+): Decimal {
   let total = new Decimal(0);
   let earned = new Decimal(0);
 
-  for (const [questionId, expected] of key.answers) {
+  for (const entry of served) {
+    const expected = key.answers.get(entry.questionId);
+    if (expected === undefined) {
+      continue;
+    }
     total = total.plus(expected.weight);
-    if (answers[questionId] === expected.correctKey) {
+    if (answers[entry.questionId] === expected.correctKey) {
       earned = earned.plus(expected.weight);
     }
   }

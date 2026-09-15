@@ -26,6 +26,7 @@ import { parseScore } from '../common/decimal-str';
 import { DomainError, notFound, storageError } from '../common/errors';
 import type { Page } from '../common/pagination';
 import { execTx } from '../common/tx';
+import type { ServedQuestion } from './sessions.repository';
 
 /** Alternativa de respuesta, con su clave. */
 export interface QuizOption {
@@ -48,6 +49,8 @@ export interface Quiz {
   readonly title: string;
   readonly passThreshold: Decimal;
   readonly questions: readonly QuizQuestion[];
+  /** Cuántas preguntas se sirven por intento (FR-037). Cardinal, no decimal. */
+  readonly questionsToServe: Count;
 }
 
 /** Lo que hace falta para corregir, y que NUNCA sale de la capa de aplicación. */
@@ -76,6 +79,8 @@ export interface UpsertQuizInput {
   /** Cadena decimal canónica — el llamador ya la validó con `parseScore`. */
   readonly passThreshold: string;
   readonly questions: readonly QuestionInput[];
+  /** Preguntas a servir por intento (FR-037); el llamador ya validó `> 0`. */
+  readonly questionsToServe: Count;
 }
 
 /** Intento persistido. */
@@ -90,6 +95,8 @@ export interface AttemptSummary {
   readonly attemptNo: Count;
   readonly score: Decimal;
   readonly createdAt: string;
+  /** Preguntas servidas en este intento (FR-039), del `served_snapshot`. */
+  readonly servedQuestionIds: readonly string[];
 }
 
 /** Página de resultados con su total. */
@@ -112,7 +119,7 @@ export interface Paged<T> {
  * pase lo que pase con la configuración global del driver.
  */
 const FIND_QUIZ_SQL = `
-SELECT id, article_id, title, pass_threshold::text AS pass_threshold
+SELECT id, article_id, title, pass_threshold::text AS pass_threshold, questions_to_serve
   FROM quizzes WHERE id = $1`;
 
 /** El `correct_key` NO se selecciona aquí. Ver la cabecera del archivo. */
@@ -157,8 +164,8 @@ SELECT COALESCE(MAX(attempt_no), 0) + 1 AS next_no
  * parcial habría exigido esa cláusula para que Postgres infiriera el arbitraje.
  */
 const INSERT_ATTEMPT_SQL = `
-INSERT INTO quiz_attempts (user_id, quiz_id, attempt_no, score, answers, idempotency_key)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO quiz_attempts (user_id, quiz_id, attempt_no, score, answers, idempotency_key, session_id, served_snapshot)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (idempotency_key) DO NOTHING
 RETURNING id, attempt_no`;
 
@@ -199,7 +206,7 @@ ON CONFLICT (article_id) DO UPDATE
  * llegan en la misma transacción— cambien de orden entre páginas.
  */
 const LIST_ATTEMPTS_SQL = `
-SELECT id, attempt_no, score::text AS score, created_at
+SELECT id, attempt_no, score::text AS score, served_snapshot, created_at
   FROM quiz_attempts
  WHERE user_id = $1 AND ($2::uuid IS NULL OR quiz_id = $2::uuid)
  ORDER BY created_at DESC, id DESC
@@ -211,12 +218,12 @@ SELECT count(*) AS total FROM quiz_attempts WHERE user_id = $1 AND ($2::uuid IS 
 // `id` sale de `gen_random_uuid()` explícito y no del `DEFAULT` de la columna — ver el
 // comentario equivalente de `publishing.repository.ts::INSERT_ARTICLE_SQL`.
 const INSERT_QUIZ_SQL = `
-INSERT INTO quizzes (id, article_id, title, pass_threshold)
-VALUES (gen_random_uuid(), $1, $2, $3)
+INSERT INTO quizzes (id, article_id, title, pass_threshold, questions_to_serve)
+VALUES (gen_random_uuid(), $1, $2, $3, $4)
 RETURNING id, article_id`;
 
 const UPDATE_QUIZ_SQL = `
-UPDATE quizzes SET title = $2, pass_threshold = $3
+UPDATE quizzes SET title = $2, pass_threshold = $3, questions_to_serve = $4
  WHERE id = $1
 RETURNING id, article_id`;
 
@@ -233,6 +240,7 @@ interface QuizRow {
   readonly article_id: string;
   readonly title: string;
   readonly pass_threshold: string;
+  readonly questions_to_serve: Count;
 }
 
 interface QuestionRow {
@@ -252,7 +260,14 @@ interface AttemptRow {
   readonly id: string;
   readonly attempt_no: Count;
   readonly score: string;
+  readonly served_snapshot: readonly ServedEntry[];
   readonly created_at: Date;
+}
+
+/** Elemento del `served`/`served_snapshot` JSONB: pregunta y orden de opciones. */
+interface ServedEntry {
+  readonly question_id: string;
+  readonly option_keys: readonly string[];
 }
 
 /** Código de PostgreSQL para violación de unicidad. */
@@ -305,6 +320,7 @@ export class QuizzesRepository {
         title: row.title,
         passThreshold: parseScore(row.pass_threshold),
         questions: questions.rows.map(toQuestion),
+        questionsToServe: row.questions_to_serve,
       };
     } catch (err) {
       throw storageError(`leer el cuestionario ${quizId}`, err);
@@ -362,11 +378,13 @@ export class QuizzesRepository {
                 input.articleId,
                 input.title,
                 input.passThreshold,
+                input.questionsToServe,
               ])
             : await client.query<{ id: string; article_id: string }>(UPDATE_QUIZ_SQL, [
                 input.quizId,
                 input.title,
                 input.passThreshold,
+                input.questionsToServe,
               ]);
         const quiz = row.rows[0];
         if (quiz === undefined) {
@@ -392,6 +410,7 @@ export class QuizzesRepository {
           articleId: quiz.article_id,
           title: input.title,
           passThreshold: parseScore(input.passThreshold),
+          questionsToServe: input.questionsToServe,
           // Las preguntas se devuelven tal como se enviaron, SIN releerlas: el `INSERT`
           // ya confirmó (dentro de esta misma transacción) que son válidas, y una
           // relectura solo repetiría en otra consulta lo que este método ya sabe.
@@ -438,6 +457,11 @@ export class QuizzesRepository {
     score: string,
     answers: Readonly<Record<string, string>>,
     idempotencyKey: string | null = null,
+    // Opcionales para el repositorio (un intento puede no venir de una sesión en los
+    // casos de prueba); el único llamador de producción, `GradingService`, los rellena
+    // siempre.
+    sessionId: string | null = null,
+    servedSnapshot: readonly ServedQuestion[] = [],
   ): Promise<StoredAttempt> {
     for (let attempt = 0; attempt < ATTEMPT_RETRIES; attempt += 1) {
       try {
@@ -455,6 +479,10 @@ export class QuizzesRepository {
               score,
               JSON.stringify(answers),
               idempotencyKey,
+              sessionId,
+              // `served_snapshot` duplica el `served` de la sesión: el historial no
+              // puede depender de una sesión que se purga al vencer (FR-039).
+              JSON.stringify(servedSnapshot.map((s) => ({ question_id: s.questionId, option_keys: s.optionKeys }))),
             ],
           );
           const row = inserted.rows[0];
@@ -560,6 +588,7 @@ function toAttemptSummary(row: AttemptRow): AttemptSummary {
     score: parseScore(row.score),
     // RFC-3339 UTC, como exige el contrato. `toISOString()` siempre emite `Z`.
     createdAt: row.created_at.toISOString(),
+    servedQuestionIds: (row.served_snapshot ?? []).map((entry) => entry.question_id),
   };
 }
 

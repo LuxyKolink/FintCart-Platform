@@ -20,6 +20,9 @@ import { PublishingService } from '../publishing/publishing.service';
 import { VersioningService } from '../publishing/versioning.service';
 import { QuizzesRepository } from '../quizzes/quizzes.repository';
 import { QuizzesService } from '../quizzes/quizzes.service';
+import { SessionService } from '../quizzes/session.service';
+import { SessionSweeper } from '../quizzes/session.sweeper';
+import { SessionsRepository } from '../quizzes/sessions.repository';
 
 import { LearningController } from './learning.controller';
 
@@ -39,6 +42,9 @@ import { LearningController } from './learning.controller';
     CategoriesService,
     QuizzesRepository,
     QuizzesService,
+    SessionsRepository,
+    SessionService,
+    SessionSweeper,
     GradingService,
     PublishingRepository,
     PublishingService,

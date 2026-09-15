@@ -18,6 +18,7 @@ import { clientMessage, codeOf } from '../common/rpc-errors';
 import { JsonLogger } from '../common/observability';
 import { PublishingService } from '../publishing/publishing.service';
 import { QuizzesService } from '../quizzes/quizzes.service';
+import { SessionService } from '../quizzes/session.service';
 import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type {
   ApprovePublishRequest,
@@ -35,6 +36,8 @@ import type {
   ListVersionsResponse as ListVersionsResponsePb,
   QuizRef,
   Quiz as QuizPb,
+  QuizSession as QuizSessionPb,
+  StartQuizSessionRequest,
   UpdateDraftRequest,
   UpsertQuizRequest,
   UserRef,
@@ -47,6 +50,7 @@ import {
   catalogToPb,
   gradeToPb,
   okResult,
+  quizSessionToPb,
   quizToPb,
   versionToPb,
   versionsToPb,
@@ -64,6 +68,7 @@ export class LearningController {
     private readonly quizzes: QuizzesService,
     private readonly grading: GradingService,
     private readonly publishing: PublishingService,
+    private readonly sessions: SessionService,
   ) {}
 
   /** Catálogo publicado por categoría (FR-010, SC-009). `category_id` es el filtro
@@ -93,6 +98,14 @@ export class LearningController {
     );
   }
 
+  /** Sesión de intento (FR-038…FR-042): sustituye a `GetQuiz` como camino de ejecución. */
+  @GrpcMethod(SERVICE, 'StartQuizSession')
+  public async startQuizSession(request: StartQuizSessionRequest): Promise<QuizSessionPb> {
+    return this.guard('StartQuizSession', async () =>
+      quizSessionToPb(await this.sessions.startSession(request.user_id ?? '', request.quiz_id ?? '')),
+    );
+  }
+
   /** Califica y persiste un intento (FR-012, FR-016). Lo invoca la Saga (D-07). */
   @GrpcMethod(SERVICE, 'GradeAndStoreAttempt')
   public async gradeAndStoreAttempt(request: GradeRequest): Promise<GradeResponsePb> {
@@ -101,6 +114,7 @@ export class LearningController {
         await this.grading.gradeAndStore(
           request.user_id ?? '',
           request.quiz_id ?? '',
+          request.session_id ?? '',
           request.answers ?? {},
           // proto3 no distingue «ausente» de «vacío»: sin clave, cada llamada
           // guarda un intento nuevo, como antes de T176.
@@ -221,6 +235,7 @@ export class LearningController {
             correctKey: q.correct_key ?? '',
             weight: q.weight ?? '',
           })),
+          request.questions_to_serve ?? 0,
         ),
       ),
     );

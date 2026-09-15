@@ -20,6 +20,7 @@ import type { AttemptsPage, GradeResult } from '../grading/grading.service';
 import type { VersionsPage } from '../publishing/publishing.service';
 import type { VersionRow } from '../publishing/publishing.repository';
 import type { Quiz, QuizQuestion } from '../quizzes/quizzes.repository';
+import type { StartedSession } from '../quizzes/session.service';
 import type {
   Article as ArticlePb,
   ArticleVersion as ArticleVersionPb,
@@ -30,6 +31,7 @@ import type {
   ListVersionsResponse as ListVersionsResponsePb,
   Question as QuestionPb,
   Quiz as QuizPb,
+  QuizSession as QuizSessionPb,
 } from '../pb/fintcart/learning/v1/learning';
 
 /**
@@ -127,6 +129,19 @@ export function quizToPb(quiz: Quiz): QuizPb {
     title: quiz.title,
     pass_threshold: format(quiz.passThreshold),
     questions: quiz.questions.map(questionToPb),
+    questions_to_serve: quiz.questionsToServe,
+  };
+}
+
+/** Sesión de intento → `QuizSession`. Las preguntas ya van servidas y barajadas. */
+export function quizSessionToPb(session: StartedSession): QuizSessionPb {
+  return {
+    session_id: session.sessionId,
+    quiz_id: session.quizId,
+    title: session.title,
+    pass_threshold: format(session.passThreshold),
+    expires_at: session.expiresAt,
+    questions: session.questions.map(questionToPb),
   };
 }
 
@@ -140,6 +155,7 @@ export function gradeToPb(result: GradeResult): GradeResponsePb {
     // consumidor del contrato.
     score: format(result.score),
     passed: result.passed,
+    session_id: result.sessionId,
   };
 }
 
@@ -174,6 +190,7 @@ export function attemptsToPb(page: AttemptsPage): ListAttemptsResponsePb {
       attempt_no: attempt.attemptNo,
       score: format(attempt.score),
       created_at: attempt.createdAt,
+      served_question_ids: [...attempt.servedQuestionIds],
     })),
     // `total_size` es `int64` y el generador lo emite como STRING (`forceLong=string`):
     // un `int64` por encima de 2^53 no cabe en un `number` de JavaScript, y dejarlo

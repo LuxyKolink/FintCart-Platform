@@ -59,6 +59,7 @@ CREATE TABLE quizzes (
     article_id UUID NOT NULL REFERENCES articles (id),
     title TEXT NOT NULL,
     pass_threshold NUMERIC(6,2) NOT NULL,
+    questions_to_serve INTEGER NOT NULL DEFAULT 5,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE questions (
@@ -79,12 +80,24 @@ CREATE TABLE quiz_attempts (
     answers JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     idempotency_key TEXT,
+    session_id UUID,
+    served_snapshot JSONB NOT NULL,
     UNIQUE (user_id, quiz_id, attempt_no),
     -- Igual que en la migración real (T176): un UNIQUE estándar no trata dos NULL
     -- como iguales, así que las llamadas sin clave (la mayoría de las pruebas)
     -- conviven sin conflicto sin necesitar un índice parcial.
     UNIQUE (idempotency_key)
 );
+CREATE TABLE quiz_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    quiz_id UUID NOT NULL REFERENCES quizzes (id),
+    served JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ
+);
+
 CREATE TABLE article_stats (
     article_id UUID PRIMARY KEY REFERENCES articles (id),
     view_count BIGINT NOT NULL DEFAULT 0,

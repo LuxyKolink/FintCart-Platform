@@ -25,6 +25,8 @@ export interface Config {
   /** Nivel de log. */
   /** Puerto de `/healthz`, `/readyz` y `/metrics` (D-12). */
   readonly healthPort: number;
+  /** Cadencia del barrido de sesiones de cuestionario vencidas, en ms (D-17). */
+  readonly sessionSweepIntervalMs: number;
   /** Nivel de log. */
   readonly logLevel: string;
   /**
@@ -76,6 +78,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     amqpAddr: required.AMQP_ADDR as string,
     grpcPort: required.GRPC_PORT as string,
     healthPort: healthPort(env.HEALTH_PORT),
+    sessionSweepIntervalMs: sessionSweepInterval(env.SESSION_SWEEP_INTERVAL_MS),
     logLevel: env.LOG_LEVEL ?? 'info',
     // `__dirname` apunta a `dist/common` en ejecución, así que se sube dos niveles
     // hasta la raíz del servicio.
@@ -103,6 +106,25 @@ function healthPort(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65_535) {
     throw new ConfigError(`HEALTH_PORT debe ser un puerto válido, no ${JSON.stringify(raw)}`);
+  }
+  return parsed;
+}
+
+/**
+ * Interpreta `SESSION_SWEEP_INTERVAL_MS`, con defecto de un minuto.
+ *
+ * Como `healthPort`, tiene defecto a propósito: un despliegue que lo olvide sigue
+ * barriendo sesiones —que es limpieza y no arranque— sin quedarse sin servicio.
+ */
+function sessionSweepInterval(raw: string | undefined): number {
+  if (raw === undefined || raw === '') {
+    return 60_000;
+  }
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new ConfigError(
+      `SESSION_SWEEP_INTERVAL_MS debe ser un entero positivo en ms, no ${JSON.stringify(raw)}`,
+    );
   }
   return parsed;
 }

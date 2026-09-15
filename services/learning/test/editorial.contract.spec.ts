@@ -206,6 +206,7 @@ describe('LearningService.UpsertQuiz', () => {
       article_id: IDS.article,
       title: 'Cuestionario nuevo',
       pass_threshold: '60.00',
+      questions_to_serve: 5,
       questions: [
         { prompt: '¿2+2?', options: { a: '3', b: '4' }, correct_key: 'b', weight: '1.00' },
       ],
@@ -231,6 +232,7 @@ describe('LearningService.UpsertQuiz', () => {
         article_id: IDS.article,
         title: 't',
         pass_threshold: '60.00',
+        questions_to_serve: 5,
         questions: [{ prompt: 'p', options: { a: 'x', b: 'y' }, correct_key: 'z', weight: '1.00' }],
       }),
       GrpcStatus.INVALID_ARGUMENT,

@@ -63,6 +63,7 @@ export class QuizzesService {
     title: string,
     passThreshold: string,
     questions: readonly RawQuestionInput[],
+    questionsToServe: number,
   ): Promise<Quiz> {
     if (quizId !== '') {
       if (!UUID.test(quizId)) {
@@ -77,6 +78,9 @@ export class QuizzesService {
     if (questions.length === 0) {
       throw invalidArgument('un cuestionario necesita al menos una pregunta (FR-009)');
     }
+    if (!Number.isInteger(questionsToServe) || questionsToServe <= 0) {
+      throw invalidArgument('questions_to_serve debe ser un entero positivo (FR-037)');
+    }
 
     const validated: QuestionInput[] = questions.map((q, index) => validateQuestion(q, index));
 
@@ -86,6 +90,7 @@ export class QuizzesService {
       title,
       passThreshold: format(parseScoreOrThrow('pass_threshold', passThreshold)),
       questions: validated,
+      questionsToServe,
     };
     return this.repository.upsertQuiz(input);
   }

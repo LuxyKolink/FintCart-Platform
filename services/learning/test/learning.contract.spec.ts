@@ -80,6 +80,22 @@ async function expectRpcCode(call: Promise<unknown>, expected: GrpcStatus): Prom
   throw new Error(`se esperaba un fallo con código ${expected} y la llamada resolvió`);
 }
 
+/**
+ * Inicia una sesión de intento y califica con ella (US2): la calificación ya no
+ * acepta respuestas fuera de una sesión emitida (FR-040). Como el cuestionario del
+ * fixture tiene dos preguntas y `questions_to_serve` es 5, la sesión sirve las dos.
+ */
+async function grade(controller: LearningController, answers: Record<string, string>) {
+  const session = await controller.startQuizSession({ user_id: IDS.user, quiz_id: IDS.quiz });
+  return controller.gradeAndStoreAttempt({
+    user_id: IDS.user,
+    quiz_id: IDS.quiz,
+    session_id: session.session_id,
+    answers,
+    idempotency_key: '',
+  });
+}
+
 // ── catálogo ───────────────────────────────────────────────────────────────
 
 describe('LearningService.ListPublished', () => {
@@ -246,12 +262,7 @@ describe('LearningService.GradeAndStoreAttempt', () => {
     // Pesos 1 y 3: acertar solo la segunda son 3 de 4, exactamente 75,00. Con un
     // promedio simple saldría 50 — la diferencia es lo que distingue una ponderación
     // real de una que se perdió en un refactor.
-    const response = await controller.gradeAndStoreAttempt({
-      user_id: IDS.user,
-      quiz_id: IDS.quiz,
-      answers: { [IDS.questionB]: 'b' },
-      idempotency_key: '',
-    });
+    const response = await grade(controller, { [IDS.questionB]: 'b' });
 
     expect(response.score).toBe('75');
     expect(typeof response.score).toBe('string');
@@ -262,12 +273,7 @@ describe('LearningService.GradeAndStoreAttempt', () => {
   it('una pregunta sin responder cuenta como incorrecta', async () => {
     const { controller } = await newController();
 
-    const response = await controller.gradeAndStoreAttempt({
-      user_id: IDS.user,
-      quiz_id: IDS.quiz,
-      answers: { [IDS.questionA]: 'a' },
-      idempotency_key: '',
-    });
+    const response = await grade(controller, { [IDS.questionA]: 'a' });
 
     // Excluir del denominador las preguntas en blanco convertiría dejarlas sin
     // responder en una estrategia: quien contestara solo la que sabe sacaría un 100.
@@ -278,12 +284,7 @@ describe('LearningService.GradeAndStoreAttempt', () => {
   it('el intento se persiste aunque no apruebe', async () => {
     const { controller, pool } = await newController();
 
-    await controller.gradeAndStoreAttempt({
-      user_id: IDS.user,
-      quiz_id: IDS.quiz,
-      answers: {},
-      idempotency_key: '',
-    });
+    await grade(controller, {});
 
     // FR-016: se guarda TODO intento. Filtrar los reprobados dejaría un historial que
     // no permite ver la propia progresión, que es para lo que existe.
@@ -291,19 +292,14 @@ describe('LearningService.GradeAndStoreAttempt', () => {
     expect(stored.rowCount).toBe(1);
   });
 
-  it('responder una pregunta de otro cuestionario es INVALID_ARGUMENT', async () => {
+  it('responder una pregunta no servida es FAILED_PRECONDITION (FR-040)', async () => {
     const { controller } = await newController();
 
     // Ignorarla en silencio produciría una nota que el usuario no entiende y que nadie
     // puede explicar después.
     await expectRpcCode(
-      controller.gradeAndStoreAttempt({
-        user_id: IDS.user,
-        quiz_id: IDS.quiz,
-        answers: { [MISSING_UUID]: 'a' },
-        idempotency_key: '',
-      }),
-      GrpcStatus.INVALID_ARGUMENT,
+      grade(controller, { [MISSING_UUID]: 'a' }),
+      GrpcStatus.FAILED_PRECONDITION,
     );
   });
 });
@@ -317,12 +313,7 @@ describe('LearningService.ListAttempts', () => {
       { [IDS.questionA]: 'a' },
     ];
     for (const answers of rounds) {
-      await controller.gradeAndStoreAttempt({
-        user_id: IDS.user,
-        quiz_id: IDS.quiz,
-        answers,
-        idempotency_key: '',
-      });
+      await grade(controller, answers);
     }
 
     const response = await controller.listAttempts({
@@ -338,12 +329,7 @@ describe('LearningService.ListAttempts', () => {
 
   it('`created_at` sale en RFC-3339 UTC', async () => {
     const { controller } = await newController();
-    await controller.gradeAndStoreAttempt({
-      user_id: IDS.user,
-      quiz_id: IDS.quiz,
-      answers: {},
-      idempotency_key: '',
-    });
+    await grade(controller, {});
 
     const response = await controller.listAttempts({
       user_id: IDS.user,
@@ -359,12 +345,7 @@ describe('LearningService.ListAttempts', () => {
   it('el token de la página siguiente apunta al desplazamiento consumido', async () => {
     const { controller } = await newController();
     for (let i = 0; i < 3; i += 1) {
-      await controller.gradeAndStoreAttempt({
-        user_id: IDS.user,
-        quiz_id: IDS.quiz,
-        answers: {},
-        idempotency_key: '',
-      });
+      await grade(controller, {});
     }
 
     const first = await controller.listAttempts({
@@ -382,12 +363,7 @@ describe('LearningService.ListAttempts', () => {
   // (FR-029) para contar/leer sin conocer cada `quiz_id` de antemano.
   it('quiz_id vacío lista los intentos de todos los cuestionarios', async () => {
     const { controller } = await newController();
-    await controller.gradeAndStoreAttempt({
-      user_id: IDS.user,
-      quiz_id: IDS.quiz,
-      answers: {},
-      idempotency_key: '',
-    });
+    await grade(controller, {});
 
     const response = await controller.listAttempts({
       user_id: IDS.user,
@@ -405,12 +381,7 @@ describe('LearningService.ListAttempts', () => {
 describe('LearningService.AnonymizeAttempts', () => {
   it('acepta un user_id válido y no borra el historial', async () => {
     const { controller } = await newController();
-    await controller.gradeAndStoreAttempt({
-      user_id: IDS.user,
-      quiz_id: IDS.quiz,
-      answers: {},
-      idempotency_key: '',
-    });
+    await grade(controller, {});
 
     await expect(controller.anonymizeAttempts({ user_id: IDS.user })).resolves.toEqual({
       success: true,
