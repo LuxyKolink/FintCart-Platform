@@ -30,6 +30,7 @@ const (
 	LearningService_ListPublished_FullMethodName        = "/fintcart.learning.v1.LearningService/ListPublished"
 	LearningService_GetArticle_FullMethodName           = "/fintcart.learning.v1.LearningService/GetArticle"
 	LearningService_GetQuiz_FullMethodName              = "/fintcart.learning.v1.LearningService/GetQuiz"
+	LearningService_StartQuizSession_FullMethodName     = "/fintcart.learning.v1.LearningService/StartQuizSession"
 	LearningService_GradeAndStoreAttempt_FullMethodName = "/fintcart.learning.v1.LearningService/GradeAndStoreAttempt"
 	LearningService_ListAttempts_FullMethodName         = "/fintcart.learning.v1.LearningService/ListAttempts"
 	LearningService_AnonymizeAttempts_FullMethodName    = "/fintcart.learning.v1.LearningService/AnonymizeAttempts"
@@ -69,6 +70,12 @@ type LearningServiceClient interface {
 	GetArticle(ctx context.Context, in *ArticleRef, opts ...grpc.CallOption) (*Article, error)
 	// Cuestionarios (FR-009).
 	GetQuiz(ctx context.Context, in *QuizRef, opts ...grpc.CallOption) (*Quiz, error)
+	// Sesión de intento (FR-038…FR-042): SUSTITUYE a `GetQuiz` como camino de
+	// ejecución. Devuelve SOLO las `questions_to_serve` preguntas servidas (o todas
+	// si el banco tiene menos), con las opciones ya barajadas y SIN la clave
+	// correcta. `GetQuiz` se conserva para la vista del editor, donde sí se
+	// necesita el banco entero.
+	StartQuizSession(ctx context.Context, in *StartQuizSessionRequest, opts ...grpc.CallOption) (*QuizSession, error)
 	// Calificación (FR-012/FR-016): persiste SIEMPRE el intento; lo invoca la Saga
 	// de calificación (research D-07). Devuelve score y número de intento.
 	GradeAndStoreAttempt(ctx context.Context, in *GradeRequest, opts ...grpc.CallOption) (*GradeResponse, error)
@@ -195,6 +202,16 @@ func (c *learningServiceClient) GetQuiz(ctx context.Context, in *QuizRef, opts .
 	return out, nil
 }
 
+func (c *learningServiceClient) StartQuizSession(ctx context.Context, in *StartQuizSessionRequest, opts ...grpc.CallOption) (*QuizSession, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QuizSession)
+	err := c.cc.Invoke(ctx, LearningService_StartQuizSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *learningServiceClient) GradeAndStoreAttempt(ctx context.Context, in *GradeRequest, opts ...grpc.CallOption) (*GradeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GradeResponse)
@@ -295,6 +312,12 @@ type LearningServiceServer interface {
 	GetArticle(context.Context, *ArticleRef) (*Article, error)
 	// Cuestionarios (FR-009).
 	GetQuiz(context.Context, *QuizRef) (*Quiz, error)
+	// Sesión de intento (FR-038…FR-042): SUSTITUYE a `GetQuiz` como camino de
+	// ejecución. Devuelve SOLO las `questions_to_serve` preguntas servidas (o todas
+	// si el banco tiene menos), con las opciones ya barajadas y SIN la clave
+	// correcta. `GetQuiz` se conserva para la vista del editor, donde sí se
+	// necesita el banco entero.
+	StartQuizSession(context.Context, *StartQuizSessionRequest) (*QuizSession, error)
 	// Calificación (FR-012/FR-016): persiste SIEMPRE el intento; lo invoca la Saga
 	// de calificación (research D-07). Devuelve score y número de intento.
 	GradeAndStoreAttempt(context.Context, *GradeRequest) (*GradeResponse, error)
@@ -349,6 +372,9 @@ func (UnimplementedLearningServiceServer) GetArticle(context.Context, *ArticleRe
 }
 func (UnimplementedLearningServiceServer) GetQuiz(context.Context, *QuizRef) (*Quiz, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetQuiz not implemented")
+}
+func (UnimplementedLearningServiceServer) StartQuizSession(context.Context, *StartQuizSessionRequest) (*QuizSession, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartQuizSession not implemented")
 }
 func (UnimplementedLearningServiceServer) GradeAndStoreAttempt(context.Context, *GradeRequest) (*GradeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GradeAndStoreAttempt not implemented")
@@ -571,6 +597,24 @@ func _LearningService_GetQuiz_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LearningService_StartQuizSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartQuizSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).StartQuizSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_StartQuizSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).StartQuizSession(ctx, req.(*StartQuizSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _LearningService_GradeAndStoreAttempt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GradeRequest)
 	if err := dec(in); err != nil {
@@ -743,6 +787,10 @@ var LearningService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetQuiz",
 			Handler:    _LearningService_GetQuiz_Handler,
+		},
+		{
+			MethodName: "StartQuizSession",
+			Handler:    _LearningService_StartQuizSession_Handler,
 		},
 		{
 			MethodName: "GradeAndStoreAttempt",

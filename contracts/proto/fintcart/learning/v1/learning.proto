@@ -36,6 +36,13 @@ service LearningService {
   // Cuestionarios (FR-009).
   rpc GetQuiz(QuizRef) returns (Quiz);
 
+  // Sesión de intento (FR-038…FR-042): SUSTITUYE a `GetQuiz` como camino de
+  // ejecución. Devuelve SOLO las `questions_to_serve` preguntas servidas (o todas
+  // si el banco tiene menos), con las opciones ya barajadas y SIN la clave
+  // correcta. `GetQuiz` se conserva para la vista del editor, donde sí se
+  // necesita el banco entero.
+  rpc StartQuizSession(StartQuizSessionRequest) returns (QuizSession);
+
   // Calificación (FR-012/FR-016): persiste SIEMPRE el intento; lo invoca la Saga
   // de calificación (research D-07). Devuelve score y número de intento.
   rpc GradeAndStoreAttempt(GradeRequest) returns (GradeResponse);
@@ -168,6 +175,8 @@ message Quiz {
   string title = 3;
   string pass_threshold = 4; // [decimal]
   repeated Question questions = 5;
+  // Número de preguntas a servir en cada intento (FR-037). > 0.
+  int32 questions_to_serve = 6;
 }
 message Question {
   string question_id = 1;
@@ -188,6 +197,26 @@ message Option {
   string text = 2;
 }
 
+// Sesión de intento de cuestionario (FR-038…FR-042, D-17). Vive en `learning_db`;
+// caduca a los 60 minutos de crearse y solo puede calificarse una vez.
+message StartQuizSessionRequest {
+  string user_id = 1;
+  string quiz_id = 2;
+}
+
+message QuizSession {
+  string session_id = 1;
+  string quiz_id = 2;
+  string title = 3;
+  // Porcentaje sobre 100 (FR-041). Viaja como `string` decimal.
+  string pass_threshold = 4; // [decimal]
+  string expires_at = 5;     // RFC-3339 (research D-17)
+  // Exactamente `questions_to_serve` elementos, o todas las del banco si tiene
+  // menos (FR-038). Ya vienen en el orden servido y con las opciones barajadas;
+  // ninguna lleva `correct_key`.
+  repeated Question questions = 6;
+}
+
 message GradeRequest {
   string user_id = 1;
   string quiz_id = 2;
@@ -199,12 +228,17 @@ message GradeRequest {
   // cliente directo (fuera de una saga) puede dejarla vacía; cada llamada
   // guarda un intento nuevo, como antes.
   string idempotency_key = 4;
+  // CAMBIO DE CONTRATO (FR-040, FR-042): OBLIGATORIO. Si `answers` contiene una
+  // pregunta que no está en la sesión, o la sesión venció o ya fue consumida, el
+  // RPC devuelve FAILED_PRECONDITION en vez de calificar.
+  string session_id = 5;
 }
 message GradeResponse {
   string attempt_id = 1;
   int32 attempt_no = 2;
-  string score = 3; // [decimal]
+  string score = 3; // [decimal] — porcentaje sobre 100 (FR-041)
   bool passed = 4;
+  string session_id = 5;
 }
 
 message ListVersionsRequest {
@@ -230,6 +264,8 @@ message UpsertQuizRequest {
   string title = 3;
   string pass_threshold = 4; // [decimal]
   repeated QuestionInput questions = 5;
+  // Número de preguntas a servir por intento (FR-037); > 0.
+  int32 questions_to_serve = 6;
 }
 
 message ListAttemptsRequest {
@@ -243,8 +279,10 @@ message ListAttemptsResponse {
   message Attempt {
     string attempt_id = 1;
     int32 attempt_no = 2;
-    string score = 3; // [decimal]
+    string score = 3; // [decimal] — porcentaje sobre 100 (FR-041)
     string created_at = 4;
+    // Preguntas servidas en este intento (FR-039), del `served_snapshot`.
+    repeated string served_question_ids = 5;
   }
   repeated Attempt items = 1;
   fintcart.common.v1.PageResponse page = 2;

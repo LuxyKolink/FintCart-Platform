@@ -58,6 +58,9 @@ message QuizGradingRequest {
   string user_id = 1;
   string quiz_id = 2;
   map<string, string> answers = 3;
+  // Sesión emitida por `Learning.StartQuizSession` (FR-038…FR-042). Obligatoria:
+  // el intento solo se califica contra las preguntas servidas en esta sesión.
+  string session_id = 4;
 }
 message QuizGradingResult {
   string attempt_id = 1;

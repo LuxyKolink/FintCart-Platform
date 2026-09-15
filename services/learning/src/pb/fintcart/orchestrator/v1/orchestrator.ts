@@ -53,6 +53,11 @@ export interface QuizGradingRequest {
   user_id: string;
   quiz_id: string;
   answers: { [key: string]: string };
+  /**
+   * Sesión emitida por `Learning.StartQuizSession` (FR-038…FR-042). Obligatoria:
+   * el intento solo se califica contra las preguntas servidas en esta sesión.
+   */
+  session_id: string;
 }
 
 export interface QuizGradingRequest_AnswersEntry {
@@ -493,7 +498,7 @@ export const EmailVerificationRequest: MessageFns<EmailVerificationRequest> = {
 };
 
 function createBaseQuizGradingRequest(): QuizGradingRequest {
-  return { user_id: "", quiz_id: "", answers: {} };
+  return { user_id: "", quiz_id: "", answers: {}, session_id: "" };
 }
 
 export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
@@ -507,6 +512,9 @@ export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
     Object.entries(message.answers).forEach(([key, value]) => {
       QuizGradingRequest_AnswersEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
     });
+    if (message.session_id !== "") {
+      writer.uint32(34).string(message.session_id);
+    }
     return writer;
   },
 
@@ -544,6 +552,14 @@ export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
           }
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.session_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -563,6 +579,7 @@ export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
           return acc;
         }, {})
         : {},
+      session_id: isSet(object.session_id) ? globalThis.String(object.session_id) : "",
     };
   },
 
@@ -583,6 +600,9 @@ export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
         });
       }
     }
+    if (message.session_id !== "") {
+      obj.session_id = message.session_id;
+    }
     return obj;
   },
 
@@ -599,6 +619,7 @@ export const QuizGradingRequest: MessageFns<QuizGradingRequest> = {
       }
       return acc;
     }, {});
+    message.session_id = object.session_id ?? "";
     return message;
   },
 };

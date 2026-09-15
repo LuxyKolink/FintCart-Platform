@@ -163,6 +163,8 @@ export interface Quiz {
   /** [decimal] */
   pass_threshold: string;
   questions: Question[];
+  /** Número de preguntas a servir en cada intento (FR-037). > 0. */
+  questions_to_serve: number;
 }
 
 export interface Question {
@@ -187,6 +189,31 @@ export interface Option {
   text: string;
 }
 
+/**
+ * Sesión de intento de cuestionario (FR-038…FR-042, D-17). Vive en `learning_db`;
+ * caduca a los 60 minutos de crearse y solo puede calificarse una vez.
+ */
+export interface StartQuizSessionRequest {
+  user_id: string;
+  quiz_id: string;
+}
+
+export interface QuizSession {
+  session_id: string;
+  quiz_id: string;
+  title: string;
+  /** Porcentaje sobre 100 (FR-041). Viaja como `string` decimal. */
+  pass_threshold: string;
+  /** RFC-3339 (research D-17) */
+  expires_at: string;
+  /**
+   * Exactamente `questions_to_serve` elementos, o todas las del banco si tiene
+   * menos (FR-038). Ya vienen en el orden servido y con las opciones barajadas;
+   * ninguna lleva `correct_key`.
+   */
+  questions: Question[];
+}
+
 export interface GradeRequest {
   user_id: string;
   quiz_id: string;
@@ -201,6 +228,12 @@ export interface GradeRequest {
    * guarda un intento nuevo, como antes.
    */
   idempotency_key: string;
+  /**
+   * CAMBIO DE CONTRATO (FR-040, FR-042): OBLIGATORIO. Si `answers` contiene una
+   * pregunta que no está en la sesión, o la sesión venció o ya fue consumida, el
+   * RPC devuelve FAILED_PRECONDITION en vez de calificar.
+   */
+  session_id: string;
 }
 
 export interface GradeRequest_AnswersEntry {
@@ -211,9 +244,10 @@ export interface GradeRequest_AnswersEntry {
 export interface GradeResponse {
   attempt_id: string;
   attempt_no: number;
-  /** [decimal] */
+  /** [decimal] — porcentaje sobre 100 (FR-041) */
   score: string;
   passed: boolean;
+  session_id: string;
 }
 
 export interface ListVersionsRequest {
@@ -254,6 +288,8 @@ export interface UpsertQuizRequest {
   /** [decimal] */
   pass_threshold: string;
   questions: QuestionInput[];
+  /** Número de preguntas a servir por intento (FR-037); > 0. */
+  questions_to_serve: number;
 }
 
 export interface ListAttemptsRequest {
@@ -274,9 +310,11 @@ export interface ListAttemptsResponse {
 export interface ListAttemptsResponse_Attempt {
   attempt_id: string;
   attempt_no: number;
-  /** [decimal] */
+  /** [decimal] — porcentaje sobre 100 (FR-041) */
   score: string;
   created_at: string;
+  /** Preguntas servidas en este intento (FR-039), del `served_snapshot`. */
+  served_question_ids: string[];
 }
 
 function createBaseUserRef(): UserRef {
@@ -1944,7 +1982,7 @@ export const Article: MessageFns<Article> = {
 };
 
 function createBaseQuiz(): Quiz {
-  return { quiz_id: "", article_id: "", title: "", pass_threshold: "", questions: [] };
+  return { quiz_id: "", article_id: "", title: "", pass_threshold: "", questions: [], questions_to_serve: 0 };
 }
 
 export const Quiz: MessageFns<Quiz> = {
@@ -1963,6 +2001,9 @@ export const Quiz: MessageFns<Quiz> = {
     }
     for (const v of message.questions) {
       Question.encode(v!, writer.uint32(42).fork()).join();
+    }
+    if (message.questions_to_serve !== 0) {
+      writer.uint32(48).int32(message.questions_to_serve);
     }
     return writer;
   },
@@ -2014,6 +2055,14 @@ export const Quiz: MessageFns<Quiz> = {
           message.questions.push(Question.decode(reader, reader.uint32()));
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.questions_to_serve = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2032,6 +2081,7 @@ export const Quiz: MessageFns<Quiz> = {
       questions: globalThis.Array.isArray(object?.questions)
         ? object.questions.map((e: any) => Question.fromJSON(e))
         : [],
+      questions_to_serve: isSet(object.questions_to_serve) ? globalThis.Number(object.questions_to_serve) : 0,
     };
   },
 
@@ -2052,6 +2102,9 @@ export const Quiz: MessageFns<Quiz> = {
     if (message.questions?.length) {
       obj.questions = message.questions.map((e) => Question.toJSON(e));
     }
+    if (message.questions_to_serve !== 0) {
+      obj.questions_to_serve = Math.round(message.questions_to_serve);
+    }
     return obj;
   },
 
@@ -2065,6 +2118,7 @@ export const Quiz: MessageFns<Quiz> = {
     message.title = object.title ?? "";
     message.pass_threshold = object.pass_threshold ?? "";
     message.questions = object.questions?.map((e) => Question.fromPartial(e)) || [];
+    message.questions_to_serve = object.questions_to_serve ?? 0;
     return message;
   },
 };
@@ -2253,8 +2307,226 @@ export const Option: MessageFns<Option> = {
   },
 };
 
+function createBaseStartQuizSessionRequest(): StartQuizSessionRequest {
+  return { user_id: "", quiz_id: "" };
+}
+
+export const StartQuizSessionRequest: MessageFns<StartQuizSessionRequest> = {
+  encode(message: StartQuizSessionRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.user_id !== "") {
+      writer.uint32(10).string(message.user_id);
+    }
+    if (message.quiz_id !== "") {
+      writer.uint32(18).string(message.quiz_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StartQuizSessionRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseStartQuizSessionRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.user_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.quiz_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): StartQuizSessionRequest {
+    return {
+      user_id: isSet(object.user_id) ? globalThis.String(object.user_id) : "",
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
+    };
+  },
+
+  toJSON(message: StartQuizSessionRequest): unknown {
+    const obj: any = {};
+    if (message.user_id !== "") {
+      obj.user_id = message.user_id;
+    }
+    if (message.quiz_id !== "") {
+      obj.quiz_id = message.quiz_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StartQuizSessionRequest>, I>>(base?: I): StartQuizSessionRequest {
+    return StartQuizSessionRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StartQuizSessionRequest>, I>>(object: I): StartQuizSessionRequest {
+    const message = createBaseStartQuizSessionRequest();
+    message.user_id = object.user_id ?? "";
+    message.quiz_id = object.quiz_id ?? "";
+    return message;
+  },
+};
+
+function createBaseQuizSession(): QuizSession {
+  return { session_id: "", quiz_id: "", title: "", pass_threshold: "", expires_at: "", questions: [] };
+}
+
+export const QuizSession: MessageFns<QuizSession> = {
+  encode(message: QuizSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.session_id !== "") {
+      writer.uint32(10).string(message.session_id);
+    }
+    if (message.quiz_id !== "") {
+      writer.uint32(18).string(message.quiz_id);
+    }
+    if (message.title !== "") {
+      writer.uint32(26).string(message.title);
+    }
+    if (message.pass_threshold !== "") {
+      writer.uint32(34).string(message.pass_threshold);
+    }
+    if (message.expires_at !== "") {
+      writer.uint32(42).string(message.expires_at);
+    }
+    for (const v of message.questions) {
+      Question.encode(v!, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QuizSession {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseQuizSession();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.session_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.quiz_id = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.title = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.pass_threshold = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.expires_at = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.questions.push(Question.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QuizSession {
+    return {
+      session_id: isSet(object.session_id) ? globalThis.String(object.session_id) : "",
+      quiz_id: isSet(object.quiz_id) ? globalThis.String(object.quiz_id) : "",
+      title: isSet(object.title) ? globalThis.String(object.title) : "",
+      pass_threshold: isSet(object.pass_threshold) ? globalThis.String(object.pass_threshold) : "",
+      expires_at: isSet(object.expires_at) ? globalThis.String(object.expires_at) : "",
+      questions: globalThis.Array.isArray(object?.questions)
+        ? object.questions.map((e: any) => Question.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: QuizSession): unknown {
+    const obj: any = {};
+    if (message.session_id !== "") {
+      obj.session_id = message.session_id;
+    }
+    if (message.quiz_id !== "") {
+      obj.quiz_id = message.quiz_id;
+    }
+    if (message.title !== "") {
+      obj.title = message.title;
+    }
+    if (message.pass_threshold !== "") {
+      obj.pass_threshold = message.pass_threshold;
+    }
+    if (message.expires_at !== "") {
+      obj.expires_at = message.expires_at;
+    }
+    if (message.questions?.length) {
+      obj.questions = message.questions.map((e) => Question.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<QuizSession>, I>>(base?: I): QuizSession {
+    return QuizSession.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<QuizSession>, I>>(object: I): QuizSession {
+    const message = createBaseQuizSession();
+    message.session_id = object.session_id ?? "";
+    message.quiz_id = object.quiz_id ?? "";
+    message.title = object.title ?? "";
+    message.pass_threshold = object.pass_threshold ?? "";
+    message.expires_at = object.expires_at ?? "";
+    message.questions = object.questions?.map((e) => Question.fromPartial(e)) || [];
+    return message;
+  },
+};
+
 function createBaseGradeRequest(): GradeRequest {
-  return { user_id: "", quiz_id: "", answers: {}, idempotency_key: "" };
+  return { user_id: "", quiz_id: "", answers: {}, idempotency_key: "", session_id: "" };
 }
 
 export const GradeRequest: MessageFns<GradeRequest> = {
@@ -2270,6 +2542,9 @@ export const GradeRequest: MessageFns<GradeRequest> = {
     });
     if (message.idempotency_key !== "") {
       writer.uint32(34).string(message.idempotency_key);
+    }
+    if (message.session_id !== "") {
+      writer.uint32(42).string(message.session_id);
     }
     return writer;
   },
@@ -2316,6 +2591,14 @@ export const GradeRequest: MessageFns<GradeRequest> = {
           message.idempotency_key = reader.string();
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.session_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2336,6 +2619,7 @@ export const GradeRequest: MessageFns<GradeRequest> = {
         }, {})
         : {},
       idempotency_key: isSet(object.idempotency_key) ? globalThis.String(object.idempotency_key) : "",
+      session_id: isSet(object.session_id) ? globalThis.String(object.session_id) : "",
     };
   },
 
@@ -2359,6 +2643,9 @@ export const GradeRequest: MessageFns<GradeRequest> = {
     if (message.idempotency_key !== "") {
       obj.idempotency_key = message.idempotency_key;
     }
+    if (message.session_id !== "") {
+      obj.session_id = message.session_id;
+    }
     return obj;
   },
 
@@ -2376,6 +2663,7 @@ export const GradeRequest: MessageFns<GradeRequest> = {
       return acc;
     }, {});
     message.idempotency_key = object.idempotency_key ?? "";
+    message.session_id = object.session_id ?? "";
     return message;
   },
 };
@@ -2457,7 +2745,7 @@ export const GradeRequest_AnswersEntry: MessageFns<GradeRequest_AnswersEntry> = 
 };
 
 function createBaseGradeResponse(): GradeResponse {
-  return { attempt_id: "", attempt_no: 0, score: "", passed: false };
+  return { attempt_id: "", attempt_no: 0, score: "", passed: false, session_id: "" };
 }
 
 export const GradeResponse: MessageFns<GradeResponse> = {
@@ -2473,6 +2761,9 @@ export const GradeResponse: MessageFns<GradeResponse> = {
     }
     if (message.passed !== false) {
       writer.uint32(32).bool(message.passed);
+    }
+    if (message.session_id !== "") {
+      writer.uint32(42).string(message.session_id);
     }
     return writer;
   },
@@ -2516,6 +2807,14 @@ export const GradeResponse: MessageFns<GradeResponse> = {
           message.passed = reader.bool();
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.session_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2531,6 +2830,7 @@ export const GradeResponse: MessageFns<GradeResponse> = {
       attempt_no: isSet(object.attempt_no) ? globalThis.Number(object.attempt_no) : 0,
       score: isSet(object.score) ? globalThis.String(object.score) : "",
       passed: isSet(object.passed) ? globalThis.Boolean(object.passed) : false,
+      session_id: isSet(object.session_id) ? globalThis.String(object.session_id) : "",
     };
   },
 
@@ -2548,6 +2848,9 @@ export const GradeResponse: MessageFns<GradeResponse> = {
     if (message.passed !== false) {
       obj.passed = message.passed;
     }
+    if (message.session_id !== "") {
+      obj.session_id = message.session_id;
+    }
     return obj;
   },
 
@@ -2560,6 +2863,7 @@ export const GradeResponse: MessageFns<GradeResponse> = {
     message.attempt_no = object.attempt_no ?? 0;
     message.score = object.score ?? "";
     message.passed = object.passed ?? false;
+    message.session_id = object.session_id ?? "";
     return message;
   },
 };
@@ -2956,7 +3260,7 @@ export const QuestionInput_OptionsEntry: MessageFns<QuestionInput_OptionsEntry> 
 };
 
 function createBaseUpsertQuizRequest(): UpsertQuizRequest {
-  return { quiz_id: "", article_id: "", title: "", pass_threshold: "", questions: [] };
+  return { quiz_id: "", article_id: "", title: "", pass_threshold: "", questions: [], questions_to_serve: 0 };
 }
 
 export const UpsertQuizRequest: MessageFns<UpsertQuizRequest> = {
@@ -2975,6 +3279,9 @@ export const UpsertQuizRequest: MessageFns<UpsertQuizRequest> = {
     }
     for (const v of message.questions) {
       QuestionInput.encode(v!, writer.uint32(42).fork()).join();
+    }
+    if (message.questions_to_serve !== 0) {
+      writer.uint32(48).int32(message.questions_to_serve);
     }
     return writer;
   },
@@ -3026,6 +3333,14 @@ export const UpsertQuizRequest: MessageFns<UpsertQuizRequest> = {
           message.questions.push(QuestionInput.decode(reader, reader.uint32()));
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.questions_to_serve = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3044,6 +3359,7 @@ export const UpsertQuizRequest: MessageFns<UpsertQuizRequest> = {
       questions: globalThis.Array.isArray(object?.questions)
         ? object.questions.map((e: any) => QuestionInput.fromJSON(e))
         : [],
+      questions_to_serve: isSet(object.questions_to_serve) ? globalThis.Number(object.questions_to_serve) : 0,
     };
   },
 
@@ -3064,6 +3380,9 @@ export const UpsertQuizRequest: MessageFns<UpsertQuizRequest> = {
     if (message.questions?.length) {
       obj.questions = message.questions.map((e) => QuestionInput.toJSON(e));
     }
+    if (message.questions_to_serve !== 0) {
+      obj.questions_to_serve = Math.round(message.questions_to_serve);
+    }
     return obj;
   },
 
@@ -3077,6 +3396,7 @@ export const UpsertQuizRequest: MessageFns<UpsertQuizRequest> = {
     message.title = object.title ?? "";
     message.pass_threshold = object.pass_threshold ?? "";
     message.questions = object.questions?.map((e) => QuestionInput.fromPartial(e)) || [];
+    message.questions_to_serve = object.questions_to_serve ?? 0;
     return message;
   },
 };
@@ -3256,7 +3576,7 @@ export const ListAttemptsResponse: MessageFns<ListAttemptsResponse> = {
 };
 
 function createBaseListAttemptsResponse_Attempt(): ListAttemptsResponse_Attempt {
-  return { attempt_id: "", attempt_no: 0, score: "", created_at: "" };
+  return { attempt_id: "", attempt_no: 0, score: "", created_at: "", served_question_ids: [] };
 }
 
 export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attempt> = {
@@ -3272,6 +3592,9 @@ export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attem
     }
     if (message.created_at !== "") {
       writer.uint32(34).string(message.created_at);
+    }
+    for (const v of message.served_question_ids) {
+      writer.uint32(42).string(v!);
     }
     return writer;
   },
@@ -3315,6 +3638,14 @@ export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attem
           message.created_at = reader.string();
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.served_question_ids.push(reader.string());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3330,6 +3661,9 @@ export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attem
       attempt_no: isSet(object.attempt_no) ? globalThis.Number(object.attempt_no) : 0,
       score: isSet(object.score) ? globalThis.String(object.score) : "",
       created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : "",
+      served_question_ids: globalThis.Array.isArray(object?.served_question_ids)
+        ? object.served_question_ids.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
@@ -3347,6 +3681,9 @@ export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attem
     if (message.created_at !== "") {
       obj.created_at = message.created_at;
     }
+    if (message.served_question_ids?.length) {
+      obj.served_question_ids = message.served_question_ids;
+    }
     return obj;
   },
 
@@ -3359,6 +3696,7 @@ export const ListAttemptsResponse_Attempt: MessageFns<ListAttemptsResponse_Attem
     message.attempt_no = object.attempt_no ?? 0;
     message.score = object.score ?? "";
     message.created_at = object.created_at ?? "";
+    message.served_question_ids = object.served_question_ids?.map((e) => e) || [];
     return message;
   },
 };
