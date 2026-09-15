@@ -65,6 +65,16 @@ pub enum ErrorCode {
     ExponenteNoEntero,
     /// Se invoca una función que no está en la tabla de [`functions`].
     FuncionDesconocida,
+    /// El problema está en la DEFINICIÓN y no en una fórmula: dos entradas con la misma
+    /// clave, una clave que el lenguaje no puede nombrar, una etiqueta vacía, un mínimo
+    /// mayor que su máximo o un valor por defecto fuera de su propio rango.
+    ///
+    /// Tuvo que ser un código aparte porque ninguno de los siete anteriores lo dice.
+    /// Etiquetar «el campo `si` no puede llamarse así» como `expresion_mal_formada`
+    /// mandaría al constructor visual a resaltar una expresión que no existe, y
+    /// `campo_inexistente` dice lo contrario de lo que pasa: el campo está declarado dos
+    /// veces, no ausente.
+    DefinicionInvalida,
 }
 
 impl ErrorCode {
@@ -83,6 +93,7 @@ impl ErrorCode {
             Self::LimiteExcedido => "limite_excedido",
             Self::ExponenteNoEntero => "exponente_no_entero",
             Self::FuncionDesconocida => "funcion_desconocida",
+            Self::DefinicionInvalida => "definicion_invalida",
         }
     }
 }

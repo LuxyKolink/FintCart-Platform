@@ -52,12 +52,17 @@ pub enum Error {
     #[error("simulador: fallo de persistencia")]
     Storage(#[source] sqlx::Error),
 
-    /// Marca lo que todavía no tiene cuerpo (esqueleto de T024–T031).
+    /// Marca lo que todavía no tiene cuerpo.
     ///
     /// Explícito a propósito: un `Default` silencioso devolvería un resultado con
     /// todos los montos en cero, indistinguible de un cálculo legítimo.
-    #[error("simulador: no implementado")]
-    NotImplemented,
+    ///
+    /// Lleva el MOTIVO porque el cliente lo lee. «No implementado» a secas deja a quien
+    /// llamó sin saber si el problema está en su petición o en el servicio, y en un
+    /// contrato que conserva un camino de compatibilidad junto al preferente —`calc_type`
+    /// frente a `calculator_id` (FR-043)— esa diferencia es justo la que necesita.
+    #[error("simulador: no implementado: {0}")]
+    NotImplemented(String),
 }
 
 /// Alias del `Result` del servicio.

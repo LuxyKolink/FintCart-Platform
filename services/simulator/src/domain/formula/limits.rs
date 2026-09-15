@@ -44,6 +44,26 @@ pub const MAX_INPUTS: usize = 20;
 /// Máximo de salidas de una definición (FR-046).
 pub const MAX_OUTPUTS: usize = 10;
 
+/// Mínimo de campos de entrada.
+///
+/// El máximo lo pide FR-046; el mínimo lo impone el esquema
+/// (`CHECK jsonb_array_length(inputs) BETWEEN 1 AND 20`, migración de T018). Se declaran
+/// JUNTOS y no uno aquí y otro en el validador porque son las dos mitades de la misma
+/// regla: separarlos es como se llega a un validador que comprueba el techo y deja que el
+/// suelo lo rechace PostgreSQL, con un mensaje sobre una restricción en vez de uno para el
+/// autor.
+///
+/// Una definición sin entradas no es una calculadora: es una constante disfrazada, y
+/// ejecutarla devolvería siempre lo mismo sin que nadie pueda ajustar nada.
+pub const MIN_INPUTS: usize = 1;
+
+/// Mínimo de salidas de una definición.
+///
+/// Por la misma razón que [`MIN_INPUTS`]: una calculadora que no produce ningún resultado
+/// no tiene nada que ofrecer, y sin este límite se guardaría y fallaría al ejecutarse,
+/// delante del lector en lugar de delante del autor.
+pub const MIN_OUTPUTS: usize = 1;
+
 /// Número de nodos y profundidad de un árbol.
 ///
 /// El recorrido es ITERATIVO con una pila explícita, y no recursivo. La razón no es el

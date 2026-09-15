@@ -3,6 +3,7 @@
 
 pub mod currency;
 pub mod decimal_str;
+pub mod definition;
 pub mod dispatch;
 pub mod error;
 pub mod formula;

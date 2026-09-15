@@ -18,9 +18,11 @@
 //!    que exceda se redondea. El AST se persiste y se vuelve a leer para calcular, así
 //!    que esa pérdida sería **silenciosa** y ocurriría en cada ciclo guardar → leer.
 //!
-//! De ahí [`decimal_as_str`], que serializa todo literal como cadena canónica. Es el
-//! mismo formato que usan `simulations.inputs` y `result`, y el único que
-//! [`crate::domain::decimal_str`] acepta — el `round-trip` es estable por construcción.
+//! De ahí [`crate::domain::decimal_str::serde_decimal`], que serializa todo literal como
+//! cadena canónica. Es el mismo formato que usan `simulations.inputs` y `result`, y el
+//! único que [`crate::domain::decimal_str`] acepta — el `round-trip` es estable por
+//! construcción. El alias `decimal_as_str` de más abajo solo le da al atributo `serde` un
+//! camino corto.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -88,7 +90,7 @@ pub enum Expr {
     /// Literal decimal.
     Num {
         /// Valor, serializado como cadena canónica. Ver la nota del módulo.
-        #[serde(with = "decimal_as_str")]
+        #[serde(with = "crate::domain::decimal_str::serde_decimal")]
         value: Decimal,
     },
 
@@ -367,34 +369,9 @@ impl Schema {
     }
 }
 
-/// Serializa un [`Decimal`] como cadena canónica en lugar de como número JSON.
-///
-/// Escrito a mano en vez de confiar en la característica `serde-with-str` de
-/// `rust_decimal`, que ya está activada en `Cargo.toml`: esa característica cambia el
-/// comportamiento por DEFECTO de [`Decimal`] en todo el crate, y un día alguien la
-/// retire al ajustar dependencias. El resultado sería que los literales del AST
-/// empezarían a guardarse como números JSON —precisión perdida de forma silenciosa en
-/// cada guardado— sin que nada fallara. Aquí la elección es local y visible desde el
-/// propio campo.
-mod decimal_as_str {
-    use rust_decimal::Decimal;
-    use serde::{Deserialize, Deserializer, Serializer};
-
-    use crate::domain::decimal_str;
-
-    /// Escribe el valor en la forma canónica `^-?\d+(\.\d+)?$`.
-    pub fn serialize<S: Serializer>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&decimal_str::format(*value))
-    }
-
-    /// Lee el valor exigiendo esa misma forma.
-    ///
-    /// `serde_json` aceptaría además un número JSON, y se rechaza a propósito: si una
-    /// fila llega con un literal numérico, viene de algo que no pasó por el analizador,
-    /// y leerlo como si fuera equivalente aceptaría en silencio un AST que nunca se
-    /// validó.
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Decimal, D::Error> {
-        let raw = String::deserialize(deserializer)?;
-        decimal_str::parse(&raw).map_err(serde::de::Error::custom)
-    }
-}
+// El adaptador de los literales se nombra con su ruta COMPLETA en el atributo `serde` de
+// `Expr::Num` en vez de con un alias local. Un `use … as decimal_as_str` sería más corto y
+// el compilador lo marcaría como importación sin usar: el camino de un `with = "…"` lo
+// resuelve la macro de `serde` al expandirse, y el análisis de importaciones de rustc no
+// lo ve. Un alias con un `#[allow(unused_imports)]` encima documentaría una excepción para
+// ahorrar veinte caracteres.

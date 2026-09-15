@@ -26,6 +26,7 @@ use tracing_subscriber::EnvFilter;
 
 use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::observability;
+use fintcart_simulator::repo::calculators::PgCalculators;
 use fintcart_simulator::repo::simulations::PgSimulations;
 
 /// Cotas del pool de conexiones.
@@ -95,7 +96,14 @@ async fn main() -> Result<()> {
     // él, un SIGTERM del orquestador de contenedores cortaría las llamadas a mitad y
     // el cliente vería un error de transporte en lugar de una respuesta.
     Server::builder()
-        .add_service(Service::new(PgSimulations::new(pool)).into_server())
+        // El mismo pool para los dos repositorios, con un `clone` que es un contador de
+        // referencias y no una conexión nueva: son dos agregados de la MISMA base
+        // `simulator_db`, y abrir un segundo pool duplicaría el consumo de conexiones sin
+        // ganar aislamiento —el aislamiento que importa aquí es el de bases de datos entre
+        // servicios (Principio III), no el de tablas dentro de una.
+        .add_service(
+            Service::new(PgSimulations::new(pool.clone()), PgCalculators::new(pool)).into_server(),
+        )
         .serve_with_shutdown(addr, {
             let mut grpc_stop = grpc_stop;
             async move {

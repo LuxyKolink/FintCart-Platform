@@ -208,6 +208,99 @@ pub fn format_fixed(d: Decimal, scale: u32) -> Result<String, DecimalStrError> {
     Ok(format!("{:.*}", scale as usize, d))
 }
 
+/// Adaptadores `serde` para que un [`Decimal`] viaje por JSON como cadena canónica.
+///
+/// ## Por qué esto existe y por qué está aquí
+///
+/// La forma evidente de serializar un decimal es un número JSON, y está descartada por
+/// dos motivos, el segundo grave:
+///
+/// 1. Un número JSON obliga a quien lo lea a interpretarlo con un tipo de coma flotante,
+///    que el Principio VIII prohíbe para dinero.
+/// 2. `serde_json` no representa más de 15-17 dígitos significativos en un número: lo que
+///    exceda se redondea **en silencio**. Un AST que se persiste y se relee para calcular
+///    se degradaría en cada ciclo guardar → leer sin que nada fallara.
+///
+/// Vive en este módulo y no junto a cada tipo que lo usa porque es la misma regla del
+/// formato canónico que el resto del módulo: si hubiera una copia por tipo, la copia que
+/// se quedara atrás introduciría la pérdida de precisión justo en el campo que olvidó
+/// actualizarse.
+///
+/// Se escribe a mano en vez de confiar en la característica `serde-with-str` de
+/// `rust_decimal`, que ya está activada en `Cargo.toml`: esa característica cambia el
+/// comportamiento por DEFECTO de [`Decimal`] en todo el crate, y un día alguien podría
+/// retirarla al ajustar dependencias. Aquí la elección es explícita en cada campo.
+pub mod serde_decimal {
+    use rust_decimal::Decimal;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use super::{format, parse};
+
+    /// Escribe el valor en la forma canónica `^-?\d+(\.\d+)?$`.
+    ///
+    /// # Errores
+    ///
+    /// Del serializador.
+    pub fn serialize<S: Serializer>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&format(*value))
+    }
+
+    /// Lee el valor exigiendo esa misma forma.
+    ///
+    /// `serde_json` aceptaría además un número JSON, y se rechaza a propósito: si una
+    /// fila llega con un literal numérico, viene de algo que no pasó por el analizador, y
+    /// leerlo como si fuera equivalente aceptaría en silencio un valor que nunca se
+    /// validó.
+    ///
+    /// # Errores
+    ///
+    /// Del deserializador, o de [`parse`] si la cadena no es canónica.
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Decimal, D::Error> {
+        let raw = String::deserialize(deserializer)?;
+        parse(&raw).map_err(serde::de::Error::custom)
+    }
+
+    /// Lo mismo para un campo OPCIONAL, donde ausente y `null` significan lo mismo.
+    ///
+    /// Sin esta variante, un `Option<Decimal>` con `with = "…::serde_decimal"` intentaría
+    /// deserializar `null` como `String` y fallaría; y omitir el atributo haría que el
+    /// campo volviera a ser un número JSON, que es exactamente lo que se está evitando.
+    pub mod option {
+        use rust_decimal::Decimal;
+        use serde::{Deserialize, Deserializer, Serializer};
+
+        use super::{format, parse};
+
+        /// Escribe el valor canónico, o `null` si no hay.
+        ///
+        /// # Errores
+        ///
+        /// Del serializador.
+        pub fn serialize<S: Serializer>(
+            value: &Option<Decimal>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            match value {
+                Some(value) => serializer.serialize_str(&format(*value)),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        /// Lee el valor canónico, o `None` si viene `null`.
+        ///
+        /// # Errores
+        ///
+        /// Del deserializador, o de [`parse`] si la cadena no es canónica.
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Option<Decimal>, D::Error> {
+            Option::<String>::deserialize(deserializer)?
+                .map(|raw| parse(&raw).map_err(serde::de::Error::custom))
+                .transpose()
+        }
+    }
+}
+
 /// Redondea a `scale` decimales con redondeo bancario (half-even), el único modo
 /// permitido para conversiones y cálculos monetarios (research D-14).
 ///

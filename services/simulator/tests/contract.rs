@@ -15,10 +15,11 @@
 //! prueba de integración de la saga—, y atarlo a una base levantada haría que la suite
 //! solo corriera en las máquinas donde alguien recordó arrancarla.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
+use fintcart_simulator::domain::definition::Definition;
 use fintcart_simulator::domain::error::{Error, Result};
 use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::pb::fintcart::common::v1::PageRequest;
@@ -27,6 +28,7 @@ use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_server::S
 use fintcart_simulator::pb::fintcart::simulator::v1::{
     CalcType, ComputeRequest, ListHistoryRequest, UserRef,
 };
+use fintcart_simulator::repo::calculators::{CalculatorPage, CalculatorRow, Calculators};
 use fintcart_simulator::repo::simulations::{HistoryPage, SimulationRow, Simulations};
 use tonic::transport::{Endpoint, Server, Uri};
 use tonic::Code;
@@ -156,6 +158,61 @@ impl Simulations for FakeRepo {
 
 // ── arranque de la pila real ────────────────────────────────────────────────
 
+/// Doble del repositorio de calculadoras que NO se puede usar.
+///
+/// Este archivo ejercita los tres RPC de simulación —`Compute`, `ListHistory` y
+/// `AnonymizeHistory`— y ninguno del constructor. En lugar de un doble funcional que
+/// devolviera listas vacías —con el que un `Compute` que consultara la tabla sin querer
+/// pasaría inadvertido—, todas sus operaciones fallan. Así, el día que uno de estos métodos
+/// se llame desde aquí, la prueba lo dice en vez de dar por bueno un resultado vacío.
+struct NoCalculators;
+
+#[tonic::async_trait]
+impl Calculators for NoCalculators {
+    async fn upsert(
+        &self,
+        _existing: Option<Uuid>,
+        _owner_id: Uuid,
+        _name: &str,
+        _description: &str,
+        _definition: &Definition,
+    ) -> Result<CalculatorRow> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan el constructor de calculadoras".to_owned(),
+        ))
+    }
+
+    async fn get(&self, _id: Uuid, _actor_id: Option<Uuid>) -> Result<CalculatorRow> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan el constructor de calculadoras".to_owned(),
+        ))
+    }
+
+    async fn list(
+        &self,
+        _owner_id: Option<Uuid>,
+        _only_published: bool,
+        _page_size: i32,
+        _page_token: &str,
+    ) -> Result<CalculatorPage> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan el constructor de calculadoras".to_owned(),
+        ))
+    }
+
+    async fn delete(&self, _id: Uuid, _actor_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan el constructor de calculadoras".to_owned(),
+        ))
+    }
+
+    async fn known_indicators(&self) -> Result<BTreeSet<String>> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan el constructor de calculadoras".to_owned(),
+        ))
+    }
+}
+
 /// Levanta el servidor sobre un canal en memoria y devuelve el cliente GENERADO.
 ///
 /// Se usa el cliente generado y no una llamada directa al servicio porque solo así se
@@ -166,7 +223,10 @@ async fn start(repo: FakeRepo) -> SimulatorServiceClient<tonic::transport::Chann
 
     tokio::spawn(async move {
         let _ = Server::builder()
-            .add_service(SimulatorServiceServer::new(Service::new(repo)))
+            .add_service(SimulatorServiceServer::new(Service::new(
+                repo,
+                NoCalculators,
+            )))
             .serve_with_incoming(tokio_stream::once(Ok::<_, std::io::Error>(server_io)))
             .await;
     });

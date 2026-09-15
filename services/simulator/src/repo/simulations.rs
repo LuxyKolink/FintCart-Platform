@@ -25,6 +25,7 @@ use uuid::Uuid;
 
 use crate::domain::error::{Error, Result};
 use crate::repo::tx::exec_tx;
+use crate::repo::{clamp_page_size, parse_page_token};
 
 /// Una simulación tal como se guarda y se devuelve.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -184,14 +185,6 @@ impl Simulations for PgSimulations {
         .await
     }
 }
-
-/// Tamaño de página por defecto y máximo.
-///
-/// El tope no es negociable con el cliente: sin él, un `page_size` de un millón
-/// traería el historial entero a memoria y el fallo aparecería como una caída del
-/// servicio, no como una petición desmedida.
-const DEFAULT_PAGE_SIZE: i32 = 20;
-const MAX_PAGE_SIZE: i32 = 100;
 
 /// Inserta una simulación y devuelve la fila completa.
 ///
@@ -422,32 +415,4 @@ fn from_json(value: Value) -> Result<HashMap<String, String>> {
                 })
         })
         .collect()
-}
-
-/// Acota el tamaño de página pedido.
-fn clamp_page_size(requested: i32) -> i32 {
-    match requested {
-        n if n <= 0 => DEFAULT_PAGE_SIZE,
-        n if n > MAX_PAGE_SIZE => MAX_PAGE_SIZE,
-        n => n,
-    }
-}
-
-/// Interpreta el token de página como desplazamiento.
-///
-/// # Errores
-///
-/// [`Error::InvalidInput`] si el token no es un entero no negativo. Se rechaza en vez
-/// de tratarlo como cero: devolver silenciosamente la primera página ante un token
-/// corrupto haría que un cliente con un error de paginación recorriera el historial en
-/// bucle sin enterarse.
-fn parse_page_token(token: &str) -> Result<i64> {
-    if token.is_empty() {
-        return Ok(0);
-    }
-    token
-        .parse::<i64>()
-        .ok()
-        .filter(|offset| *offset >= 0)
-        .ok_or_else(|| Error::InvalidInput(format!("page_token {token:?} no es válido")))
 }

@@ -10,6 +10,7 @@ use tonic::{Request, Response, Status};
 use tracing::{info, warn};
 
 use crate::domain::currency;
+use crate::domain::definition::Definition;
 use crate::domain::dispatch::{self, Kind};
 use crate::domain::error::Error;
 use crate::grpc::mapping;
@@ -19,34 +20,41 @@ use crate::pb::fintcart::simulator::v1::simulator_service_server::{
     SimulatorService, SimulatorServiceServer,
 };
 use crate::pb::fintcart::simulator::v1::{
-    ApproveCalculatorRequest, CalcType, Calculator, CalculatorRef, ComputeRequest, ComputeResponse,
-    Indicator, IndicatorCalendarStatus, ListCalculatorsRequest, ListCalculatorsResponse,
-    ListHistoryRequest, ListHistoryResponse, ListIndicatorsRequest, ListIndicatorsResponse,
-    RejectCalculatorRequest, UpsertCalculatorRequest, UpsertIndicatorRequest, UserRef,
-    ValidateDefinitionRequest, ValidateDefinitionResponse,
+    ApproveCalculatorRequest, CalcType, Calculator, CalculatorDefinition, CalculatorRef,
+    ComputeRequest, ComputeResponse, DefinitionError, Indicator, IndicatorCalendarStatus,
+    ListCalculatorsRequest, ListCalculatorsResponse, ListHistoryRequest, ListHistoryResponse,
+    ListIndicatorsRequest, ListIndicatorsResponse, RejectCalculatorRequest,
+    UpsertCalculatorRequest, UpsertIndicatorRequest, UserRef, ValidateDefinitionRequest,
+    ValidateDefinitionResponse,
 };
+use crate::repo::calculators::Calculators;
 use crate::repo::simulations::Simulations;
 
 /// Servicio del Simulador.
 ///
-/// Es genérico sobre el repositorio y no guarda un `PgPool`. La diferencia no es
+/// Es genérico sobre SUS DOS repositorios y no guarda un `PgPool`. La diferencia no es
 /// estilística: un pool visible desde el transporte es la puerta por la que acaba
 /// colándose una consulta suelta dentro de un handler, y además obligaría a levantar
 /// PostgreSQL para ejercitar cualquier RPC — con lo que la prueba de contrato de T109
 /// no existiría.
-pub struct Service<R: Simulations> {
-    repo: R,
+///
+/// Son dos parámetros de tipo y no uno que los una porque son dos agregados distintos —el
+/// historial de simulaciones y el constructor de calculadoras— y unirlos obligaría a
+/// cualquier doble de prueba a implementar el que no usa.
+pub struct Service<S: Simulations, C: Calculators> {
+    repo: S,
+    calculators: C,
 }
 
-impl<R: Simulations> Service<R> {
-    /// Construye el servicio sobre el repositorio del historial.
+impl<S: Simulations, C: Calculators> Service<S, C> {
+    /// Construye el servicio sobre los repositorios del historial y de calculadoras.
     ///
-    /// Recibe el repositorio y no un pool: así esta capa no puede lanzar una consulta
-    /// por su cuenta, y una prueba de contrato puede ejercitar los tres RPC sin
-    /// PostgreSQL (Principio IX).
+    /// Recibe repositorios y no un pool: así esta capa no puede lanzar una consulta por su
+    /// cuenta, y una prueba de contrato puede ejercitar los RPC sin PostgreSQL
+    /// (Principio IX).
     #[must_use]
-    pub fn new(repo: R) -> Self {
-        Self { repo }
+    pub fn new(repo: S, calculators: C) -> Self {
+        Self { repo, calculators }
     }
 
     /// Envuelve el servicio en el servidor generado, listo para `tonic`.
@@ -70,7 +78,7 @@ fn to_status(err: &Error) -> Status {
         Error::Decimal(_) => Status::invalid_argument("valor decimal no válido"),
         Error::NotFound => Status::not_found("no encontrado"),
         Error::Storage(_) => Status::internal("error interno"),
-        Error::NotImplemented => Status::unimplemented("no implementado"),
+        Error::NotImplemented(what) => Status::unimplemented(what.clone()),
     }
 }
 
@@ -125,7 +133,7 @@ fn pending(rpc: &str, task: &str, started: Instant) -> Status {
 }
 
 #[tonic::async_trait]
-impl<R: Simulations> SimulatorService for Service<R> {
+impl<S: Simulations, C: Calculators> SimulatorService for Service<S, C> {
     /// Ejecuta una simulación y persiste el historial (FR-019..FR-022).
     ///
     /// El cálculo va ANTES de abrir la transacción. Es deliberado: elevar a la
@@ -190,49 +198,87 @@ impl<R: Simulations> SimulatorService for Service<R> {
 
     async fn upsert_calculator(
         &self,
-        _request: Request<UpsertCalculatorRequest>,
+        request: Request<UpsertCalculatorRequest>,
     ) -> Result<Response<Calculator>, Status> {
-        Err(pending(
-            "simulator.UpsertCalculator",
-            "T090",
-            Instant::now(),
-        ))
+        let started = Instant::now();
+        let result = self
+            .upsert_calculator_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.UpsertCalculator falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.UpsertCalculator", started, &result);
+        result
     }
 
     async fn get_calculator(
         &self,
-        _request: Request<CalculatorRef>,
+        request: Request<CalculatorRef>,
     ) -> Result<Response<Calculator>, Status> {
-        Err(pending("simulator.GetCalculator", "T090", Instant::now()))
+        let started = Instant::now();
+        let result = self
+            .get_calculator_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.GetCalculator falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.GetCalculator", started, &result);
+        result
     }
 
     async fn list_calculators(
         &self,
-        _request: Request<ListCalculatorsRequest>,
+        request: Request<ListCalculatorsRequest>,
     ) -> Result<Response<ListCalculatorsResponse>, Status> {
-        Err(pending("simulator.ListCalculators", "T090", Instant::now()))
+        let started = Instant::now();
+        let result = self
+            .list_calculators_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.ListCalculators falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.ListCalculators", started, &result);
+        result
     }
 
     async fn delete_calculator(
         &self,
-        _request: Request<CalculatorRef>,
+        request: Request<CalculatorRef>,
     ) -> Result<Response<OpResult>, Status> {
-        Err(pending(
-            "simulator.DeleteCalculator",
-            "T090",
-            Instant::now(),
-        ))
+        let started = Instant::now();
+        let result = self
+            .delete_calculator_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.DeleteCalculator falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.DeleteCalculator", started, &result);
+        result
     }
 
     async fn validate_definition(
         &self,
-        _request: Request<ValidateDefinitionRequest>,
+        request: Request<ValidateDefinitionRequest>,
     ) -> Result<Response<ValidateDefinitionResponse>, Status> {
-        Err(pending(
-            "simulator.ValidateDefinition",
-            "T090",
-            Instant::now(),
-        ))
+        let started = Instant::now();
+        let result = self
+            .validate_definition_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.ValidateDefinition falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.ValidateDefinition", started, &result);
+        result
     }
 
     // ── Curaduría (T114) ──────────────────────────────────────────────────────
@@ -298,7 +344,7 @@ impl<R: Simulations> SimulatorService for Service<R> {
     }
 }
 
-impl<R: Simulations> Service<R> {
+impl<S: Simulations, C: Calculators> Service<S, C> {
     /// Cuerpo de `Compute`, en términos de dominio en lugar de `Status`.
     ///
     /// Separarlo del método del trait es lo que permite usar `?` con
@@ -317,6 +363,19 @@ impl<R: Simulations> Service<R> {
                 req.calc_type
             ))
         })?;
+        // FR-043: `calculator_id` es el camino PREFERENTE y `calc_type` el de
+        // compatibilidad, pero el primero todavía no se resuelve —T091 resuelve y ejecuta la
+        // definición, y T103 registra su procedencia en el historial—. Se rechaza de forma
+        // EXPLÍCITA en vez de continuar por `calc_type`, que es lo que hacía hasta ahora: un
+        // cliente que pidió una calculadora concreta recibía el resultado de OTRA sin que
+        // nada se lo dijera, y ese silencio es peor que un error.
+        if !req.calculator_id.is_empty() {
+            return Err(Error::NotImplemented(
+                "la ejecución por calculator_id llega con T091; mientras tanto, usa calc_type"
+                    .to_owned(),
+            ));
+        }
+
         let kind = Kind::from_proto(calc_type)?;
         let currency = currency::normalize(&req.currency)?;
 
@@ -390,4 +449,158 @@ impl<R: Simulations> Service<R> {
             message: String::new(),
         })
     }
+
+    // ── Cuerpos del constructor de calculadoras (T090) ────────────────────────
+
+    /// Cuerpo de `UpsertCalculator`.
+    ///
+    /// La definición se analiza ANTES de tocar la base. Es lo que hace que un error de
+    /// fórmula no deje rastro: si se insertara primero y se validara después, una
+    /// calculadora a medio escribir quedaría en la tabla y el autor tendría que borrarla.
+    async fn upsert_calculator_inner(
+        &self,
+        req: UpsertCalculatorRequest,
+    ) -> Result<Calculator, Error> {
+        let owner_id = mapping::parse_user_id(&req.owner_id)?;
+
+        // El nombre es lo único que el `CHECK length(btrim(name)) > 0` de la tabla rechaza, y
+        // se comprueba aquí para que el error lo lea el autor en vez de aparecer como una
+        // violación de restricción del driver.
+        let name = req.name.trim();
+        if name.is_empty() {
+            return Err(Error::InvalidInput(
+                "la calculadora necesita un nombre".to_owned(),
+            ));
+        }
+
+        let existing = mapping::parse_optional_uuid(&req.calculator_id, "calculator_id")?;
+        let (definition, errors) = self.analyze(req.definition).await?;
+        let Some(definition) = definition else {
+            return Err(Error::InvalidInput(describe_definition_errors(&errors)));
+        };
+
+        let row = self
+            .calculators
+            .upsert(existing, owner_id, name, &req.description, &definition)
+            .await?;
+        Ok(mapping::calculator_from_row(row))
+    }
+
+    /// Cuerpo de `GetCalculator`.
+    async fn get_calculator_inner(&self, req: CalculatorRef) -> Result<Calculator, Error> {
+        let id = mapping::parse_uuid(&req.calculator_id, "calculator_id")?;
+        let actor_id = mapping::parse_optional_uuid(&req.actor_id, "actor_id")?;
+
+        let row = self.calculators.get(id, actor_id).await?;
+        Ok(mapping::calculator_from_row(row))
+    }
+
+    /// Cuerpo de `ListCalculators`.
+    ///
+    /// FR-051 prohíbe un listado global sin filtrar, y quien lo impide es esta capa: es una
+    /// regla de la PETICIÓN —qué se está preguntando— y no de la tabla, así que no tiene
+    /// sitio en el repositorio. Un listado sin filtro devolvería las calculadoras privadas
+    /// de todo el mundo.
+    async fn list_calculators_inner(
+        &self,
+        req: ListCalculatorsRequest,
+    ) -> Result<ListCalculatorsResponse, Error> {
+        let owner_id = mapping::parse_optional_uuid(&req.owner_id, "owner_id")?;
+        if owner_id.is_none() && !req.only_published {
+            return Err(Error::InvalidInput(
+                "hay que indicar owner_id o only_published: no existe un listado sin filtrar"
+                    .to_owned(),
+            ));
+        }
+
+        let (page_size, page_token) = req
+            .page
+            .map_or((0, String::new()), |page| (page.page_size, page.page_token));
+
+        let page = self
+            .calculators
+            .list(owner_id, req.only_published, page_size, &page_token)
+            .await?;
+        Ok(mapping::calculators_response(page))
+    }
+
+    /// Cuerpo de `DeleteCalculator`.
+    async fn delete_calculator_inner(&self, req: CalculatorRef) -> Result<OpResult, Error> {
+        let id = mapping::parse_uuid(&req.calculator_id, "calculator_id")?;
+        let actor_id = mapping::parse_user_id(&req.actor_id)?;
+
+        self.calculators.delete(id, actor_id).await?;
+        Ok(OpResult {
+            success: true,
+            code: String::new(),
+            message: String::new(),
+        })
+    }
+
+    /// Cuerpo de `ValidateDefinition`.
+    ///
+    /// No guarda nada: alimenta el aviso en vivo del constructor mientras el autor escribe.
+    async fn validate_definition_inner(
+        &self,
+        req: ValidateDefinitionRequest,
+    ) -> Result<ValidateDefinitionResponse, Error> {
+        let (_, errors) = self.analyze(req.definition).await?;
+        Ok(ValidateDefinitionResponse {
+            valid: errors.is_empty(),
+            errors,
+        })
+    }
+
+    /// Analiza una definición del contrato y devuelve el resultado y TODOS sus problemas.
+    ///
+    /// Es la ruta compartida por `ValidateDefinition` y `UpsertCalculator`, y compartirla es
+    /// el punto: el contrato promete que los dos informan de lo mismo, y dos copias podrían
+    /// divergir justo en la comprobación que alguien añadiera después.
+    ///
+    /// Devuelve `Ok((None, errores))` cuando la definición no es válida. No es un error del
+    /// RPC: `ValidateDefinition` tiene que responder `valid: false` con la lista, y tratarlo
+    /// como `Err` obligaría a deshacer el `Status` para volver a armar los errores.
+    ///
+    /// # Errores
+    ///
+    /// [`Error::InvalidInput`] si falta la definición; [`Error::Storage`] si falla la lectura
+    /// del catálogo de indicadores.
+    async fn analyze(
+        &self,
+        definition: Option<CalculatorDefinition>,
+    ) -> Result<(Option<Definition>, Vec<DefinitionError>), Error> {
+        let definition = definition.ok_or_else(|| {
+            Error::InvalidInput("falta la definición de la calculadora".to_owned())
+        })?;
+
+        // El catálogo de indicadores se lee ANTES de analizar porque el analizador no
+        // consulta nada por diseño (Principio IX): recibe los nombres ya resueltos.
+        let indicators = self.calculators.known_indicators().await?;
+
+        let (draft, mut errors) = mapping::draft_from_proto(definition);
+        let parsed = match draft.parse(&indicators) {
+            Ok(parsed) => Some(parsed),
+            Err(issues) => {
+                errors.extend(mapping::issues_to_proto(issues));
+                None
+            }
+        };
+
+        Ok((parsed, errors))
+    }
+}
+
+/// Compone un mensaje legible a partir de los problemas de una definición.
+///
+/// `UpsertCalculator` devuelve un `Calculator`, que no tiene dónde llevar una lista de
+/// errores, así que el detalle viaja en el mensaje del `Status`. El 422 con `errors[]`
+/// estructurados lo produce la ruta del Gateway llamando antes a `ValidateDefinition`
+/// (T096), que sí tiene un mensaje de respuesta donde ponerlos.
+fn describe_definition_errors(errors: &[DefinitionError]) -> String {
+    let details = errors
+        .iter()
+        .map(|error| format!("{}: {}", error.location, error.message))
+        .collect::<Vec<_>>()
+        .join("; ");
+    format!("la definición no es válida — {details}")
 }
