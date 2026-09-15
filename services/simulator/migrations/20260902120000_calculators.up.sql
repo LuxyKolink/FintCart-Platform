@@ -60,9 +60,14 @@ CREATE INDEX calculators_published_idx
 CREATE TABLE calculator_definitions (
     calculator_id  UUID        NOT NULL REFERENCES calculators (id) ON DELETE CASCADE,
     version        INTEGER     NOT NULL,
-    inputs         JSONB       NOT NULL,                  -- [{clave,etiqueta,tipo,unidad,min,max,default,requerido}]
-    validations    JSONB       NOT NULL DEFAULT '[]',     -- [{ast,mensaje}]
-    outputs        JSONB       NOT NULL,                  -- [{clave,etiqueta,ast,escala,cuando?}]
+    -- `ast` es lo que se EJECUTA y `texto` lo que el autor ESCRIBIÓ. No son dos copias de
+    -- lo mismo: el segundo existe para que el constructor reabra la calculadora con la
+    -- fórmula original en lugar de con una que hubiéramos reconstruido imprimiendo el
+    -- árbol, y esa reconstrucción podría cambiar paréntesis o espaciado sin que nada
+    -- fallara. Ver data-model.md §2.2 y `domain::definition::OutputField::source`.
+    inputs         JSONB       NOT NULL,                  -- [{clave,etiqueta,tipo,unidad,min?,max?,default?,requerido}]
+    validations    JSONB       NOT NULL DEFAULT '[]',     -- [{ast,texto,mensaje}]
+    outputs        JSONB       NOT NULL,                  -- [{clave,etiqueta,ast,texto,escala,cuando?,cuando_texto?}]
     indicators_used TEXT[]     NOT NULL DEFAULT '{}',     -- extraído del AST al guardar (FR-057)
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
 

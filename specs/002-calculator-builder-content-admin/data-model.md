@@ -204,9 +204,9 @@ Es lo que permite que `simulations` referencie la versión exacta con la que se 
 |---------|------|-------|
 | `calculator_id` | `UUID NOT NULL REFERENCES calculators(id) ON DELETE CASCADE` | |
 | `version` | `INTEGER NOT NULL` | |
-| `inputs` | `JSONB NOT NULL` | `[{clave, etiqueta, tipo, unidad, min, max, default, requerido}]` |
-| `validations` | `JSONB NOT NULL DEFAULT '[]'` | `[{ast, mensaje}]` (D-15) |
-| `outputs` | `JSONB NOT NULL` | `[{clave, etiqueta, ast, escala, cuando?}]` |
+| `inputs` | `JSONB NOT NULL` | `[{clave, etiqueta, tipo, unidad, min?, max?, default?, requerido}]` |
+| `validations` | `JSONB NOT NULL DEFAULT '[]'` | `[{ast, texto, mensaje}]` (D-15) |
+| `outputs` | `JSONB NOT NULL` | `[{clave, etiqueta, ast, texto, escala, cuando?, cuando_texto?}]` |
 | `indicators_used` | `TEXT[] NOT NULL DEFAULT '{}'` | extraído del AST al guardar |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 
@@ -225,6 +225,31 @@ Simulador; nada llega aquí sin haber sido validado.
 `tipo` de un campo de entrada ∈ `{monto, tasa, entero}`. **No existe el tipo texto**: la
 única entrada de texto del sistema actual era el discriminador `operacion` de la
 calculadora colombiana, que D-16 elimina al separarla en tres definiciones.
+
+**Las cotas ausentes se omiten**, no se guardan como `null`: el contrato ya define la cadena
+vacía como «sin cota» y `null` obligaría a distinguirlo de «cota nula», que no existe.
+
+#### `texto` junto a `ast`: el fuente y el artefacto
+
+Cada expresión lleva **dos** representaciones, y no son una copia la una de la otra:
+
+- `ast` es el árbol analizado, y es lo **único** que se recorre al ejecutar. Nunca se vuelve
+  a analizar texto en tiempo de ejecución (D-15).
+- `texto` es la fórmula tal como la **escribió el autor**, y existe para que el constructor
+  visual pueda reabrir la calculadora con su fórmula original.
+
+Se conserva el original y **no** se reconstruye imprimiendo el árbol. Un impresor tendría que
+decidir paréntesis, espaciado y asociatividad, y cualquier fallo suyo haría que el autor
+abriera su calculadora y leyera una fórmula **distinta de la que escribió** — sin que nada
+fallara y sin que el AST hubiera cambiado, porque la relectura ocurre fuera del servicio. Es
+exactamente la transformación silenciosa que D-15 existe para evitar.
+
+El riesgo contrario —que el texto y el árbol discrepen— no se da: los dos se escriben en la
+misma llamada y solo después de que el análisis del texto haya producido ese árbol.
+
+Estos dos campos se añadieron durante la implementación de T087 y son la única desviación de
+la forma que este documento describía antes; el `CHECK` de la columna no los mira, así que la
+migración de T018 no cambia.
 
 ### 2.3 `financial_indicators` *(nueva — FR-055…FR-060, D-22)*
 
