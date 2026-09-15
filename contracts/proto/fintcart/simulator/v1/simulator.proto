@@ -218,7 +218,8 @@ message DefinitionError {
   string location = 1;   // p. ej. "outputs[1].expression" o "validations[0]"
   string code = 2;       // campo_inexistente | expresion_mal_formada |
                          // limite_excedido | indicador_desconocido |
-                         // exponente_no_entero | funcion_desconocida
+                         // exponente_no_entero | funcion_desconocida |
+                         // tipo_incompatible
   string message = 3;
 }
 
