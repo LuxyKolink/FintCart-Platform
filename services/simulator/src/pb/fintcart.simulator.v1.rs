@@ -27,6 +27,11 @@ pub struct ComputeRequest {
     /// llamada inserta una fila nueva, como antes.
     #[prost(string, tag = "5")]
     pub idempotency_key: ::prost::alloc::string::String,
+    /// CAMBIO DE CONTRATO (FR-043): `calculator_id` es el camino PREFERENTE.
+    /// `calc_type` se mantiene por compatibilidad y se resuelve a la definición
+    /// semilla correspondiente. Exactamente uno de los dos debe venir relleno.
+    #[prost(string, tag = "6")]
+    pub calculator_id: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ComputeResponse {
@@ -41,6 +46,19 @@ pub struct ComputeResponse {
     /// RFC-3339
     #[prost(string, tag = "3")]
     pub computed_at: ::prost::alloc::string::String,
+    /// FR-050: la versión de la definición que produjo este resultado. Sin ella, el
+    /// historial no se puede explicar si la calculadora se editó después.
+    #[prost(int32, tag = "4")]
+    pub calculator_version: i32,
+    /// FR-058: snapshot de los indicadores usados, para que el resultado siga siendo
+    /// reproducible tras cambiar los indicadores (SC-019).
+    ///
+    /// \[decimal\]
+    #[prost(map = "string, string", tag = "5")]
+    pub indicators_used: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListHistoryRequest {
@@ -80,12 +98,275 @@ pub mod list_history_response {
         >,
         #[prost(string, tag = "6")]
         pub created_at: ::prost::alloc::string::String,
+        /// FR-058: la entrada se explica por sí sola, sin depender de la definición
+        /// vigente hoy.
+        #[prost(string, tag = "7")]
+        pub calculator_id: ::prost::alloc::string::String,
+        #[prost(int32, tag = "8")]
+        pub calculator_version: i32,
+        /// \[decimal\]
+        #[prost(map = "string, string", tag = "9")]
+        pub indicators_used: ::std::collections::HashMap<
+            ::prost::alloc::string::String,
+            ::prost::alloc::string::String,
+        >,
     }
+}
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Definición de calculadora
+/// ─────────────────────────────────────────────────────────────────────────────
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CalculatorRef {
+    #[prost(string, tag = "1")]
+    pub calculator_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub actor_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CalculatorInput {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub label: ::prost::alloc::string::String,
+    #[prost(enumeration = "InputType", tag = "3")]
+    pub r#type: i32,
+    #[prost(string, tag = "4")]
+    pub unit: ::prost::alloc::string::String,
+    /// \[decimal\] vacío ⇒ sin cota inferior
+    #[prost(string, tag = "5")]
+    pub min_value: ::prost::alloc::string::String,
+    /// \[decimal\] vacío ⇒ sin cota superior
+    #[prost(string, tag = "6")]
+    pub max_value: ::prost::alloc::string::String,
+    /// \[decimal\]
+    #[prost(string, tag = "7")]
+    pub default_value: ::prost::alloc::string::String,
+    /// FR-044; opcional habilita presente(campo)
+    #[prost(bool, tag = "8")]
+    pub required: bool,
+}
+/// Regla de validación de dominio, evaluada ANTES que las salidas. Separada de las
+/// fórmulas a propósito: es lo que permite el mensaje del autor ("el ingreso mensual
+/// debe ser mayor que cero") en vez de un genérico de división por cero.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CalculatorValidation {
+    /// expresión booleana; DEBE cumplirse
+    #[prost(string, tag = "1")]
+    pub expression: ::prost::alloc::string::String,
+    /// mensaje mostrado si no se cumple
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CalculatorOutput {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub label: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub expression: ::prost::alloc::string::String,
+    /// decimales de redondeo half-even
+    #[prost(int32, tag = "4")]
+    pub scale: i32,
+    /// Opcional. Si viene y evalúa a falso, la salida se OMITE. Necesario:
+    /// `inversion` solo emite `valor_futuro_real` si se dio `inflacion_anual`.
+    #[prost(string, tag = "5")]
+    pub when: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CalculatorDefinition {
+    /// ≤ 20 (FR-046)
+    #[prost(message, repeated, tag = "1")]
+    pub inputs: ::prost::alloc::vec::Vec<CalculatorInput>,
+    #[prost(message, repeated, tag = "2")]
+    pub validations: ::prost::alloc::vec::Vec<CalculatorValidation>,
+    /// ≤ 10 (FR-046)
+    #[prost(message, repeated, tag = "3")]
+    pub outputs: ::prost::alloc::vec::Vec<CalculatorOutput>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Calculator {
+    #[prost(string, tag = "1")]
+    pub calculator_id: ::prost::alloc::string::String,
+    /// vacío en las siete definiciones semilla
+    #[prost(string, tag = "2")]
+    pub owner_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub description: ::prost::alloc::string::String,
+    #[prost(bool, tag = "5")]
+    pub is_builtin: bool,
+    /// privada | en_revision | publicada
+    #[prost(string, tag = "6")]
+    pub state: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub approved_by: ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub rejection_reason: ::prost::alloc::string::String,
+    #[prost(int32, tag = "9")]
+    pub version: i32,
+    #[prost(message, optional, tag = "10")]
+    pub definition: ::core::option::Option<CalculatorDefinition>,
+    /// extraídos del AST al guardar
+    #[prost(string, repeated, tag = "11")]
+    pub indicators_used: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpsertCalculatorRequest {
+    /// vacío ⇒ crear
+    #[prost(string, tag = "1")]
+    pub calculator_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub owner_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub description: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "5")]
+    pub definition: ::core::option::Option<CalculatorDefinition>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListCalculatorsRequest {
+    #[prost(string, tag = "1")]
+    pub owner_id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub only_published: bool,
+    #[prost(message, optional, tag = "3")]
+    pub page: ::core::option::Option<super::super::common::v1::PageRequest>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListCalculatorsResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<Calculator>,
+    #[prost(message, optional, tag = "2")]
+    pub page: ::core::option::Option<super::super::common::v1::PageResponse>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValidateDefinitionRequest {
+    #[prost(message, optional, tag = "1")]
+    pub definition: ::core::option::Option<CalculatorDefinition>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValidateDefinitionResponse {
+    #[prost(bool, tag = "1")]
+    pub valid: bool,
+    /// Vacío si valid. Cada error señala DÓNDE está el problema, no solo que lo hay:
+    /// FR-046 exige indicar el error concreto.
+    #[prost(message, repeated, tag = "2")]
+    pub errors: ::prost::alloc::vec::Vec<DefinitionError>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DefinitionError {
+    /// p. ej. "outputs\[1\].expression" o "validations\[0\]"
+    #[prost(string, tag = "1")]
+    pub location: ::prost::alloc::string::String,
+    /// campo_inexistente | expresion_mal_formada |
+    #[prost(string, tag = "2")]
+    pub code: ::prost::alloc::string::String,
+    /// limite_excedido | indicador_desconocido |
+    /// exponente_no_entero | funcion_desconocida
+    #[prost(string, tag = "3")]
+    pub message: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ApproveCalculatorRequest {
+    #[prost(string, tag = "1")]
+    pub calculator_id: ::prost::alloc::string::String,
+    /// rol coordinador_editorial; ≠ owner_id (FR-053)
+    #[prost(string, tag = "2")]
+    pub coordinator_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RejectCalculatorRequest {
+    #[prost(string, tag = "1")]
+    pub calculator_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub coordinator_id: ::prost::alloc::string::String,
+    /// obligatorio (FR-054)
+    #[prost(string, tag = "3")]
+    pub reason: ::prost::alloc::string::String,
+}
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Indicadores financieros
+/// ─────────────────────────────────────────────────────────────────────────────
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Indicator {
+    #[prost(string, tag = "1")]
+    pub indicator_id: ::prost::alloc::string::String,
+    /// ^[A-Z][A-Z0-9_]*$ — se referencia como @NOMBRE
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    /// \[decimal\]
+    #[prost(string, tag = "3")]
+    pub value: ::prost::alloc::string::String,
+    /// fecha ISO-8601, inclusive
+    #[prost(string, tag = "4")]
+    pub valid_from: ::prost::alloc::string::String,
+    /// fecha ISO-8601, EXCLUSIVA
+    #[prost(string, tag = "5")]
+    pub valid_to: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub registered_by: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpsertIndicatorRequest {
+    /// vacío ⇒ crear
+    #[prost(string, tag = "1")]
+    pub indicator_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    /// \[decimal\]
+    #[prost(string, tag = "3")]
+    pub value: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub valid_from: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub valid_to: ::prost::alloc::string::String,
+    /// rol administrador (FR-060)
+    #[prost(string, tag = "6")]
+    pub actor_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListIndicatorsRequest {
+    /// vacío ⇒ todos
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// vacío ⇒ todas las vigencias; si viene, la vigente
+    #[prost(string, tag = "2")]
+    pub on_date: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListIndicatorsResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<Indicator>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct IndicatorCalendarStatus {
+    /// Indicadores SIN vigencia para la fecha actual (FR-062).
+    #[prost(string, repeated, tag = "1")]
+    pub missing_names: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Indicadores cuya vigencia termina dentro de la ventana de aviso (FR-061).
+    #[prost(message, repeated, tag = "2")]
+    pub expiring: ::prost::alloc::vec::Vec<ExpiringIndicator>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExpiringIndicator {
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub valid_to: ::prost::alloc::string::String,
+    #[prost(int32, tag = "3")]
+    pub days_remaining: i32,
 }
 /// Las cinco calculadoras del alcance (FR-019). Los valores DEBEN llevar el
 /// prefijo del nombre del enum: en proto3 los valores de enum comparten el
 /// espacio de nombres del paquete, no el del enum, así que `AHORRO` a secas
 /// colisionaría con cualquier otro enum del paquete que lo declarara.
+///
+/// En la enmienda 002 estas cinco se resiembran como SIETE definiciones sobre el
+/// motor de fórmulas. `calc_type` se conserva como camino de compatibilidad, pero
+/// el camino preferente pasa a ser `calculator_id` (FR-043).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum CalcType {
@@ -124,6 +405,41 @@ impl CalcType {
         }
     }
 }
+/// Tipo de un campo de entrada. NO existe un tipo texto: la única entrada de texto
+/// del sistema era el discriminador `operacion` de la calculadora colombiana, que
+/// research D-16 elimina al separarla en tres definiciones.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum InputType {
+    Unspecified = 0,
+    Monto = 1,
+    Tasa = 2,
+    Entero = 3,
+}
+impl InputType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "INPUT_TYPE_UNSPECIFIED",
+            Self::Monto => "INPUT_TYPE_MONTO",
+            Self::Tasa => "INPUT_TYPE_TASA",
+            Self::Entero => "INPUT_TYPE_ENTERO",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INPUT_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "INPUT_TYPE_MONTO" => Some(Self::Monto),
+            "INPUT_TYPE_TASA" => Some(Self::Tasa),
+            "INPUT_TYPE_ENTERO" => Some(Self::Entero),
+            _ => None,
+        }
+    }
+}
 /// Generated client implementations.
 pub mod simulator_service_client {
     #![allow(
@@ -135,9 +451,10 @@ pub mod simulator_service_client {
     )]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
-    /// Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
-    /// decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
-    /// (Principio V); la auditoría de simulaciones la emite el Orquestador (research D-03).
+    /// Servicio de Simulador (Rust). Calculadoras financieras con precisión decimal
+    /// arbitraria (rust_decimal). NO es productor de eventos RabbitMQ (Principio V); la
+    /// auditoría de simulaciones la emite el Orquestador (research D-03), y el aviso de
+    /// vencimiento de indicadores también (research D-23).
     /// Todos los montos/tasas viajan como `string` decimal canónica (Principio VIII / D-10).
     #[derive(Debug, Clone)]
     pub struct SimulatorServiceClient<T> {
@@ -278,6 +595,10 @@ pub mod simulator_service_client {
             self.inner.unary(req, path, codec).await
         }
         /// Saga de anonimización (FR-030): disocia PII del historial.
+        /// CAMBIO DE COMPORTAMIENTO (002): además del historial, pone a NULL
+        /// `calculators.owner_id` de las calculadoras PUBLICADAS del titular,
+        /// conservándolas en el catálogo con autoría anonimizada (Edge Cases), y elimina
+        /// las privadas, que ya no tienen a quién servir.
         pub async fn anonymize_history(
             &mut self,
             request: impl tonic::IntoRequest<super::UserRef>,
@@ -303,6 +624,332 @@ pub mod simulator_service_client {
                     GrpcMethod::new(
                         "fintcart.simulator.v1.SimulatorService",
                         "AnonymizeHistory",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+        /// Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por campo:
+        /// la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza — evita
+        /// dejar una calculadora a medio editar visible entre dos llamadas.
+        /// `calculator_id` vacío crea una nueva.
+        pub async fn upsert_calculator(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UpsertCalculatorRequest>,
+        ) -> std::result::Result<tonic::Response<super::Calculator>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/UpsertCalculator",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "UpsertCalculator",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_calculator(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CalculatorRef>,
+        ) -> std::result::Result<tonic::Response<super::Calculator>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/GetCalculator",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "GetCalculator",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+        /// ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+        pub async fn list_calculators(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListCalculatorsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListCalculatorsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/ListCalculators",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "ListCalculators",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn delete_calculator(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CalculatorRef>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/DeleteCalculator",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "DeleteCalculator",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Valida SIN guardar: alimenta el aviso en vivo del constructor en el frontend.
+        /// Devuelve los mismos errores que UpsertCalculator (FR-046).
+        pub async fn validate_definition(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ValidateDefinitionRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ValidateDefinitionResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/ValidateDefinition",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "ValidateDefinition",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// ── Curaduría (FR-052…FR-054) ─────────────────────────────────────────────
+        pub async fn submit_calculator_for_review(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CalculatorRef>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/SubmitCalculatorForReview",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "SubmitCalculatorForReview",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base.
+        pub async fn approve_calculator(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ApproveCalculatorRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/ApproveCalculator",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "ApproveCalculator",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn reject_calculator(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RejectCalculatorRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/RejectCalculator",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "RejectCalculator",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// ── Indicadores financieros (FR-055…FR-060) ───────────────────────────────
+        pub async fn upsert_indicator(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UpsertIndicatorRequest>,
+        ) -> std::result::Result<tonic::Response<super::Indicator>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/UpsertIndicator",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "UpsertIndicator",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_indicators(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListIndicatorsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListIndicatorsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/ListIndicators",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "ListIndicators",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Lo consulta el barrido periódico del Orquestador (research D-23), que es quien
+        /// publica el evento de aviso: el Simulador NO es productor (Principio V).
+        pub async fn get_indicator_calendar_status(
+            &mut self,
+            request: impl tonic::IntoRequest<
+                super::super::super::common::v1::PageRequest,
+            >,
+        ) -> std::result::Result<
+            tonic::Response<super::IndicatorCalendarStatus>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/fintcart.simulator.v1.SimulatorService/GetIndicatorCalendarStatus",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "fintcart.simulator.v1.SimulatorService",
+                        "GetIndicatorCalendarStatus",
                     ),
                 );
             self.inner.unary(req, path, codec).await
@@ -337,6 +984,10 @@ pub mod simulator_service_server {
             tonic::Status,
         >;
         /// Saga de anonimización (FR-030): disocia PII del historial.
+        /// CAMBIO DE COMPORTAMIENTO (002): además del historial, pone a NULL
+        /// `calculators.owner_id` de las calculadoras PUBLICADAS del titular,
+        /// conservándolas en el catálogo con autoría anonimizada (Edge Cases), y elimina
+        /// las privadas, que ya no tienen a quién servir.
         async fn anonymize_history(
             &self,
             request: tonic::Request<super::UserRef>,
@@ -344,10 +995,93 @@ pub mod simulator_service_server {
             tonic::Response<super::super::super::common::v1::OpResult>,
             tonic::Status,
         >;
+        /// ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+        /// Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por campo:
+        /// la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza — evita
+        /// dejar una calculadora a medio editar visible entre dos llamadas.
+        /// `calculator_id` vacío crea una nueva.
+        async fn upsert_calculator(
+            &self,
+            request: tonic::Request<super::UpsertCalculatorRequest>,
+        ) -> std::result::Result<tonic::Response<super::Calculator>, tonic::Status>;
+        async fn get_calculator(
+            &self,
+            request: tonic::Request<super::CalculatorRef>,
+        ) -> std::result::Result<tonic::Response<super::Calculator>, tonic::Status>;
+        /// `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+        /// ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+        async fn list_calculators(
+            &self,
+            request: tonic::Request<super::ListCalculatorsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListCalculatorsResponse>,
+            tonic::Status,
+        >;
+        async fn delete_calculator(
+            &self,
+            request: tonic::Request<super::CalculatorRef>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        >;
+        /// Valida SIN guardar: alimenta el aviso en vivo del constructor en el frontend.
+        /// Devuelve los mismos errores que UpsertCalculator (FR-046).
+        async fn validate_definition(
+            &self,
+            request: tonic::Request<super::ValidateDefinitionRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ValidateDefinitionResponse>,
+            tonic::Status,
+        >;
+        /// ── Curaduría (FR-052…FR-054) ─────────────────────────────────────────────
+        async fn submit_calculator_for_review(
+            &self,
+            request: tonic::Request<super::CalculatorRef>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        >;
+        /// Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base.
+        async fn approve_calculator(
+            &self,
+            request: tonic::Request<super::ApproveCalculatorRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        >;
+        async fn reject_calculator(
+            &self,
+            request: tonic::Request<super::RejectCalculatorRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::super::common::v1::OpResult>,
+            tonic::Status,
+        >;
+        /// ── Indicadores financieros (FR-055…FR-060) ───────────────────────────────
+        async fn upsert_indicator(
+            &self,
+            request: tonic::Request<super::UpsertIndicatorRequest>,
+        ) -> std::result::Result<tonic::Response<super::Indicator>, tonic::Status>;
+        async fn list_indicators(
+            &self,
+            request: tonic::Request<super::ListIndicatorsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListIndicatorsResponse>,
+            tonic::Status,
+        >;
+        /// Lo consulta el barrido periódico del Orquestador (research D-23), que es quien
+        /// publica el evento de aviso: el Simulador NO es productor (Principio V).
+        async fn get_indicator_calendar_status(
+            &self,
+            request: tonic::Request<super::super::super::common::v1::PageRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::IndicatorCalendarStatus>,
+            tonic::Status,
+        >;
     }
-    /// Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
-    /// decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
-    /// (Principio V); la auditoría de simulaciones la emite el Orquestador (research D-03).
+    /// Servicio de Simulador (Rust). Calculadoras financieras con precisión decimal
+    /// arbitraria (rust_decimal). NO es productor de eventos RabbitMQ (Principio V); la
+    /// auditoría de simulaciones la emite el Orquestador (research D-03), y el aviso de
+    /// vencimiento de indicadores también (research D-23).
     /// Todos los montos/tasas viajan como `string` decimal canónica (Principio VIII / D-10).
     #[derive(Debug)]
     pub struct SimulatorServiceServer<T> {
@@ -544,6 +1278,526 @@ pub mod simulator_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = AnonymizeHistorySvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/UpsertCalculator" => {
+                    #[allow(non_camel_case_types)]
+                    struct UpsertCalculatorSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::UpsertCalculatorRequest>
+                    for UpsertCalculatorSvc<T> {
+                        type Response = super::Calculator;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UpsertCalculatorRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::upsert_calculator(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = UpsertCalculatorSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/GetCalculator" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetCalculatorSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::CalculatorRef>
+                    for GetCalculatorSvc<T> {
+                        type Response = super::Calculator;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CalculatorRef>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::get_calculator(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetCalculatorSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/ListCalculators" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListCalculatorsSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::ListCalculatorsRequest>
+                    for ListCalculatorsSvc<T> {
+                        type Response = super::ListCalculatorsResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListCalculatorsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::list_calculators(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListCalculatorsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/DeleteCalculator" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteCalculatorSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::CalculatorRef>
+                    for DeleteCalculatorSvc<T> {
+                        type Response = super::super::super::common::v1::OpResult;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CalculatorRef>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::delete_calculator(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = DeleteCalculatorSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/ValidateDefinition" => {
+                    #[allow(non_camel_case_types)]
+                    struct ValidateDefinitionSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::ValidateDefinitionRequest>
+                    for ValidateDefinitionSvc<T> {
+                        type Response = super::ValidateDefinitionResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ValidateDefinitionRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::validate_definition(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ValidateDefinitionSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/SubmitCalculatorForReview" => {
+                    #[allow(non_camel_case_types)]
+                    struct SubmitCalculatorForReviewSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::CalculatorRef>
+                    for SubmitCalculatorForReviewSvc<T> {
+                        type Response = super::super::super::common::v1::OpResult;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CalculatorRef>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::submit_calculator_for_review(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = SubmitCalculatorForReviewSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/ApproveCalculator" => {
+                    #[allow(non_camel_case_types)]
+                    struct ApproveCalculatorSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::ApproveCalculatorRequest>
+                    for ApproveCalculatorSvc<T> {
+                        type Response = super::super::super::common::v1::OpResult;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ApproveCalculatorRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::approve_calculator(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ApproveCalculatorSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/RejectCalculator" => {
+                    #[allow(non_camel_case_types)]
+                    struct RejectCalculatorSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::RejectCalculatorRequest>
+                    for RejectCalculatorSvc<T> {
+                        type Response = super::super::super::common::v1::OpResult;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RejectCalculatorRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::reject_calculator(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RejectCalculatorSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/UpsertIndicator" => {
+                    #[allow(non_camel_case_types)]
+                    struct UpsertIndicatorSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::UpsertIndicatorRequest>
+                    for UpsertIndicatorSvc<T> {
+                        type Response = super::Indicator;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UpsertIndicatorRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::upsert_indicator(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = UpsertIndicatorSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/ListIndicators" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListIndicatorsSvc<T: SimulatorService>(pub Arc<T>);
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<super::ListIndicatorsRequest>
+                    for ListIndicatorsSvc<T> {
+                        type Response = super::ListIndicatorsResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListIndicatorsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::list_indicators(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListIndicatorsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/fintcart.simulator.v1.SimulatorService/GetIndicatorCalendarStatus" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetIndicatorCalendarStatusSvc<T: SimulatorService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: SimulatorService,
+                    > tonic::server::UnaryService<
+                        super::super::super::common::v1::PageRequest,
+                    > for GetIndicatorCalendarStatusSvc<T> {
+                        type Response = super::IndicatorCalendarStatus;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::super::super::common::v1::PageRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SimulatorService>::get_indicator_calendar_status(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetIndicatorCalendarStatusSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

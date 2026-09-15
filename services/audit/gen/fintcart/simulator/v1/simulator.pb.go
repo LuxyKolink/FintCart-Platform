@@ -26,6 +26,10 @@ const (
 // prefijo del nombre del enum: en proto3 los valores de enum comparten el
 // espacio de nombres del paquete, no el del enum, así que `AHORRO` a secas
 // colisionaría con cualquier otro enum del paquete que lo declarara.
+//
+// En la enmienda 002 estas cinco se resiembran como SIETE definiciones sobre el
+// motor de fórmulas. `calc_type` se conserva como camino de compatibilidad, pero
+// el camino preferente pasa a ser `calculator_id` (FR-043).
 type CalcType int32
 
 const (
@@ -82,6 +86,61 @@ func (x CalcType) Number() protoreflect.EnumNumber {
 // Deprecated: Use CalcType.Descriptor instead.
 func (CalcType) EnumDescriptor() ([]byte, []int) {
 	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{0}
+}
+
+// Tipo de un campo de entrada. NO existe un tipo texto: la única entrada de texto
+// del sistema era el discriminador `operacion` de la calculadora colombiana, que
+// research D-16 elimina al separarla en tres definiciones.
+type InputType int32
+
+const (
+	InputType_INPUT_TYPE_UNSPECIFIED InputType = 0
+	InputType_INPUT_TYPE_MONTO       InputType = 1
+	InputType_INPUT_TYPE_TASA        InputType = 2
+	InputType_INPUT_TYPE_ENTERO      InputType = 3
+)
+
+// Enum value maps for InputType.
+var (
+	InputType_name = map[int32]string{
+		0: "INPUT_TYPE_UNSPECIFIED",
+		1: "INPUT_TYPE_MONTO",
+		2: "INPUT_TYPE_TASA",
+		3: "INPUT_TYPE_ENTERO",
+	}
+	InputType_value = map[string]int32{
+		"INPUT_TYPE_UNSPECIFIED": 0,
+		"INPUT_TYPE_MONTO":       1,
+		"INPUT_TYPE_TASA":        2,
+		"INPUT_TYPE_ENTERO":      3,
+	}
+)
+
+func (x InputType) Enum() *InputType {
+	p := new(InputType)
+	*p = x
+	return p
+}
+
+func (x InputType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (InputType) Descriptor() protoreflect.EnumDescriptor {
+	return file_fintcart_simulator_v1_simulator_proto_enumTypes[1].Descriptor()
+}
+
+func (InputType) Type() protoreflect.EnumType {
+	return &file_fintcart_simulator_v1_simulator_proto_enumTypes[1]
+}
+
+func (x InputType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use InputType.Descriptor instead.
+func (InputType) EnumDescriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{1}
 }
 
 type UserRef struct {
@@ -141,8 +200,12 @@ type ComputeRequest struct {
 	// cliente directo (fuera de una saga) puede dejarla vacía; en ese caso cada
 	// llamada inserta una fila nueva, como antes.
 	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// CAMBIO DE CONTRATO (FR-043): `calculator_id` es el camino PREFERENTE.
+	// `calc_type` se mantiene por compatibilidad y se resuelve a la definición
+	// semilla correspondiente. Exactamente uno de los dos debe venir relleno.
+	CalculatorId  string `protobuf:"bytes,6,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ComputeRequest) Reset() {
@@ -210,13 +273,26 @@ func (x *ComputeRequest) GetIdempotencyKey() string {
 	return ""
 }
 
+func (x *ComputeRequest) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
 type ComputeResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SimulationId  string                 `protobuf:"bytes,1,opt,name=simulation_id,json=simulationId,proto3" json:"simulation_id,omitempty"`
-	Result        map[string]string      `protobuf:"bytes,2,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal] resultados como string decimal canónica
-	ComputedAt    string                 `protobuf:"bytes,3,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`                                                 // RFC-3339
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	SimulationId string                 `protobuf:"bytes,1,opt,name=simulation_id,json=simulationId,proto3" json:"simulation_id,omitempty"`
+	Result       map[string]string      `protobuf:"bytes,2,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal] resultados como string decimal canónica
+	ComputedAt   string                 `protobuf:"bytes,3,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`                                                 // RFC-3339
+	// FR-050: la versión de la definición que produjo este resultado. Sin ella, el
+	// historial no se puede explicar si la calculadora se editó después.
+	CalculatorVersion int32 `protobuf:"varint,4,opt,name=calculator_version,json=calculatorVersion,proto3" json:"calculator_version,omitempty"`
+	// FR-058: snapshot de los indicadores usados, para que el resultado siga siendo
+	// reproducible tras cambiar los indicadores (SC-019).
+	IndicatorsUsed map[string]string `protobuf:"bytes,5,rep,name=indicators_used,json=indicatorsUsed,proto3" json:"indicators_used,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ComputeResponse) Reset() {
@@ -268,6 +344,20 @@ func (x *ComputeResponse) GetComputedAt() string {
 		return x.ComputedAt
 	}
 	return ""
+}
+
+func (x *ComputeResponse) GetCalculatorVersion() int32 {
+	if x != nil {
+		return x.CalculatorVersion
+	}
+	return 0
+}
+
+func (x *ComputeResponse) GetIndicatorsUsed() map[string]string {
+	if x != nil {
+		return x.IndicatorsUsed
+	}
+	return nil
 }
 
 type ListHistoryRequest struct {
@@ -374,21 +464,1339 @@ func (x *ListHistoryResponse) GetPage() *v1.PageResponse {
 	return nil
 }
 
-type ListHistoryResponse_Entry struct {
+// ─────────────────────────────────────────────────────────────────────────────
+// Definición de calculadora
+// ─────────────────────────────────────────────────────────────────────────────
+type CalculatorRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SimulationId  string                 `protobuf:"bytes,1,opt,name=simulation_id,json=simulationId,proto3" json:"simulation_id,omitempty"`
-	CalcType      CalcType               `protobuf:"varint,2,opt,name=calc_type,json=calcType,proto3,enum=fintcart.simulator.v1.CalcType" json:"calc_type,omitempty"`
-	Currency      string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
-	Inputs        map[string]string      `protobuf:"bytes,4,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
-	Result        map[string]string      `protobuf:"bytes,5,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
-	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CalculatorId  string                 `protobuf:"bytes,1,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	ActorId       string                 `protobuf:"bytes,2,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *CalculatorRef) Reset() {
+	*x = CalculatorRef{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalculatorRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalculatorRef) ProtoMessage() {}
+
+func (x *CalculatorRef) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalculatorRef.ProtoReflect.Descriptor instead.
+func (*CalculatorRef) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CalculatorRef) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *CalculatorRef) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+type CalculatorInput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Type          InputType              `protobuf:"varint,3,opt,name=type,proto3,enum=fintcart.simulator.v1.InputType" json:"type,omitempty"`
+	Unit          string                 `protobuf:"bytes,4,opt,name=unit,proto3" json:"unit,omitempty"`
+	MinValue      string                 `protobuf:"bytes,5,opt,name=min_value,json=minValue,proto3" json:"min_value,omitempty"`             // [decimal] vacío ⇒ sin cota inferior
+	MaxValue      string                 `protobuf:"bytes,6,opt,name=max_value,json=maxValue,proto3" json:"max_value,omitempty"`             // [decimal] vacío ⇒ sin cota superior
+	DefaultValue  string                 `protobuf:"bytes,7,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"` // [decimal]
+	Required      bool                   `protobuf:"varint,8,opt,name=required,proto3" json:"required,omitempty"`                            // FR-044; opcional habilita presente(campo)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CalculatorInput) Reset() {
+	*x = CalculatorInput{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalculatorInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalculatorInput) ProtoMessage() {}
+
+func (x *CalculatorInput) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalculatorInput.ProtoReflect.Descriptor instead.
+func (*CalculatorInput) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CalculatorInput) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CalculatorInput) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *CalculatorInput) GetType() InputType {
+	if x != nil {
+		return x.Type
+	}
+	return InputType_INPUT_TYPE_UNSPECIFIED
+}
+
+func (x *CalculatorInput) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *CalculatorInput) GetMinValue() string {
+	if x != nil {
+		return x.MinValue
+	}
+	return ""
+}
+
+func (x *CalculatorInput) GetMaxValue() string {
+	if x != nil {
+		return x.MaxValue
+	}
+	return ""
+}
+
+func (x *CalculatorInput) GetDefaultValue() string {
+	if x != nil {
+		return x.DefaultValue
+	}
+	return ""
+}
+
+func (x *CalculatorInput) GetRequired() bool {
+	if x != nil {
+		return x.Required
+	}
+	return false
+}
+
+// Regla de validación de dominio, evaluada ANTES que las salidas. Separada de las
+// fórmulas a propósito: es lo que permite el mensaje del autor ("el ingreso mensual
+// debe ser mayor que cero") en vez de un genérico de división por cero.
+type CalculatorValidation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Expression    string                 `protobuf:"bytes,1,opt,name=expression,proto3" json:"expression,omitempty"` // expresión booleana; DEBE cumplirse
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`       // mensaje mostrado si no se cumple
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CalculatorValidation) Reset() {
+	*x = CalculatorValidation{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalculatorValidation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalculatorValidation) ProtoMessage() {}
+
+func (x *CalculatorValidation) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalculatorValidation.ProtoReflect.Descriptor instead.
+func (*CalculatorValidation) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CalculatorValidation) GetExpression() string {
+	if x != nil {
+		return x.Expression
+	}
+	return ""
+}
+
+func (x *CalculatorValidation) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type CalculatorOutput struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Key        string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Label      string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Expression string                 `protobuf:"bytes,3,opt,name=expression,proto3" json:"expression,omitempty"`
+	Scale      int32                  `protobuf:"varint,4,opt,name=scale,proto3" json:"scale,omitempty"` // decimales de redondeo half-even
+	// Opcional. Si viene y evalúa a falso, la salida se OMITE. Necesario:
+	// `inversion` solo emite `valor_futuro_real` si se dio `inflacion_anual`.
+	When          string `protobuf:"bytes,5,opt,name=when,proto3" json:"when,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CalculatorOutput) Reset() {
+	*x = CalculatorOutput{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalculatorOutput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalculatorOutput) ProtoMessage() {}
+
+func (x *CalculatorOutput) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalculatorOutput.ProtoReflect.Descriptor instead.
+func (*CalculatorOutput) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CalculatorOutput) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CalculatorOutput) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *CalculatorOutput) GetExpression() string {
+	if x != nil {
+		return x.Expression
+	}
+	return ""
+}
+
+func (x *CalculatorOutput) GetScale() int32 {
+	if x != nil {
+		return x.Scale
+	}
+	return 0
+}
+
+func (x *CalculatorOutput) GetWhen() string {
+	if x != nil {
+		return x.When
+	}
+	return ""
+}
+
+type CalculatorDefinition struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Inputs        []*CalculatorInput      `protobuf:"bytes,1,rep,name=inputs,proto3" json:"inputs,omitempty"` // ≤ 20 (FR-046)
+	Validations   []*CalculatorValidation `protobuf:"bytes,2,rep,name=validations,proto3" json:"validations,omitempty"`
+	Outputs       []*CalculatorOutput     `protobuf:"bytes,3,rep,name=outputs,proto3" json:"outputs,omitempty"` // ≤ 10 (FR-046)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CalculatorDefinition) Reset() {
+	*x = CalculatorDefinition{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalculatorDefinition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalculatorDefinition) ProtoMessage() {}
+
+func (x *CalculatorDefinition) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalculatorDefinition.ProtoReflect.Descriptor instead.
+func (*CalculatorDefinition) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CalculatorDefinition) GetInputs() []*CalculatorInput {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+func (x *CalculatorDefinition) GetValidations() []*CalculatorValidation {
+	if x != nil {
+		return x.Validations
+	}
+	return nil
+}
+
+func (x *CalculatorDefinition) GetOutputs() []*CalculatorOutput {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+type Calculator struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CalculatorId    string                 `protobuf:"bytes,1,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	OwnerId         string                 `protobuf:"bytes,2,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"` // vacío en las siete definiciones semilla
+	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description     string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	IsBuiltin       bool                   `protobuf:"varint,5,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
+	State           string                 `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"` // privada | en_revision | publicada
+	ApprovedBy      string                 `protobuf:"bytes,7,opt,name=approved_by,json=approvedBy,proto3" json:"approved_by,omitempty"`
+	RejectionReason string                 `protobuf:"bytes,8,opt,name=rejection_reason,json=rejectionReason,proto3" json:"rejection_reason,omitempty"`
+	Version         int32                  `protobuf:"varint,9,opt,name=version,proto3" json:"version,omitempty"`
+	Definition      *CalculatorDefinition  `protobuf:"bytes,10,opt,name=definition,proto3" json:"definition,omitempty"`
+	IndicatorsUsed  []string               `protobuf:"bytes,11,rep,name=indicators_used,json=indicatorsUsed,proto3" json:"indicators_used,omitempty"` // extraídos del AST al guardar
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *Calculator) Reset() {
+	*x = Calculator{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Calculator) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Calculator) ProtoMessage() {}
+
+func (x *Calculator) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Calculator.ProtoReflect.Descriptor instead.
+func (*Calculator) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Calculator) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *Calculator) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *Calculator) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Calculator) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Calculator) GetIsBuiltin() bool {
+	if x != nil {
+		return x.IsBuiltin
+	}
+	return false
+}
+
+func (x *Calculator) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *Calculator) GetApprovedBy() string {
+	if x != nil {
+		return x.ApprovedBy
+	}
+	return ""
+}
+
+func (x *Calculator) GetRejectionReason() string {
+	if x != nil {
+		return x.RejectionReason
+	}
+	return ""
+}
+
+func (x *Calculator) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Calculator) GetDefinition() *CalculatorDefinition {
+	if x != nil {
+		return x.Definition
+	}
+	return nil
+}
+
+func (x *Calculator) GetIndicatorsUsed() []string {
+	if x != nil {
+		return x.IndicatorsUsed
+	}
+	return nil
+}
+
+type UpsertCalculatorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CalculatorId  string                 `protobuf:"bytes,1,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"` // vacío ⇒ crear
+	OwnerId       string                 `protobuf:"bytes,2,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Definition    *CalculatorDefinition  `protobuf:"bytes,5,opt,name=definition,proto3" json:"definition,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertCalculatorRequest) Reset() {
+	*x = UpsertCalculatorRequest{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertCalculatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertCalculatorRequest) ProtoMessage() {}
+
+func (x *UpsertCalculatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertCalculatorRequest.ProtoReflect.Descriptor instead.
+func (*UpsertCalculatorRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UpsertCalculatorRequest) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *UpsertCalculatorRequest) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *UpsertCalculatorRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpsertCalculatorRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *UpsertCalculatorRequest) GetDefinition() *CalculatorDefinition {
+	if x != nil {
+		return x.Definition
+	}
+	return nil
+}
+
+type ListCalculatorsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OwnerId       string                 `protobuf:"bytes,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	OnlyPublished bool                   `protobuf:"varint,2,opt,name=only_published,json=onlyPublished,proto3" json:"only_published,omitempty"`
+	Page          *v1.PageRequest        `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCalculatorsRequest) Reset() {
+	*x = ListCalculatorsRequest{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCalculatorsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCalculatorsRequest) ProtoMessage() {}
+
+func (x *ListCalculatorsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCalculatorsRequest.ProtoReflect.Descriptor instead.
+func (*ListCalculatorsRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListCalculatorsRequest) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *ListCalculatorsRequest) GetOnlyPublished() bool {
+	if x != nil {
+		return x.OnlyPublished
+	}
+	return false
+}
+
+func (x *ListCalculatorsRequest) GetPage() *v1.PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListCalculatorsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Calculator          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Page          *v1.PageResponse       `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCalculatorsResponse) Reset() {
+	*x = ListCalculatorsResponse{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCalculatorsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCalculatorsResponse) ProtoMessage() {}
+
+func (x *ListCalculatorsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCalculatorsResponse.ProtoReflect.Descriptor instead.
+func (*ListCalculatorsResponse) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListCalculatorsResponse) GetItems() []*Calculator {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListCalculatorsResponse) GetPage() *v1.PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ValidateDefinitionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Definition    *CalculatorDefinition  `protobuf:"bytes,1,opt,name=definition,proto3" json:"definition,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateDefinitionRequest) Reset() {
+	*x = ValidateDefinitionRequest{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateDefinitionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateDefinitionRequest) ProtoMessage() {}
+
+func (x *ValidateDefinitionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateDefinitionRequest.ProtoReflect.Descriptor instead.
+func (*ValidateDefinitionRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ValidateDefinitionRequest) GetDefinition() *CalculatorDefinition {
+	if x != nil {
+		return x.Definition
+	}
+	return nil
+}
+
+type ValidateDefinitionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Valid bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
+	// Vacío si valid. Cada error señala DÓNDE está el problema, no solo que lo hay:
+	// FR-046 exige indicar el error concreto.
+	Errors        []*DefinitionError `protobuf:"bytes,2,rep,name=errors,proto3" json:"errors,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateDefinitionResponse) Reset() {
+	*x = ValidateDefinitionResponse{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateDefinitionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateDefinitionResponse) ProtoMessage() {}
+
+func (x *ValidateDefinitionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateDefinitionResponse.ProtoReflect.Descriptor instead.
+func (*ValidateDefinitionResponse) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ValidateDefinitionResponse) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *ValidateDefinitionResponse) GetErrors() []*DefinitionError {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+type DefinitionError struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Location string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"` // p. ej. "outputs[1].expression" o "validations[0]"
+	Code     string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`         // campo_inexistente | expresion_mal_formada |
+	// limite_excedido | indicador_desconocido |
+	// exponente_no_entero | funcion_desconocida
+	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DefinitionError) Reset() {
+	*x = DefinitionError{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DefinitionError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DefinitionError) ProtoMessage() {}
+
+func (x *DefinitionError) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DefinitionError.ProtoReflect.Descriptor instead.
+func (*DefinitionError) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DefinitionError) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *DefinitionError) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *DefinitionError) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type ApproveCalculatorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CalculatorId  string                 `protobuf:"bytes,1,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	CoordinatorId string                 `protobuf:"bytes,2,opt,name=coordinator_id,json=coordinatorId,proto3" json:"coordinator_id,omitempty"` // rol coordinador_editorial; ≠ owner_id (FR-053)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApproveCalculatorRequest) Reset() {
+	*x = ApproveCalculatorRequest{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApproveCalculatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApproveCalculatorRequest) ProtoMessage() {}
+
+func (x *ApproveCalculatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApproveCalculatorRequest.ProtoReflect.Descriptor instead.
+func (*ApproveCalculatorRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ApproveCalculatorRequest) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *ApproveCalculatorRequest) GetCoordinatorId() string {
+	if x != nil {
+		return x.CoordinatorId
+	}
+	return ""
+}
+
+type RejectCalculatorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CalculatorId  string                 `protobuf:"bytes,1,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	CoordinatorId string                 `protobuf:"bytes,2,opt,name=coordinator_id,json=coordinatorId,proto3" json:"coordinator_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"` // obligatorio (FR-054)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RejectCalculatorRequest) Reset() {
+	*x = RejectCalculatorRequest{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RejectCalculatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RejectCalculatorRequest) ProtoMessage() {}
+
+func (x *RejectCalculatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RejectCalculatorRequest.ProtoReflect.Descriptor instead.
+func (*RejectCalculatorRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RejectCalculatorRequest) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *RejectCalculatorRequest) GetCoordinatorId() string {
+	if x != nil {
+		return x.CoordinatorId
+	}
+	return ""
+}
+
+func (x *RejectCalculatorRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Indicadores financieros
+// ─────────────────────────────────────────────────────────────────────────────
+type Indicator struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IndicatorId   string                 `protobuf:"bytes,1,opt,name=indicator_id,json=indicatorId,proto3" json:"indicator_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                            // ^[A-Z][A-Z0-9_]*$ — se referencia como @NOMBRE
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`                          // [decimal]
+	ValidFrom     string                 `protobuf:"bytes,4,opt,name=valid_from,json=validFrom,proto3" json:"valid_from,omitempty"` // fecha ISO-8601, inclusive
+	ValidTo       string                 `protobuf:"bytes,5,opt,name=valid_to,json=validTo,proto3" json:"valid_to,omitempty"`       // fecha ISO-8601, EXCLUSIVA
+	RegisteredBy  string                 `protobuf:"bytes,6,opt,name=registered_by,json=registeredBy,proto3" json:"registered_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Indicator) Reset() {
+	*x = Indicator{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Indicator) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Indicator) ProtoMessage() {}
+
+func (x *Indicator) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Indicator.ProtoReflect.Descriptor instead.
+func (*Indicator) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *Indicator) GetIndicatorId() string {
+	if x != nil {
+		return x.IndicatorId
+	}
+	return ""
+}
+
+func (x *Indicator) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Indicator) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *Indicator) GetValidFrom() string {
+	if x != nil {
+		return x.ValidFrom
+	}
+	return ""
+}
+
+func (x *Indicator) GetValidTo() string {
+	if x != nil {
+		return x.ValidTo
+	}
+	return ""
+}
+
+func (x *Indicator) GetRegisteredBy() string {
+	if x != nil {
+		return x.RegisteredBy
+	}
+	return ""
+}
+
+type UpsertIndicatorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IndicatorId   string                 `protobuf:"bytes,1,opt,name=indicator_id,json=indicatorId,proto3" json:"indicator_id,omitempty"` // vacío ⇒ crear
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"` // [decimal]
+	ValidFrom     string                 `protobuf:"bytes,4,opt,name=valid_from,json=validFrom,proto3" json:"valid_from,omitempty"`
+	ValidTo       string                 `protobuf:"bytes,5,opt,name=valid_to,json=validTo,proto3" json:"valid_to,omitempty"`
+	ActorId       string                 `protobuf:"bytes,6,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"` // rol administrador (FR-060)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertIndicatorRequest) Reset() {
+	*x = UpsertIndicatorRequest{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertIndicatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertIndicatorRequest) ProtoMessage() {}
+
+func (x *UpsertIndicatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertIndicatorRequest.ProtoReflect.Descriptor instead.
+func (*UpsertIndicatorRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *UpsertIndicatorRequest) GetIndicatorId() string {
+	if x != nil {
+		return x.IndicatorId
+	}
+	return ""
+}
+
+func (x *UpsertIndicatorRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpsertIndicatorRequest) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *UpsertIndicatorRequest) GetValidFrom() string {
+	if x != nil {
+		return x.ValidFrom
+	}
+	return ""
+}
+
+func (x *UpsertIndicatorRequest) GetValidTo() string {
+	if x != nil {
+		return x.ValidTo
+	}
+	return ""
+}
+
+func (x *UpsertIndicatorRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+type ListIndicatorsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                   // vacío ⇒ todos
+	OnDate        string                 `protobuf:"bytes,2,opt,name=on_date,json=onDate,proto3" json:"on_date,omitempty"` // vacío ⇒ todas las vigencias; si viene, la vigente
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListIndicatorsRequest) Reset() {
+	*x = ListIndicatorsRequest{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListIndicatorsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListIndicatorsRequest) ProtoMessage() {}
+
+func (x *ListIndicatorsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListIndicatorsRequest.ProtoReflect.Descriptor instead.
+func (*ListIndicatorsRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListIndicatorsRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ListIndicatorsRequest) GetOnDate() string {
+	if x != nil {
+		return x.OnDate
+	}
+	return ""
+}
+
+type ListIndicatorsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Indicator           `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListIndicatorsResponse) Reset() {
+	*x = ListIndicatorsResponse{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListIndicatorsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListIndicatorsResponse) ProtoMessage() {}
+
+func (x *ListIndicatorsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListIndicatorsResponse.ProtoReflect.Descriptor instead.
+func (*ListIndicatorsResponse) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListIndicatorsResponse) GetItems() []*Indicator {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type IndicatorCalendarStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Indicadores SIN vigencia para la fecha actual (FR-062).
+	MissingNames []string `protobuf:"bytes,1,rep,name=missing_names,json=missingNames,proto3" json:"missing_names,omitempty"`
+	// Indicadores cuya vigencia termina dentro de la ventana de aviso (FR-061).
+	Expiring      []*ExpiringIndicator `protobuf:"bytes,2,rep,name=expiring,proto3" json:"expiring,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IndicatorCalendarStatus) Reset() {
+	*x = IndicatorCalendarStatus{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IndicatorCalendarStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IndicatorCalendarStatus) ProtoMessage() {}
+
+func (x *IndicatorCalendarStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IndicatorCalendarStatus.ProtoReflect.Descriptor instead.
+func (*IndicatorCalendarStatus) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *IndicatorCalendarStatus) GetMissingNames() []string {
+	if x != nil {
+		return x.MissingNames
+	}
+	return nil
+}
+
+func (x *IndicatorCalendarStatus) GetExpiring() []*ExpiringIndicator {
+	if x != nil {
+		return x.Expiring
+	}
+	return nil
+}
+
+type ExpiringIndicator struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ValidTo       string                 `protobuf:"bytes,2,opt,name=valid_to,json=validTo,proto3" json:"valid_to,omitempty"`
+	DaysRemaining int32                  `protobuf:"varint,3,opt,name=days_remaining,json=daysRemaining,proto3" json:"days_remaining,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExpiringIndicator) Reset() {
+	*x = ExpiringIndicator{}
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExpiringIndicator) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExpiringIndicator) ProtoMessage() {}
+
+func (x *ExpiringIndicator) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExpiringIndicator.ProtoReflect.Descriptor instead.
+func (*ExpiringIndicator) Descriptor() ([]byte, []int) {
+	return file_fintcart_simulator_v1_simulator_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ExpiringIndicator) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ExpiringIndicator) GetValidTo() string {
+	if x != nil {
+		return x.ValidTo
+	}
+	return ""
+}
+
+func (x *ExpiringIndicator) GetDaysRemaining() int32 {
+	if x != nil {
+		return x.DaysRemaining
+	}
+	return 0
+}
+
+type ListHistoryResponse_Entry struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	SimulationId string                 `protobuf:"bytes,1,opt,name=simulation_id,json=simulationId,proto3" json:"simulation_id,omitempty"`
+	CalcType     CalcType               `protobuf:"varint,2,opt,name=calc_type,json=calcType,proto3,enum=fintcart.simulator.v1.CalcType" json:"calc_type,omitempty"`
+	Currency     string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
+	Inputs       map[string]string      `protobuf:"bytes,4,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	Result       map[string]string      `protobuf:"bytes,5,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	CreatedAt    string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// FR-058: la entrada se explica por sí sola, sin depender de la definición
+	// vigente hoy.
+	CalculatorId      string            `protobuf:"bytes,7,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	CalculatorVersion int32             `protobuf:"varint,8,opt,name=calculator_version,json=calculatorVersion,proto3" json:"calculator_version,omitempty"`
+	IndicatorsUsed    map[string]string `protobuf:"bytes,9,rep,name=indicators_used,json=indicatorsUsed,proto3" json:"indicators_used,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
 func (x *ListHistoryResponse_Entry) Reset() {
 	*x = ListHistoryResponse_Entry{}
-	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[7]
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -400,7 +1808,7 @@ func (x *ListHistoryResponse_Entry) String() string {
 func (*ListHistoryResponse_Entry) ProtoMessage() {}
 
 func (x *ListHistoryResponse_Entry) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[7]
+	mi := &file_fintcart_simulator_v1_simulator_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,36 +1866,63 @@ func (x *ListHistoryResponse_Entry) GetCreatedAt() string {
 	return ""
 }
 
+func (x *ListHistoryResponse_Entry) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *ListHistoryResponse_Entry) GetCalculatorVersion() int32 {
+	if x != nil {
+		return x.CalculatorVersion
+	}
+	return 0
+}
+
+func (x *ListHistoryResponse_Entry) GetIndicatorsUsed() map[string]string {
+	if x != nil {
+		return x.IndicatorsUsed
+	}
+	return nil
+}
+
 var File_fintcart_simulator_v1_simulator_proto protoreflect.FileDescriptor
 
 const file_fintcart_simulator_v1_simulator_proto_rawDesc = "" +
 	"\n" +
 	"%fintcart/simulator/v1/simulator.proto\x12\x15fintcart.simulator.v1\x1a\x1ffintcart/common/v1/common.proto\"\"\n" +
 	"\aUserRef\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xb2\x02\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xd7\x02\n" +
 	"\x0eComputeRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12<\n" +
 	"\tcalc_type\x18\x02 \x01(\x0e2\x1f.fintcart.simulator.v1.CalcTypeR\bcalcType\x12\x1a\n" +
 	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x12I\n" +
 	"\x06inputs\x18\x04 \x03(\v21.fintcart.simulator.v1.ComputeRequest.InputsEntryR\x06inputs\x12'\n" +
-	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x1a9\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12#\n" +
+	"\rcalculator_id\x18\x06 \x01(\tR\fcalculatorId\x1a9\n" +
 	"\vInputsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xde\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb5\x03\n" +
 	"\x0fComputeResponse\x12#\n" +
 	"\rsimulation_id\x18\x01 \x01(\tR\fsimulationId\x12J\n" +
 	"\x06result\x18\x02 \x03(\v22.fintcart.simulator.v1.ComputeResponse.ResultEntryR\x06result\x12\x1f\n" +
 	"\vcomputed_at\x18\x03 \x01(\tR\n" +
-	"computedAt\x1a9\n" +
+	"computedAt\x12-\n" +
+	"\x12calculator_version\x18\x04 \x01(\x05R\x11calculatorVersion\x12c\n" +
+	"\x0findicators_used\x18\x05 \x03(\v2:.fintcart.simulator.v1.ComputeResponse.IndicatorsUsedEntryR\x0eindicatorsUsed\x1a9\n" +
 	"\vResultEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
+	"\x13IndicatorsUsedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"b\n" +
 	"\x12ListHistoryRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x123\n" +
-	"\x04page\x18\x02 \x01(\v2\x1f.fintcart.common.v1.PageRequestR\x04page\"\xdd\x04\n" +
+	"\x04page\x18\x02 \x01(\v2\x1f.fintcart.common.v1.PageRequestR\x04page\"\xe3\x06\n" +
 	"\x13ListHistoryResponse\x12F\n" +
 	"\x05items\x18\x01 \x03(\v20.fintcart.simulator.v1.ListHistoryResponse.EntryR\x05items\x124\n" +
-	"\x04page\x18\x02 \x01(\v2 .fintcart.common.v1.PageResponseR\x04page\x1a\xc7\x03\n" +
+	"\x04page\x18\x02 \x01(\v2 .fintcart.common.v1.PageResponseR\x04page\x1a\xcd\x05\n" +
 	"\x05Entry\x12#\n" +
 	"\rsimulation_id\x18\x01 \x01(\tR\fsimulationId\x12<\n" +
 	"\tcalc_type\x18\x02 \x01(\x0e2\x1f.fintcart.simulator.v1.CalcTypeR\bcalcType\x12\x1a\n" +
@@ -495,24 +1930,154 @@ const file_fintcart_simulator_v1_simulator_proto_rawDesc = "" +
 	"\x06inputs\x18\x04 \x03(\v2<.fintcart.simulator.v1.ListHistoryResponse.Entry.InputsEntryR\x06inputs\x12T\n" +
 	"\x06result\x18\x05 \x03(\v2<.fintcart.simulator.v1.ListHistoryResponse.Entry.ResultEntryR\x06result\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\tR\tcreatedAt\x1a9\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12#\n" +
+	"\rcalculator_id\x18\a \x01(\tR\fcalculatorId\x12-\n" +
+	"\x12calculator_version\x18\b \x01(\x05R\x11calculatorVersion\x12m\n" +
+	"\x0findicators_used\x18\t \x03(\v2D.fintcart.simulator.v1.ListHistoryResponse.Entry.IndicatorsUsedEntryR\x0eindicatorsUsed\x1a9\n" +
 	"\vInputsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a9\n" +
 	"\vResultEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xa9\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
+	"\x13IndicatorsUsedEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"O\n" +
+	"\rCalculatorRef\x12#\n" +
+	"\rcalculator_id\x18\x01 \x01(\tR\fcalculatorId\x12\x19\n" +
+	"\bactor_id\x18\x02 \x01(\tR\aactorId\"\xfe\x01\n" +
+	"\x0fCalculatorInput\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x124\n" +
+	"\x04type\x18\x03 \x01(\x0e2 .fintcart.simulator.v1.InputTypeR\x04type\x12\x12\n" +
+	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x1b\n" +
+	"\tmin_value\x18\x05 \x01(\tR\bminValue\x12\x1b\n" +
+	"\tmax_value\x18\x06 \x01(\tR\bmaxValue\x12#\n" +
+	"\rdefault_value\x18\a \x01(\tR\fdefaultValue\x12\x1a\n" +
+	"\brequired\x18\b \x01(\bR\brequired\"P\n" +
+	"\x14CalculatorValidation\x12\x1e\n" +
+	"\n" +
+	"expression\x18\x01 \x01(\tR\n" +
+	"expression\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x84\x01\n" +
+	"\x10CalculatorOutput\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1e\n" +
+	"\n" +
+	"expression\x18\x03 \x01(\tR\n" +
+	"expression\x12\x14\n" +
+	"\x05scale\x18\x04 \x01(\x05R\x05scale\x12\x12\n" +
+	"\x04when\x18\x05 \x01(\tR\x04when\"\xe8\x01\n" +
+	"\x14CalculatorDefinition\x12>\n" +
+	"\x06inputs\x18\x01 \x03(\v2&.fintcart.simulator.v1.CalculatorInputR\x06inputs\x12M\n" +
+	"\vvalidations\x18\x02 \x03(\v2+.fintcart.simulator.v1.CalculatorValidationR\vvalidations\x12A\n" +
+	"\aoutputs\x18\x03 \x03(\v2'.fintcart.simulator.v1.CalculatorOutputR\aoutputs\"\x93\x03\n" +
+	"\n" +
+	"Calculator\x12#\n" +
+	"\rcalculator_id\x18\x01 \x01(\tR\fcalculatorId\x12\x19\n" +
+	"\bowner_id\x18\x02 \x01(\tR\aownerId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
+	"\n" +
+	"is_builtin\x18\x05 \x01(\bR\tisBuiltin\x12\x14\n" +
+	"\x05state\x18\x06 \x01(\tR\x05state\x12\x1f\n" +
+	"\vapproved_by\x18\a \x01(\tR\n" +
+	"approvedBy\x12)\n" +
+	"\x10rejection_reason\x18\b \x01(\tR\x0frejectionReason\x12\x18\n" +
+	"\aversion\x18\t \x01(\x05R\aversion\x12K\n" +
+	"\n" +
+	"definition\x18\n" +
+	" \x01(\v2+.fintcart.simulator.v1.CalculatorDefinitionR\n" +
+	"definition\x12'\n" +
+	"\x0findicators_used\x18\v \x03(\tR\x0eindicatorsUsed\"\xdc\x01\n" +
+	"\x17UpsertCalculatorRequest\x12#\n" +
+	"\rcalculator_id\x18\x01 \x01(\tR\fcalculatorId\x12\x19\n" +
+	"\bowner_id\x18\x02 \x01(\tR\aownerId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12K\n" +
+	"\n" +
+	"definition\x18\x05 \x01(\v2+.fintcart.simulator.v1.CalculatorDefinitionR\n" +
+	"definition\"\x8f\x01\n" +
+	"\x16ListCalculatorsRequest\x12\x19\n" +
+	"\bowner_id\x18\x01 \x01(\tR\aownerId\x12%\n" +
+	"\x0eonly_published\x18\x02 \x01(\bR\ronlyPublished\x123\n" +
+	"\x04page\x18\x03 \x01(\v2\x1f.fintcart.common.v1.PageRequestR\x04page\"\x88\x01\n" +
+	"\x17ListCalculatorsResponse\x127\n" +
+	"\x05items\x18\x01 \x03(\v2!.fintcart.simulator.v1.CalculatorR\x05items\x124\n" +
+	"\x04page\x18\x02 \x01(\v2 .fintcart.common.v1.PageResponseR\x04page\"h\n" +
+	"\x19ValidateDefinitionRequest\x12K\n" +
+	"\n" +
+	"definition\x18\x01 \x01(\v2+.fintcart.simulator.v1.CalculatorDefinitionR\n" +
+	"definition\"r\n" +
+	"\x1aValidateDefinitionResponse\x12\x14\n" +
+	"\x05valid\x18\x01 \x01(\bR\x05valid\x12>\n" +
+	"\x06errors\x18\x02 \x03(\v2&.fintcart.simulator.v1.DefinitionErrorR\x06errors\"[\n" +
+	"\x0fDefinitionError\x12\x1a\n" +
+	"\blocation\x18\x01 \x01(\tR\blocation\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"f\n" +
+	"\x18ApproveCalculatorRequest\x12#\n" +
+	"\rcalculator_id\x18\x01 \x01(\tR\fcalculatorId\x12%\n" +
+	"\x0ecoordinator_id\x18\x02 \x01(\tR\rcoordinatorId\"}\n" +
+	"\x17RejectCalculatorRequest\x12#\n" +
+	"\rcalculator_id\x18\x01 \x01(\tR\fcalculatorId\x12%\n" +
+	"\x0ecoordinator_id\x18\x02 \x01(\tR\rcoordinatorId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xb7\x01\n" +
+	"\tIndicator\x12!\n" +
+	"\findicator_id\x18\x01 \x01(\tR\vindicatorId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1d\n" +
+	"\n" +
+	"valid_from\x18\x04 \x01(\tR\tvalidFrom\x12\x19\n" +
+	"\bvalid_to\x18\x05 \x01(\tR\avalidTo\x12#\n" +
+	"\rregistered_by\x18\x06 \x01(\tR\fregisteredBy\"\xba\x01\n" +
+	"\x16UpsertIndicatorRequest\x12!\n" +
+	"\findicator_id\x18\x01 \x01(\tR\vindicatorId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1d\n" +
+	"\n" +
+	"valid_from\x18\x04 \x01(\tR\tvalidFrom\x12\x19\n" +
+	"\bvalid_to\x18\x05 \x01(\tR\avalidTo\x12\x19\n" +
+	"\bactor_id\x18\x06 \x01(\tR\aactorId\"D\n" +
+	"\x15ListIndicatorsRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x17\n" +
+	"\aon_date\x18\x02 \x01(\tR\x06onDate\"P\n" +
+	"\x16ListIndicatorsResponse\x126\n" +
+	"\x05items\x18\x01 \x03(\v2 .fintcart.simulator.v1.IndicatorR\x05items\"\x84\x01\n" +
+	"\x17IndicatorCalendarStatus\x12#\n" +
+	"\rmissing_names\x18\x01 \x03(\tR\fmissingNames\x12D\n" +
+	"\bexpiring\x18\x02 \x03(\v2(.fintcart.simulator.v1.ExpiringIndicatorR\bexpiring\"i\n" +
+	"\x11ExpiringIndicator\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
+	"\bvalid_to\x18\x02 \x01(\tR\avalidTo\x12%\n" +
+	"\x0edays_remaining\x18\x03 \x01(\x05R\rdaysRemaining*\xa9\x01\n" +
 	"\bCalcType\x12\x19\n" +
 	"\x15CALC_TYPE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10CALC_TYPE_AHORRO\x10\x01\x12\x15\n" +
 	"\x11CALC_TYPE_CREDITO\x10\x02\x12\x19\n" +
 	"\x15CALC_TYPE_PRESUPUESTO\x10\x03\x12\x17\n" +
 	"\x13CALC_TYPE_INVERSION\x10\x04\x12!\n" +
-	"\x1dCALC_TYPE_COLOMBIA_ESPECIFICA\x10\x052\xa4\x02\n" +
+	"\x1dCALC_TYPE_COLOMBIA_ESPECIFICA\x10\x05*i\n" +
+	"\tInputType\x12\x1a\n" +
+	"\x16INPUT_TYPE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10INPUT_TYPE_MONTO\x10\x01\x12\x13\n" +
+	"\x0fINPUT_TYPE_TASA\x10\x02\x12\x15\n" +
+	"\x11INPUT_TYPE_ENTERO\x10\x032\x93\v\n" +
 	"\x10SimulatorService\x12X\n" +
 	"\aCompute\x12%.fintcart.simulator.v1.ComputeRequest\x1a&.fintcart.simulator.v1.ComputeResponse\x12d\n" +
 	"\vListHistory\x12).fintcart.simulator.v1.ListHistoryRequest\x1a*.fintcart.simulator.v1.ListHistoryResponse\x12P\n" +
-	"\x10AnonymizeHistory\x12\x1e.fintcart.simulator.v1.UserRef\x1a\x1c.fintcart.common.v1.OpResultB\xf4\x01\n" +
+	"\x10AnonymizeHistory\x12\x1e.fintcart.simulator.v1.UserRef\x1a\x1c.fintcart.common.v1.OpResult\x12e\n" +
+	"\x10UpsertCalculator\x12..fintcart.simulator.v1.UpsertCalculatorRequest\x1a!.fintcart.simulator.v1.Calculator\x12X\n" +
+	"\rGetCalculator\x12$.fintcart.simulator.v1.CalculatorRef\x1a!.fintcart.simulator.v1.Calculator\x12p\n" +
+	"\x0fListCalculators\x12-.fintcart.simulator.v1.ListCalculatorsRequest\x1a..fintcart.simulator.v1.ListCalculatorsResponse\x12V\n" +
+	"\x10DeleteCalculator\x12$.fintcart.simulator.v1.CalculatorRef\x1a\x1c.fintcart.common.v1.OpResult\x12y\n" +
+	"\x12ValidateDefinition\x120.fintcart.simulator.v1.ValidateDefinitionRequest\x1a1.fintcart.simulator.v1.ValidateDefinitionResponse\x12_\n" +
+	"\x19SubmitCalculatorForReview\x12$.fintcart.simulator.v1.CalculatorRef\x1a\x1c.fintcart.common.v1.OpResult\x12b\n" +
+	"\x11ApproveCalculator\x12/.fintcart.simulator.v1.ApproveCalculatorRequest\x1a\x1c.fintcart.common.v1.OpResult\x12`\n" +
+	"\x10RejectCalculator\x12..fintcart.simulator.v1.RejectCalculatorRequest\x1a\x1c.fintcart.common.v1.OpResult\x12b\n" +
+	"\x0fUpsertIndicator\x12-.fintcart.simulator.v1.UpsertIndicatorRequest\x1a .fintcart.simulator.v1.Indicator\x12m\n" +
+	"\x0eListIndicators\x12,.fintcart.simulator.v1.ListIndicatorsRequest\x1a-.fintcart.simulator.v1.ListIndicatorsResponse\x12m\n" +
+	"\x1aGetIndicatorCalendarStatus\x12\x1f.fintcart.common.v1.PageRequest\x1a..fintcart.simulator.v1.IndicatorCalendarStatusB\xf4\x01\n" +
 	"\x19com.fintcart.simulator.v1B\x0eSimulatorProtoP\x01ZQgithub.com/fintcart/platform/services/audit/gen/fintcart/simulator/v1;simulatorv1\xa2\x02\x03FSX\xaa\x02\x15Fintcart.Simulator.V1\xca\x02\x15Fintcart\\Simulator\\V1\xe2\x02!Fintcart\\Simulator\\V1\\GPBMetadata\xea\x02\x17Fintcart::Simulator::V1b\x06proto3"
 
 var (
@@ -527,45 +2092,105 @@ func file_fintcart_simulator_v1_simulator_proto_rawDescGZIP() []byte {
 	return file_fintcart_simulator_v1_simulator_proto_rawDescData
 }
 
-var file_fintcart_simulator_v1_simulator_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_fintcart_simulator_v1_simulator_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_fintcart_simulator_v1_simulator_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_fintcart_simulator_v1_simulator_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_fintcart_simulator_v1_simulator_proto_goTypes = []any{
-	(CalcType)(0),                     // 0: fintcart.simulator.v1.CalcType
-	(*UserRef)(nil),                   // 1: fintcart.simulator.v1.UserRef
-	(*ComputeRequest)(nil),            // 2: fintcart.simulator.v1.ComputeRequest
-	(*ComputeResponse)(nil),           // 3: fintcart.simulator.v1.ComputeResponse
-	(*ListHistoryRequest)(nil),        // 4: fintcart.simulator.v1.ListHistoryRequest
-	(*ListHistoryResponse)(nil),       // 5: fintcart.simulator.v1.ListHistoryResponse
-	nil,                               // 6: fintcart.simulator.v1.ComputeRequest.InputsEntry
-	nil,                               // 7: fintcart.simulator.v1.ComputeResponse.ResultEntry
-	(*ListHistoryResponse_Entry)(nil), // 8: fintcart.simulator.v1.ListHistoryResponse.Entry
-	nil,                               // 9: fintcart.simulator.v1.ListHistoryResponse.Entry.InputsEntry
-	nil,                               // 10: fintcart.simulator.v1.ListHistoryResponse.Entry.ResultEntry
-	(*v1.PageRequest)(nil),            // 11: fintcart.common.v1.PageRequest
-	(*v1.PageResponse)(nil),           // 12: fintcart.common.v1.PageResponse
-	(*v1.OpResult)(nil),               // 13: fintcart.common.v1.OpResult
+	(CalcType)(0),                      // 0: fintcart.simulator.v1.CalcType
+	(InputType)(0),                     // 1: fintcart.simulator.v1.InputType
+	(*UserRef)(nil),                    // 2: fintcart.simulator.v1.UserRef
+	(*ComputeRequest)(nil),             // 3: fintcart.simulator.v1.ComputeRequest
+	(*ComputeResponse)(nil),            // 4: fintcart.simulator.v1.ComputeResponse
+	(*ListHistoryRequest)(nil),         // 5: fintcart.simulator.v1.ListHistoryRequest
+	(*ListHistoryResponse)(nil),        // 6: fintcart.simulator.v1.ListHistoryResponse
+	(*CalculatorRef)(nil),              // 7: fintcart.simulator.v1.CalculatorRef
+	(*CalculatorInput)(nil),            // 8: fintcart.simulator.v1.CalculatorInput
+	(*CalculatorValidation)(nil),       // 9: fintcart.simulator.v1.CalculatorValidation
+	(*CalculatorOutput)(nil),           // 10: fintcart.simulator.v1.CalculatorOutput
+	(*CalculatorDefinition)(nil),       // 11: fintcart.simulator.v1.CalculatorDefinition
+	(*Calculator)(nil),                 // 12: fintcart.simulator.v1.Calculator
+	(*UpsertCalculatorRequest)(nil),    // 13: fintcart.simulator.v1.UpsertCalculatorRequest
+	(*ListCalculatorsRequest)(nil),     // 14: fintcart.simulator.v1.ListCalculatorsRequest
+	(*ListCalculatorsResponse)(nil),    // 15: fintcart.simulator.v1.ListCalculatorsResponse
+	(*ValidateDefinitionRequest)(nil),  // 16: fintcart.simulator.v1.ValidateDefinitionRequest
+	(*ValidateDefinitionResponse)(nil), // 17: fintcart.simulator.v1.ValidateDefinitionResponse
+	(*DefinitionError)(nil),            // 18: fintcart.simulator.v1.DefinitionError
+	(*ApproveCalculatorRequest)(nil),   // 19: fintcart.simulator.v1.ApproveCalculatorRequest
+	(*RejectCalculatorRequest)(nil),    // 20: fintcart.simulator.v1.RejectCalculatorRequest
+	(*Indicator)(nil),                  // 21: fintcart.simulator.v1.Indicator
+	(*UpsertIndicatorRequest)(nil),     // 22: fintcart.simulator.v1.UpsertIndicatorRequest
+	(*ListIndicatorsRequest)(nil),      // 23: fintcart.simulator.v1.ListIndicatorsRequest
+	(*ListIndicatorsResponse)(nil),     // 24: fintcart.simulator.v1.ListIndicatorsResponse
+	(*IndicatorCalendarStatus)(nil),    // 25: fintcart.simulator.v1.IndicatorCalendarStatus
+	(*ExpiringIndicator)(nil),          // 26: fintcart.simulator.v1.ExpiringIndicator
+	nil,                                // 27: fintcart.simulator.v1.ComputeRequest.InputsEntry
+	nil,                                // 28: fintcart.simulator.v1.ComputeResponse.ResultEntry
+	nil,                                // 29: fintcart.simulator.v1.ComputeResponse.IndicatorsUsedEntry
+	(*ListHistoryResponse_Entry)(nil),  // 30: fintcart.simulator.v1.ListHistoryResponse.Entry
+	nil,                                // 31: fintcart.simulator.v1.ListHistoryResponse.Entry.InputsEntry
+	nil,                                // 32: fintcart.simulator.v1.ListHistoryResponse.Entry.ResultEntry
+	nil,                                // 33: fintcart.simulator.v1.ListHistoryResponse.Entry.IndicatorsUsedEntry
+	(*v1.PageRequest)(nil),             // 34: fintcart.common.v1.PageRequest
+	(*v1.PageResponse)(nil),            // 35: fintcart.common.v1.PageResponse
+	(*v1.OpResult)(nil),                // 36: fintcart.common.v1.OpResult
 }
 var file_fintcart_simulator_v1_simulator_proto_depIdxs = []int32{
 	0,  // 0: fintcart.simulator.v1.ComputeRequest.calc_type:type_name -> fintcart.simulator.v1.CalcType
-	6,  // 1: fintcart.simulator.v1.ComputeRequest.inputs:type_name -> fintcart.simulator.v1.ComputeRequest.InputsEntry
-	7,  // 2: fintcart.simulator.v1.ComputeResponse.result:type_name -> fintcart.simulator.v1.ComputeResponse.ResultEntry
-	11, // 3: fintcart.simulator.v1.ListHistoryRequest.page:type_name -> fintcart.common.v1.PageRequest
-	8,  // 4: fintcart.simulator.v1.ListHistoryResponse.items:type_name -> fintcart.simulator.v1.ListHistoryResponse.Entry
-	12, // 5: fintcart.simulator.v1.ListHistoryResponse.page:type_name -> fintcart.common.v1.PageResponse
-	0,  // 6: fintcart.simulator.v1.ListHistoryResponse.Entry.calc_type:type_name -> fintcart.simulator.v1.CalcType
-	9,  // 7: fintcart.simulator.v1.ListHistoryResponse.Entry.inputs:type_name -> fintcart.simulator.v1.ListHistoryResponse.Entry.InputsEntry
-	10, // 8: fintcart.simulator.v1.ListHistoryResponse.Entry.result:type_name -> fintcart.simulator.v1.ListHistoryResponse.Entry.ResultEntry
-	2,  // 9: fintcart.simulator.v1.SimulatorService.Compute:input_type -> fintcart.simulator.v1.ComputeRequest
-	4,  // 10: fintcart.simulator.v1.SimulatorService.ListHistory:input_type -> fintcart.simulator.v1.ListHistoryRequest
-	1,  // 11: fintcart.simulator.v1.SimulatorService.AnonymizeHistory:input_type -> fintcart.simulator.v1.UserRef
-	3,  // 12: fintcart.simulator.v1.SimulatorService.Compute:output_type -> fintcart.simulator.v1.ComputeResponse
-	5,  // 13: fintcart.simulator.v1.SimulatorService.ListHistory:output_type -> fintcart.simulator.v1.ListHistoryResponse
-	13, // 14: fintcart.simulator.v1.SimulatorService.AnonymizeHistory:output_type -> fintcart.common.v1.OpResult
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	27, // 1: fintcart.simulator.v1.ComputeRequest.inputs:type_name -> fintcart.simulator.v1.ComputeRequest.InputsEntry
+	28, // 2: fintcart.simulator.v1.ComputeResponse.result:type_name -> fintcart.simulator.v1.ComputeResponse.ResultEntry
+	29, // 3: fintcart.simulator.v1.ComputeResponse.indicators_used:type_name -> fintcart.simulator.v1.ComputeResponse.IndicatorsUsedEntry
+	34, // 4: fintcart.simulator.v1.ListHistoryRequest.page:type_name -> fintcart.common.v1.PageRequest
+	30, // 5: fintcart.simulator.v1.ListHistoryResponse.items:type_name -> fintcart.simulator.v1.ListHistoryResponse.Entry
+	35, // 6: fintcart.simulator.v1.ListHistoryResponse.page:type_name -> fintcart.common.v1.PageResponse
+	1,  // 7: fintcart.simulator.v1.CalculatorInput.type:type_name -> fintcart.simulator.v1.InputType
+	8,  // 8: fintcart.simulator.v1.CalculatorDefinition.inputs:type_name -> fintcart.simulator.v1.CalculatorInput
+	9,  // 9: fintcart.simulator.v1.CalculatorDefinition.validations:type_name -> fintcart.simulator.v1.CalculatorValidation
+	10, // 10: fintcart.simulator.v1.CalculatorDefinition.outputs:type_name -> fintcart.simulator.v1.CalculatorOutput
+	11, // 11: fintcart.simulator.v1.Calculator.definition:type_name -> fintcart.simulator.v1.CalculatorDefinition
+	11, // 12: fintcart.simulator.v1.UpsertCalculatorRequest.definition:type_name -> fintcart.simulator.v1.CalculatorDefinition
+	34, // 13: fintcart.simulator.v1.ListCalculatorsRequest.page:type_name -> fintcart.common.v1.PageRequest
+	12, // 14: fintcart.simulator.v1.ListCalculatorsResponse.items:type_name -> fintcart.simulator.v1.Calculator
+	35, // 15: fintcart.simulator.v1.ListCalculatorsResponse.page:type_name -> fintcart.common.v1.PageResponse
+	11, // 16: fintcart.simulator.v1.ValidateDefinitionRequest.definition:type_name -> fintcart.simulator.v1.CalculatorDefinition
+	18, // 17: fintcart.simulator.v1.ValidateDefinitionResponse.errors:type_name -> fintcart.simulator.v1.DefinitionError
+	21, // 18: fintcart.simulator.v1.ListIndicatorsResponse.items:type_name -> fintcart.simulator.v1.Indicator
+	26, // 19: fintcart.simulator.v1.IndicatorCalendarStatus.expiring:type_name -> fintcart.simulator.v1.ExpiringIndicator
+	0,  // 20: fintcart.simulator.v1.ListHistoryResponse.Entry.calc_type:type_name -> fintcart.simulator.v1.CalcType
+	31, // 21: fintcart.simulator.v1.ListHistoryResponse.Entry.inputs:type_name -> fintcart.simulator.v1.ListHistoryResponse.Entry.InputsEntry
+	32, // 22: fintcart.simulator.v1.ListHistoryResponse.Entry.result:type_name -> fintcart.simulator.v1.ListHistoryResponse.Entry.ResultEntry
+	33, // 23: fintcart.simulator.v1.ListHistoryResponse.Entry.indicators_used:type_name -> fintcart.simulator.v1.ListHistoryResponse.Entry.IndicatorsUsedEntry
+	3,  // 24: fintcart.simulator.v1.SimulatorService.Compute:input_type -> fintcart.simulator.v1.ComputeRequest
+	5,  // 25: fintcart.simulator.v1.SimulatorService.ListHistory:input_type -> fintcart.simulator.v1.ListHistoryRequest
+	2,  // 26: fintcart.simulator.v1.SimulatorService.AnonymizeHistory:input_type -> fintcart.simulator.v1.UserRef
+	13, // 27: fintcart.simulator.v1.SimulatorService.UpsertCalculator:input_type -> fintcart.simulator.v1.UpsertCalculatorRequest
+	7,  // 28: fintcart.simulator.v1.SimulatorService.GetCalculator:input_type -> fintcart.simulator.v1.CalculatorRef
+	14, // 29: fintcart.simulator.v1.SimulatorService.ListCalculators:input_type -> fintcart.simulator.v1.ListCalculatorsRequest
+	7,  // 30: fintcart.simulator.v1.SimulatorService.DeleteCalculator:input_type -> fintcart.simulator.v1.CalculatorRef
+	16, // 31: fintcart.simulator.v1.SimulatorService.ValidateDefinition:input_type -> fintcart.simulator.v1.ValidateDefinitionRequest
+	7,  // 32: fintcart.simulator.v1.SimulatorService.SubmitCalculatorForReview:input_type -> fintcart.simulator.v1.CalculatorRef
+	19, // 33: fintcart.simulator.v1.SimulatorService.ApproveCalculator:input_type -> fintcart.simulator.v1.ApproveCalculatorRequest
+	20, // 34: fintcart.simulator.v1.SimulatorService.RejectCalculator:input_type -> fintcart.simulator.v1.RejectCalculatorRequest
+	22, // 35: fintcart.simulator.v1.SimulatorService.UpsertIndicator:input_type -> fintcart.simulator.v1.UpsertIndicatorRequest
+	23, // 36: fintcart.simulator.v1.SimulatorService.ListIndicators:input_type -> fintcart.simulator.v1.ListIndicatorsRequest
+	34, // 37: fintcart.simulator.v1.SimulatorService.GetIndicatorCalendarStatus:input_type -> fintcart.common.v1.PageRequest
+	4,  // 38: fintcart.simulator.v1.SimulatorService.Compute:output_type -> fintcart.simulator.v1.ComputeResponse
+	6,  // 39: fintcart.simulator.v1.SimulatorService.ListHistory:output_type -> fintcart.simulator.v1.ListHistoryResponse
+	36, // 40: fintcart.simulator.v1.SimulatorService.AnonymizeHistory:output_type -> fintcart.common.v1.OpResult
+	12, // 41: fintcart.simulator.v1.SimulatorService.UpsertCalculator:output_type -> fintcart.simulator.v1.Calculator
+	12, // 42: fintcart.simulator.v1.SimulatorService.GetCalculator:output_type -> fintcart.simulator.v1.Calculator
+	15, // 43: fintcart.simulator.v1.SimulatorService.ListCalculators:output_type -> fintcart.simulator.v1.ListCalculatorsResponse
+	36, // 44: fintcart.simulator.v1.SimulatorService.DeleteCalculator:output_type -> fintcart.common.v1.OpResult
+	17, // 45: fintcart.simulator.v1.SimulatorService.ValidateDefinition:output_type -> fintcart.simulator.v1.ValidateDefinitionResponse
+	36, // 46: fintcart.simulator.v1.SimulatorService.SubmitCalculatorForReview:output_type -> fintcart.common.v1.OpResult
+	36, // 47: fintcart.simulator.v1.SimulatorService.ApproveCalculator:output_type -> fintcart.common.v1.OpResult
+	36, // 48: fintcart.simulator.v1.SimulatorService.RejectCalculator:output_type -> fintcart.common.v1.OpResult
+	21, // 49: fintcart.simulator.v1.SimulatorService.UpsertIndicator:output_type -> fintcart.simulator.v1.Indicator
+	24, // 50: fintcart.simulator.v1.SimulatorService.ListIndicators:output_type -> fintcart.simulator.v1.ListIndicatorsResponse
+	25, // 51: fintcart.simulator.v1.SimulatorService.GetIndicatorCalendarStatus:output_type -> fintcart.simulator.v1.IndicatorCalendarStatus
+	38, // [38:52] is the sub-list for method output_type
+	24, // [24:38] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_fintcart_simulator_v1_simulator_proto_init() }
@@ -578,8 +2203,8 @@ func file_fintcart_simulator_v1_simulator_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fintcart_simulator_v1_simulator_proto_rawDesc), len(file_fintcart_simulator_v1_simulator_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   10,
+			NumEnums:      2,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

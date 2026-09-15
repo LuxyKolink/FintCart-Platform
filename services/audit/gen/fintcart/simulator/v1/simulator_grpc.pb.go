@@ -20,18 +20,30 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SimulatorService_Compute_FullMethodName          = "/fintcart.simulator.v1.SimulatorService/Compute"
-	SimulatorService_ListHistory_FullMethodName      = "/fintcart.simulator.v1.SimulatorService/ListHistory"
-	SimulatorService_AnonymizeHistory_FullMethodName = "/fintcart.simulator.v1.SimulatorService/AnonymizeHistory"
+	SimulatorService_Compute_FullMethodName                    = "/fintcart.simulator.v1.SimulatorService/Compute"
+	SimulatorService_ListHistory_FullMethodName                = "/fintcart.simulator.v1.SimulatorService/ListHistory"
+	SimulatorService_AnonymizeHistory_FullMethodName           = "/fintcart.simulator.v1.SimulatorService/AnonymizeHistory"
+	SimulatorService_UpsertCalculator_FullMethodName           = "/fintcart.simulator.v1.SimulatorService/UpsertCalculator"
+	SimulatorService_GetCalculator_FullMethodName              = "/fintcart.simulator.v1.SimulatorService/GetCalculator"
+	SimulatorService_ListCalculators_FullMethodName            = "/fintcart.simulator.v1.SimulatorService/ListCalculators"
+	SimulatorService_DeleteCalculator_FullMethodName           = "/fintcart.simulator.v1.SimulatorService/DeleteCalculator"
+	SimulatorService_ValidateDefinition_FullMethodName         = "/fintcart.simulator.v1.SimulatorService/ValidateDefinition"
+	SimulatorService_SubmitCalculatorForReview_FullMethodName  = "/fintcart.simulator.v1.SimulatorService/SubmitCalculatorForReview"
+	SimulatorService_ApproveCalculator_FullMethodName          = "/fintcart.simulator.v1.SimulatorService/ApproveCalculator"
+	SimulatorService_RejectCalculator_FullMethodName           = "/fintcart.simulator.v1.SimulatorService/RejectCalculator"
+	SimulatorService_UpsertIndicator_FullMethodName            = "/fintcart.simulator.v1.SimulatorService/UpsertIndicator"
+	SimulatorService_ListIndicators_FullMethodName             = "/fintcart.simulator.v1.SimulatorService/ListIndicators"
+	SimulatorService_GetIndicatorCalendarStatus_FullMethodName = "/fintcart.simulator.v1.SimulatorService/GetIndicatorCalendarStatus"
 )
 
 // SimulatorServiceClient is the client API for SimulatorService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
-// decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
-// (Principio V); la auditoría de simulaciones la emite el Orquestador (research D-03).
+// Servicio de Simulador (Rust). Calculadoras financieras con precisión decimal
+// arbitraria (rust_decimal). NO es productor de eventos RabbitMQ (Principio V); la
+// auditoría de simulaciones la emite el Orquestador (research D-03), y el aviso de
+// vencimiento de indicadores también (research D-23).
 // Todos los montos/tasas viajan como `string` decimal canónica (Principio VIII / D-10).
 type SimulatorServiceClient interface {
 	// Ejecuta una simulación y persiste el historial (FR-019..FR-022).
@@ -40,7 +52,36 @@ type SimulatorServiceClient interface {
 	// Historial de simulaciones por usuario (FR-022).
 	ListHistory(ctx context.Context, in *ListHistoryRequest, opts ...grpc.CallOption) (*ListHistoryResponse, error)
 	// Saga de anonimización (FR-030): disocia PII del historial.
+	// CAMBIO DE COMPORTAMIENTO (002): además del historial, pone a NULL
+	// `calculators.owner_id` de las calculadoras PUBLICADAS del titular,
+	// conservándolas en el catálogo con autoría anonimizada (Edge Cases), y elimina
+	// las privadas, que ya no tienen a quién servir.
 	AnonymizeHistory(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+	// Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por campo:
+	// la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza — evita
+	// dejar una calculadora a medio editar visible entre dos llamadas.
+	// `calculator_id` vacío crea una nueva.
+	UpsertCalculator(ctx context.Context, in *UpsertCalculatorRequest, opts ...grpc.CallOption) (*Calculator, error)
+	GetCalculator(ctx context.Context, in *CalculatorRef, opts ...grpc.CallOption) (*Calculator, error)
+	// `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+	// ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+	ListCalculators(ctx context.Context, in *ListCalculatorsRequest, opts ...grpc.CallOption) (*ListCalculatorsResponse, error)
+	DeleteCalculator(ctx context.Context, in *CalculatorRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// Valida SIN guardar: alimenta el aviso en vivo del constructor en el frontend.
+	// Devuelve los mismos errores que UpsertCalculator (FR-046).
+	ValidateDefinition(ctx context.Context, in *ValidateDefinitionRequest, opts ...grpc.CallOption) (*ValidateDefinitionResponse, error)
+	// ── Curaduría (FR-052…FR-054) ─────────────────────────────────────────────
+	SubmitCalculatorForReview(ctx context.Context, in *CalculatorRef, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base.
+	ApproveCalculator(ctx context.Context, in *ApproveCalculatorRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
+	RejectCalculator(ctx context.Context, in *RejectCalculatorRequest, opts ...grpc.CallOption) (*v1.OpResult, error)
+	// ── Indicadores financieros (FR-055…FR-060) ───────────────────────────────
+	UpsertIndicator(ctx context.Context, in *UpsertIndicatorRequest, opts ...grpc.CallOption) (*Indicator, error)
+	ListIndicators(ctx context.Context, in *ListIndicatorsRequest, opts ...grpc.CallOption) (*ListIndicatorsResponse, error)
+	// Lo consulta el barrido periódico del Orquestador (research D-23), que es quien
+	// publica el evento de aviso: el Simulador NO es productor (Principio V).
+	GetIndicatorCalendarStatus(ctx context.Context, in *v1.PageRequest, opts ...grpc.CallOption) (*IndicatorCalendarStatus, error)
 }
 
 type simulatorServiceClient struct {
@@ -81,13 +122,124 @@ func (c *simulatorServiceClient) AnonymizeHistory(ctx context.Context, in *UserR
 	return out, nil
 }
 
+func (c *simulatorServiceClient) UpsertCalculator(ctx context.Context, in *UpsertCalculatorRequest, opts ...grpc.CallOption) (*Calculator, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Calculator)
+	err := c.cc.Invoke(ctx, SimulatorService_UpsertCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) GetCalculator(ctx context.Context, in *CalculatorRef, opts ...grpc.CallOption) (*Calculator, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Calculator)
+	err := c.cc.Invoke(ctx, SimulatorService_GetCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) ListCalculators(ctx context.Context, in *ListCalculatorsRequest, opts ...grpc.CallOption) (*ListCalculatorsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListCalculatorsResponse)
+	err := c.cc.Invoke(ctx, SimulatorService_ListCalculators_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) DeleteCalculator(ctx context.Context, in *CalculatorRef, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, SimulatorService_DeleteCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) ValidateDefinition(ctx context.Context, in *ValidateDefinitionRequest, opts ...grpc.CallOption) (*ValidateDefinitionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateDefinitionResponse)
+	err := c.cc.Invoke(ctx, SimulatorService_ValidateDefinition_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) SubmitCalculatorForReview(ctx context.Context, in *CalculatorRef, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, SimulatorService_SubmitCalculatorForReview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) ApproveCalculator(ctx context.Context, in *ApproveCalculatorRequest, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, SimulatorService_ApproveCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) RejectCalculator(ctx context.Context, in *RejectCalculatorRequest, opts ...grpc.CallOption) (*v1.OpResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.OpResult)
+	err := c.cc.Invoke(ctx, SimulatorService_RejectCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) UpsertIndicator(ctx context.Context, in *UpsertIndicatorRequest, opts ...grpc.CallOption) (*Indicator, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Indicator)
+	err := c.cc.Invoke(ctx, SimulatorService_UpsertIndicator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) ListIndicators(ctx context.Context, in *ListIndicatorsRequest, opts ...grpc.CallOption) (*ListIndicatorsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListIndicatorsResponse)
+	err := c.cc.Invoke(ctx, SimulatorService_ListIndicators_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simulatorServiceClient) GetIndicatorCalendarStatus(ctx context.Context, in *v1.PageRequest, opts ...grpc.CallOption) (*IndicatorCalendarStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IndicatorCalendarStatus)
+	err := c.cc.Invoke(ctx, SimulatorService_GetIndicatorCalendarStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SimulatorServiceServer is the server API for SimulatorService service.
 // All implementations should embed UnimplementedSimulatorServiceServer
 // for forward compatibility.
 //
-// Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
-// decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
-// (Principio V); la auditoría de simulaciones la emite el Orquestador (research D-03).
+// Servicio de Simulador (Rust). Calculadoras financieras con precisión decimal
+// arbitraria (rust_decimal). NO es productor de eventos RabbitMQ (Principio V); la
+// auditoría de simulaciones la emite el Orquestador (research D-03), y el aviso de
+// vencimiento de indicadores también (research D-23).
 // Todos los montos/tasas viajan como `string` decimal canónica (Principio VIII / D-10).
 type SimulatorServiceServer interface {
 	// Ejecuta una simulación y persiste el historial (FR-019..FR-022).
@@ -96,7 +248,36 @@ type SimulatorServiceServer interface {
 	// Historial de simulaciones por usuario (FR-022).
 	ListHistory(context.Context, *ListHistoryRequest) (*ListHistoryResponse, error)
 	// Saga de anonimización (FR-030): disocia PII del historial.
+	// CAMBIO DE COMPORTAMIENTO (002): además del historial, pone a NULL
+	// `calculators.owner_id` de las calculadoras PUBLICADAS del titular,
+	// conservándolas en el catálogo con autoría anonimizada (Edge Cases), y elimina
+	// las privadas, que ya no tienen a quién servir.
 	AnonymizeHistory(context.Context, *UserRef) (*v1.OpResult, error)
+	// ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+	// Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por campo:
+	// la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza — evita
+	// dejar una calculadora a medio editar visible entre dos llamadas.
+	// `calculator_id` vacío crea una nueva.
+	UpsertCalculator(context.Context, *UpsertCalculatorRequest) (*Calculator, error)
+	GetCalculator(context.Context, *CalculatorRef) (*Calculator, error)
+	// `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+	// ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+	ListCalculators(context.Context, *ListCalculatorsRequest) (*ListCalculatorsResponse, error)
+	DeleteCalculator(context.Context, *CalculatorRef) (*v1.OpResult, error)
+	// Valida SIN guardar: alimenta el aviso en vivo del constructor en el frontend.
+	// Devuelve los mismos errores que UpsertCalculator (FR-046).
+	ValidateDefinition(context.Context, *ValidateDefinitionRequest) (*ValidateDefinitionResponse, error)
+	// ── Curaduría (FR-052…FR-054) ─────────────────────────────────────────────
+	SubmitCalculatorForReview(context.Context, *CalculatorRef) (*v1.OpResult, error)
+	// Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base.
+	ApproveCalculator(context.Context, *ApproveCalculatorRequest) (*v1.OpResult, error)
+	RejectCalculator(context.Context, *RejectCalculatorRequest) (*v1.OpResult, error)
+	// ── Indicadores financieros (FR-055…FR-060) ───────────────────────────────
+	UpsertIndicator(context.Context, *UpsertIndicatorRequest) (*Indicator, error)
+	ListIndicators(context.Context, *ListIndicatorsRequest) (*ListIndicatorsResponse, error)
+	// Lo consulta el barrido periódico del Orquestador (research D-23), que es quien
+	// publica el evento de aviso: el Simulador NO es productor (Principio V).
+	GetIndicatorCalendarStatus(context.Context, *v1.PageRequest) (*IndicatorCalendarStatus, error)
 }
 
 // UnimplementedSimulatorServiceServer should be embedded to have
@@ -114,6 +295,39 @@ func (UnimplementedSimulatorServiceServer) ListHistory(context.Context, *ListHis
 }
 func (UnimplementedSimulatorServiceServer) AnonymizeHistory(context.Context, *UserRef) (*v1.OpResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AnonymizeHistory not implemented")
+}
+func (UnimplementedSimulatorServiceServer) UpsertCalculator(context.Context, *UpsertCalculatorRequest) (*Calculator, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpsertCalculator not implemented")
+}
+func (UnimplementedSimulatorServiceServer) GetCalculator(context.Context, *CalculatorRef) (*Calculator, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCalculator not implemented")
+}
+func (UnimplementedSimulatorServiceServer) ListCalculators(context.Context, *ListCalculatorsRequest) (*ListCalculatorsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCalculators not implemented")
+}
+func (UnimplementedSimulatorServiceServer) DeleteCalculator(context.Context, *CalculatorRef) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteCalculator not implemented")
+}
+func (UnimplementedSimulatorServiceServer) ValidateDefinition(context.Context, *ValidateDefinitionRequest) (*ValidateDefinitionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateDefinition not implemented")
+}
+func (UnimplementedSimulatorServiceServer) SubmitCalculatorForReview(context.Context, *CalculatorRef) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitCalculatorForReview not implemented")
+}
+func (UnimplementedSimulatorServiceServer) ApproveCalculator(context.Context, *ApproveCalculatorRequest) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApproveCalculator not implemented")
+}
+func (UnimplementedSimulatorServiceServer) RejectCalculator(context.Context, *RejectCalculatorRequest) (*v1.OpResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RejectCalculator not implemented")
+}
+func (UnimplementedSimulatorServiceServer) UpsertIndicator(context.Context, *UpsertIndicatorRequest) (*Indicator, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpsertIndicator not implemented")
+}
+func (UnimplementedSimulatorServiceServer) ListIndicators(context.Context, *ListIndicatorsRequest) (*ListIndicatorsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListIndicators not implemented")
+}
+func (UnimplementedSimulatorServiceServer) GetIndicatorCalendarStatus(context.Context, *v1.PageRequest) (*IndicatorCalendarStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetIndicatorCalendarStatus not implemented")
 }
 func (UnimplementedSimulatorServiceServer) testEmbeddedByValue() {}
 
@@ -189,6 +403,204 @@ func _SimulatorService_AnonymizeHistory_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SimulatorService_UpsertCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertCalculatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).UpsertCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_UpsertCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).UpsertCalculator(ctx, req.(*UpsertCalculatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_GetCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CalculatorRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).GetCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_GetCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).GetCalculator(ctx, req.(*CalculatorRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_ListCalculators_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCalculatorsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).ListCalculators(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_ListCalculators_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).ListCalculators(ctx, req.(*ListCalculatorsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_DeleteCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CalculatorRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).DeleteCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_DeleteCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).DeleteCalculator(ctx, req.(*CalculatorRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_ValidateDefinition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateDefinitionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).ValidateDefinition(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_ValidateDefinition_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).ValidateDefinition(ctx, req.(*ValidateDefinitionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_SubmitCalculatorForReview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CalculatorRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).SubmitCalculatorForReview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_SubmitCalculatorForReview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).SubmitCalculatorForReview(ctx, req.(*CalculatorRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_ApproveCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApproveCalculatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).ApproveCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_ApproveCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).ApproveCalculator(ctx, req.(*ApproveCalculatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_RejectCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RejectCalculatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).RejectCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_RejectCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).RejectCalculator(ctx, req.(*RejectCalculatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_UpsertIndicator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertIndicatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).UpsertIndicator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_UpsertIndicator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).UpsertIndicator(ctx, req.(*UpsertIndicatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_ListIndicators_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListIndicatorsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).ListIndicators(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_ListIndicators_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).ListIndicators(ctx, req.(*ListIndicatorsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimulatorService_GetIndicatorCalendarStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(v1.PageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulatorServiceServer).GetIndicatorCalendarStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SimulatorService_GetIndicatorCalendarStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulatorServiceServer).GetIndicatorCalendarStatus(ctx, req.(*v1.PageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SimulatorService_ServiceDesc is the grpc.ServiceDesc for SimulatorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -207,6 +619,50 @@ var SimulatorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AnonymizeHistory",
 			Handler:    _SimulatorService_AnonymizeHistory_Handler,
+		},
+		{
+			MethodName: "UpsertCalculator",
+			Handler:    _SimulatorService_UpsertCalculator_Handler,
+		},
+		{
+			MethodName: "GetCalculator",
+			Handler:    _SimulatorService_GetCalculator_Handler,
+		},
+		{
+			MethodName: "ListCalculators",
+			Handler:    _SimulatorService_ListCalculators_Handler,
+		},
+		{
+			MethodName: "DeleteCalculator",
+			Handler:    _SimulatorService_DeleteCalculator_Handler,
+		},
+		{
+			MethodName: "ValidateDefinition",
+			Handler:    _SimulatorService_ValidateDefinition_Handler,
+		},
+		{
+			MethodName: "SubmitCalculatorForReview",
+			Handler:    _SimulatorService_SubmitCalculatorForReview_Handler,
+		},
+		{
+			MethodName: "ApproveCalculator",
+			Handler:    _SimulatorService_ApproveCalculator_Handler,
+		},
+		{
+			MethodName: "RejectCalculator",
+			Handler:    _SimulatorService_RejectCalculator_Handler,
+		},
+		{
+			MethodName: "UpsertIndicator",
+			Handler:    _SimulatorService_UpsertIndicator_Handler,
+		},
+		{
+			MethodName: "ListIndicators",
+			Handler:    _SimulatorService_ListIndicators_Handler,
+		},
+		{
+			MethodName: "GetIndicatorCalendarStatus",
+			Handler:    _SimulatorService_GetIndicatorCalendarStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

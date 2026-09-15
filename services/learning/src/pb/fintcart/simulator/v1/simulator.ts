@@ -27,6 +27,10 @@ export const protobufPackage = "fintcart.simulator.v1";
  * prefijo del nombre del enum: en proto3 los valores de enum comparten el
  * espacio de nombres del paquete, no el del enum, así que `AHORRO` a secas
  * colisionaría con cualquier otro enum del paquete que lo declarara.
+ *
+ * En la enmienda 002 estas cinco se resiembran como SIETE definiciones sobre el
+ * motor de fórmulas. `calc_type` se conserva como camino de compatibilidad, pero
+ * el camino preferente pasa a ser `calculator_id` (FR-043).
  */
 export enum CalcType {
   CALC_TYPE_UNSPECIFIED = 0,
@@ -85,6 +89,56 @@ export function calcTypeToJSON(object: CalcType): string {
   }
 }
 
+/**
+ * Tipo de un campo de entrada. NO existe un tipo texto: la única entrada de texto
+ * del sistema era el discriminador `operacion` de la calculadora colombiana, que
+ * research D-16 elimina al separarla en tres definiciones.
+ */
+export enum InputType {
+  INPUT_TYPE_UNSPECIFIED = 0,
+  INPUT_TYPE_MONTO = 1,
+  INPUT_TYPE_TASA = 2,
+  INPUT_TYPE_ENTERO = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function inputTypeFromJSON(object: any): InputType {
+  switch (object) {
+    case 0:
+    case "INPUT_TYPE_UNSPECIFIED":
+      return InputType.INPUT_TYPE_UNSPECIFIED;
+    case 1:
+    case "INPUT_TYPE_MONTO":
+      return InputType.INPUT_TYPE_MONTO;
+    case 2:
+    case "INPUT_TYPE_TASA":
+      return InputType.INPUT_TYPE_TASA;
+    case 3:
+    case "INPUT_TYPE_ENTERO":
+      return InputType.INPUT_TYPE_ENTERO;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return InputType.UNRECOGNIZED;
+  }
+}
+
+export function inputTypeToJSON(object: InputType): string {
+  switch (object) {
+    case InputType.INPUT_TYPE_UNSPECIFIED:
+      return "INPUT_TYPE_UNSPECIFIED";
+    case InputType.INPUT_TYPE_MONTO:
+      return "INPUT_TYPE_MONTO";
+    case InputType.INPUT_TYPE_TASA:
+      return "INPUT_TYPE_TASA";
+    case InputType.INPUT_TYPE_ENTERO:
+      return "INPUT_TYPE_ENTERO";
+    case InputType.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface UserRef {
   user_id: string;
 }
@@ -105,6 +159,12 @@ export interface ComputeRequest {
    * llamada inserta una fila nueva, como antes.
    */
   idempotency_key: string;
+  /**
+   * CAMBIO DE CONTRATO (FR-043): `calculator_id` es el camino PREFERENTE.
+   * `calc_type` se mantiene por compatibilidad y se resuelve a la definición
+   * semilla correspondiente. Exactamente uno de los dos debe venir relleno.
+   */
+  calculator_id: string;
 }
 
 export interface ComputeRequest_InputsEntry {
@@ -118,9 +178,24 @@ export interface ComputeResponse {
   result: { [key: string]: string };
   /** RFC-3339 */
   computed_at: string;
+  /**
+   * FR-050: la versión de la definición que produjo este resultado. Sin ella, el
+   * historial no se puede explicar si la calculadora se editó después.
+   */
+  calculator_version: number;
+  /**
+   * FR-058: snapshot de los indicadores usados, para que el resultado siga siendo
+   * reproducible tras cambiar los indicadores (SC-019).
+   */
+  indicators_used: { [key: string]: string };
 }
 
 export interface ComputeResponse_ResultEntry {
+  key: string;
+  value: string;
+}
+
+export interface ComputeResponse_IndicatorsUsedEntry {
   key: string;
   value: string;
 }
@@ -144,6 +219,14 @@ export interface ListHistoryResponse_Entry {
   /** [decimal] */
   result: { [key: string]: string };
   created_at: string;
+  /**
+   * FR-058: la entrada se explica por sí sola, sin depender de la definición
+   * vigente hoy.
+   */
+  calculator_id: string;
+  calculator_version: number;
+  /** [decimal] */
+  indicators_used: { [key: string]: string };
 }
 
 export interface ListHistoryResponse_Entry_InputsEntry {
@@ -154,6 +237,200 @@ export interface ListHistoryResponse_Entry_InputsEntry {
 export interface ListHistoryResponse_Entry_ResultEntry {
   key: string;
   value: string;
+}
+
+export interface ListHistoryResponse_Entry_IndicatorsUsedEntry {
+  key: string;
+  value: string;
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Definición de calculadora
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export interface CalculatorRef {
+  calculator_id: string;
+  actor_id: string;
+}
+
+export interface CalculatorInput {
+  key: string;
+  label: string;
+  type: InputType;
+  unit: string;
+  /** [decimal] vacío ⇒ sin cota inferior */
+  min_value: string;
+  /** [decimal] vacío ⇒ sin cota superior */
+  max_value: string;
+  /** [decimal] */
+  default_value: string;
+  /** FR-044; opcional habilita presente(campo) */
+  required: boolean;
+}
+
+/**
+ * Regla de validación de dominio, evaluada ANTES que las salidas. Separada de las
+ * fórmulas a propósito: es lo que permite el mensaje del autor ("el ingreso mensual
+ * debe ser mayor que cero") en vez de un genérico de división por cero.
+ */
+export interface CalculatorValidation {
+  /** expresión booleana; DEBE cumplirse */
+  expression: string;
+  /** mensaje mostrado si no se cumple */
+  message: string;
+}
+
+export interface CalculatorOutput {
+  key: string;
+  label: string;
+  expression: string;
+  /** decimales de redondeo half-even */
+  scale: number;
+  /**
+   * Opcional. Si viene y evalúa a falso, la salida se OMITE. Necesario:
+   * `inversion` solo emite `valor_futuro_real` si se dio `inflacion_anual`.
+   */
+  when: string;
+}
+
+export interface CalculatorDefinition {
+  /** ≤ 20 (FR-046) */
+  inputs: CalculatorInput[];
+  validations: CalculatorValidation[];
+  /** ≤ 10 (FR-046) */
+  outputs: CalculatorOutput[];
+}
+
+export interface Calculator {
+  calculator_id: string;
+  /** vacío en las siete definiciones semilla */
+  owner_id: string;
+  name: string;
+  description: string;
+  is_builtin: boolean;
+  /** privada | en_revision | publicada */
+  state: string;
+  approved_by: string;
+  rejection_reason: string;
+  version: number;
+  definition?:
+    | CalculatorDefinition
+    | undefined;
+  /** extraídos del AST al guardar */
+  indicators_used: string[];
+}
+
+export interface UpsertCalculatorRequest {
+  /** vacío ⇒ crear */
+  calculator_id: string;
+  owner_id: string;
+  name: string;
+  description: string;
+  definition?: CalculatorDefinition | undefined;
+}
+
+export interface ListCalculatorsRequest {
+  owner_id: string;
+  only_published: boolean;
+  page?: PageRequest | undefined;
+}
+
+export interface ListCalculatorsResponse {
+  items: Calculator[];
+  page?: PageResponse | undefined;
+}
+
+export interface ValidateDefinitionRequest {
+  definition?: CalculatorDefinition | undefined;
+}
+
+export interface ValidateDefinitionResponse {
+  valid: boolean;
+  /**
+   * Vacío si valid. Cada error señala DÓNDE está el problema, no solo que lo hay:
+   * FR-046 exige indicar el error concreto.
+   */
+  errors: DefinitionError[];
+}
+
+export interface DefinitionError {
+  /** p. ej. "outputs[1].expression" o "validations[0]" */
+  location: string;
+  /** campo_inexistente | expresion_mal_formada | */
+  code: string;
+  /**
+   * limite_excedido | indicador_desconocido |
+   * exponente_no_entero | funcion_desconocida
+   */
+  message: string;
+}
+
+export interface ApproveCalculatorRequest {
+  calculator_id: string;
+  /** rol coordinador_editorial; ≠ owner_id (FR-053) */
+  coordinator_id: string;
+}
+
+export interface RejectCalculatorRequest {
+  calculator_id: string;
+  coordinator_id: string;
+  /** obligatorio (FR-054) */
+  reason: string;
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Indicadores financieros
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export interface Indicator {
+  indicator_id: string;
+  /** ^[A-Z][A-Z0-9_]*$ — se referencia como @NOMBRE */
+  name: string;
+  /** [decimal] */
+  value: string;
+  /** fecha ISO-8601, inclusive */
+  valid_from: string;
+  /** fecha ISO-8601, EXCLUSIVA */
+  valid_to: string;
+  registered_by: string;
+}
+
+export interface UpsertIndicatorRequest {
+  /** vacío ⇒ crear */
+  indicator_id: string;
+  name: string;
+  /** [decimal] */
+  value: string;
+  valid_from: string;
+  valid_to: string;
+  /** rol administrador (FR-060) */
+  actor_id: string;
+}
+
+export interface ListIndicatorsRequest {
+  /** vacío ⇒ todos */
+  name: string;
+  /** vacío ⇒ todas las vigencias; si viene, la vigente */
+  on_date: string;
+}
+
+export interface ListIndicatorsResponse {
+  items: Indicator[];
+}
+
+export interface IndicatorCalendarStatus {
+  /** Indicadores SIN vigencia para la fecha actual (FR-062). */
+  missing_names: string[];
+  /** Indicadores cuya vigencia termina dentro de la ventana de aviso (FR-061). */
+  expiring: ExpiringIndicator[];
+}
+
+export interface ExpiringIndicator {
+  name: string;
+  valid_to: string;
+  days_remaining: number;
 }
 
 function createBaseUserRef(): UserRef {
@@ -215,7 +492,7 @@ export const UserRef: MessageFns<UserRef> = {
 };
 
 function createBaseComputeRequest(): ComputeRequest {
-  return { user_id: "", calc_type: 0, currency: "", inputs: {}, idempotency_key: "" };
+  return { user_id: "", calc_type: 0, currency: "", inputs: {}, idempotency_key: "", calculator_id: "" };
 }
 
 export const ComputeRequest: MessageFns<ComputeRequest> = {
@@ -234,6 +511,9 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
     });
     if (message.idempotency_key !== "") {
       writer.uint32(42).string(message.idempotency_key);
+    }
+    if (message.calculator_id !== "") {
+      writer.uint32(50).string(message.calculator_id);
     }
     return writer;
   },
@@ -288,6 +568,14 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
           message.idempotency_key = reader.string();
           continue;
         }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -309,6 +597,7 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
         }, {})
         : {},
       idempotency_key: isSet(object.idempotency_key) ? globalThis.String(object.idempotency_key) : "",
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
     };
   },
 
@@ -335,6 +624,9 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
     if (message.idempotency_key !== "") {
       obj.idempotency_key = message.idempotency_key;
     }
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
     return obj;
   },
 
@@ -353,6 +645,7 @@ export const ComputeRequest: MessageFns<ComputeRequest> = {
       return acc;
     }, {});
     message.idempotency_key = object.idempotency_key ?? "";
+    message.calculator_id = object.calculator_id ?? "";
     return message;
   },
 };
@@ -434,7 +727,7 @@ export const ComputeRequest_InputsEntry: MessageFns<ComputeRequest_InputsEntry> 
 };
 
 function createBaseComputeResponse(): ComputeResponse {
-  return { simulation_id: "", result: {}, computed_at: "" };
+  return { simulation_id: "", result: {}, computed_at: "", calculator_version: 0, indicators_used: {} };
 }
 
 export const ComputeResponse: MessageFns<ComputeResponse> = {
@@ -448,6 +741,12 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
     if (message.computed_at !== "") {
       writer.uint32(26).string(message.computed_at);
     }
+    if (message.calculator_version !== 0) {
+      writer.uint32(32).int32(message.calculator_version);
+    }
+    Object.entries(message.indicators_used).forEach(([key, value]) => {
+      ComputeResponse_IndicatorsUsedEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).join();
+    });
     return writer;
   },
 
@@ -485,6 +784,25 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
           message.computed_at = reader.string();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.calculator_version = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          const entry5 = ComputeResponse_IndicatorsUsedEntry.decode(reader, reader.uint32());
+          if (entry5.value !== undefined) {
+            message.indicators_used[entry5.key] = entry5.value;
+          }
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -504,6 +822,13 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
         }, {})
         : {},
       computed_at: isSet(object.computed_at) ? globalThis.String(object.computed_at) : "",
+      calculator_version: isSet(object.calculator_version) ? globalThis.Number(object.calculator_version) : 0,
+      indicators_used: isObject(object.indicators_used)
+        ? Object.entries(object.indicators_used).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+          acc[key] = String(value);
+          return acc;
+        }, {})
+        : {},
     };
   },
 
@@ -524,6 +849,18 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
     if (message.computed_at !== "") {
       obj.computed_at = message.computed_at;
     }
+    if (message.calculator_version !== 0) {
+      obj.calculator_version = Math.round(message.calculator_version);
+    }
+    if (message.indicators_used) {
+      const entries = Object.entries(message.indicators_used);
+      if (entries.length > 0) {
+        obj.indicators_used = {};
+        entries.forEach(([k, v]) => {
+          obj.indicators_used[k] = v;
+        });
+      }
+    }
     return obj;
   },
 
@@ -540,6 +877,16 @@ export const ComputeResponse: MessageFns<ComputeResponse> = {
       return acc;
     }, {});
     message.computed_at = object.computed_at ?? "";
+    message.calculator_version = object.calculator_version ?? 0;
+    message.indicators_used = Object.entries(object.indicators_used ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
     return message;
   },
 };
@@ -614,6 +961,86 @@ export const ComputeResponse_ResultEntry: MessageFns<ComputeResponse_ResultEntry
   },
   fromPartial<I extends Exact<DeepPartial<ComputeResponse_ResultEntry>, I>>(object: I): ComputeResponse_ResultEntry {
     const message = createBaseComputeResponse_ResultEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseComputeResponse_IndicatorsUsedEntry(): ComputeResponse_IndicatorsUsedEntry {
+  return { key: "", value: "" };
+}
+
+export const ComputeResponse_IndicatorsUsedEntry: MessageFns<ComputeResponse_IndicatorsUsedEntry> = {
+  encode(message: ComputeResponse_IndicatorsUsedEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ComputeResponse_IndicatorsUsedEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseComputeResponse_IndicatorsUsedEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ComputeResponse_IndicatorsUsedEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: ComputeResponse_IndicatorsUsedEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ComputeResponse_IndicatorsUsedEntry>, I>>(
+    base?: I,
+  ): ComputeResponse_IndicatorsUsedEntry {
+    return ComputeResponse_IndicatorsUsedEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ComputeResponse_IndicatorsUsedEntry>, I>>(
+    object: I,
+  ): ComputeResponse_IndicatorsUsedEntry {
+    const message = createBaseComputeResponse_IndicatorsUsedEntry();
     message.key = object.key ?? "";
     message.value = object.value ?? "";
     return message;
@@ -779,7 +1206,17 @@ export const ListHistoryResponse: MessageFns<ListHistoryResponse> = {
 };
 
 function createBaseListHistoryResponse_Entry(): ListHistoryResponse_Entry {
-  return { simulation_id: "", calc_type: 0, currency: "", inputs: {}, result: {}, created_at: "" };
+  return {
+    simulation_id: "",
+    calc_type: 0,
+    currency: "",
+    inputs: {},
+    result: {},
+    created_at: "",
+    calculator_id: "",
+    calculator_version: 0,
+    indicators_used: {},
+  };
 }
 
 export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = {
@@ -802,6 +1239,15 @@ export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = 
     if (message.created_at !== "") {
       writer.uint32(50).string(message.created_at);
     }
+    if (message.calculator_id !== "") {
+      writer.uint32(58).string(message.calculator_id);
+    }
+    if (message.calculator_version !== 0) {
+      writer.uint32(64).int32(message.calculator_version);
+    }
+    Object.entries(message.indicators_used).forEach(([key, value]) => {
+      ListHistoryResponse_Entry_IndicatorsUsedEntry.encode({ key: key as any, value }, writer.uint32(74).fork()).join();
+    });
     return writer;
   },
 
@@ -866,6 +1312,33 @@ export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = 
           message.created_at = reader.string();
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.calculator_version = reader.int32();
+          continue;
+        }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          const entry9 = ListHistoryResponse_Entry_IndicatorsUsedEntry.decode(reader, reader.uint32());
+          if (entry9.value !== undefined) {
+            message.indicators_used[entry9.key] = entry9.value;
+          }
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -893,6 +1366,14 @@ export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = 
         }, {})
         : {},
       created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : "",
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      calculator_version: isSet(object.calculator_version) ? globalThis.Number(object.calculator_version) : 0,
+      indicators_used: isObject(object.indicators_used)
+        ? Object.entries(object.indicators_used).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+          acc[key] = String(value);
+          return acc;
+        }, {})
+        : {},
     };
   },
 
@@ -928,6 +1409,21 @@ export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = 
     if (message.created_at !== "") {
       obj.created_at = message.created_at;
     }
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.calculator_version !== 0) {
+      obj.calculator_version = Math.round(message.calculator_version);
+    }
+    if (message.indicators_used) {
+      const entries = Object.entries(message.indicators_used);
+      if (entries.length > 0) {
+        obj.indicators_used = {};
+        entries.forEach(([k, v]) => {
+          obj.indicators_used[k] = v;
+        });
+      }
+    }
     return obj;
   },
 
@@ -952,6 +1448,17 @@ export const ListHistoryResponse_Entry: MessageFns<ListHistoryResponse_Entry> = 
       return acc;
     }, {});
     message.created_at = object.created_at ?? "";
+    message.calculator_id = object.calculator_id ?? "";
+    message.calculator_version = object.calculator_version ?? 0;
+    message.indicators_used = Object.entries(object.indicators_used ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
     return message;
   },
 };
@@ -1116,10 +1623,2161 @@ export const ListHistoryResponse_Entry_ResultEntry: MessageFns<ListHistoryRespon
   },
 };
 
+function createBaseListHistoryResponse_Entry_IndicatorsUsedEntry(): ListHistoryResponse_Entry_IndicatorsUsedEntry {
+  return { key: "", value: "" };
+}
+
+export const ListHistoryResponse_Entry_IndicatorsUsedEntry: MessageFns<ListHistoryResponse_Entry_IndicatorsUsedEntry> =
+  {
+    encode(
+      message: ListHistoryResponse_Entry_IndicatorsUsedEntry,
+      writer: BinaryWriter = new BinaryWriter(),
+    ): BinaryWriter {
+      if (message.key !== "") {
+        writer.uint32(10).string(message.key);
+      }
+      if (message.value !== "") {
+        writer.uint32(18).string(message.value);
+      }
+      return writer;
+    },
+
+    decode(input: BinaryReader | Uint8Array, length?: number): ListHistoryResponse_Entry_IndicatorsUsedEntry {
+      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+      let end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseListHistoryResponse_Entry_IndicatorsUsedEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    },
+
+    fromJSON(object: any): ListHistoryResponse_Entry_IndicatorsUsedEntry {
+      return {
+        key: isSet(object.key) ? globalThis.String(object.key) : "",
+        value: isSet(object.value) ? globalThis.String(object.value) : "",
+      };
+    },
+
+    toJSON(message: ListHistoryResponse_Entry_IndicatorsUsedEntry): unknown {
+      const obj: any = {};
+      if (message.key !== "") {
+        obj.key = message.key;
+      }
+      if (message.value !== "") {
+        obj.value = message.value;
+      }
+      return obj;
+    },
+
+    create<I extends Exact<DeepPartial<ListHistoryResponse_Entry_IndicatorsUsedEntry>, I>>(
+      base?: I,
+    ): ListHistoryResponse_Entry_IndicatorsUsedEntry {
+      return ListHistoryResponse_Entry_IndicatorsUsedEntry.fromPartial(base ?? ({} as any));
+    },
+    fromPartial<I extends Exact<DeepPartial<ListHistoryResponse_Entry_IndicatorsUsedEntry>, I>>(
+      object: I,
+    ): ListHistoryResponse_Entry_IndicatorsUsedEntry {
+      const message = createBaseListHistoryResponse_Entry_IndicatorsUsedEntry();
+      message.key = object.key ?? "";
+      message.value = object.value ?? "";
+      return message;
+    },
+  };
+
+function createBaseCalculatorRef(): CalculatorRef {
+  return { calculator_id: "", actor_id: "" };
+}
+
+export const CalculatorRef: MessageFns<CalculatorRef> = {
+  encode(message: CalculatorRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.calculator_id !== "") {
+      writer.uint32(10).string(message.calculator_id);
+    }
+    if (message.actor_id !== "") {
+      writer.uint32(18).string(message.actor_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CalculatorRef {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculatorRef();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.actor_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CalculatorRef {
+    return {
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : "",
+    };
+  },
+
+  toJSON(message: CalculatorRef): unknown {
+    const obj: any = {};
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.actor_id !== "") {
+      obj.actor_id = message.actor_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CalculatorRef>, I>>(base?: I): CalculatorRef {
+    return CalculatorRef.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CalculatorRef>, I>>(object: I): CalculatorRef {
+    const message = createBaseCalculatorRef();
+    message.calculator_id = object.calculator_id ?? "";
+    message.actor_id = object.actor_id ?? "";
+    return message;
+  },
+};
+
+function createBaseCalculatorInput(): CalculatorInput {
+  return { key: "", label: "", type: 0, unit: "", min_value: "", max_value: "", default_value: "", required: false };
+}
+
+export const CalculatorInput: MessageFns<CalculatorInput> = {
+  encode(message: CalculatorInput, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.label !== "") {
+      writer.uint32(18).string(message.label);
+    }
+    if (message.type !== 0) {
+      writer.uint32(24).int32(message.type);
+    }
+    if (message.unit !== "") {
+      writer.uint32(34).string(message.unit);
+    }
+    if (message.min_value !== "") {
+      writer.uint32(42).string(message.min_value);
+    }
+    if (message.max_value !== "") {
+      writer.uint32(50).string(message.max_value);
+    }
+    if (message.default_value !== "") {
+      writer.uint32(58).string(message.default_value);
+    }
+    if (message.required !== false) {
+      writer.uint32(64).bool(message.required);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CalculatorInput {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculatorInput();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.label = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.type = reader.int32() as any;
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.unit = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.min_value = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.max_value = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.default_value = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.required = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CalculatorInput {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      label: isSet(object.label) ? globalThis.String(object.label) : "",
+      type: isSet(object.type) ? inputTypeFromJSON(object.type) : 0,
+      unit: isSet(object.unit) ? globalThis.String(object.unit) : "",
+      min_value: isSet(object.min_value) ? globalThis.String(object.min_value) : "",
+      max_value: isSet(object.max_value) ? globalThis.String(object.max_value) : "",
+      default_value: isSet(object.default_value) ? globalThis.String(object.default_value) : "",
+      required: isSet(object.required) ? globalThis.Boolean(object.required) : false,
+    };
+  },
+
+  toJSON(message: CalculatorInput): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.label !== "") {
+      obj.label = message.label;
+    }
+    if (message.type !== 0) {
+      obj.type = inputTypeToJSON(message.type);
+    }
+    if (message.unit !== "") {
+      obj.unit = message.unit;
+    }
+    if (message.min_value !== "") {
+      obj.min_value = message.min_value;
+    }
+    if (message.max_value !== "") {
+      obj.max_value = message.max_value;
+    }
+    if (message.default_value !== "") {
+      obj.default_value = message.default_value;
+    }
+    if (message.required !== false) {
+      obj.required = message.required;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CalculatorInput>, I>>(base?: I): CalculatorInput {
+    return CalculatorInput.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CalculatorInput>, I>>(object: I): CalculatorInput {
+    const message = createBaseCalculatorInput();
+    message.key = object.key ?? "";
+    message.label = object.label ?? "";
+    message.type = object.type ?? 0;
+    message.unit = object.unit ?? "";
+    message.min_value = object.min_value ?? "";
+    message.max_value = object.max_value ?? "";
+    message.default_value = object.default_value ?? "";
+    message.required = object.required ?? false;
+    return message;
+  },
+};
+
+function createBaseCalculatorValidation(): CalculatorValidation {
+  return { expression: "", message: "" };
+}
+
+export const CalculatorValidation: MessageFns<CalculatorValidation> = {
+  encode(message: CalculatorValidation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.expression !== "") {
+      writer.uint32(10).string(message.expression);
+    }
+    if (message.message !== "") {
+      writer.uint32(18).string(message.message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CalculatorValidation {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculatorValidation();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.expression = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.message = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CalculatorValidation {
+    return {
+      expression: isSet(object.expression) ? globalThis.String(object.expression) : "",
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+    };
+  },
+
+  toJSON(message: CalculatorValidation): unknown {
+    const obj: any = {};
+    if (message.expression !== "") {
+      obj.expression = message.expression;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CalculatorValidation>, I>>(base?: I): CalculatorValidation {
+    return CalculatorValidation.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CalculatorValidation>, I>>(object: I): CalculatorValidation {
+    const message = createBaseCalculatorValidation();
+    message.expression = object.expression ?? "";
+    message.message = object.message ?? "";
+    return message;
+  },
+};
+
+function createBaseCalculatorOutput(): CalculatorOutput {
+  return { key: "", label: "", expression: "", scale: 0, when: "" };
+}
+
+export const CalculatorOutput: MessageFns<CalculatorOutput> = {
+  encode(message: CalculatorOutput, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.label !== "") {
+      writer.uint32(18).string(message.label);
+    }
+    if (message.expression !== "") {
+      writer.uint32(26).string(message.expression);
+    }
+    if (message.scale !== 0) {
+      writer.uint32(32).int32(message.scale);
+    }
+    if (message.when !== "") {
+      writer.uint32(42).string(message.when);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CalculatorOutput {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculatorOutput();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.label = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.expression = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.scale = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.when = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CalculatorOutput {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      label: isSet(object.label) ? globalThis.String(object.label) : "",
+      expression: isSet(object.expression) ? globalThis.String(object.expression) : "",
+      scale: isSet(object.scale) ? globalThis.Number(object.scale) : 0,
+      when: isSet(object.when) ? globalThis.String(object.when) : "",
+    };
+  },
+
+  toJSON(message: CalculatorOutput): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.label !== "") {
+      obj.label = message.label;
+    }
+    if (message.expression !== "") {
+      obj.expression = message.expression;
+    }
+    if (message.scale !== 0) {
+      obj.scale = Math.round(message.scale);
+    }
+    if (message.when !== "") {
+      obj.when = message.when;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CalculatorOutput>, I>>(base?: I): CalculatorOutput {
+    return CalculatorOutput.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CalculatorOutput>, I>>(object: I): CalculatorOutput {
+    const message = createBaseCalculatorOutput();
+    message.key = object.key ?? "";
+    message.label = object.label ?? "";
+    message.expression = object.expression ?? "";
+    message.scale = object.scale ?? 0;
+    message.when = object.when ?? "";
+    return message;
+  },
+};
+
+function createBaseCalculatorDefinition(): CalculatorDefinition {
+  return { inputs: [], validations: [], outputs: [] };
+}
+
+export const CalculatorDefinition: MessageFns<CalculatorDefinition> = {
+  encode(message: CalculatorDefinition, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.inputs) {
+      CalculatorInput.encode(v!, writer.uint32(10).fork()).join();
+    }
+    for (const v of message.validations) {
+      CalculatorValidation.encode(v!, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.outputs) {
+      CalculatorOutput.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CalculatorDefinition {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculatorDefinition();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.inputs.push(CalculatorInput.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.validations.push(CalculatorValidation.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.outputs.push(CalculatorOutput.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CalculatorDefinition {
+    return {
+      inputs: globalThis.Array.isArray(object?.inputs)
+        ? object.inputs.map((e: any) => CalculatorInput.fromJSON(e))
+        : [],
+      validations: globalThis.Array.isArray(object?.validations)
+        ? object.validations.map((e: any) => CalculatorValidation.fromJSON(e))
+        : [],
+      outputs: globalThis.Array.isArray(object?.outputs)
+        ? object.outputs.map((e: any) => CalculatorOutput.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: CalculatorDefinition): unknown {
+    const obj: any = {};
+    if (message.inputs?.length) {
+      obj.inputs = message.inputs.map((e) => CalculatorInput.toJSON(e));
+    }
+    if (message.validations?.length) {
+      obj.validations = message.validations.map((e) => CalculatorValidation.toJSON(e));
+    }
+    if (message.outputs?.length) {
+      obj.outputs = message.outputs.map((e) => CalculatorOutput.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CalculatorDefinition>, I>>(base?: I): CalculatorDefinition {
+    return CalculatorDefinition.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CalculatorDefinition>, I>>(object: I): CalculatorDefinition {
+    const message = createBaseCalculatorDefinition();
+    message.inputs = object.inputs?.map((e) => CalculatorInput.fromPartial(e)) || [];
+    message.validations = object.validations?.map((e) => CalculatorValidation.fromPartial(e)) || [];
+    message.outputs = object.outputs?.map((e) => CalculatorOutput.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCalculator(): Calculator {
+  return {
+    calculator_id: "",
+    owner_id: "",
+    name: "",
+    description: "",
+    is_builtin: false,
+    state: "",
+    approved_by: "",
+    rejection_reason: "",
+    version: 0,
+    definition: undefined,
+    indicators_used: [],
+  };
+}
+
+export const Calculator: MessageFns<Calculator> = {
+  encode(message: Calculator, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.calculator_id !== "") {
+      writer.uint32(10).string(message.calculator_id);
+    }
+    if (message.owner_id !== "") {
+      writer.uint32(18).string(message.owner_id);
+    }
+    if (message.name !== "") {
+      writer.uint32(26).string(message.name);
+    }
+    if (message.description !== "") {
+      writer.uint32(34).string(message.description);
+    }
+    if (message.is_builtin !== false) {
+      writer.uint32(40).bool(message.is_builtin);
+    }
+    if (message.state !== "") {
+      writer.uint32(50).string(message.state);
+    }
+    if (message.approved_by !== "") {
+      writer.uint32(58).string(message.approved_by);
+    }
+    if (message.rejection_reason !== "") {
+      writer.uint32(66).string(message.rejection_reason);
+    }
+    if (message.version !== 0) {
+      writer.uint32(72).int32(message.version);
+    }
+    if (message.definition !== undefined) {
+      CalculatorDefinition.encode(message.definition, writer.uint32(82).fork()).join();
+    }
+    for (const v of message.indicators_used) {
+      writer.uint32(90).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Calculator {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculator();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.owner_id = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.is_builtin = reader.bool();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.state = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.approved_by = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.rejection_reason = reader.string();
+          continue;
+        }
+        case 9: {
+          if (tag !== 72) {
+            break;
+          }
+
+          message.version = reader.int32();
+          continue;
+        }
+        case 10: {
+          if (tag !== 82) {
+            break;
+          }
+
+          message.definition = CalculatorDefinition.decode(reader, reader.uint32());
+          continue;
+        }
+        case 11: {
+          if (tag !== 90) {
+            break;
+          }
+
+          message.indicators_used.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Calculator {
+    return {
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      owner_id: isSet(object.owner_id) ? globalThis.String(object.owner_id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      is_builtin: isSet(object.is_builtin) ? globalThis.Boolean(object.is_builtin) : false,
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      approved_by: isSet(object.approved_by) ? globalThis.String(object.approved_by) : "",
+      rejection_reason: isSet(object.rejection_reason) ? globalThis.String(object.rejection_reason) : "",
+      version: isSet(object.version) ? globalThis.Number(object.version) : 0,
+      definition: isSet(object.definition) ? CalculatorDefinition.fromJSON(object.definition) : undefined,
+      indicators_used: globalThis.Array.isArray(object?.indicators_used)
+        ? object.indicators_used.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Calculator): unknown {
+    const obj: any = {};
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.owner_id !== "") {
+      obj.owner_id = message.owner_id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.is_builtin !== false) {
+      obj.is_builtin = message.is_builtin;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.approved_by !== "") {
+      obj.approved_by = message.approved_by;
+    }
+    if (message.rejection_reason !== "") {
+      obj.rejection_reason = message.rejection_reason;
+    }
+    if (message.version !== 0) {
+      obj.version = Math.round(message.version);
+    }
+    if (message.definition !== undefined) {
+      obj.definition = CalculatorDefinition.toJSON(message.definition);
+    }
+    if (message.indicators_used?.length) {
+      obj.indicators_used = message.indicators_used;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Calculator>, I>>(base?: I): Calculator {
+    return Calculator.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Calculator>, I>>(object: I): Calculator {
+    const message = createBaseCalculator();
+    message.calculator_id = object.calculator_id ?? "";
+    message.owner_id = object.owner_id ?? "";
+    message.name = object.name ?? "";
+    message.description = object.description ?? "";
+    message.is_builtin = object.is_builtin ?? false;
+    message.state = object.state ?? "";
+    message.approved_by = object.approved_by ?? "";
+    message.rejection_reason = object.rejection_reason ?? "";
+    message.version = object.version ?? 0;
+    message.definition = (object.definition !== undefined && object.definition !== null)
+      ? CalculatorDefinition.fromPartial(object.definition)
+      : undefined;
+    message.indicators_used = object.indicators_used?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseUpsertCalculatorRequest(): UpsertCalculatorRequest {
+  return { calculator_id: "", owner_id: "", name: "", description: "", definition: undefined };
+}
+
+export const UpsertCalculatorRequest: MessageFns<UpsertCalculatorRequest> = {
+  encode(message: UpsertCalculatorRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.calculator_id !== "") {
+      writer.uint32(10).string(message.calculator_id);
+    }
+    if (message.owner_id !== "") {
+      writer.uint32(18).string(message.owner_id);
+    }
+    if (message.name !== "") {
+      writer.uint32(26).string(message.name);
+    }
+    if (message.description !== "") {
+      writer.uint32(34).string(message.description);
+    }
+    if (message.definition !== undefined) {
+      CalculatorDefinition.encode(message.definition, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpsertCalculatorRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpsertCalculatorRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.owner_id = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.definition = CalculatorDefinition.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpsertCalculatorRequest {
+    return {
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      owner_id: isSet(object.owner_id) ? globalThis.String(object.owner_id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      definition: isSet(object.definition) ? CalculatorDefinition.fromJSON(object.definition) : undefined,
+    };
+  },
+
+  toJSON(message: UpsertCalculatorRequest): unknown {
+    const obj: any = {};
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.owner_id !== "") {
+      obj.owner_id = message.owner_id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.definition !== undefined) {
+      obj.definition = CalculatorDefinition.toJSON(message.definition);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpsertCalculatorRequest>, I>>(base?: I): UpsertCalculatorRequest {
+    return UpsertCalculatorRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpsertCalculatorRequest>, I>>(object: I): UpsertCalculatorRequest {
+    const message = createBaseUpsertCalculatorRequest();
+    message.calculator_id = object.calculator_id ?? "";
+    message.owner_id = object.owner_id ?? "";
+    message.name = object.name ?? "";
+    message.description = object.description ?? "";
+    message.definition = (object.definition !== undefined && object.definition !== null)
+      ? CalculatorDefinition.fromPartial(object.definition)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseListCalculatorsRequest(): ListCalculatorsRequest {
+  return { owner_id: "", only_published: false, page: undefined };
+}
+
+export const ListCalculatorsRequest: MessageFns<ListCalculatorsRequest> = {
+  encode(message: ListCalculatorsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner_id !== "") {
+      writer.uint32(10).string(message.owner_id);
+    }
+    if (message.only_published !== false) {
+      writer.uint32(16).bool(message.only_published);
+    }
+    if (message.page !== undefined) {
+      PageRequest.encode(message.page, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListCalculatorsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListCalculatorsRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.owner_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.only_published = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.page = PageRequest.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListCalculatorsRequest {
+    return {
+      owner_id: isSet(object.owner_id) ? globalThis.String(object.owner_id) : "",
+      only_published: isSet(object.only_published) ? globalThis.Boolean(object.only_published) : false,
+      page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
+    };
+  },
+
+  toJSON(message: ListCalculatorsRequest): unknown {
+    const obj: any = {};
+    if (message.owner_id !== "") {
+      obj.owner_id = message.owner_id;
+    }
+    if (message.only_published !== false) {
+      obj.only_published = message.only_published;
+    }
+    if (message.page !== undefined) {
+      obj.page = PageRequest.toJSON(message.page);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListCalculatorsRequest>, I>>(base?: I): ListCalculatorsRequest {
+    return ListCalculatorsRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListCalculatorsRequest>, I>>(object: I): ListCalculatorsRequest {
+    const message = createBaseListCalculatorsRequest();
+    message.owner_id = object.owner_id ?? "";
+    message.only_published = object.only_published ?? false;
+    message.page = (object.page !== undefined && object.page !== null)
+      ? PageRequest.fromPartial(object.page)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseListCalculatorsResponse(): ListCalculatorsResponse {
+  return { items: [], page: undefined };
+}
+
+export const ListCalculatorsResponse: MessageFns<ListCalculatorsResponse> = {
+  encode(message: ListCalculatorsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.items) {
+      Calculator.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.page !== undefined) {
+      PageResponse.encode(message.page, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListCalculatorsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListCalculatorsResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.items.push(Calculator.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.page = PageResponse.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListCalculatorsResponse {
+    return {
+      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => Calculator.fromJSON(e)) : [],
+      page: isSet(object.page) ? PageResponse.fromJSON(object.page) : undefined,
+    };
+  },
+
+  toJSON(message: ListCalculatorsResponse): unknown {
+    const obj: any = {};
+    if (message.items?.length) {
+      obj.items = message.items.map((e) => Calculator.toJSON(e));
+    }
+    if (message.page !== undefined) {
+      obj.page = PageResponse.toJSON(message.page);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListCalculatorsResponse>, I>>(base?: I): ListCalculatorsResponse {
+    return ListCalculatorsResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListCalculatorsResponse>, I>>(object: I): ListCalculatorsResponse {
+    const message = createBaseListCalculatorsResponse();
+    message.items = object.items?.map((e) => Calculator.fromPartial(e)) || [];
+    message.page = (object.page !== undefined && object.page !== null)
+      ? PageResponse.fromPartial(object.page)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseValidateDefinitionRequest(): ValidateDefinitionRequest {
+  return { definition: undefined };
+}
+
+export const ValidateDefinitionRequest: MessageFns<ValidateDefinitionRequest> = {
+  encode(message: ValidateDefinitionRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.definition !== undefined) {
+      CalculatorDefinition.encode(message.definition, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ValidateDefinitionRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseValidateDefinitionRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.definition = CalculatorDefinition.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ValidateDefinitionRequest {
+    return { definition: isSet(object.definition) ? CalculatorDefinition.fromJSON(object.definition) : undefined };
+  },
+
+  toJSON(message: ValidateDefinitionRequest): unknown {
+    const obj: any = {};
+    if (message.definition !== undefined) {
+      obj.definition = CalculatorDefinition.toJSON(message.definition);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ValidateDefinitionRequest>, I>>(base?: I): ValidateDefinitionRequest {
+    return ValidateDefinitionRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ValidateDefinitionRequest>, I>>(object: I): ValidateDefinitionRequest {
+    const message = createBaseValidateDefinitionRequest();
+    message.definition = (object.definition !== undefined && object.definition !== null)
+      ? CalculatorDefinition.fromPartial(object.definition)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseValidateDefinitionResponse(): ValidateDefinitionResponse {
+  return { valid: false, errors: [] };
+}
+
+export const ValidateDefinitionResponse: MessageFns<ValidateDefinitionResponse> = {
+  encode(message: ValidateDefinitionResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.valid !== false) {
+      writer.uint32(8).bool(message.valid);
+    }
+    for (const v of message.errors) {
+      DefinitionError.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ValidateDefinitionResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseValidateDefinitionResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.valid = reader.bool();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.errors.push(DefinitionError.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ValidateDefinitionResponse {
+    return {
+      valid: isSet(object.valid) ? globalThis.Boolean(object.valid) : false,
+      errors: globalThis.Array.isArray(object?.errors)
+        ? object.errors.map((e: any) => DefinitionError.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: ValidateDefinitionResponse): unknown {
+    const obj: any = {};
+    if (message.valid !== false) {
+      obj.valid = message.valid;
+    }
+    if (message.errors?.length) {
+      obj.errors = message.errors.map((e) => DefinitionError.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ValidateDefinitionResponse>, I>>(base?: I): ValidateDefinitionResponse {
+    return ValidateDefinitionResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ValidateDefinitionResponse>, I>>(object: I): ValidateDefinitionResponse {
+    const message = createBaseValidateDefinitionResponse();
+    message.valid = object.valid ?? false;
+    message.errors = object.errors?.map((e) => DefinitionError.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseDefinitionError(): DefinitionError {
+  return { location: "", code: "", message: "" };
+}
+
+export const DefinitionError: MessageFns<DefinitionError> = {
+  encode(message: DefinitionError, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.location !== "") {
+      writer.uint32(10).string(message.location);
+    }
+    if (message.code !== "") {
+      writer.uint32(18).string(message.code);
+    }
+    if (message.message !== "") {
+      writer.uint32(26).string(message.message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DefinitionError {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDefinitionError();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.location = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.code = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.message = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DefinitionError {
+    return {
+      location: isSet(object.location) ? globalThis.String(object.location) : "",
+      code: isSet(object.code) ? globalThis.String(object.code) : "",
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+    };
+  },
+
+  toJSON(message: DefinitionError): unknown {
+    const obj: any = {};
+    if (message.location !== "") {
+      obj.location = message.location;
+    }
+    if (message.code !== "") {
+      obj.code = message.code;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DefinitionError>, I>>(base?: I): DefinitionError {
+    return DefinitionError.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DefinitionError>, I>>(object: I): DefinitionError {
+    const message = createBaseDefinitionError();
+    message.location = object.location ?? "";
+    message.code = object.code ?? "";
+    message.message = object.message ?? "";
+    return message;
+  },
+};
+
+function createBaseApproveCalculatorRequest(): ApproveCalculatorRequest {
+  return { calculator_id: "", coordinator_id: "" };
+}
+
+export const ApproveCalculatorRequest: MessageFns<ApproveCalculatorRequest> = {
+  encode(message: ApproveCalculatorRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.calculator_id !== "") {
+      writer.uint32(10).string(message.calculator_id);
+    }
+    if (message.coordinator_id !== "") {
+      writer.uint32(18).string(message.coordinator_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ApproveCalculatorRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseApproveCalculatorRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.coordinator_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ApproveCalculatorRequest {
+    return {
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      coordinator_id: isSet(object.coordinator_id) ? globalThis.String(object.coordinator_id) : "",
+    };
+  },
+
+  toJSON(message: ApproveCalculatorRequest): unknown {
+    const obj: any = {};
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.coordinator_id !== "") {
+      obj.coordinator_id = message.coordinator_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ApproveCalculatorRequest>, I>>(base?: I): ApproveCalculatorRequest {
+    return ApproveCalculatorRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ApproveCalculatorRequest>, I>>(object: I): ApproveCalculatorRequest {
+    const message = createBaseApproveCalculatorRequest();
+    message.calculator_id = object.calculator_id ?? "";
+    message.coordinator_id = object.coordinator_id ?? "";
+    return message;
+  },
+};
+
+function createBaseRejectCalculatorRequest(): RejectCalculatorRequest {
+  return { calculator_id: "", coordinator_id: "", reason: "" };
+}
+
+export const RejectCalculatorRequest: MessageFns<RejectCalculatorRequest> = {
+  encode(message: RejectCalculatorRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.calculator_id !== "") {
+      writer.uint32(10).string(message.calculator_id);
+    }
+    if (message.coordinator_id !== "") {
+      writer.uint32(18).string(message.coordinator_id);
+    }
+    if (message.reason !== "") {
+      writer.uint32(26).string(message.reason);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RejectCalculatorRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRejectCalculatorRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.coordinator_id = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.reason = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RejectCalculatorRequest {
+    return {
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      coordinator_id: isSet(object.coordinator_id) ? globalThis.String(object.coordinator_id) : "",
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+    };
+  },
+
+  toJSON(message: RejectCalculatorRequest): unknown {
+    const obj: any = {};
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.coordinator_id !== "") {
+      obj.coordinator_id = message.coordinator_id;
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RejectCalculatorRequest>, I>>(base?: I): RejectCalculatorRequest {
+    return RejectCalculatorRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RejectCalculatorRequest>, I>>(object: I): RejectCalculatorRequest {
+    const message = createBaseRejectCalculatorRequest();
+    message.calculator_id = object.calculator_id ?? "";
+    message.coordinator_id = object.coordinator_id ?? "";
+    message.reason = object.reason ?? "";
+    return message;
+  },
+};
+
+function createBaseIndicator(): Indicator {
+  return { indicator_id: "", name: "", value: "", valid_from: "", valid_to: "", registered_by: "" };
+}
+
+export const Indicator: MessageFns<Indicator> = {
+  encode(message: Indicator, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.indicator_id !== "") {
+      writer.uint32(10).string(message.indicator_id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.value !== "") {
+      writer.uint32(26).string(message.value);
+    }
+    if (message.valid_from !== "") {
+      writer.uint32(34).string(message.valid_from);
+    }
+    if (message.valid_to !== "") {
+      writer.uint32(42).string(message.valid_to);
+    }
+    if (message.registered_by !== "") {
+      writer.uint32(50).string(message.registered_by);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Indicator {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseIndicator();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.indicator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.valid_from = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.valid_to = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.registered_by = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Indicator {
+    return {
+      indicator_id: isSet(object.indicator_id) ? globalThis.String(object.indicator_id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      valid_from: isSet(object.valid_from) ? globalThis.String(object.valid_from) : "",
+      valid_to: isSet(object.valid_to) ? globalThis.String(object.valid_to) : "",
+      registered_by: isSet(object.registered_by) ? globalThis.String(object.registered_by) : "",
+    };
+  },
+
+  toJSON(message: Indicator): unknown {
+    const obj: any = {};
+    if (message.indicator_id !== "") {
+      obj.indicator_id = message.indicator_id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    if (message.valid_from !== "") {
+      obj.valid_from = message.valid_from;
+    }
+    if (message.valid_to !== "") {
+      obj.valid_to = message.valid_to;
+    }
+    if (message.registered_by !== "") {
+      obj.registered_by = message.registered_by;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Indicator>, I>>(base?: I): Indicator {
+    return Indicator.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Indicator>, I>>(object: I): Indicator {
+    const message = createBaseIndicator();
+    message.indicator_id = object.indicator_id ?? "";
+    message.name = object.name ?? "";
+    message.value = object.value ?? "";
+    message.valid_from = object.valid_from ?? "";
+    message.valid_to = object.valid_to ?? "";
+    message.registered_by = object.registered_by ?? "";
+    return message;
+  },
+};
+
+function createBaseUpsertIndicatorRequest(): UpsertIndicatorRequest {
+  return { indicator_id: "", name: "", value: "", valid_from: "", valid_to: "", actor_id: "" };
+}
+
+export const UpsertIndicatorRequest: MessageFns<UpsertIndicatorRequest> = {
+  encode(message: UpsertIndicatorRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.indicator_id !== "") {
+      writer.uint32(10).string(message.indicator_id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.value !== "") {
+      writer.uint32(26).string(message.value);
+    }
+    if (message.valid_from !== "") {
+      writer.uint32(34).string(message.valid_from);
+    }
+    if (message.valid_to !== "") {
+      writer.uint32(42).string(message.valid_to);
+    }
+    if (message.actor_id !== "") {
+      writer.uint32(50).string(message.actor_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpsertIndicatorRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpsertIndicatorRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.indicator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.valid_from = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.valid_to = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.actor_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpsertIndicatorRequest {
+    return {
+      indicator_id: isSet(object.indicator_id) ? globalThis.String(object.indicator_id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      valid_from: isSet(object.valid_from) ? globalThis.String(object.valid_from) : "",
+      valid_to: isSet(object.valid_to) ? globalThis.String(object.valid_to) : "",
+      actor_id: isSet(object.actor_id) ? globalThis.String(object.actor_id) : "",
+    };
+  },
+
+  toJSON(message: UpsertIndicatorRequest): unknown {
+    const obj: any = {};
+    if (message.indicator_id !== "") {
+      obj.indicator_id = message.indicator_id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    if (message.valid_from !== "") {
+      obj.valid_from = message.valid_from;
+    }
+    if (message.valid_to !== "") {
+      obj.valid_to = message.valid_to;
+    }
+    if (message.actor_id !== "") {
+      obj.actor_id = message.actor_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpsertIndicatorRequest>, I>>(base?: I): UpsertIndicatorRequest {
+    return UpsertIndicatorRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpsertIndicatorRequest>, I>>(object: I): UpsertIndicatorRequest {
+    const message = createBaseUpsertIndicatorRequest();
+    message.indicator_id = object.indicator_id ?? "";
+    message.name = object.name ?? "";
+    message.value = object.value ?? "";
+    message.valid_from = object.valid_from ?? "";
+    message.valid_to = object.valid_to ?? "";
+    message.actor_id = object.actor_id ?? "";
+    return message;
+  },
+};
+
+function createBaseListIndicatorsRequest(): ListIndicatorsRequest {
+  return { name: "", on_date: "" };
+}
+
+export const ListIndicatorsRequest: MessageFns<ListIndicatorsRequest> = {
+  encode(message: ListIndicatorsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.on_date !== "") {
+      writer.uint32(18).string(message.on_date);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListIndicatorsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListIndicatorsRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.on_date = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListIndicatorsRequest {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      on_date: isSet(object.on_date) ? globalThis.String(object.on_date) : "",
+    };
+  },
+
+  toJSON(message: ListIndicatorsRequest): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.on_date !== "") {
+      obj.on_date = message.on_date;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListIndicatorsRequest>, I>>(base?: I): ListIndicatorsRequest {
+    return ListIndicatorsRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListIndicatorsRequest>, I>>(object: I): ListIndicatorsRequest {
+    const message = createBaseListIndicatorsRequest();
+    message.name = object.name ?? "";
+    message.on_date = object.on_date ?? "";
+    return message;
+  },
+};
+
+function createBaseListIndicatorsResponse(): ListIndicatorsResponse {
+  return { items: [] };
+}
+
+export const ListIndicatorsResponse: MessageFns<ListIndicatorsResponse> = {
+  encode(message: ListIndicatorsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.items) {
+      Indicator.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListIndicatorsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListIndicatorsResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.items.push(Indicator.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListIndicatorsResponse {
+    return {
+      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => Indicator.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: ListIndicatorsResponse): unknown {
+    const obj: any = {};
+    if (message.items?.length) {
+      obj.items = message.items.map((e) => Indicator.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListIndicatorsResponse>, I>>(base?: I): ListIndicatorsResponse {
+    return ListIndicatorsResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListIndicatorsResponse>, I>>(object: I): ListIndicatorsResponse {
+    const message = createBaseListIndicatorsResponse();
+    message.items = object.items?.map((e) => Indicator.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseIndicatorCalendarStatus(): IndicatorCalendarStatus {
+  return { missing_names: [], expiring: [] };
+}
+
+export const IndicatorCalendarStatus: MessageFns<IndicatorCalendarStatus> = {
+  encode(message: IndicatorCalendarStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.missing_names) {
+      writer.uint32(10).string(v!);
+    }
+    for (const v of message.expiring) {
+      ExpiringIndicator.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IndicatorCalendarStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseIndicatorCalendarStatus();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.missing_names.push(reader.string());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.expiring.push(ExpiringIndicator.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): IndicatorCalendarStatus {
+    return {
+      missing_names: globalThis.Array.isArray(object?.missing_names)
+        ? object.missing_names.map((e: any) => globalThis.String(e))
+        : [],
+      expiring: globalThis.Array.isArray(object?.expiring)
+        ? object.expiring.map((e: any) => ExpiringIndicator.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: IndicatorCalendarStatus): unknown {
+    const obj: any = {};
+    if (message.missing_names?.length) {
+      obj.missing_names = message.missing_names;
+    }
+    if (message.expiring?.length) {
+      obj.expiring = message.expiring.map((e) => ExpiringIndicator.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<IndicatorCalendarStatus>, I>>(base?: I): IndicatorCalendarStatus {
+    return IndicatorCalendarStatus.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<IndicatorCalendarStatus>, I>>(object: I): IndicatorCalendarStatus {
+    const message = createBaseIndicatorCalendarStatus();
+    message.missing_names = object.missing_names?.map((e) => e) || [];
+    message.expiring = object.expiring?.map((e) => ExpiringIndicator.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseExpiringIndicator(): ExpiringIndicator {
+  return { name: "", valid_to: "", days_remaining: 0 };
+}
+
+export const ExpiringIndicator: MessageFns<ExpiringIndicator> = {
+  encode(message: ExpiringIndicator, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.valid_to !== "") {
+      writer.uint32(18).string(message.valid_to);
+    }
+    if (message.days_remaining !== 0) {
+      writer.uint32(24).int32(message.days_remaining);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ExpiringIndicator {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseExpiringIndicator();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.valid_to = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.days_remaining = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ExpiringIndicator {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      valid_to: isSet(object.valid_to) ? globalThis.String(object.valid_to) : "",
+      days_remaining: isSet(object.days_remaining) ? globalThis.Number(object.days_remaining) : 0,
+    };
+  },
+
+  toJSON(message: ExpiringIndicator): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.valid_to !== "") {
+      obj.valid_to = message.valid_to;
+    }
+    if (message.days_remaining !== 0) {
+      obj.days_remaining = Math.round(message.days_remaining);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ExpiringIndicator>, I>>(base?: I): ExpiringIndicator {
+    return ExpiringIndicator.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ExpiringIndicator>, I>>(object: I): ExpiringIndicator {
+    const message = createBaseExpiringIndicator();
+    message.name = object.name ?? "";
+    message.valid_to = object.valid_to ?? "";
+    message.days_remaining = object.days_remaining ?? 0;
+    return message;
+  },
+};
+
 /**
- * Servicio de Simulador (Rust). Cinco calculadoras financieras con precisión
- * decimal arbitraria (rust_decimal). NO es productor de eventos RabbitMQ
- * (Principio V); la auditoría de simulaciones la emite el Orquestador (research D-03).
+ * Servicio de Simulador (Rust). Calculadoras financieras con precisión decimal
+ * arbitraria (rust_decimal). NO es productor de eventos RabbitMQ (Principio V); la
+ * auditoría de simulaciones la emite el Orquestador (research D-03), y el aviso de
+ * vencimiento de indicadores también (research D-23).
  * Todos los montos/tasas viajan como `string` decimal canónica (Principio VIII / D-10).
  */
 export type SimulatorServiceService = typeof SimulatorServiceService;
@@ -1147,7 +3805,13 @@ export const SimulatorServiceService = {
     responseSerialize: (value: ListHistoryResponse) => Buffer.from(ListHistoryResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer) => ListHistoryResponse.decode(value),
   },
-  /** Saga de anonimización (FR-030): disocia PII del historial. */
+  /**
+   * Saga de anonimización (FR-030): disocia PII del historial.
+   * CAMBIO DE COMPORTAMIENTO (002): además del historial, pone a NULL
+   * `calculators.owner_id` de las calculadoras PUBLICADAS del titular,
+   * conservándolas en el catálogo con autoría anonimizada (Edge Cases), y elimina
+   * las privadas, que ya no tienen a quién servir.
+   */
   anonymizeHistory: {
     path: "/fintcart.simulator.v1.SimulatorService/AnonymizeHistory",
     requestStream: false,
@@ -1156,6 +3820,129 @@ export const SimulatorServiceService = {
     requestDeserialize: (value: Buffer) => UserRef.decode(value),
     responseSerialize: (value: OpResult) => Buffer.from(OpResult.encode(value).finish()),
     responseDeserialize: (value: Buffer) => OpResult.decode(value),
+  },
+  /**
+   * ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+   * Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por campo:
+   * la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza — evita
+   * dejar una calculadora a medio editar visible entre dos llamadas.
+   * `calculator_id` vacío crea una nueva.
+   */
+  upsertCalculator: {
+    path: "/fintcart.simulator.v1.SimulatorService/UpsertCalculator",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: UpsertCalculatorRequest) => Buffer.from(UpsertCalculatorRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => UpsertCalculatorRequest.decode(value),
+    responseSerialize: (value: Calculator) => Buffer.from(Calculator.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => Calculator.decode(value),
+  },
+  getCalculator: {
+    path: "/fintcart.simulator.v1.SimulatorService/GetCalculator",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: CalculatorRef) => Buffer.from(CalculatorRef.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => CalculatorRef.decode(value),
+    responseSerialize: (value: Calculator) => Buffer.from(Calculator.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => Calculator.decode(value),
+  },
+  /**
+   * `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+   * ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+   */
+  listCalculators: {
+    path: "/fintcart.simulator.v1.SimulatorService/ListCalculators",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: ListCalculatorsRequest) => Buffer.from(ListCalculatorsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => ListCalculatorsRequest.decode(value),
+    responseSerialize: (value: ListCalculatorsResponse) => Buffer.from(ListCalculatorsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => ListCalculatorsResponse.decode(value),
+  },
+  deleteCalculator: {
+    path: "/fintcart.simulator.v1.SimulatorService/DeleteCalculator",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: CalculatorRef) => Buffer.from(CalculatorRef.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => CalculatorRef.decode(value),
+    responseSerialize: (value: OpResult) => Buffer.from(OpResult.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => OpResult.decode(value),
+  },
+  /**
+   * Valida SIN guardar: alimenta el aviso en vivo del constructor en el frontend.
+   * Devuelve los mismos errores que UpsertCalculator (FR-046).
+   */
+  validateDefinition: {
+    path: "/fintcart.simulator.v1.SimulatorService/ValidateDefinition",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: ValidateDefinitionRequest) =>
+      Buffer.from(ValidateDefinitionRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => ValidateDefinitionRequest.decode(value),
+    responseSerialize: (value: ValidateDefinitionResponse) =>
+      Buffer.from(ValidateDefinitionResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => ValidateDefinitionResponse.decode(value),
+  },
+  /** ── Curaduría (FR-052…FR-054) ───────────────────────────────────────────── */
+  submitCalculatorForReview: {
+    path: "/fintcart.simulator.v1.SimulatorService/SubmitCalculatorForReview",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: CalculatorRef) => Buffer.from(CalculatorRef.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => CalculatorRef.decode(value),
+    responseSerialize: (value: OpResult) => Buffer.from(OpResult.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => OpResult.decode(value),
+  },
+  /** Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base. */
+  approveCalculator: {
+    path: "/fintcart.simulator.v1.SimulatorService/ApproveCalculator",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: ApproveCalculatorRequest) => Buffer.from(ApproveCalculatorRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => ApproveCalculatorRequest.decode(value),
+    responseSerialize: (value: OpResult) => Buffer.from(OpResult.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => OpResult.decode(value),
+  },
+  rejectCalculator: {
+    path: "/fintcart.simulator.v1.SimulatorService/RejectCalculator",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: RejectCalculatorRequest) => Buffer.from(RejectCalculatorRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => RejectCalculatorRequest.decode(value),
+    responseSerialize: (value: OpResult) => Buffer.from(OpResult.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => OpResult.decode(value),
+  },
+  /** ── Indicadores financieros (FR-055…FR-060) ─────────────────────────────── */
+  upsertIndicator: {
+    path: "/fintcart.simulator.v1.SimulatorService/UpsertIndicator",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: UpsertIndicatorRequest) => Buffer.from(UpsertIndicatorRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => UpsertIndicatorRequest.decode(value),
+    responseSerialize: (value: Indicator) => Buffer.from(Indicator.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => Indicator.decode(value),
+  },
+  listIndicators: {
+    path: "/fintcart.simulator.v1.SimulatorService/ListIndicators",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: ListIndicatorsRequest) => Buffer.from(ListIndicatorsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => ListIndicatorsRequest.decode(value),
+    responseSerialize: (value: ListIndicatorsResponse) => Buffer.from(ListIndicatorsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => ListIndicatorsResponse.decode(value),
+  },
+  /**
+   * Lo consulta el barrido periódico del Orquestador (research D-23), que es quien
+   * publica el evento de aviso: el Simulador NO es productor (Principio V).
+   */
+  getIndicatorCalendarStatus: {
+    path: "/fintcart.simulator.v1.SimulatorService/GetIndicatorCalendarStatus",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: PageRequest) => Buffer.from(PageRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => PageRequest.decode(value),
+    responseSerialize: (value: IndicatorCalendarStatus) => Buffer.from(IndicatorCalendarStatus.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => IndicatorCalendarStatus.decode(value),
   },
 } as const;
 
@@ -1167,8 +3954,47 @@ export interface SimulatorServiceServer extends UntypedServiceImplementation {
   compute: handleUnaryCall<ComputeRequest, ComputeResponse>;
   /** Historial de simulaciones por usuario (FR-022). */
   listHistory: handleUnaryCall<ListHistoryRequest, ListHistoryResponse>;
-  /** Saga de anonimización (FR-030): disocia PII del historial. */
+  /**
+   * Saga de anonimización (FR-030): disocia PII del historial.
+   * CAMBIO DE COMPORTAMIENTO (002): además del historial, pone a NULL
+   * `calculators.owner_id` de las calculadoras PUBLICADAS del titular,
+   * conservándolas en el catálogo con autoría anonimizada (Edge Cases), y elimina
+   * las privadas, que ya no tienen a quién servir.
+   */
   anonymizeHistory: handleUnaryCall<UserRef, OpResult>;
+  /**
+   * ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+   * Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por campo:
+   * la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza — evita
+   * dejar una calculadora a medio editar visible entre dos llamadas.
+   * `calculator_id` vacío crea una nueva.
+   */
+  upsertCalculator: handleUnaryCall<UpsertCalculatorRequest, Calculator>;
+  getCalculator: handleUnaryCall<CalculatorRef, Calculator>;
+  /**
+   * `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+   * ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+   */
+  listCalculators: handleUnaryCall<ListCalculatorsRequest, ListCalculatorsResponse>;
+  deleteCalculator: handleUnaryCall<CalculatorRef, OpResult>;
+  /**
+   * Valida SIN guardar: alimenta el aviso en vivo del constructor en el frontend.
+   * Devuelve los mismos errores que UpsertCalculator (FR-046).
+   */
+  validateDefinition: handleUnaryCall<ValidateDefinitionRequest, ValidateDefinitionResponse>;
+  /** ── Curaduría (FR-052…FR-054) ───────────────────────────────────────────── */
+  submitCalculatorForReview: handleUnaryCall<CalculatorRef, OpResult>;
+  /** Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base. */
+  approveCalculator: handleUnaryCall<ApproveCalculatorRequest, OpResult>;
+  rejectCalculator: handleUnaryCall<RejectCalculatorRequest, OpResult>;
+  /** ── Indicadores financieros (FR-055…FR-060) ─────────────────────────────── */
+  upsertIndicator: handleUnaryCall<UpsertIndicatorRequest, Indicator>;
+  listIndicators: handleUnaryCall<ListIndicatorsRequest, ListIndicatorsResponse>;
+  /**
+   * Lo consulta el barrido periódico del Orquestador (research D-23), que es quien
+   * publica el evento de aviso: el Simulador NO es productor (Principio V).
+   */
+  getIndicatorCalendarStatus: handleUnaryCall<PageRequest, IndicatorCalendarStatus>;
 }
 
 export interface SimulatorServiceClient extends Client {
@@ -1207,7 +4033,13 @@ export interface SimulatorServiceClient extends Client {
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: ListHistoryResponse) => void,
   ): ClientUnaryCall;
-  /** Saga de anonimización (FR-030): disocia PII del historial. */
+  /**
+   * Saga de anonimización (FR-030): disocia PII del historial.
+   * CAMBIO DE COMPORTAMIENTO (002): además del historial, pone a NULL
+   * `calculators.owner_id` de las calculadoras PUBLICADAS del titular,
+   * conservándolas en el catálogo con autoría anonimizada (Edge Cases), y elimina
+   * las privadas, que ya no tienen a quién servir.
+   */
   anonymizeHistory(
     request: UserRef,
     callback: (error: ServiceError | null, response: OpResult) => void,
@@ -1222,6 +4054,193 @@ export interface SimulatorServiceClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  /**
+   * ── Constructor de calculadoras (FR-043…FR-047) ───────────────────────────
+   * Reemplazo COMPLETO de la definición en una sola llamada, no un CRUD por campo:
+   * la misma razón por la que Aprendizaje hace UpsertQuiz de una pieza — evita
+   * dejar una calculadora a medio editar visible entre dos llamadas.
+   * `calculator_id` vacío crea una nueva.
+   */
+  upsertCalculator(
+    request: UpsertCalculatorRequest,
+    callback: (error: ServiceError | null, response: Calculator) => void,
+  ): ClientUnaryCall;
+  upsertCalculator(
+    request: UpsertCalculatorRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Calculator) => void,
+  ): ClientUnaryCall;
+  upsertCalculator(
+    request: UpsertCalculatorRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Calculator) => void,
+  ): ClientUnaryCall;
+  getCalculator(
+    request: CalculatorRef,
+    callback: (error: ServiceError | null, response: Calculator) => void,
+  ): ClientUnaryCall;
+  getCalculator(
+    request: CalculatorRef,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Calculator) => void,
+  ): ClientUnaryCall;
+  getCalculator(
+    request: CalculatorRef,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Calculator) => void,
+  ): ClientUnaryCall;
+  /**
+   * `owner_id` lista las propias; `only_published` el catálogo público. Vacío en
+   * ambos ⇒ error: no existe un listado global sin filtrar (FR-051).
+   */
+  listCalculators(
+    request: ListCalculatorsRequest,
+    callback: (error: ServiceError | null, response: ListCalculatorsResponse) => void,
+  ): ClientUnaryCall;
+  listCalculators(
+    request: ListCalculatorsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: ListCalculatorsResponse) => void,
+  ): ClientUnaryCall;
+  listCalculators(
+    request: ListCalculatorsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: ListCalculatorsResponse) => void,
+  ): ClientUnaryCall;
+  deleteCalculator(
+    request: CalculatorRef,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  deleteCalculator(
+    request: CalculatorRef,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  deleteCalculator(
+    request: CalculatorRef,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  /**
+   * Valida SIN guardar: alimenta el aviso en vivo del constructor en el frontend.
+   * Devuelve los mismos errores que UpsertCalculator (FR-046).
+   */
+  validateDefinition(
+    request: ValidateDefinitionRequest,
+    callback: (error: ServiceError | null, response: ValidateDefinitionResponse) => void,
+  ): ClientUnaryCall;
+  validateDefinition(
+    request: ValidateDefinitionRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: ValidateDefinitionResponse) => void,
+  ): ClientUnaryCall;
+  validateDefinition(
+    request: ValidateDefinitionRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: ValidateDefinitionResponse) => void,
+  ): ClientUnaryCall;
+  /** ── Curaduría (FR-052…FR-054) ───────────────────────────────────────────── */
+  submitCalculatorForReview(
+    request: CalculatorRef,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  submitCalculatorForReview(
+    request: CalculatorRef,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  submitCalculatorForReview(
+    request: CalculatorRef,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  /** Valida coordinator_id ≠ owner_id (FR-053); también lo impone la base. */
+  approveCalculator(
+    request: ApproveCalculatorRequest,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  approveCalculator(
+    request: ApproveCalculatorRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  approveCalculator(
+    request: ApproveCalculatorRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  rejectCalculator(
+    request: RejectCalculatorRequest,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  rejectCalculator(
+    request: RejectCalculatorRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  rejectCalculator(
+    request: RejectCalculatorRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: OpResult) => void,
+  ): ClientUnaryCall;
+  /** ── Indicadores financieros (FR-055…FR-060) ─────────────────────────────── */
+  upsertIndicator(
+    request: UpsertIndicatorRequest,
+    callback: (error: ServiceError | null, response: Indicator) => void,
+  ): ClientUnaryCall;
+  upsertIndicator(
+    request: UpsertIndicatorRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Indicator) => void,
+  ): ClientUnaryCall;
+  upsertIndicator(
+    request: UpsertIndicatorRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Indicator) => void,
+  ): ClientUnaryCall;
+  listIndicators(
+    request: ListIndicatorsRequest,
+    callback: (error: ServiceError | null, response: ListIndicatorsResponse) => void,
+  ): ClientUnaryCall;
+  listIndicators(
+    request: ListIndicatorsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: ListIndicatorsResponse) => void,
+  ): ClientUnaryCall;
+  listIndicators(
+    request: ListIndicatorsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: ListIndicatorsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * Lo consulta el barrido periódico del Orquestador (research D-23), que es quien
+   * publica el evento de aviso: el Simulador NO es productor (Principio V).
+   */
+  getIndicatorCalendarStatus(
+    request: PageRequest,
+    callback: (error: ServiceError | null, response: IndicatorCalendarStatus) => void,
+  ): ClientUnaryCall;
+  getIndicatorCalendarStatus(
+    request: PageRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: IndicatorCalendarStatus) => void,
+  ): ClientUnaryCall;
+  getIndicatorCalendarStatus(
+    request: PageRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: IndicatorCalendarStatus) => void,
   ): ClientUnaryCall;
 }
 
