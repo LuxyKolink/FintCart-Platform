@@ -20,6 +20,7 @@ use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 use fintcart_simulator::domain::definition::Definition;
+use fintcart_simulator::domain::dispatch::CALC_TYPE_USUARIO;
 use fintcart_simulator::domain::error::{Error, Result};
 use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::pb::fintcart::common::v1::PageRequest;
@@ -341,6 +342,27 @@ async fn compute_rechaza_un_calc_type_sin_especificar() {
     assert_eq!(status.code(), Code::InvalidArgument);
 }
 
+/// `CALC_TYPE_USUARIO` describe lo que YA PASÓ, así que en una PETICIÓN se rechaza (D-26).
+///
+/// No identifica ninguna calculadora: de las definidas por usuarios puede haber muchas, y la
+/// única forma de decir CUÁL se quiere es `calculator_id`. Aceptarlo y resolverlo a algo
+/// —a la primera, a una por defecto— ejecutaría un cálculo que nadie pidió y lo guardaría en
+/// el historial del usuario, que es el mismo fallo que `CALC_TYPE_UNSPECIFIED` existe para
+/// evitar.
+///
+/// El valor es legítimo en la RESPUESTA: ver
+/// [`list_history_lee_una_simulacion_de_calculadora_de_usuario`].
+#[tokio::test]
+async fn compute_rechaza_un_calc_type_de_usuario() {
+    let mut client = start(FakeRepo::default()).await;
+
+    let mut req = credit_request();
+    req.calc_type = CalcType::Usuario as i32;
+
+    let status = client.compute(req).await.unwrap_err();
+    assert_eq!(status.code(), Code::InvalidArgument);
+}
+
 /// Una forma de romper la petición, para la tabla de casos de abajo.
 type Romper = Box<dyn Fn(&mut ComputeRequest)>;
 
@@ -498,6 +520,43 @@ async fn list_history_devuelve_lo_que_compute_guardo() {
     assert_eq!(entry.inputs.get("monto").unwrap(), "12000000.00");
     assert!(entry.result.contains_key("cuota_mensual"));
     assert_eq!(resp.page.unwrap().total_size, 1);
+}
+
+/// El historial sabe leer una simulación de calculadora de USUARIO (D-26).
+///
+/// Es la mitad «respuesta» de la decisión, y la que justifica que el valor exista: `calc_type`
+/// es NOT NULL, así que una fila de una calculadora de usuario TIENE que llevar algo, y lo que
+/// lleva es la verdad —la definición la escribió un usuario— en vez de un nulo o de un valor
+/// de los cinco tipos nativos, que serían falsos.
+///
+/// La fila se siembra a mano porque todavía no hay ningún camino que la produzca: quien
+/// insertará con este tipo es T091, al ejecutar por `calculator_id`. Lo que se fija aquí es
+/// que el historial ya sabe devolverla, para que T091 no tenga que tocar también esta capa.
+#[tokio::test]
+async fn list_history_lee_una_simulacion_de_calculadora_de_usuario() {
+    let repo = FakeRepo::default();
+    repo.rows.lock().unwrap().push(SimulationRow {
+        id: Uuid::new_v4(),
+        user_id: Uuid::parse_str(USER).unwrap(),
+        calc_type: CALC_TYPE_USUARIO.to_owned(),
+        currency: "COP".to_owned(),
+        inputs: HashMap::new(),
+        result: HashMap::new(),
+        created_at: Utc::now(),
+    });
+    let mut client = start(repo).await;
+
+    let resp = client
+        .list_history(ListHistoryRequest {
+            user_id: USER.to_owned(),
+            page: None,
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(resp.items.len(), 1);
+    assert_eq!(resp.items[0].calc_type, CalcType::Usuario as i32);
 }
 
 /// Sin `page` el RPC no falla: el campo es opcional en el contrato y su ausencia

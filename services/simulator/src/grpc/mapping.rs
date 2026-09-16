@@ -24,7 +24,7 @@ use crate::domain::decimal_str;
 use crate::domain::definition::{
     self, Definition, Draft, DraftOutput, DraftValidation, InputField, Issue,
 };
-use crate::domain::dispatch::Kind;
+use crate::domain::dispatch;
 use crate::domain::error::{Error, Result};
 use crate::domain::formula::ast::InputKind;
 use crate::domain::formula::ErrorCode;
@@ -82,7 +82,7 @@ pub fn history_response(page: HistoryPage) -> Result<ListHistoryResponse> {
         .map(|row| {
             Ok(Entry {
                 simulation_id: row.id.to_string(),
-                calc_type: Kind::from_db(&row.calc_type)?.as_proto() as i32,
+                calc_type: dispatch::stored_to_proto(&row.calc_type)? as i32,
                 currency: row.currency,
                 inputs: row.inputs,
                 result: row.result,

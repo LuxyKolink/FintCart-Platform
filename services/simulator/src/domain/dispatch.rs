@@ -14,6 +14,36 @@ use crate::domain::error::{Error, Result};
 use crate::domain::inputs::Inputs;
 use crate::pb::fintcart::simulator::v1::CalcType;
 
+/// Valor de `simulations.calc_type` de una simulación hecha con una calculadora de USUARIO.
+///
+/// Coincide con el `CHECK` ampliado por la migración de D-26 y con
+/// [`crate::pb::fintcart::simulator::v1::CalcType::Usuario`].
+///
+/// NO es una variante de [`Kind`], y la distinción importa: `Kind` es la lista de calculadoras
+/// **nativas**, y su razón de ser es que [`compute`] elige con él una función del código nativo.
+/// Una calculadora de usuario no tiene función nativa que elegir —lo que tiene es un AST—, así
+/// que meterla en `Kind` obligaría a `compute` a contemplar un caso que no puede ejecutar, y un
+/// brazo inalcanzable en un `match` es una invitación a que alguien lo rellene con lo que
+/// parezca.
+pub const CALC_TYPE_USUARIO: &str = "usuario";
+
+/// Traduce el `calc_type` ALMACENADO al enum del contrato.
+///
+/// Existe porque el vocabulario de la COLUMNA es más ancho que el de [`Kind`]: guarda los cinco
+/// tipos nativos y además `usuario`. El camino de la petición (`calc_type` → `Kind`) y el del
+/// historial (columna → enum) son direcciones distintas y con reglas distintas, y por eso no
+/// comparten función.
+///
+/// # Errores
+///
+/// [`Error::InvalidInput`] si la columna trae un valor que no corresponde a ningún tipo.
+pub fn stored_to_proto(value: &str) -> Result<CalcType> {
+    if value == CALC_TYPE_USUARIO {
+        return Ok(CalcType::Usuario);
+    }
+    Ok(Kind::from_db(value)?.as_proto())
+}
+
 /// Tipo de cálculo ya validado, con su nombre en la base de datos.
 ///
 /// Existe como tipo propio y no como un `&str` suelto porque el CHECK
@@ -69,6 +99,18 @@ impl Kind {
             CalcType::ColombiaEspecifica => Ok(Self::ColombiaEspecifica),
             CalcType::Unspecified => Err(Error::InvalidInput(
                 "calc_type es obligatorio: no hay calculadora por defecto".to_owned(),
+            )),
+            // `CALC_TYPE_USUARIO` describe lo que YA PASÓ —una simulación la produjo una
+            // calculadora de un usuario— y por eso es un valor de respuesta. En una PETICIÓN
+            // no identifica nada: la calculadora se pide con `calculator_id`, que es lo único
+            // que dice CUÁL de las definidas por usuarios se quiere.
+            //
+            // El `match` obliga a decidirlo: sin este brazo el compilador no compila, que es
+            // exactamente lo que se busca — que añadir un valor al enum no pase inadvertido.
+            CalcType::Usuario => Err(Error::InvalidInput(
+                "calc_type usuario no identifica ninguna calculadora: para ejecutar una \
+                 definida por un usuario hay que enviar calculator_id"
+                    .to_owned(),
             )),
         }
     }
