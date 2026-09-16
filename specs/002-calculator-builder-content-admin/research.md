@@ -535,6 +535,52 @@ procedencia). Se resolvió en la misma unidad, que es donde las dos se encontrar
 
 ---
 
+## D-30 — Cómo se retira el código nativo, y en qué orden
+
+**Decisión**: la retirada de `services/simulator/src/calculators/` se parte en dos, y la
+segunda va **después** de que exista el paso de siembra en producción que D-28 dejó pendiente.
+
+1. **`annuity` al dominio, con sus desbordamientos corregidos** (D-27). Hecho. No depende de
+   nada y desbloquea lo demás: `domain/formula/functions.rs` importaba
+   `crate::calculators::annuity` para implementar `cuota`, `vf_serie` y `tasa_periodica`, que
+   son funciones del LENGUAJE de fórmulas. La capa de dominio dependía del código nativo que
+   se quiere retirar, así que mientras el módulo viviera allí, borrar el directorio habría
+   dejado al motor sin su aritmética.
+2. **Redirigir el camino de compatibilidad y borrar los cuatro nativos que coinciden**
+   (`ahorro`, `credito`, `presupuesto`, `inversion`). Sus entradas son **exactamente** las de
+   sus semillas —comprobado una a una—, así que ningún cliente ve cambiar lo que puede
+   enviar. Queda pendiente de (3).
+3. **`colombia.rs` NO se borra con ellos.** Es el único cuyas entradas difieren de sus
+   semillas: el nativo recibe `valor_uvt` como ENTRADA y `exento` como texto (`"si"`/`"no"`),
+   mientras que las semillas leen `@UVT` de `financial_indicators` y toman `exento` como
+   entero. Redirigirlo hoy significaría que un cliente que manda `valor_uvt` lo viera
+   **ignorado en silencio** mientras el cálculo usa el valor de la base — exactamente la
+   divergencia callada que el resto del proyecto se pasa los comentarios evitando. Espera a
+   que la ruta antigua se retire, o a una deprecación explícita.
+
+**El bloqueo de orden, que es la parte que no estaba escrita en ninguna tarea**: el despacho
+redirigido resuelve la definición **desde la base**. Sobre una base migrada y todavía sin
+sembrar, el Simulador se queda sin ninguna calculadora —la tarea quita el camino nativo y con
+él la única forma de calcular—. En desarrollo eso no ocurre porque `dev/seed` corre siempre
+(Principio XII); en producción el sembrado es un **paso de despliegue explícito** que D-28
+describió y que **todavía no se ha escrito**. Hacer T098 antes que ese paso dejaría la primera
+migración de producción sin sembrar con el simulador entero caído.
+
+**Justificación de partir la tarea**: la descripción original —«eliminar `calculators/` y
+redirigir el despacho a las definiciones semilla»— se lee como un refactor mecánico y no lo
+es. Mezcla dos cosas con dependencias distintas: mudar un módulo compartido (sin dependencias)
+y cambiar de dónde sale la definición que se ejecuta (que introduce una dependencia de la base
+que antes no existía). Separarlas permite hacer la primera ya y deja la segunda esperando al
+paso de despliegue, en vez de bloquear las dos.
+
+**Alternativa considerada**: mantener un respaldo al código nativo cuando la semilla no esté
+en la base. Es tentador —haría T098 seguro en cualquier orden— y contradice el objetivo de la
+tarea: conservar las dos implementaciones «por si acaso» es exactamente lo que este feature
+vino a eliminar, y un respaldo que solo se ejerce en producción sin sembrar es un camino que
+ninguna prueba recorre.
+
+---
+
 ## Resumen de impacto por servicio
 
 | Servicio | Impacto |
