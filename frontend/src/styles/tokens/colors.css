@@ -82,10 +82,16 @@
   --text-link-hover: var(--purple-600);
   --text-on-brand: #FFFFFF;
 
-  /* Brand */
-  --brand-primary:       var(--coral-400);
-  --brand-primary-hover: var(--coral-500);
-  --brand-primary-press: var(--coral-600);
+  /* Brand —
+   * `--brand-primary` es la superficie que lleva texto BLANCO (botón primario, badge
+   * sólido, avatar, pestaña activa). El coral 400 del kit (#DE4D2B) da 4.04:1 contra
+   * blanco, por debajo del 4.5:1 de AA para texto normal (FR-096, SC-032): el coral
+   * 500 da 5.11:1 y conserva el tono. Se corrige en el token y no en cada componente
+   * porque el punto de corte se declara UNA vez (FR-125). El kit es autoridad visual,
+   * pero no puede ganarle a un MUST de accesibilidad. */
+  --brand-primary:       var(--coral-500);
+  --brand-primary-hover: var(--coral-600);
+  --brand-primary-press: var(--coral-700);
   --brand-accent:        var(--gold-400);
   --brand-accent-soft:   var(--gold-100);
   --brand-interactive:   var(--purple-500);

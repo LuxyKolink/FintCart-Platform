@@ -34,11 +34,6 @@
   transform: translateY(1px);
 }
 
-.fc-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
 .fc-btn[data-size='sm'] {
   height: 30px;
   padding: 0 10px;
@@ -100,4 +95,16 @@
 }
 .fc-btn[data-variant='danger']:not(:disabled):hover {
   filter: brightness(0.95);
+}
+
+/*
+ * El anillo de foco va AL FINAL a propósito. `[data-variant='ghost']` declara
+ * `box-shadow: var(--shadow-none)` con la MISMA especificidad que este selector, así
+ * que definido antes le ganaba por orden de aparición: el botón fantasma se enfocaba
+ * sin ninguna señal visible (FR-094, SC-030). Un MUST de accesibilidad no puede
+ * depender de en qué línea se escribió una variante.
+ */
+.fc-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
