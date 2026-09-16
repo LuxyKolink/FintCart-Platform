@@ -456,22 +456,22 @@ verificar que aparece en el historial de simulaciones.
 
 ## Phase 11: Polish & Cross-Cutting
 
-> **Hallazgo (2026-09-16): el borde aplana sus PROPIOS errores, y no los registra.**
-> Encontrado al implementar T096. `writeGRPCError` traduce todo error a un texto fijo por
-> código, y el comentario que lo justifica habla de los mensajes de los **servicios internos**
-> —«puede contener nombres de host, de tabla o el detalle del driver»—, que es una razón
-> buena. Pero la rama de `errBadRequest` aplica la misma regla a los errores que el Gateway
-> redacta a partir de la entrada del cliente, y ahí no protege de nada: no hay infraestructura
-> que filtrar, solo la posición de un campo mal escrito. El efecto observable es que
-> `POST /calculators` con `"type":"porcentaje"` responde «petición inválida» a secas, cuando el
-> borde sabía que el problema estaba en `inputs[1].type`; lo mismo le pasa hoy a
-> `calcTypeFromPath`, cuyo mensaje «tipo de cálculo desconocido: …» no llega a nadie. Y esa
-> rama retorna **antes** del bloque de log, así que el detalle tampoco queda en el registro.
+> **Resuelto (2026-09-16): el borde aplanaba sus PROPIOS errores, y no los registraba.**
+> Encontrado al implementar T096 y corregido en `a13a1f0`.
 >
-> No se resuelve aquí a propósito: cambiar qué mensajes cruzan el borde afecta a TODAS las
-> rutas y tiene implicaciones de filtración que merecen su propia decisión —la misma clase de
-> decisión que D-26 o D-29 y no un arreglo de paso—. Queda anotado como candidato a tarea
-> propia, con el detalle en la nota de `TestAnUnknownInputTypeIsRejectedAtTheEdge`.
+> `writeGRPCError` traducía todo a un texto fijo por código. La razón que lo justifica
+> —«puede contener nombres de host, de tabla o el detalle del driver»— habla de los mensajes
+> de los **servicios internos**, y ahí sigue aplicándose igual. Pero la rama de
+> `errBadRequest` la aplicaba también a los errores que el Gateway redacta a partir de la
+> entrada del cliente, y ahí no protegía de nada: `POST /calculators` con
+> `"type":"porcentaje"` respondía «petición inválida» cuando el borde sabía que el problema
+> estaba en `inputs[1].type`, y esa rama retornaba ANTES del bloque de log, de modo que el
+> detalle no quedaba ni en el registro.
+>
+> Antes de cambiarlo se revisaron las siete llamadas que componen `errBadRequest` —todas
+> construyen el mensaje desde la entrada del cliente o desde una cadena fija, y el único
+> error ajeno que se envuelve es el del decodificador JSON, que nombra una posición de
+> carácter—, y se comprobó que ninguna prueba dependía del texto anterior.
 
 - [ ] T157 [P] Regla de lint que prohíba `innerHTML` y `bypassSecurityTrust*` en `frontend/src/app/features/learning/` — la verificación por `grep` del quickstart §6 promovida a barrera automática
 - [ ] T158 [P] Extender la regla de análisis estático anti-punto-flotante a `services/simulator/src/domain/formula/` (Constitución §Calidad y Pruebas)
