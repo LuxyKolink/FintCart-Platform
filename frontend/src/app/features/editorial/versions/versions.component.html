@@ -1,44 +1,107 @@
-<section>
-  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
-    <h1>{{ articleId() === null ? 'Mis borradores' : 'Historial de versiones' }}</h1>
+<section class="fc-ed">
+  <header class="fc-ed__head">
+    <h1 class="fc-ed__title">{{ articleId() === null ? 'Mis borradores' : 'Historial de versiones' }}</h1>
+    <p class="fc-ed__lead">
+      @if (articleId() === null) {
+        Tus versiones, en cualquier estado. Solo los borradores se pueden seguir editando.
+      } @else {
+        Todas las versiones de este artículo, con quién las creó y cuándo.
+      }
+    </p>
+  </header>
+
+  <div class="fc-ed__toolbar">
     @if (articleId() === null) {
-      <a class="fc-btn fc-btn--secondary" routerLink="/editorial">Nuevo artículo</a>
+      <fc-link-button variant="primary" to="/editorial">
+        <fc-icon fcIconLeft name="plus" [size]="16" />
+        Nuevo artículo
+      </fc-link-button>
+    } @else {
+      <fc-link-button variant="secondary" to="/editorial">Volver al editor</fc-link-button>
     }
   </div>
 
   @switch (state()) {
     @case ('loading') {
-      <p>Cargando…</p>
+      <div class="fc-ed__skeleton">
+        <fc-skeleton variant="title" />
+        <fc-skeleton [lines]="5" />
+      </div>
     }
     @case ('error') {
-      <p class="fc-banner fc-banner--error">No pudimos cargar el historial. Intenta de nuevo.</p>
+      <fc-error-state
+        icon="file-text"
+        title="No pudimos cargar el historial"
+        message="Puede que hayas perdido la conexión. Tus versiones siguen guardadas."
+        (retry)="retry()"
+      />
     }
     @case ('ready') {
       @if (items().length === 0) {
-        <p>Todavía no hay versiones aquí.</p>
-      } @else {
-        <div style="display: flex; flex-direction: column; gap: var(--space-3)">
-          @for (v of items(); track v.version_id) {
-            <article class="fc-module">
-              <div class="fc-module-body" style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap">
-                <div>
-                  <p style="margin: 0"><strong>Versión {{ v.version_no }}</strong> — {{ v.state }}</p>
-                  <p class="fc-help" style="margin: 0">
-                    Creada {{ v.created_at | date: 'medium' }}
-                    @if (v.published_at) {
-                      · publicada {{ v.published_at | date: 'medium' }}
-                    }
-                  </p>
-                </div>
-                @if (v.state === 'borrador' && isMine(v)) {
-                  <a class="fc-btn fc-btn--secondary" [routerLink]="['/editorial/versiones', v.version_id]" [queryParams]="{ articleId: v.article_id }">
-                    Seguir editando
-                  </a>
-                }
-              </div>
-            </article>
+        <fc-empty-state
+          icon="file-text"
+          title="Todavía no hay versiones aquí"
+          [message]="
+            articleId() === null
+              ? 'Cuando crees un borrador aparecerá en esta lista con su estado.'
+              : 'Este artículo no tiene versiones registradas.'
+          "
+        >
+          @if (articleId() === null) {
+            <fc-link-button variant="primary" to="/editorial">Crear el primero</fc-link-button>
           }
-        </div>
+        </fc-empty-state>
+      } @else {
+        <ul class="fc-ed__list">
+          @for (v of items(); track v.version_id) {
+            <li class="fc-ed__item">
+              <div class="fc-ed__item-head">
+                <span class="fc-num fc-ed__version">v{{ v.version_no }}</span>
+                <!--
+                  FR-114: el estado se distingue de un vistazo. Va con distintivo, etiqueta de
+                  texto y color — no solo con color, que es lo único que no se puede leer en
+                  blanco y negro ni con daltonismo.
+                -->
+                <fc-badge [tone]="stateTone(v.state)">{{ stateLabel(v.state) }}</fc-badge>
+              </div>
+
+              <dl class="fc-ed__pairs">
+                <div class="fc-ed__pair">
+                  <dt class="fc-ed__key">Autor</dt>
+                  <dd class="fc-ed__value">
+                    {{ authorOf(v) }}
+                    @if (authorOf(v) === 'Otro editor') {
+                      <span class="fc-num fc-ed__id">{{ v.created_by }}</span>
+                    }
+                  </dd>
+                </div>
+                <div class="fc-ed__pair">
+                  <dt class="fc-ed__key">Creada</dt>
+                  <dd class="fc-ed__value fc-num">{{ v.created_at | date: 'medium' }}</dd>
+                </div>
+                @if (v.published_at) {
+                  <div class="fc-ed__pair">
+                    <dt class="fc-ed__key">Publicada</dt>
+                    <dd class="fc-ed__value fc-num">{{ v.published_at | date: 'medium' }}</dd>
+                  </div>
+                }
+              </dl>
+
+              @if (v.state === 'borrador' && isMine(v)) {
+                <div class="fc-ed__actions">
+                  <fc-link-button
+                    variant="secondary"
+                    size="sm"
+                    [to]="['/editorial/versiones', v.version_id]"
+                    [queryParams]="{ articleId: v.article_id }"
+                  >
+                    Seguir editando
+                  </fc-link-button>
+                </div>
+              }
+            </li>
+          }
+        </ul>
       }
     }
   }

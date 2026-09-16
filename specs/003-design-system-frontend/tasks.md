@@ -636,16 +636,69 @@ está asentada.
 **Referencia**: `design/ui_kits/editorial/app.js`. Usa el púrpura portal como color de la
 herramienta editorial.
 
-- [ ] T065 [US5] Recomponer el listado de artículos agrupados por estado —borrador, en revisión, publicado— con distintivos visuales que los diferencien, en `frontend/src/app/features/editorial/versions/versions.component.html` (FR-114), eliminando sus 5 estilos en línea
-- [ ] T066 [US5] Recomponer la bandeja de revisión presentando **de forma destacada** la decisión de aprobar o rechazar, en `frontend/src/app/features/editorial/review/review.component.html` (FR-115), eliminando sus 4 estilos en línea
-- [ ] T067 [US5] Presentar el aviso de que un editor no puede aprobar su propio contenido de forma comprensible y no como error genérico, en `frontend/src/app/features/editorial/review/` (FR-116) — preserva la regla FR-008 sin duplicar su lógica en la vista
-- [ ] T068 [US5] Historial de versiones con estado, autor y fecha presentados de forma consistente con el resto de la plataforma, en `frontend/src/app/features/editorial/versions/` (FR-117)
-- [ ] T069 [US5] Migrar **únicamente el marco** del editor de artículos —cabecera, paneles laterales, ajustes de publicación— en `frontend/src/app/features/editorial/editor/`, **sin tocar la superficie de redacción**, que pertenece al feature 002 (FR-123). De sus 8 estilos en línea, solo se retiran los del marco
-- [ ] T070 [US5] Verificar la frontera con `git diff` sobre `frontend/src/app/features/editorial/editor/`: los cambios deben limitarse al marco (FR-123, quickstart §4 grupo 5)
-- [ ] T071 [P] [US5] Estados de carga, error y vacío —sin borradores, sin artículos en revisión— en las tres pantallas de `frontend/src/app/features/editorial/` (FR-118, FR-119)
-- [ ] T072 [US5] Responsive de las tres pantallas en `frontend/src/app/features/editorial/`; las tablas desplazan dentro de su contenedor (FR-124, FR-127, research D-27)
-- [ ] T073 [P] [US5] Comparación visual por captura contra el kit, a cada punto de corte, en `frontend/e2e/visual/editorial.spec.ts`
-- [ ] T074 [US5] Ejecutar `us4-editorial.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
+- [x] T065 [US5] Recomponer el listado de artículos agrupados por estado —borrador, en revisión, publicado— con distintivos visuales que los diferencien, en `frontend/src/app/features/editorial/versions/versions.component.html` (FR-114), eliminando sus 5 estilos en línea
+- [x] T066 [US5] Recomponer la bandeja de revisión presentando **de forma destacada** la decisión de aprobar o rechazar, en `frontend/src/app/features/editorial/review/review.component.html` (FR-115), eliminando sus 4 estilos en línea
+- [x] T067 [US5] Presentar el aviso de que un editor no puede aprobar su propio contenido de forma comprensible y no como error genérico, en `frontend/src/app/features/editorial/review/` (FR-116) — preserva la regla FR-008 sin duplicar su lógica en la vista
+- [x] T068 [US5] Historial de versiones con estado, autor y fecha presentados de forma consistente con el resto de la plataforma, en `frontend/src/app/features/editorial/versions/` (FR-117)
+- [ ] T069 [US5] Migrar **únicamente el marco** del editor de artículos —cabecera, paneles laterales, ajustes de publicación— en `frontend/src/app/features/editorial/editor/`, **sin tocar la superficie de redacción**, que pertenece al feature 002 (FR-123). De sus 8 estilos en línea, solo se retiran los del marco — **BLOQUEADA por 002 (T131)**: ver la nota
+- [x] T070 [US5] Verificar la frontera con `git diff` sobre `frontend/src/app/features/editorial/editor/`: los cambios deben limitarse al marco (FR-123, quickstart §4 grupo 5)
+- [x] T071 [P] [US5] Estados de carga, error y vacío —sin borradores, sin artículos en revisión— en las tres pantallas de `frontend/src/app/features/editorial/` (FR-118, FR-119)
+- [x] T072 [US5] Responsive de las tres pantallas en `frontend/src/app/features/editorial/`; las tablas desplazan dentro de su contenedor (FR-124, FR-127, research D-27)
+- [x] T073 [P] [US5] Comparación visual por captura contra el kit, a cada punto de corte, en `frontend/e2e/visual/editorial.spec.ts`
+- [x] T074 [US5] Ejecutar `us4-editorial.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
+
+**Notas del grupo editorial (T065–T074)**
+
+- **T065/T068 — el estado se distingue, y el autor no se inventa.** Los cuatro estados de
+  `ArticleVersion` tienen etiqueta y tono propios, en un módulo compartido
+  (`version-state.ts`) porque las dos pantallas los muestran: dos tablas de traducción
+  acabarían llamando «Pendiente» a lo que la otra llama «En revisión», y esa divergencia es
+  información falsa para quien revisa. Un estado que no se conoce se muestra **tal cual**.
+- **El autor es «Tú» u «Otro editor», y el identificador se conserva.** El contrato lleva
+  `created_by` como **UUID**, no el nombre del editor: lo único afirmable sin inventar es si
+  la versión es tuya. **Hallazgo**: no hay endpoint que traduzca un `user_id` a un nombre
+  visible, así que un coordinador no puede saber *quién* escribió lo que revisa —solo que no
+  fue él—; el `created_by` se muestra en mono para poder trazar (FR-122).
+- **T066 — la decisión tenía una sola mitad.** La bandeja solo ofrecía «Aprobar y publicar»
+  (`POST …/publish`), así que un coordinador que **no** quería publicar una versión no tenía
+  forma de sacarla de la cola: faltaba el rechazo, que ya existía en el contrato como
+  `POST /editorial/versions/{id}/archive` y ninguna pantalla usaba. Ahora las dos salidas van
+  juntas y destacadas al pie de cada versión (FR-115).
+- **T067 — FR-116 se explica, no se reimplementa.** Que un coordinador no pueda aprobar su
+  propio contenido lo decide Aprendizaje; la vista no lo comprueba por su cuenta. Cuando el
+  borde lo rechaza (`EditorialError.kind === 'forbidden'`), aparece un aviso **propio** —tono
+  de advertencia, no de error— que nombra la regla y dice qué hacer (pedírselo a otro
+  coordinador). La frase que describe la regla en la cabecera no decide nada. Y hay una
+  prueba que fija que, tras el rechazo, la versión SIGUE en la cola: no se publicó nada.
+- **T069 — NO SE HIZO, y es deliberado.** El marco del editor no se ha tocado. El grupo 5
+  «va el último a propósito» (research D-28) porque la superficie de redacción la reescribe
+  002 (T131, TipTap) y migrar un marco sobre una plantilla que va a desaparecer es trabajo
+  para tirar. **Consecuencia: `frontend/src/styles.scss` no se puede vaciar todavía** —las
+  seis clases que quedan las usa solo `editor/editor.component.html`—, así que **T075 (el
+  criterio de terminación del feature) queda bloqueado por 002**, no por 003.
+- **T070 — la frontera, verificada.** `git diff` sobre
+  `frontend/src/app/features/editorial/editor/` sale **vacío**: el editor no tiene ni una
+  línea modificada en todo el feature 003. Es la comprobación literal que pide la tarea, y
+  significa que la reescritura de 002 puede empezar ahí sin resolver ningún conflicto.
+- **T072 — responsive sin tablas nuevas.** El listado y la bandeja se resolvieron como
+  listas, no como tablas: cada versión lleva pocos datos y el cuerpo puede ser largo, así
+  que una tarjeta se lee mejor que una fila de celdas estrechas. Las capturas a 360 px
+  confirman que la página no desplaza en horizontal.
+- **T073 — la captura del editor es la prueba de la frontera.** Se incluye `/editorial`
+  entre las capturas aunque 003 no lo migre: deja constancia de dónde queda el límite.
+  Además, la cuenta de prueba recibe **los dos roles** y pulsa «Aprobar y publicar» sobre su
+  propio contenido, así que el aviso de FR-116 se captura **de verdad**, con el borde
+  rechazándolo — no con un estado simulado.
+- **La barrera de accesibilidad también cubre estas dos pantallas.** Ninguna está en
+  `a11y.spec.ts`, así que `e2e/visual/editorial.spec.ts` comprueba etiquetas y contraste AA
+  con los mismos ayudantes de `support/a11y.ts` antes de capturar. No se toca la suite
+  (N-13).
+
+**T074**: 30 capturas (3 pantallas × 5 anchos + el aviso de FR-116 × 5) en
+`test-results/visual/editorial/` y **43/43 verde** —4 recorridos + 3 de accesibilidad + 1 de
+independencia externa + 85 capturas— con las suites sin tocar. La deuda baja a **8 espacios en
+línea** (desde 94) y **1 pantalla artesanal** (desde 19): los ocho que quedan y esa única
+pantalla son el editor. Lint: **8 errores** (desde 89). Unitarias: **160** (desde 123).
 
 **Checkpoint**: US5 entregable. Con este grupo, las 19 pantallas y el armazón están migrados.
 

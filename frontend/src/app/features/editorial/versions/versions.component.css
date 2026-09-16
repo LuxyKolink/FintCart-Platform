@@ -1,0 +1,130 @@
+/*
+ * Historial de versiones (T065/T068). Una lista, no una tabla: cada versión lleva pocos
+ * datos y el cuerpo puede ser largo, así que una tarjeta por versión se lee mejor que una
+ * fila con celdas estrechas.
+ */
+
+.fc-ed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 860px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.fc-ed__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fc-ed__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-ed__title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  overflow-wrap: anywhere;
+}
+
+.fc-ed__lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.fc-ed__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fc-ed__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fc-ed__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-default);
+  /* Barra de acento a la izquierda: la marca de la herramienta editorial, con el púrpura
+     del portal que usa el kit. */
+  border-left: var(--border-accent) solid var(--brand-interactive);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  min-width: 0;
+}
+
+.fc-ed__item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fc-ed__version {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+.fc-ed__pairs {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-ed__pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.fc-ed__key {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fc-ed__value {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+/* El identificador del editor es un UUID: monoespaciado y discreto, pero presente. */
+.fc-ed__id {
+  margin-left: var(--space-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.fc-ed__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 767.98px) {
+  .fc-ed__item {
+    padding: var(--space-3);
+  }
+}

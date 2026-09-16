@@ -1,40 +1,102 @@
-<section>
-  <h1>Bandeja de revisión</h1>
+<section class="fc-rev">
+  <header class="fc-rev__head">
+    <h1 class="fc-rev__title">Bandeja de revisión</h1>
+    <!--
+      FR-116: la regla se EXPLICA, no se reimplementa. Decidir si un coordinador puede
+      aprobar una versión concreta es de Aprendizaje; esta frase solo describe la regla, y el
+      aviso de abajo aparece cuando el borde la aplica.
+    -->
+    <p class="fc-rev__lead">
+      Solo un coordinador distinto del autor puede publicar una versión (FR-008). Publicar
+      saca la versión de esta cola; archivar la retira sin publicarla.
+    </p>
+  </header>
 
   @if (errorMessage()) {
-    <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+    @if (selfApprovalBlocked()) {
+      <!-- Aviso propio, no error genérico: aquí el dato no es el problema (FR-116). -->
+      <fc-banner tone="warning">
+        <strong>No puedes aprobar tu propio contenido.</strong>
+        {{ errorMessage() }}
+        Pídeselo a otro coordinador editorial: la revisión por una persona distinta es el punto
+        de este paso.
+      </fc-banner>
+    } @else {
+      <fc-banner tone="error">{{ errorMessage() }}</fc-banner>
+    }
   }
 
   @switch (state()) {
     @case ('loading') {
-      <p>Cargando…</p>
+      <div class="fc-rev__skeleton">
+        <fc-skeleton variant="title" />
+        <fc-skeleton [lines]="5" />
+      </div>
     }
     @case ('error') {
-      <p class="fc-banner fc-banner--error">No pudimos cargar la bandeja de revisión. Intenta de nuevo.</p>
+      <fc-error-state
+        icon="clipboard-check"
+        title="No pudimos cargar la bandeja de revisión"
+        message="Puede que hayas perdido la conexión. Nada se ha publicado ni archivado."
+        (retry)="retry()"
+      />
     }
     @case ('ready') {
       @if (items().length === 0) {
-        <p>No hay artículos pendientes de revisión.</p>
+        <!-- FR-119: el kit dibuja la cola siempre llena; vacía es el estado normal. -->
+        <fc-empty-state
+          icon="check-circle"
+          title="No hay nada pendiente de revisión"
+          message="Cuando un editor envíe una versión, aparecerá aquí con su vista previa y la decisión de publicarla o archivarla."
+        />
       } @else {
-        <div style="display: flex; flex-direction: column; gap: var(--space-3)">
+        <ul class="fc-rev__list">
           @for (v of items(); track v.version_id) {
-            <article class="fc-module">
-              <div class="fc-module-body">
-                <p style="margin: 0"><strong>Versión {{ v.version_no }}</strong> del artículo {{ v.article_id }}</p>
-                <p class="fc-help" style="margin: 0 0 var(--space-2)">Enviada {{ v.created_at | date: 'medium' }}</p>
-                <p style="margin: 0 0 var(--space-3)">{{ preview(v) }}</p>
-                <button
-                  class="fc-btn fc-btn--primary"
-                  type="button"
-                  [disabled]="publishing() === v.version_id"
-                  (click)="onApprove(v)"
-                >
-                  {{ publishing() === v.version_id ? 'Publicando…' : 'Aprobar y publicar' }}
-                </button>
-              </div>
-            </article>
+            <!--
+              El elemento es un `<article>` y NO puede anidarse: `us4-editorial.spec.ts`
+              localiza el ítem con `page.locator('article', { hasText: <fragmento del cuerpo> })`
+              y Playwright exige que resuelva a un solo elemento.
+            -->
+            <li>
+              <article class="fc-rev__item">
+                <header class="fc-rev__item-head">
+                  <span class="fc-num fc-rev__version">v{{ v.version_no }}</span>
+                  <fc-badge [tone]="stateTone(v.state)">{{ stateLabel(v.state) }}</fc-badge>
+                  <span class="fc-rev__author">{{ authorOf(v) }}</span>
+                </header>
+
+                <p class="fc-rev__meta">
+                  Enviada el <time class="fc-num" [attr.datetime]="v.created_at">{{ v.created_at | date: 'medium' }}</time>
+                </p>
+
+                <!-- Vista previa: es lo que permite decidir sin abrir el editor, y lo que
+                     `us4-editorial.spec.ts` usa para identificar la versión correcta. -->
+                <blockquote class="fc-rev__preview">{{ preview(v) }}</blockquote>
+
+                <div class="fc-rev__decision">
+                  <fc-button
+                    variant="primary"
+                    size="lg"
+                    [block]="true"
+                    [disabled]="deciding() !== null"
+                    (pressed)="onApprove(v)"
+                  >
+                    {{ isBusy(v) ? 'Publicando…' : 'Aprobar y publicar' }}
+                  </fc-button>
+                  <fc-button
+                    variant="secondary"
+                    size="lg"
+                    [block]="true"
+                    [disabled]="deciding() !== null"
+                    (pressed)="onArchive(v)"
+                  >
+                    Archivar versión
+                  </fc-button>
+                </div>
+              </article>
+            </li>
           }
-        </div>
+        </ul>
       }
     }
   }

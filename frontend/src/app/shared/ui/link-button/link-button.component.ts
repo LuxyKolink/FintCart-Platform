@@ -36,6 +36,7 @@ export type LinkButtonTarget = string | (string | number)[];
       [attr.data-variant]="variant()"
       [attr.data-size]="size()"
       [routerLink]="to()"
+      [queryParams]="queryParams()"
     >
       <ng-content select="[fcIconLeft]" />
       <ng-content />
@@ -47,6 +48,13 @@ export type LinkButtonTarget = string | (string | number)[];
 export class LinkButtonComponent {
   /** Destino obligatorio: un enlace sin destino no es un enlace. */
   readonly to = input.required<LinkButtonTarget>();
+  /**
+   * Parámetros de consulta del destino. Se reenvían porque una ruta puede necesitar
+   * contexto que no cabe en el camino —el historial de versiones viaja como
+   * `/editorial/versiones/:id?articleId=…`— y sin esto habría que volver a un `<a>` a mano
+   * solo por un parámetro.
+   */
+  readonly queryParams = input<Record<string, unknown> | null>(null);
   readonly variant = input<ButtonVariant>('primary');
   readonly size = input<ButtonSize>('md');
   readonly block = input(false);
