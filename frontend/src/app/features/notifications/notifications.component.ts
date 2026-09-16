@@ -1,24 +1,63 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
+import {
+  BadgeComponent,
+  ButtonComponent,
+  EmptyStateComponent,
+  ErrorStateComponent,
+  IconComponent,
+  LinkButtonComponent,
+  SkeletonComponent,
+  type BadgeTone,
+} from '../../shared/ui';
 import { ProfileService } from '../profile/profile.service';
 import { InAppNotification } from '../profile/profile.types';
+import { notificationTypeLabel } from './notification-labels';
+import { NotificationText, notificationText } from './notification-text';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
-const TYPE_LABELS: Record<string, string> = {
-  nuevo_articulo: 'Nuevo artículo',
-  recordatorio: 'Recordatorio',
-  hito_progreso: 'Hito de progreso',
-  resultado_cuestionario: 'Resultado de cuestionario',
+/** Una entrada con su texto ya resuelto, para no resolverlo dos veces por ciclo. */
+interface NotificationEntry {
+  readonly item: InAppNotification;
+  readonly text: NotificationText;
+}
+
+const TONE_BY_TYPE: Record<string, BadgeTone> = {
+  resultado_cuestionario: 'brand',
+  hito_progreso: 'accent',
+  nuevo_articulo: 'info',
+  recordatorio: 'neutral',
 };
 
-/** Bandeja in-app con estado de lectura y marca temporal (T149, FR-023). */
+/**
+ * Bandeja in-app con estado de lectura y marca temporal (FR-023, FR-106, T036).
+ *
+ * LO LEÍDO Y LO NO LEÍDO SE DISTINGUEN POR TRES SEÑALES, no por color: fondo distinto,
+ * peso de la tipografía y la etiqueta «sin leer». El color solo no basta —hay daltonismo
+ * y hay pantallas mal calibradas— y FR-106 pide que se distinga «de un vistazo», no
+ * «si el matiz se percibe».
+ *
+ * `MarkNotificationRead` es idempotente y ya se aplicaba de forma optimista; el botón
+ * se muestra solo en lo no leído, así que no hay forma de dispararlo dos veces por la
+ * misma entrada.
+ */
 @Component({
   selector: 'fc-notifications',
   standalone: true,
-  imports: [DatePipe],
+  imports: [
+    DatePipe,
+    BadgeComponent,
+    ButtonComponent,
+    LinkButtonComponent,
+    EmptyStateComponent,
+    ErrorStateComponent,
+    IconComponent,
+    SkeletonComponent,
+  ],
   templateUrl: './notifications.component.html',
+  styleUrl: './notifications.component.css',
 })
 export class NotificationsComponent implements OnInit {
   private readonly api = inject(ProfileService);
@@ -28,15 +67,20 @@ export class NotificationsComponent implements OnInit {
   protected readonly nextPageToken = signal<string | undefined>(undefined);
   protected readonly loadingMore = signal(false);
 
+  protected readonly entries = computed<NotificationEntry[]>(() =>
+    this.items().map((item) => ({ item, text: notificationText(item) })),
+  );
+
+  protected readonly unreadCount = computed(
+    () => this.items().filter((item) => item.read_state === 'unread').length,
+  );
+
   public ngOnInit(): void {
-    this.api.listNotifications(undefined).subscribe({
-      next: (page) => {
-        this.items.set(page.items);
-        this.nextPageToken.set(page.next_page_token);
-        this.state.set('ready');
-      },
-      error: () => this.state.set('error'),
-    });
+    this.load();
+  }
+
+  protected retry(): void {
+    this.load();
   }
 
   protected loadMore(): void {
@@ -74,6 +118,22 @@ export class NotificationsComponent implements OnInit {
   }
 
   protected typeLabel(type: string): string {
-    return TYPE_LABELS[type] ?? type;
+    return notificationTypeLabel(type);
+  }
+
+  protected toneOf(type: string): BadgeTone {
+    return TONE_BY_TYPE[type] ?? 'neutral';
+  }
+
+  private load(): void {
+    this.state.set('loading');
+    this.api.listNotifications(undefined).subscribe({
+      next: (page) => {
+        this.items.set(page.items);
+        this.nextPageToken.set(page.next_page_token);
+        this.state.set('ready');
+      },
+      error: () => this.state.set('error'),
+    });
   }
 }

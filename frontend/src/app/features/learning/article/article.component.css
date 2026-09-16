@@ -1,0 +1,158 @@
+/*
+ * Lector de artículos (T033 / FR-103).
+ *
+ * Solo disposición y medida tipográfica: los colores y los bordes salen de tokens, y
+ * los componentes —módulo, botón, insignia, barra— vienen de `shared/ui`. La anchura
+ * de lectura es el único valor propio que importa y está justificado abajo.
+ */
+
+.fc-reader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.fc-reader__doc {
+  /* Medida de lectura: entre 60 y 75 caracteres por línea es donde el ojo vuelve
+     solo al principio de la siguiente. Por encima, se pierde el renglón. */
+  max-width: 68ch;
+  min-width: 0;
+  padding: var(--space-5);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.fc-reader__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 68ch;
+}
+
+.fc-reader__head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hairline) solid var(--border-default);
+}
+
+.fc-reader__title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  /* FR-120: un título largo se parte por donde haga falta, incluso dentro de una
+     palabra, antes que desbordar la columna. */
+  overflow-wrap: anywhere;
+}
+
+.fc-reader__meta {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-reader__paragraph {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  color: var(--text-body);
+  /* El contrato entrega texto plano: los saltos de línea simples de dentro de un
+     párrafo son intencionales y se respetan; los dobles ya separaron los párrafos. */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.fc-reader__paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.fc-reader__foot {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border-hairline) solid var(--border-default);
+}
+
+.fc-reader__aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: sticky;
+  top: var(--space-4);
+  min-width: 0;
+}
+
+.fc-reader__note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-reader__related {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fc-reader__related li + li {
+  border-top: var(--border-hairline) dotted var(--border-default);
+}
+
+.fc-reader__related-link {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-link);
+  /* FR-120: el título completo sigue en el DOM y en el `title`; aquí solo se acota
+     a dos líneas para que un título larguísimo no desborde el riel. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.fc-reader__related-link:hover {
+  background: var(--purple-50);
+  text-decoration: none;
+}
+
+/*
+ * Bajo `--bp-lg` (1024px, ver `tokens/breakpoints.css`) el panel lateral baja bajo el
+ * texto: es lo accesorio, y el ancho de lectura no se toca. Las propiedades
+ * personalizadas no se resuelven dentro de `@media`, así que el literal va escrito y
+ * el token citado.
+ */
+@media (max-width: 1023.98px) {
+  .fc-reader {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fc-reader__aside {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .fc-reader__aside > * {
+    flex: 1 1 260px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .fc-reader__doc {
+    padding: var(--space-4);
+  }
+
+  .fc-reader__aside {
+    flex-direction: column;
+  }
+
+  /* En columna, `flex-basis` mide el ALTO: se devuelve al alto natural del contenido. */
+  .fc-reader__aside > * {
+    flex: 0 0 auto;
+  }
+}

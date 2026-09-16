@@ -1,0 +1,136 @@
+/*
+ * Progreso (T035 / FR-105).
+ *
+ * Solo disposición y las dos cifras propias de la pantalla. TODO lo demás —módulo,
+ * tarjeta, insignia, barra, estados vacío/error/carga— viene de `shared/ui`.
+ */
+
+.fc-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 900px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.fc-progress__page-title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+}
+
+/* Único elemento con tipografía de datos de la pantalla (ver la nota de T035). */
+.fc-progress__points {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  line-height: 1;
+}
+
+.fc-progress__note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-progress__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fc-progress__section-title {
+  margin: 0;
+  font-size: var(--fs-md);
+}
+
+.fc-progress__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.fc-progress__stat {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.fc-progress__stat-label {
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fc-progress__stat-value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  line-height: 1;
+}
+
+/*
+ * FR-127: en un móvil la tabla no cabe. El desplazamiento vive DENTRO de este
+ * contenedor, así que la página nunca se mueve en horizontal y el resto de la
+ * pantalla se sigue leyendo sin hacer scroll lateral.
+ */
+.fc-progress__table-scroll {
+  overflow-x: auto;
+  border: var(--border-hairline) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.fc-progress__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.fc-progress__caption {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.fc-progress__table th,
+.fc-progress__table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.fc-progress__table thead th {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: var(--border-hairline) solid var(--border-default);
+}
+
+.fc-progress__table tbody tr + tr th,
+.fc-progress__table tbody tr + tr td {
+  border-top: var(--border-hairline) dotted var(--border-default);
+}
+
+.fc-progress__cell-strong {
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+.fc-progress__cell-muted {
+  color: var(--text-muted);
+}
+
+/* FR-120: un título largo se parte antes que desbordar la tarjeta. */
+.fc-progress__stat,
+.fc-progress__page-title {
+  overflow-wrap: anywhere;
+}

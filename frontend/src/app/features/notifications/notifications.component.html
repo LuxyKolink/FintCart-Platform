@@ -1,51 +1,84 @@
-<section>
-  <h1>Tus notificaciones</h1>
+<section class="fc-inbox">
+  <header class="fc-inbox__head">
+    <h1 class="fc-inbox__title">Tus notificaciones</h1>
+    <p class="fc-inbox__subtitle">
+      @if (unreadCount() > 0) {
+        Tienes {{ unreadCount() }} sin leer.
+      } @else {
+        No tienes notificaciones sin leer.
+      }
+    </p>
+  </header>
 
   @switch (state()) {
     @case ('loading') {
-      <p>Cargando notificaciones…</p>
+      <fc-skeleton variant="title" />
+      <fc-skeleton [lines]="5" />
     }
     @case ('error') {
-      <p class="fc-banner fc-banner--error">No pudimos cargar tu bandeja. Intenta de nuevo.</p>
+      <fc-error-state
+        icon="bell"
+        title="No pudimos cargar tu bandeja"
+        message="Puede que hayas perdido la conexión. Tus notificaciones siguen guardadas."
+        (retry)="retry()"
+      />
     }
     @case ('ready') {
-      @if (items().length === 0) {
-        <p>No tienes notificaciones todavía.</p>
+      @if (entries().length === 0) {
+        <!--
+          FR-119: el kit no dibuja este caso porque siempre tiene datos. Es el estado de
+          cualquier usuario recién registrado, así que se explica en vez de dejar el
+          hueco en blanco.
+        -->
+        <fc-empty-state
+          icon="bell"
+          title="Todavía no tienes notificaciones"
+          message="Aquí verás el resultado de tus cuestionarios y los hitos de puntos que alcances."
+        >
+          <fc-link-button variant="primary" to="/catalogo">Explorar el catálogo</fc-link-button>
+        </fc-empty-state>
       } @else {
-        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2)">
-          @for (item of items(); track item.id) {
-            <li>
-              <button
-                type="button"
-                class="fc-module"
-                style="width: 100%; text-align: left; border: none; cursor: pointer; padding: 0"
-                [style.opacity]="item.read_state === 'read' ? 0.6 : 1"
-                (click)="markRead(item)"
-              >
-                <div class="fc-module-body" style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-2)">
-                  <div>
-                    <span class="fc-label">{{ typeLabel(item.type) }}</span>
-                    @if (item.read_state === 'unread') {
-                      <span class="fc-help" style="margin-left: var(--space-2)">● no leída</span>
-                    }
-                  </div>
-                  <time class="fc-help" [attr.datetime]="item.created_at">{{ item.created_at | date: 'medium' }}</time>
+        <ul class="fc-inbox__list">
+          @for (entry of entries(); track entry.item.id) {
+            <li
+              class="fc-inbox__item"
+              [class.fc-inbox__item--unread]="entry.item.read_state === 'unread'"
+            >
+              <div class="fc-inbox__meta">
+                <fc-badge [tone]="toneOf(entry.item.type)">{{ typeLabel(entry.item.type) }}</fc-badge>
+                @if (entry.item.read_state === 'unread') {
+                  <span class="fc-inbox__flag">
+                    <fc-icon name="circle" [size]="8" />
+                    sin leer
+                  </span>
+                }
+                <time class="fc-inbox__time" [attr.datetime]="entry.item.created_at">
+                  {{ entry.item.created_at | date: 'medium' }}
+                </time>
+              </div>
+
+              <p class="fc-inbox__title-line">{{ entry.text.title }}</p>
+              @if (entry.text.detail) {
+                <p class="fc-inbox__detail">{{ entry.text.detail }}</p>
+              }
+
+              @if (entry.item.read_state === 'unread') {
+                <div class="fc-inbox__action">
+                  <fc-button variant="ghost" size="sm" (pressed)="markRead(entry.item)">
+                    Marcar como leída
+                  </fc-button>
                 </div>
-              </button>
+              }
             </li>
           }
         </ul>
 
         @if (nextPageToken()) {
-          <button
-            type="button"
-            class="fc-btn fc-btn--secondary"
-            style="margin-top: var(--space-4)"
-            [disabled]="loadingMore()"
-            (click)="loadMore()"
-          >
-            {{ loadingMore() ? 'Cargando…' : 'Cargar más' }}
-          </button>
+          <div class="fc-inbox__more">
+            <fc-button variant="secondary" [disabled]="loadingMore()" (pressed)="loadMore()">
+              {{ loadingMore() ? 'Cargando…' : 'Cargar más' }}
+            </fc-button>
+          </div>
         }
       }
     }

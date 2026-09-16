@@ -1,31 +1,112 @@
 @switch (state()) {
   @case ('loading') {
-    <p>Cargando artículo…</p>
+    <div class="fc-reader__skeleton">
+      <fc-skeleton variant="title" />
+      <fc-skeleton [lines]="6" />
+    </div>
   }
   @case ('not-found') {
-    <p class="fc-banner fc-banner--error">
-      Este artículo ya no está disponible — puede haber sido despublicado o reemplazado.
-    </p>
-    <a class="fc-btn fc-btn--secondary" routerLink="/catalogo">Volver al catálogo</a>
+    <!--
+      Sin `retryLabel`: un artículo despublicado no vuelve por insistir. La única
+      salida real es volver al catálogo, y va como enlace —que es lo que es— y no
+      como un botón que navega.
+    -->
+    <fc-error-state
+      icon="file-text"
+      title="Este artículo ya no está disponible"
+      message="Puede haber sido despublicado o reemplazado por una versión nueva."
+      [retryLabel]="null"
+    >
+      <fc-link-button variant="secondary" to="/catalogo">Volver al catálogo</fc-link-button>
+    </fc-error-state>
   }
   @case ('error') {
-    <p class="fc-banner fc-banner--error">No pudimos cargar el artículo. Intenta de nuevo.</p>
+    <fc-error-state
+      icon="file-text"
+      title="No pudimos cargar el artículo"
+      message="Puede que hayas perdido la conexión. Intenta de nuevo."
+      (retry)="retry()"
+    />
   }
   @case ('ready') {
     @if (article(); as a) {
-      <article class="fc-module">
-        <header>{{ a.category }}</header>
-        <div class="fc-module-body">
-          <h1>{{ a.title }}</h1>
-          <div style="white-space: pre-wrap; line-height: var(--lh-relaxed)">{{ a.body }}</div>
+      <div class="fc-reader">
+        <!--
+          El ÚNICO `<article>` de la pantalla: `us1-aprendizaje.spec.ts` lo busca por
+          etiqueta y Playwright exige que resuelva a un solo elemento, así que los
+          relacionados viven en una lista y no en artículos anidados.
+        -->
+        <article class="fc-reader__doc">
+          <header class="fc-reader__head">
+            <fc-badge tone="neutral">{{ a.category }}</fc-badge>
+            <h1 class="fc-reader__title">{{ a.title }}</h1>
+            <p class="fc-reader__meta">Versión {{ a.current_version_no }} · contenido vigente</p>
+          </header>
+
+          @if (paragraphs().length > 0) {
+            <div class="fc-reader__body">
+              @for (paragraph of paragraphs(); track $index) {
+                <p class="fc-reader__paragraph">{{ paragraph }}</p>
+              }
+            </div>
+          } @else {
+            <p class="fc-reader__meta">Esta versión todavía no tiene cuerpo redactado.</p>
+          }
 
           @if (a.quiz_ids.length > 0) {
-            <a class="fc-btn fc-btn--primary" [routerLink]="['/cuestionarios', a.quiz_ids[0]]" style="margin-top: var(--space-4)">
-              Iniciar cuestionario
-            </a>
+            <footer class="fc-reader__foot">
+              <fc-link-button variant="primary" [to]="['/cuestionarios', a.quiz_ids[0]]">
+                Iniciar cuestionario
+              </fc-link-button>
+            </footer>
           }
-        </div>
-      </article>
+        </article>
+
+        <aside class="fc-reader__aside">
+          <fc-module-box title="Tu progreso" accent="accent">
+            @switch (progressState()) {
+              @case ('loading') {
+                <fc-skeleton [lines]="2" />
+              }
+              @case ('error') {
+                <p class="fc-reader__note">No pudimos cargar tu progreso.</p>
+              }
+              @case ('ready') {
+                @if (progress(); as p) {
+                  <fc-progress-bar
+                    [value]="withinMilestone(p.points)"
+                    [max]="100"
+                    label="Puntos"
+                    [showValue]="true"
+                  />
+                  <p class="fc-reader__note">
+                    Se suman al resolver el cuestionario: hasta {{ nextMilestone(p.points) }} puntos
+                    en este hito.
+                  </p>
+                }
+              }
+            }
+          </fc-module-box>
+
+          @if (related().length > 0) {
+            <fc-module-box title="Relacionados" accent="info" [padded]="false">
+              <ul class="fc-reader__related">
+                @for (item of related(); track item.article_id) {
+                  <li>
+                    <a
+                      class="fc-reader__related-link"
+                      [routerLink]="['/articulos', item.article_id]"
+                      [attr.title]="item.title"
+                    >
+                      {{ item.title }}
+                    </a>
+                  </li>
+                }
+              </ul>
+            </fc-module-box>
+          }
+        </aside>
+      </div>
     }
   }
 }

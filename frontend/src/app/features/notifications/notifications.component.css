@@ -1,0 +1,116 @@
+/*
+ * Bandeja in-app (T036 / FR-106).
+ *
+ * Tres señales para lo no leído —barra de acento, fondo y etiqueta— y ninguna
+ * dependiente de un matiz que se pueda no percibir. El resto son tarjetas y tokens.
+ */
+
+.fc-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 760px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.fc-inbox__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-inbox__title {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+
+.fc-inbox__subtitle {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.fc-inbox__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fc-inbox__item {
+  padding: var(--space-3);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-default);
+  border-left: var(--border-accent) solid transparent;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  min-width: 0;
+}
+
+/* Lo no leído: barra de acento + fondo tenue + la etiqueta del encabezado. */
+.fc-inbox__item--unread {
+  border-left-color: var(--brand-primary);
+  background: var(--coral-50);
+}
+
+.fc-inbox__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fc-inbox__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--coral-600);
+}
+
+.fc-inbox__time {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-inbox__title-line {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  /* FR-120: el texto completo permanece en el DOM; solo se acota la caja. */
+  overflow-wrap: anywhere;
+}
+
+.fc-inbox__detail {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+.fc-inbox__action {
+  margin-top: var(--space-2);
+}
+
+.fc-inbox__more {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 767.98px) {
+  .fc-inbox__time {
+    /* En un móvil la hora no cabe al lado de la insignia y la etiqueta: baja a su
+       propia línea en vez de empujar el ancho (FR-127). */
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}

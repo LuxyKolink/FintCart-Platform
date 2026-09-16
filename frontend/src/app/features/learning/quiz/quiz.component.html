@@ -1,68 +1,117 @@
 @switch (state()) {
   @case ('loading') {
-    <p>Cargando cuestionario…</p>
+    <div class="fc-quiz__skeleton">
+      <fc-skeleton variant="title" />
+      <fc-skeleton [lines]="8" />
+    </div>
   }
   @case ('error') {
-    <p class="fc-banner fc-banner--error">No pudimos cargar el cuestionario. Intenta de nuevo.</p>
+    <fc-error-state
+      icon="clipboard-check"
+      title="No pudimos abrir el cuestionario"
+      message="El intento no llegó a empezar, así que no se registró nada. Intenta de nuevo."
+      (retry)="retry()"
+    />
   }
   @case ('ready') {
     @if (result(); as r) {
-      <section class="fc-module" style="max-width: 480px; margin: var(--space-8) auto">
-        <header>Resultado</header>
-        <div class="fc-module-body">
-          <p class="fc-banner" [class.fc-banner--success]="r.passed" [class.fc-banner--error]="!r.passed">
-            {{ r.passed ? '¡Aprobaste!' : 'No alcanzaste el puntaje mínimo esta vez.' }}
-          </p>
-          <p class="fc-num" style="font-size: var(--fs-2xl)">{{ formatScore(r.score) }}</p>
-          <p class="fc-help">Intento n.º {{ r.attempt_no }} · Puntos acumulados: {{ r.points_after }}</p>
-          <a class="fc-btn fc-btn--primary fc-btn--block" routerLink="/progreso">Ver tu progreso</a>
+      <section class="fc-quiz fc-quiz--result">
+        <fc-banner [tone]="r.passed ? 'success' : 'error'">
+          {{ r.passed ? '¡Aprobaste!' : 'No alcanzaste el puntaje mínimo esta vez.' }}
+        </fc-banner>
+
+        <p class="fc-quiz__score">
+          <span class="fc-num">{{ formatScore(r.score) }}</span>
+          <span class="fc-quiz__score-unit">de 100</span>
+        </p>
+
+        <!--
+          Una sola línea de texto plana a propósito: `us1-aprendizaje.spec.ts` busca
+          «Intento n.º» y Playwright exige que la aserción resuelva a UN elemento, así
+          que nada de anidar el número en su propio `<span>`.
+        -->
+        <p class="fc-quiz__detail">
+          Intento n.º {{ r.attempt_no }} · Puntos acumulados: {{ r.points_after }}
+        </p>
+
+        <div class="fc-quiz__actions">
+          <!--
+            FR-104: la opción de reintentar del sistema. Abre un intento NUEVO —el
+            servidor vuelve a sortear las preguntas—, que es lo único que el backend
+            permite: la sesión calificada ya no se puede reutilizar (FR-042).
+          -->
+          <fc-button variant="secondary" (pressed)="restart()">Reintentar</fc-button>
+          <fc-link-button variant="primary" to="/progreso">Ver tu progreso</fc-link-button>
         </div>
       </section>
     } @else {
       @if (session(); as s) {
-        <section class="fc-module" style="max-width: 640px; margin: 0 auto">
-          <header>{{ s.title }}</header>
-          <div class="fc-module-body">
-            @if (resumedFromDraft()) {
-              <p class="fc-banner fc-banner--info">
-                Retomamos tus respuestas de un intento anterior sin terminar.
-                <button type="button" class="fc-btn fc-btn--ghost" (click)="restart()">Empezar de nuevo</button>
-              </p>
-            }
-            @if (sessionGone()) {
-              <p class="fc-banner fc-banner--error">
-                Este intento ya venció, así que no podemos calificarlo. Tus respuestas
-                siguen guardadas, pero hay que empezar un intento nuevo con preguntas nuevas.
-                <button type="button" class="fc-btn fc-btn--ghost" (click)="restart()">Empezar un intento nuevo</button>
-              </p>
-            }
-            @if (submitState() === 'error') {
-              <p class="fc-banner fc-banner--error">
-                No pudimos enviar tus respuestas — puede que perdieras la conexión. Tus respuestas siguen guardadas, intenta de nuevo.
-              </p>
-            }
+        <section class="fc-quiz">
+          <header class="fc-quiz__head">
+            <h1 class="fc-quiz__title">{{ s.title }}</h1>
+            <p class="fc-quiz__meta">
+              Umbral para aprobar: {{ formatScore(s.pass_threshold) }} de 100
+            </p>
+          </header>
 
-            @for (question of s.questions; track question.question_id) {
-              <fieldset style="border: 0; padding: 0; margin: 0 0 var(--space-5)">
-                <legend class="fc-label" style="margin-bottom: var(--space-2)">{{ question.prompt }}</legend>
-                @for (option of question.options; track option.key) {
-                  <label style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0">
-                    <input
-                      type="radio"
-                      [name]="question.question_id"
-                      [checked]="answers()[question.question_id] === option.key"
-                      (change)="setAnswer(question.question_id, option.key)"
-                    />
-                    {{ option.text }}
-                  </label>
-                }
-              </fieldset>
-            }
+          @if (resumedFromDraft()) {
+            <fc-banner tone="info">
+              Retomamos tus respuestas de un intento anterior sin terminar.
+              <button type="button" class="fc-quiz__inline" (click)="restart()">Empezar de nuevo</button>
+            </fc-banner>
+          }
+          @if (sessionGone()) {
+            <fc-banner tone="error">
+              Este intento ya venció, así que no podemos calificarlo. Tus respuestas siguen guardadas,
+              pero hay que empezar un intento nuevo con preguntas nuevas.
+              <button type="button" class="fc-quiz__inline" (click)="restart()">Empezar un intento nuevo</button>
+            </fc-banner>
+          }
+          @if (submitState() === 'error') {
+            <fc-banner tone="error">
+              No pudimos enviar tus respuestas — puede que perdieras la conexión. Tus respuestas siguen
+              guardadas, intenta de nuevo.
+            </fc-banner>
+          }
 
-            <button class="fc-btn fc-btn--primary fc-btn--block" type="button" [disabled]="!allAnswered || submitState() === 'submitting'" (click)="onSubmit()">
-              {{ submitState() === 'submitting' ? 'Enviando…' : 'Enviar respuestas' }}
-            </button>
-          </div>
+          <!--
+            `<fieldset>` + `<legend>` + `<input type="radio">` NO son negociables
+            (research D-29, FR-095): es el marcado que un lector de pantalla necesita
+            para anunciar «pregunta 3 de 5, opción b de c» al navegar por un grupo de
+            opciones excluyentes, y `us1-aprendizaje.spec.ts` los selecciona. Sustituirlos
+            por fichas seleccionables rompería a la vez la suite y la accesibilidad; lo
+            que cambia con 003 es solo cómo se ven.
+          -->
+          @for (question of s.questions; track question.question_id) {
+            <fieldset class="fc-quiz__question">
+              <legend class="fc-quiz__prompt">{{ question.prompt }}</legend>
+              @for (option of question.options; track option.key) {
+                <label
+                  class="fc-quiz__option"
+                  [class.fc-quiz__option--checked]="answers()[question.question_id] === option.key"
+                >
+                  <input
+                    class="fc-quiz__radio"
+                    type="radio"
+                    [name]="question.question_id"
+                    [checked]="answers()[question.question_id] === option.key"
+                    (change)="setAnswer(question.question_id, option.key)"
+                  />
+                  <span class="fc-quiz__option-text">{{ option.text }}</span>
+                </label>
+              }
+            </fieldset>
+          }
+
+          <fc-button
+            variant="primary"
+            size="lg"
+            [block]="true"
+            [disabled]="!allAnswered || submitState() === 'submitting'"
+            (pressed)="onSubmit()"
+          >
+            {{ submitState() === 'submitting' ? 'Enviando…' : 'Enviar respuestas' }}
+          </fc-button>
         </section>
       }
     }

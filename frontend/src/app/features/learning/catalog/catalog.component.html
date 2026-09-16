@@ -1,55 +1,250 @@
-<section>
-  <h1>Catálogo de artículos</h1>
+<!--
+  Portal de aprendizaje de tres zonas (FR-102, T030).
 
-  @if (categories().length > 0) {
-    <nav class="fc-linklist" style="display: flex; flex-wrap: wrap; border: none; margin-bottom: var(--space-4)">
-      <button
-        type="button"
-        class="fc-btn"
-        [class.fc-btn--primary]="activeCategoryId() === null"
-        [class.fc-btn--secondary]="activeCategoryId() !== null"
-        style="margin: 0 var(--space-2) var(--space-2) 0"
-        (click)="selectCategory(null)"
-      >
-        Todas
-      </button>
-      @for (category of categories(); track category.category_id) {
-        <button
-          type="button"
-          class="fc-btn"
-          [class.fc-btn--primary]="activeCategoryId() === category.category_id"
-          [class.fc-btn--secondary]="activeCategoryId() !== category.category_id"
-          style="margin: 0 var(--space-2) var(--space-2) 0"
-          (click)="selectCategory(category.category_id)"
-        >
-          {{ category.name }}
-        </button>
-      }
-    </nav>
-  }
+  El orden del DOM es el de lectura: navegación, contenido, actividad. En pantallas
+  anchas las tres zonas van en paralelo; al estrecharse, la zona de actividad baja
+  primero y la navegación se pliega, y la columna central —el contenido— nunca se
+  sacrifica (FR-126, T032).
+-->
+<div class="fc-portal">
+  <aside class="fc-portal__nav">
+    <!--
+      Las categorías van en un `<details>` NATIVO: es lo que convierte el riel en
+      desplegable bajo `--bp-md` sin una sola línea de JavaScript ni un estado que
+      pueda desincronizarse del ancho real. En escritorio arranca abierto, así que se
+      lee como el riel del kit.
+    -->
+    <details class="fc-portal__disclosure" open>
+      <summary class="fc-portal__summary">
+        <fc-icon name="book-open" [size]="16" />
+        Categorías
+      </summary>
 
-  @switch (state()) {
-    @case ('loading') {
-      <p>Cargando artículos…</p>
-    }
-    @case ('error') {
-      <p class="fc-banner fc-banner--error">No pudimos cargar el catálogo. Intenta de nuevo.</p>
-    }
-    @case ('ready') {
-      @if (articles().length === 0) {
-        <p>Todavía no hay artículos publicados en esta categoría.</p>
-      } @else {
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4)">
-          @for (article of articles(); track article.article_id) {
-            <a class="fc-module" [routerLink]="['/articulos', article.article_id]" style="display: block; color: inherit">
-              <header>{{ nameOf(article) }}</header>
-              <div class="fc-module-body">
-                <h3 style="margin: 0">{{ article.title }}</h3>
-              </div>
-            </a>
+      @switch (categoriesState()) {
+        @case ('loading') {
+          <div class="fc-portal__pad">
+            <fc-skeleton [lines]="3" />
+          </div>
+        }
+        @case ('error') {
+          <div class="fc-portal__pad">
+            <p class="fc-portal__note">No pudimos cargar las categorías.</p>
+          </div>
+        }
+        @case ('ready') {
+          @if (categories().length === 0) {
+            <div class="fc-portal__pad">
+              <p class="fc-portal__note">El catálogo todavía no tiene categorías activas.</p>
+            </div>
+          } @else {
+            <nav aria-label="Filtrar por categoría">
+              <ul class="fc-portal__cats">
+                <li>
+                  <button
+                    type="button"
+                    class="fc-portal__cat"
+                    [class.fc-portal__cat--active]="activeCategoryId() === null"
+                    (click)="selectCategory(null)"
+                  >
+                    Todas
+                  </button>
+                </li>
+                @for (category of categories(); track category.category_id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="fc-portal__cat"
+                      [class.fc-portal__cat--active]="activeCategoryId() === category.category_id"
+                      (click)="selectCategory(category.category_id)"
+                    >
+                      {{ category.name }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            </nav>
           }
-        </div>
+        }
+      }
+    </details>
+
+    <fc-link-button variant="primary" [block]="true" to="/simuladores">
+      <fc-icon fcIconLeft name="calculator" [size]="16" />
+      <!--
+        «Ver las calculadoras» y NO «Ir a simuladores»: el nombre accesible del enlace
+        no puede repetir el de la navegación superior. `us2-simuladores.spec.ts`
+        selecciona `getByRole('link', { name: 'Simuladores' })` —que coincide por
+        subcadena— y con «Ir a simuladores» el locator resolvía a DOS elementos y el
+        recorrido fallaba por ambigüedad. La suite no se toca (nota N-13): se corrige el
+        nombre del enlace, que además dice mejor a dónde lleva.
+      -->
+      Ver las calculadoras
+    </fc-link-button>
+  </aside>
+
+  <div class="fc-portal__center">
+    <div class="fc-portal__head">
+      <h1 class="fc-portal__title">Catálogo de aprendizaje</h1>
+      <p class="fc-portal__subtitle">
+        Contenido organizado por categoría. Cada artículo puede traer un cuestionario.
+      </p>
+    </div>
+
+    @switch (state()) {
+      @case ('loading') {
+        <fc-skeleton variant="rect" height="132px" />
+        <fc-skeleton variant="rect" height="220px" />
+      }
+      @case ('error') {
+        <fc-error-state
+          icon="book-open"
+          title="No pudimos cargar el catálogo"
+          message="Puede que hayas perdido la conexión. Tu progreso no se ve afectado."
+          (retry)="retryArticles()"
+        />
+      }
+      @case ('ready') {
+        @if (featured(); as hero) {
+          <a class="fc-portal__hero" [routerLink]="['/articulos', hero.article_id]">
+            <span class="fc-portal__hero-band" aria-hidden="true">
+              <fc-icon name="book-open" [size]="34" />
+            </span>
+            <span class="fc-portal__hero-body">
+              <fc-badge tone="accent" variant="solid">Destacado de hoy</fc-badge>
+              <h2 class="fc-portal__hero-title">{{ hero.title }}</h2>
+              <span class="fc-portal__hero-meta">{{ nameOf(hero) }}</span>
+            </span>
+          </a>
+        }
+
+        <fc-module-box title="Contenido" accent="primary" [padded]="false">
+          @if (activeCategoryId() !== null) {
+            <button fcActions type="button" class="fc-portal__clear" (click)="selectCategory(null)">
+              Quitar filtro
+            </button>
+          }
+
+          @if (activeCategoryId() === null) {
+            <div class="fc-portal__tabs">
+              <fc-tabs [tabs]="tabs()" [value]="activeTab()" (valueChange)="selectTab($event)" />
+            </div>
+          }
+
+          @if (articles().length === 0) {
+            <fc-empty-state
+              icon="book-open"
+              title="Aquí todavía no hay nada publicado"
+              [message]="
+                activeCategoryId() === null
+                  ? 'Cuando se publique el primer artículo aparecerá en este lugar.'
+                  : 'Esta categoría existe, pero aún no tiene artículos publicados.'
+              "
+            >
+              @if (activeCategoryId() !== null) {
+                <fc-button variant="secondary" (pressed)="selectCategory(null)">
+                  Ver todas las categorías
+                </fc-button>
+              }
+            </fc-empty-state>
+          } @else {
+            <ul class="fc-portal__list">
+              @for (article of articles(); track article.article_id) {
+                <li>
+                  <a class="fc-portal__row" [routerLink]="['/articulos', article.article_id]">
+                    <fc-badge [tone]="toneOf(article)">{{ nameOf(article) }}</fc-badge>
+                    <!--
+                      El título es un `<h3>` de verdad, no un `<span>` con aspecto de
+                      título: `us4-editorial.spec.ts` afirma que el artículo publicado
+                      aparece en el catálogo con `getByRole('heading', { level: 3 })`, y
+                      un titular que no es encabezado no existe para un lector de
+                      pantalla tampoco. El destacado sí va en `<h2>` para que no lo
+                      encuentre esa aserción: el artículo destacado también está en la
+                      lista, y dos encabezados del mismo nivel con el mismo texto la
+                      harían fallar por ambigüedad.
+
+                      FR-120: el título completo va en un `title` y el texto NO se
+                      recorta en el DOM —solo se acota visualmente—, así que un título
+                      largo se lee entero con lector de pantalla y al pasar el puntero.
+                    -->
+                    <h3 class="fc-portal__row-title" [attr.title]="article.title">{{ article.title }}</h3>
+                    <fc-icon class="fc-portal__row-go" name="chevron-right" [size]="18" />
+                  </a>
+                </li>
+              }
+            </ul>
+          }
+        </fc-module-box>
       }
     }
-  }
-</section>
+  </div>
+
+  <aside class="fc-portal__aside">
+    <fc-module-box title="Mi progreso" accent="accent">
+      @switch (progressState()) {
+        @case ('loading') {
+          <fc-skeleton [lines]="2" />
+        }
+        @case ('error') {
+          <p class="fc-portal__note">No pudimos cargar tu progreso.</p>
+          <fc-button variant="ghost" size="sm" (pressed)="retryProgress()">Reintentar</fc-button>
+        }
+        @case ('ready') {
+          @if (progress(); as p) {
+            <p class="fc-portal__points">
+              <span class="fc-num">{{ p.points }}</span>
+              <span class="fc-portal__points-unit">puntos</span>
+            </p>
+            <fc-progress-bar [value]="withinMilestone(p.points)" [max]="100" />
+            <p class="fc-portal__note">
+              {{ withinMilestone(p.points) }} / 100 hacia los {{ nextMilestone(p.points) }} puntos
+            </p>
+          }
+        }
+      }
+    </fc-module-box>
+
+    <fc-module-box title="Notificaciones" accent="primary" [padded]="false">
+      <a fcActions class="fc-portal__more" routerLink="/notificaciones">Ver todas</a>
+
+      @switch (inboxState()) {
+        @case ('loading') {
+          <div class="fc-portal__pad">
+            <fc-skeleton [lines]="3" />
+          </div>
+        }
+        @case ('error') {
+          <div class="fc-portal__pad">
+            <p class="fc-portal__note">No pudimos cargar tu bandeja.</p>
+            <fc-button variant="ghost" size="sm" (pressed)="retryInbox()">Reintentar</fc-button>
+          </div>
+        }
+        @case ('ready') {
+          @if (inboxPreview().length === 0) {
+            <div class="fc-portal__pad">
+              <p class="fc-portal__note">No tienes notificaciones todavía.</p>
+            </div>
+          } @else {
+            <ul class="fc-portal__inbox">
+              @for (item of inboxPreview(); track item.id) {
+                <li class="fc-portal__inbox-item" [class.fc-portal__inbox-item--unread]="item.read_state === 'unread'">
+                  <span class="fc-portal__inbox-type">{{ labelOf(item) }}</span>
+                  @if (item.read_state === 'unread') {
+                    <span class="fc-portal__unread">sin leer</span>
+                  }
+                  <time class="fc-portal__inbox-time" [attr.datetime]="item.created_at">
+                    {{ item.created_at | date: 'short' }}
+                  </time>
+                </li>
+              }
+            </ul>
+            @if (unreadCount() > 0) {
+              <p class="fc-portal__pad fc-portal__note">
+                {{ unreadCount() }} sin leer en tu bandeja.
+              </p>
+            }
+          }
+        }
+      }
+    </fc-module-box>
+  </aside>
+</div>

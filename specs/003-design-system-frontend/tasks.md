@@ -300,20 +300,142 @@ y contrastar con el kit.
 **Referencia**: `design/ui_kits/learner/app.js`, `data.js` y la variante `portal.js` de tres
 columnas.
 
-- [ ] T030 [US2] Disposición de portal de tres zonas —riel de categorías y progreso, columna central, riel de continuación/ranking/notificaciones— en `frontend/src/app/features/learning/catalog/` (FR-102)
-- [ ] T031 [US2] Recomponer el catálogo con artículo destacado y catálogo con pestañas en `frontend/src/app/features/learning/catalog/catalog.component.html`, eliminando sus 6 estilos en línea
-- [ ] T032 [US2] Responsive del portal: bajo `--bp-lg` colapsa **primero el riel derecho**; bajo `--bp-md` el izquierdo pasa a desplegable; la columna central **nunca** se sacrifica (FR-126, research D-27)
-- [ ] T033 [US2] Recomponer el lector en `frontend/src/app/features/learning/article/article.component.html`: ancho cómodo de lectura, cita destacada y panel lateral de progreso y relacionados (FR-103), eliminando sus 2 estilos en línea. **Conservar el elemento `<article>`** como contenedor del cuerpo: `us1-aprendizaje.spec.ts` lo selecciona y es además el marcado semánticamente correcto (research D-29)
-- [ ] T034 [US2] Recomponer el cuestionario en `frontend/src/app/features/learning/quiz/quiz.component.html` con la presentación de calificación y reintento del sistema (FR-104), eliminando sus 6 estilos en línea. **Conservar `<fieldset>` por pregunta y `<input type="radio">` como control de opción**: `us1-aprendizaje.spec.ts` los selecciona, y son el marcado que un lector de pantalla necesita para un grupo de opciones excluyentes (research D-29, FR-095). Sustituirlos por fichas seleccionables rompería la suite **y** la accesibilidad
-- [ ] T035 [US2] Recomponer la pantalla de progreso en `frontend/src/app/features/learning/progress/progress.component.html` con puntos, estadísticas e historial usando `ProgressBar` y `Badge` (FR-105), eliminando sus 5 estilos en línea
-- [ ] T036 [US2] Recomponer la bandeja en `frontend/src/app/features/notifications/notifications.component.html`, distinguiendo visualmente lo leído de lo no leído (FR-106), eliminando sus 5 estilos en línea
-- [ ] T037 [P] [US2] Estados vacíos con sentido: catálogo sin artículos publicados, progreso sin cuestionarios resueltos, bandeja sin notificaciones, en `frontend/src/app/features/{learning,notifications}/` (FR-119) — los kits se dibujaron con datos siempre presentes y no cubren este caso
-- [ ] T038 [P] [US2] Estados de carga y error en las cinco pantallas, con los componentes de T004 y T006, en `frontend/src/app/features/{learning,notifications}/` (FR-118)
-- [ ] T039 [US2] Tolerancia a desbordamiento: títulos de artículo y de categoría más largos que los del kit truncan con indicación visible, sin romper la maquetación, en `frontend/src/app/features/learning/` (FR-120)
-- [ ] T040 [US2] Verificar que la puntuación mostrada en progreso conserva su precisión decimal, reutilizando los ayudantes existentes en `frontend/src/app/features/learning/progress/` (FR-109, Principio VIII)
-- [ ] T041 [P] [US2] Comparación visual por captura de las cinco pantallas contra el kit, a cada punto de corte, en `frontend/e2e/visual/learner.spec.ts`
-- [ ] T042 [US2] Ejecutar `us1-aprendizaje.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
-- [ ] T043 [US2] Retirar de `frontend/src/styles.scss` las clases que ya no referencia ninguna plantilla tras este grupo
+- [x] T030 [US2] Disposición de portal de tres zonas —riel de categorías y progreso, columna central, riel de continuación/ranking/notificaciones— en `frontend/src/app/features/learning/catalog/` (FR-102)
+- [x] T031 [US2] Recomponer el catálogo con artículo destacado y catálogo con pestañas en `frontend/src/app/features/learning/catalog/catalog.component.html`, eliminando sus 6 estilos en línea
+- [x] T032 [US2] Responsive del portal: bajo `--bp-lg` colapsa **primero el riel derecho**; bajo `--bp-md` el izquierdo pasa a desplegable; la columna central **nunca** se sacrifica (FR-126, research D-27)
+- [x] T033 [US2] Recomponer el lector en `frontend/src/app/features/learning/article/article.component.html`: ancho cómodo de lectura, cita destacada y panel lateral de progreso y relacionados (FR-103), eliminando sus 2 estilos en línea. **Conservar el elemento `<article>`** como contenedor del cuerpo: `us1-aprendizaje.spec.ts` lo selecciona y es además el marcado semánticamente correcto (research D-29)
+- [x] T034 [US2] Recomponer el cuestionario en `frontend/src/app/features/learning/quiz/quiz.component.html` con la presentación de calificación y reintento del sistema (FR-104), eliminando sus 6 estilos en línea. **Conservar `<fieldset>` por pregunta y `<input type="radio">` como control de opción**: `us1-aprendizaje.spec.ts` los selecciona, y son el marcado que un lector de pantalla necesita para un grupo de opciones excluyentes (research D-29, FR-095). Sustituirlos por fichas seleccionables rompería la suite **y** la accesibilidad
+- [x] T035 [US2] Recomponer la pantalla de progreso en `frontend/src/app/features/learning/progress/progress.component.html` con puntos, estadísticas e historial usando `ProgressBar` y `Badge` (FR-105), eliminando sus 5 estilos en línea
+- [x] T036 [US2] Recomponer la bandeja en `frontend/src/app/features/notifications/notifications.component.html`, distinguiendo visualmente lo leído de lo no leído (FR-106), eliminando sus 5 estilos en línea
+- [x] T037 [P] [US2] Estados vacíos con sentido: catálogo sin artículos publicados, progreso sin cuestionarios resueltos, bandeja sin notificaciones, en `frontend/src/app/features/{learning,notifications}/` (FR-119) — los kits se dibujaron con datos siempre presentes y no cubren este caso
+- [x] T038 [P] [US2] Estados de carga y error en las cinco pantallas, con los componentes de T004 y T006, en `frontend/src/app/features/{learning,notifications}/` (FR-118)
+- [x] T039 [US2] Tolerancia a desbordamiento: títulos de artículo y de categoría más largos que los del kit truncan con indicación visible, sin romper la maquetación, en `frontend/src/app/features/learning/` (FR-120)
+- [x] T040 [US2] Verificar que la puntuación mostrada en progreso conserva su precisión decimal, reutilizando los ayudantes existentes en `frontend/src/app/features/learning/progress/` (FR-109, Principio VIII)
+- [x] T041 [P] [US2] Comparación visual por captura de las cinco pantallas contra el kit, a cada punto de corte, en `frontend/e2e/visual/learner.spec.ts`
+- [x] T042 [US2] Ejecutar `us1-aprendizaje.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
+- [x] T043 [US2] Retirar de `frontend/src/styles.scss` las clases que ya no referencia ninguna plantilla tras este grupo
+
+**Notas del grupo del portal (T030–T043)**
+
+- **T030–T032 — tres zonas y degradación declarada.** Riel de categorías y acceso a
+  calculadoras, columna central con destacado y catálogo con pestañas, riel de progreso y
+  notificaciones. El orden del DOM es el de lectura y las tres zonas se reparten con
+  `grid-template-areas`, que es lo único que permite reordenarlas sin tocar el marcado: bajo
+  `--bp-lg` la **zona de actividad** baja a lo ancho (primera en sacrificarse) y bajo `--bp-md`
+  la **navegación** se pliega; la columna central no cambia de sitio en ningún ancho. Las
+  columnas usan `minmax(0, 1fr)` porque un título sin espacios ensancha la columna si el mínimo
+  no está acotado, y eso mueve la página entera (FR-127).
+- **El desplegable de categorías es un `<details>` nativo**, no un componente: el design system
+  no trae «disclosure» y un `<details>` no lo es — solo se ajustan el resumen y el chevron,
+  que son `--space-*` y `--fs-*` como cualquier otra regla de disposición.
+- **Dos defectos de disposición que solo aparecieron al mirar las capturas**:
+  1. En columna, `flex-basis: 260px` mide el ALTO, así que el riel de actividad abría 260 px
+     de hueco entre un módulo y el siguiente bajo `--bp-md`. Se devuelve a `flex: 0 0 auto`.
+  2. Las pestañas se recortaban en el borde del contenedor. Es correcto —se desplazan dentro
+     de él y la página no se mueve (FR-127)— pero se deja anotado que la solución
+     *preferible* sería un indicador de desplazamiento; hoy no existe y el recorte es visible.
+
+#### Lo que el kit dibuja y los contratos NO tienen (se reporta, no se inventa)
+
+El kit del portal está dibujado con datos que la plataforma no produce. Se han comprobado uno a
+uno contra `routes.go` y los DTO del Gateway, y **ninguno se ha sustituido por un valor
+inventado** (N-15, FR-122):
+
+| Pieza del kit | Por qué no está |
+|---|---|
+| Ranking de la semana | No existe endpoint de ranking en ningún contrato |
+| «Continuar aprendiendo» | No existe endpoint de «último artículo» ni de continuar |
+| % de avance por categoría | `/me/progress` da los puntos globales, no por categoría |
+| Dificultad y minutos de lectura en la tarjeta | `Article` no lleva ninguno de los dos campos |
+| Autor y fecha del artículo | `Article` tampoco los lleva |
+| Cita destacada dentro del texto | Necesita `body_doc` (bloque `quote`), que es de 002 y aún no existe (T016/T131) |
+| «Racha de N días» | No hay racha en los contratos; el «hito» es de puntos |
+
+El riel derecho se queda por tanto con lo que **sí** existe: mi progreso (puntos reales) y las
+notificaciones reales. Es más delgado que el del kit y esa diferencia es un dato, no un olvido.
+
+- **T033 — el `<article>` tiene que ser ÚNICO.** `us1-aprendizaje.spec.ts` hace
+  `expect(page.locator('article')).toBeVisible()` y Playwright resuelve esa aserción contra **un
+  solo** elemento (comprobado: con dos, falla por modo estricto). Por eso los relacionados van en
+  una lista y no en artículos anidados. Medida de lectura de 68 caracteres, párrafos separados
+  por línea en blanco y `white-space: pre-line` para respetar los saltos simples de dentro de un
+  párrafo. Los relacionados son otros artículos de la **misma categoría**, pedidos al mismo
+  listado del catálogo: sin endpoint de recomendaciones, «relacionado» solo puede significar algo
+  comprobable.
+- **T034 — dos correcciones reales.** (1) «Reintentar» abría un intento nuevo **por debajo** de
+  la calificación anterior, porque `restart()` no limpiaba `result()`: sin eso, FR-104 no se
+  cumplía y el usuario veía el resultado viejo como si nada hubiera pasado. (2) El reintento abre
+  una sesión NUEVA a propósito: la ya calificada no se puede reutilizar (FR-042). El `<fieldset>`
+  y el `<input type="radio">` siguen siendo nativos (D-29) — cambia el dibujo, no el control, y
+  el estado elegido se marca con fondo, borde y peso además del color.
+- **T035 + T040 — la pantalla tiene EXACTAMENTE un `.fc-num`.** `us1` cierra con
+  `expect(page.locator('.fc-num')).toHaveText(/\d+ puntos/)`; se comprobó que con dos coincidencias
+  Playwright **falla** por ambigüedad, así que la figura con tipografía de datos es la de los
+  puntos (con la unidad dentro del mismo elemento) y los contadores de la actividad van con la
+  tipografía normal. Trampa asociada: `fc-progress-bar` pinta su propio `.fc-num` cuando se le
+  pide `showValue`, así que en esta pantalla no se le pide. La primera prueba de
+  `progress.component.spec.ts` fija las dos cosas para que un rediseño futuro no las rompa en
+  silencio.
+- **T035 — tres fuentes, tres estados.** Los puntos, las estadísticas y el historial vienen de
+  `/me/progress`, `/me/report` y `/me/data`; cada zona declara su carga y su error por separado
+  (FR-118). **Hallazgo**: el historial no puede mostrar el artículo ni la categoría porque
+  `QuizAttempt` solo lleva `attempt_id`, `attempt_no`, `score` y `created_at`.
+- **T040 — la calificación no se trunca.** `shared/format-decimal.ts` es el único lugar donde la
+  cadena decimal se interpreta y se vuelve a serializar, con `decimal.js` y a través del ayudante
+  de frontera del proyecto. `66.67` se muestra `66.67`; nunca `66`. La escala se mide con
+  `decimal.js` y no con `Number`/`parseFloat` porque el Principio VIII prohíbe la coma flotante
+  para estos valores, aunque el directorio no esté entre los que la regla de lint cubre. Nota:
+  este ayudante vive en `shared/` y no en `features/learning/progress/` como decía la tarea,
+  porque lo usan pantallas de DOS features (cuestionario y progreso, y la bandeja).
+- **T036 — lo leído y lo no leído, con tres señales.** Fondo, peso y la etiqueta «sin leer». El
+  color solo no basta. El texto de cada entrada sale del `payload` que el Orquestador escribe al
+  calificar: `resultado_cuestionario` (puntaje + aprobado) y `hito_progreso` (puntos).
+  **Hallazgo**: `nuevo_articulo` y `recordatorio` están declarados en el `CHECK` de la tabla y en
+  Usuarios, pero **ningún productor los emite** (verificado en los servicios) — hoy la bandeja no
+  puede mostrar esas dos clases de entrada.
+- **T037/T038 — estados vacíos, de carga y de error.** El kit no dibuja ninguno de los tres casos
+  vacíos porque siempre tiene datos, así que se han añadido a mano: catálogo sin artículos
+  publicados (con salida a «ver todas las categorías» si hay filtro), historial sin intentos (con
+  salida al catálogo) y bandeja vacía. Cada riel declara su error por separado, y la primera prueba
+  de `catalog.component.spec.ts` fija que una bandeja rota **no** deja el catálogo en blanco.
+- **T039 — desbordamiento.** Los títulos se acotan a dos líneas con puntos suspensivos, pero el
+  texto completo sigue en el DOM y además viaja en `title`: no se oculta información (FR-120), solo
+  se acota la caja. La tabla del historial se desplaza dentro de su contenedor (FR-127).
+
+#### `fc-link-button`: un componente nuevo que nace de un defecto real
+
+`fc-button` no podía navegar, y los enlaces de este grupo lo necesitaban. La primera versión lo
+resolvió con un modo `link` que elegía el elemento con `@if`/`@else` dentro de la propia
+plantilla... y **Angular no proyecta `<ng-content>` dentro de un bloque de control de flujo**: el
+`<a>` se renderizaba **vacío**, sin texto y sin nombre accesible. Lo destapó el recorrido de
+`us1`, que no encontraba «Iniciar cuestionario», y se confirmó con una prueba mínima de unidad.
+
+La corrección no es un parche: son **dos componentes** —`fc-button` (acción) y `fc-link-button`
+(navegación)— que comparten la MISMA hoja de estilos. El elemento decide el rol, y un enlace con
+rol de botón (o al revés) le miente al lector de pantalla (FR-095). La prueba que faltaba —afirmar
+el **texto proyectado**, no solo la etiqueta— está ahora en las dos suites.
+
+#### Dos colisiones con la suite que no se puede tocar (N-13)
+
+1. **«Ir a simuladores» dejó de ser un nombre válido.** `us2-simuladores.spec.ts` selecciona
+   `getByRole('link', { name: 'Simuladores' })`, que coincide por **subcadena**: con el botón del
+   riel, el localizador resolvía a DOS elementos y el recorrido fallaba por ambigüedad. Se renombra
+   a «Ver las calculadoras» —no se toca la prueba— y además describe mejor el destino.
+2. **Los títulos del catálogo tienen que ser encabezados de nivel 3, y el destacado no.**
+   `us4-editorial.spec.ts` afirma que el artículo publicado aparece con
+   `getByRole('heading', { level: 3 })`. El destacado también está en la lista, así que si ambos
+   fueran `<h3>` la aserción encontraría dos encabezados con el mismo texto y fallaría; el
+   destacado va en `<h2>` y las filas en `<h3>`. De paso, los títulos dejan de ser `<span>` con
+   aspecto de título: un titular que no es encabezado tampoco existe para un lector de pantalla.
+
+**T041/T042/T043**: 25 capturas (5 pantallas × 5 anchos) en `test-results/visual/learner/`, y
+**28/28 verde** —4 recorridos + 3 de accesibilidad + 1 de independencia externa + 15 del acceso +
+5 del portal— con las suites sin tocar. En `styles.scss` **no queda nada que retirar**: las seis
+clases que quedan (`fc-btn`, `fc-banner`, `fc-help`, `fc-input`, `fc-field`, `fc-label`) las siguen
+usando los cuatro grupos sin migrar, y se retiran cuando llegue su turno. La deuda baja a **65
+espacios en línea** (desde 94), **11 pantallas artesanales** (desde 19) y **65 errores de lint**
+(desde 89, todos preexistentes en las pantallas sin migrar). Las pruebas unitarias pasan de 77 a
+**100**.
 
 **Checkpoint**: US2 entregable. Es el grupo de mayor superficie visible del feature.
 

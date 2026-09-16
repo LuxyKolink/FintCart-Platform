@@ -18,6 +18,12 @@ import { IconComponent, type IconName } from '../icon/icon.component';
  * error que no se anuncia puede dejar al usuario esperando una carga que ya
  * terminó. El botón toma su nombre accesible del texto, y el icono es
  * decorativo.
+ *
+ * `retryLabel` ADMITE `null` para los estados en los que no hay nada que reintentar
+ * —un artículo despublicado no vuelve por insistir—: ahí la salida es una acción
+ * distinta, como volver al catálogo, que la pantalla proyecta. Antes el botón se
+ * pintaba siempre, así que la única alternativa habría sido ofrecer un reintento que
+ * no puede funcionar o duplicar la salida.
  */
 @Component({
   selector: 'fc-error-state',
@@ -32,9 +38,11 @@ import { IconComponent, type IconName } from '../icon/icon.component';
         <p class="fc-error-state__message">{{ message() }}</p>
       }
       <div class="fc-error-state__action">
-        <fc-button variant="secondary" [disabled]="retrying()" (pressed)="retry.emit($event)">
-          {{ retryLabel() }}
-        </fc-button>
+        @if (retryLabel(); as label) {
+          <fc-button variant="secondary" [disabled]="retrying()" (pressed)="retry.emit($event)">
+            {{ label }}
+          </fc-button>
+        }
         <ng-content />
       </div>
     </div>
@@ -45,7 +53,7 @@ export class ErrorStateComponent {
   readonly icon = input<IconName>('info');
   readonly title = input('Algo salió mal');
   readonly message = input<string | null>(null);
-  readonly retryLabel = input('Reintentar');
+  readonly retryLabel = input<string | null>('Reintentar');
   /** Mientras el reintento está en vuelo, el botón se deshabilita. */
   readonly retrying = input(false);
   readonly retry = output<MouseEvent>();

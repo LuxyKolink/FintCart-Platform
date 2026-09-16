@@ -1,10 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
-import * as decimalStr from '../../../shared/decimal-str';
+import {
+  BannerComponent,
+  ButtonComponent,
+  ErrorStateComponent,
+  LinkButtonComponent,
+  SkeletonComponent,
+} from '../../../shared/ui';
 import { LearningApiService } from '../learning-api.service';
 import { QuizGradeResult, QuizSession } from '../learning.types';
+import { formatScore as formatScoreText } from '../../../shared/format-decimal';
 import { QuizStateService } from './quiz-state.service';
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -13,8 +20,15 @@ type SubmitState = 'idle' | 'submitting' | 'error';
 @Component({
   selector: 'fc-quiz',
   standalone: true,
-  imports: [RouterLink],
+  imports: [
+    BannerComponent,
+    ButtonComponent,
+    ErrorStateComponent,
+    LinkButtonComponent,
+    SkeletonComponent,
+  ],
   templateUrl: './quiz.component.html',
+  styleUrl: './quiz.component.css',
 })
 export class QuizComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
@@ -96,7 +110,16 @@ export class QuizComponent implements OnInit {
     this.resumedFromDraft.set(false);
     this.sessionGone.set(false);
     this.submitState.set('idle');
+    // El resultado se limpia aquí y no solo antes de pintarlo: sin esto, «Reintentar»
+    // en la pantalla de calificación abriría un intento nuevo por debajo de un
+    // resultado viejo, que seguiría siendo lo primero que el usuario ve (FR-104).
+    this.result.set(null);
     this.quizState.clearDraft(this.quizId);
+    this.openSession();
+  }
+
+  /** La pantalla de error ofrece reintentar; el intento anterior nunca se registró. */
+  protected retry(): void {
     this.openSession();
   }
 
@@ -108,8 +131,12 @@ export class QuizComponent implements OnInit {
     return session.questions.every((q) => this.answers()[q.question_id] !== undefined);
   }
 
+  /**
+   * La calificación se presenta con el ayudante compartido de `features/learning/`:
+   * mantiene la escala decimal y NUNCA la trunca (Principio VIII, N-15).
+   */
   protected formatScore(score: string): string {
-    return decimalStr.format(decimalStr.parseScore(score));
+    return formatScoreText(score);
   }
 
   protected onSubmit(): void {
