@@ -416,6 +416,88 @@ está publicada, el bloque se degrada a un aviso y el artículo sigue siendo leg
 
 ---
 
+## D-26 — Tipo de una simulación hecha con una calculadora de USUARIO
+
+**Decisión**: `simulations.calc_type` admite un **sexto valor**, `'usuario'`, y el enum del
+contrato un sexto miembro, `CALC_TYPE_USUARIO = 6`. La columna sigue siendo `NOT NULL`.
+
+**El problema que resuelve**: `calc_type` se declaró `NOT NULL` con un `CHECK` de los cinco
+tipos nativos (FR-019), y una simulación de una calculadora **de usuario** no tiene ninguno de
+esos cinco. Hasta ahora eso hacía que insertarla fuera imposible —la encontró T091, no una
+prueba— y por eso `Compute` rechaza `calculator_id` en lugar de calcular: un cliente que pedía
+una calculadora concreta recibía el resultado de otra sin que nada se lo dijera.
+
+**Justificación**: el valor no significa «desconocido» sino «definida por el usuario», que es un
+dato **cierto** y no un centinela para salir del paso. Y mantiene la columna `NOT NULL`, de modo
+que no riega `SimulationRow`, ni `ListHistory`, ni ningún consumidor: `calc_type` sigue siendo
+un `String` que siempre tiene valor. La entrada del historial ya lleva `calculator_id` y
+`calculator_version`, así que un cliente sabe exactamente de qué definición salió el número.
+
+**Alternativa considerada**: dejar `calc_type` anulable. Es más honesto con los datos —una
+calculadora de usuario no tiene tipo nativo, y `NULL` lo dice exactamente— pero riega
+`SimulationRow.calc_type` a `Option<String>` y obliga a decidir qué devuelve `ListHistory` para
+esas filas. La respuesta natural sería `CALC_TYPE_UNSPECIFIED`, que en la PETICIÓN significa «el
+cliente olvidó el campo» —y por eso es un error— y en la respuesta significaría «no aplica». El
+mismo valor con dos significados según la dirección, para ganar una honestidad que el
+`calculator_id` de al lado ya aporta, no compensa.
+
+**Alcance**: la decisión toca T091 (ejecutar por `calculator_id`), T103 (persistir
+`calculator_id`/`calculator_version`/`indicators_snapshot`) y `ListHistory`. Se resolvió una vez
+para las tres, que es la razón de que estuviera anotada en las tres.
+
+---
+
+## D-27 — Los pánicos por desbordamiento de `annuity`: cuándo se corrigen
+
+**Decisión**: `calculators::annuity` multiplica con `*` en vez de con `checked_mul`
+(`annuity.rs:74`, `:80`, `:104`), así que `cuota` y `vf_serie` **abortan** cuando el producto no
+cabe en la mantisa de 96 bits. **Se corrige, pero no ahora**: primero tiene que ejecutarse el
+sembrado y las migraciones contra una base real.
+
+**Por qué no ahora**: la suite de T092 usa el código nativo como **patrón** de comparación.
+Cambiar la aritmética del patrón mientras se establece la suite destruiría la evidencia que la
+suite existe para dar: ya no se sabría si las semillas reproducen el código nativo de hoy o uno
+modificado a la vez que se medía. El orden correcto es congelar la referencia, verificar el
+sistema completo contra una base, y entonces corregir — la suite dirá si algo se movió.
+
+**Efecto de la corrección**: las dos implementaciones cambian **igual**, así que FR-049 queda
+intacto, y los 4 casos hoy incomparables (2 en `ahorro`, 2 en `credito`, contados y acotados por
+la suite) pasan a comparables. Además el motor cumple lo que ya promete su documentación
+—`functions.rs` dice que «ningún camino entra en pánico»—, promesa que hoy es falsa por esta vía.
+
+**Nota**: `ahorro.rs:60` y `credito.rs:64` tienen el mismo `*`. El motor NO los hereda por su
+evaluador, que usa `checked_mul` (`eval.rs:176`), y por eso hay casos en los que solo aborta el
+código nativo. Las dos caras están fijadas por pruebas propias en `tests/seed_regression.rs`.
+
+---
+
+## D-28 — Quién siembra las definiciones semilla fuera de desarrollo
+
+**Decisión**: un **paso de despliegue explícito** que invoca el mismo binario que `dev/seed`
+invoca en local (`services/simulator/src/bin/seed.rs`). El servicio **no** siembra al arrancar.
+
+**El problema que resuelve**: las siete calculadoras de FR-019 solo se crean en `dev/seed`.
+`deploy/vps/compose.app.yaml` solo añade `BOOTSTRAP_ADMIN_EMAIL`, así que en producción el
+catálogo nacía vacío: `ListCalculators` no mostraría ninguna calculadora y `gmf` no podría
+calcular, porque depende del indicador `@UVT`.
+
+**Justificación**: el binario ya es idempotente y **convergente** —compara la definición
+almacenada con la compilada y añade una versión nueva cuando difieren—, así que un paso que lo
+invoque se puede repetir sin efectos. Y deja el arranque del servicio **sin efectos
+secundarios**, que es lo que pide el Principio X («entrypoint delgado: solo config, wiring y
+shutdown»): un arranque que escribe en la base falla en una réplica de solo lectura y hace que
+«qué hay en la base» dependa de qué binario arrancó último.
+
+**Alternativa considerada**: que `main.rs` siembre antes de servir. Tiene una ventaja real —el
+contenido no puede desincronizarse del binario en ningún entorno, y no hay paso de despliegue
+que se pueda olvidar—, pero convierte el arranque en una escritura y aparta el entrypoint de lo
+que el Principio X le pide.
+
+**Pendiente**: el paso concreto en `deploy/` no forma parte de las tareas de este feature y no
+se ha escrito. Queda anotado como requisito de puesta en producción.
+
+---
+
 ## Resumen de impacto por servicio
 
 | Servicio | Impacto |
