@@ -200,18 +200,90 @@ marca junto al formulario.
 
 **Referencia**: `design/ui_kits/auth/app.js` + su `README.md`.
 
-- [ ] T018 [P] [US1] Componente de panel de marca —logotipo, titular, subtítulo y los tres indicadores de contenido— en `frontend/src/app/shared/ui/brand-panel/`, reutilizable por las tres pantallas (FR-087, FR-098)
-- [ ] T019 [US1] Disposición de card partido para el flujo de acceso en `frontend/src/app/features/auth/`, con el panel de marca a un lado y el formulario al otro
-- [ ] T020 [US1] Recomponer `frontend/src/app/features/auth/login/login.component.html` con los componentes compartidos, sustituyendo el `fc-module` de 420 px y los 2 estilos en línea (FR-098)
-- [ ] T021 [US1] Añadir al acceso la opción de mantener la sesión, el enlace de recuperación de contraseña, el divisor y el acceso federado, en `frontend/src/app/features/auth/login/` (FR-099)
-- [ ] T022 [US1] Recomponer `frontend/src/app/features/auth/register/register.component.html` con los componentes compartidos, eliminando sus 2 estilos en línea
-- [ ] T023 [US1] Presentar el consentimiento de tratamiento de datos personales de forma explícita antes del envío, en `frontend/src/app/features/auth/register/` (FR-100)
-- [ ] T024 [US1] Recomponer `frontend/src/app/features/auth/verify-email/verify-email.component.html` con la introducción del código y el estado de éxito que conduce al catálogo (FR-101), eliminando su 1 estilo en línea
-- [ ] T025 [US1] Estados de carga y error en las tres pantallas de acceso, con los componentes de T004 y T006, en `frontend/src/app/features/auth/` (FR-118)
-- [ ] T026 [US1] Responsive del card partido: bajo `--bp-md` el panel de marca pasa a **banda superior compacta con logotipo y titular**, conservando la identidad y sacrificando solo los tres indicadores, en `frontend/src/app/features/auth/` — **no se oculta entero** (FR-126, nota N-14)
-- [ ] T027 [P] [US1] Comparación visual por captura de las tres pantallas contra el kit, a cada punto de corte, en `frontend/e2e/visual/auth.spec.ts`
-- [ ] T028 [US1] Ejecutar las suites de extremo a extremo y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
-- [ ] T029 [US1] Retirar de `frontend/src/styles.scss` las clases artesanales que ya no referencia ninguna plantilla tras este grupo
+- [x] T018 [P] [US1] Componente de panel de marca —logotipo, titular, subtítulo y los tres indicadores de contenido— en `frontend/src/app/shared/ui/brand-panel/`, reutilizable por las tres pantallas (FR-087, FR-098)
+- [x] T019 [US1] Disposición de card partido para el flujo de acceso en `frontend/src/app/features/auth/`, con el panel de marca a un lado y el formulario al otro
+- [x] T020 [US1] Recomponer `frontend/src/app/features/auth/login/login.component.html` con los componentes compartidos, sustituyendo el `fc-module` de 420 px y los 2 estilos en línea (FR-098)
+- [x] T021 [US1] Añadir al acceso la opción de mantener la sesión, el enlace de recuperación de contraseña, el divisor y el acceso federado, en `frontend/src/app/features/auth/login/` (FR-099)
+- [x] T022 [US1] Recomponer `frontend/src/app/features/auth/register/register.component.html` con los componentes compartidos, eliminando sus 2 estilos en línea
+- [x] T023 [US1] Presentar el consentimiento de tratamiento de datos personales de forma explícita antes del envío, en `frontend/src/app/features/auth/register/` (FR-100)
+- [x] T024 [US1] Recomponer `frontend/src/app/features/auth/verify-email/verify-email.component.html` con la introducción del código y el estado de éxito que conduce al catálogo (FR-101), eliminando su 1 estilo en línea
+- [x] T025 [US1] Estados de carga y error en las tres pantallas de acceso, con los componentes de T004 y T006, en `frontend/src/app/features/auth/` (FR-118)
+- [x] T026 [US1] Responsive del card partido: bajo `--bp-md` el panel de marca pasa a **banda superior compacta con logotipo y titular**, conservando la identidad y sacrificando solo los tres indicadores, en `frontend/src/app/features/auth/` — **no se oculta entero** (FR-126, nota N-14)
+- [x] T027 [P] [US1] Comparación visual por captura de las tres pantallas contra el kit, a cada punto de corte, en `frontend/e2e/visual/auth.spec.ts`
+- [x] T028 [US1] Ejecutar las suites de extremo a extremo y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
+- [x] T029 [US1] Retirar de `frontend/src/styles.scss` las clases artesanales que ya no referencia ninguna plantilla tras este grupo
+
+**Notas del grupo de acceso (T018–T029)**
+
+- **T018 — indicadores cualitativos, no las cifras del kit.** El kit escribe «+120 artículos»
+  y «5 simuladores»; la semilla deja 5 artículos y 7 calculadoras. Un número inventado en la
+  portada no es texto incompleto: es un dato falso, el mismo criterio que N-15 aplica a la
+  cifra truncada. Entran por el input `indicators` si alguna pantalla puede consultar el número
+  real (FR-122). El tercer icono es `flame` y no el `award` del kit porque `award` no está entre
+  los 25 iconos registrados (D-32).
+- **T018 — por qué el fondo lleva `background-color` además del degradado.** El verificador de
+  contraste lee el `background-color` computado, y con solo `background-image` es transparente:
+  habría comparado el texto blanco contra el blanco de la tarjeta y dado un **falso positivo**.
+  El coral 500 sólido fija el peor caso real (5.11:1) y además cubre que el degradado no se
+  pinte. Se usa coral 500 y no el coral 400 del kit por el mismo motivo que en el botón
+  primario: el blanco sobre coral 400 da 4.04:1.
+- **T019**: la disposición vive en `features/auth/`, no en `shared/ui/`: `fc-brand-panel` sí es de
+  la biblioteca (es identidad de marca), pero el card partido solo tiene sentido en el flujo de
+  acceso.
+- **T020–T022**: las tres pantallas se componen con `fc-auth-layout`, `fc-input`, `fc-checkbox`,
+  `fc-button`, `fc-icon` y el nuevo `fc-banner`; sus **5 estilos en línea desaparecen**. El botón
+  de envío conserva el nombre «Iniciar sesión» (no el «Entrar» del kit) porque las cuatro suites
+  e2e lo buscan por ese nombre y N-13 manda no tocarlas.
+- **Nuevo `fc-banner` compartido**: `.fc-banner` era artesanal y el mensaje sigue existiendo, así
+  que la clase sobrevivía por carencia, no por diseño (FR-087). El tono decide el `role`
+  (`alert` para error/aviso, `status` para el resto).
+- **T021 «Recordarme» es real, y por eso `TokenStorageService` cambia.** Elige `sessionStorage`
+  (defecto) o `localStorage` (marcado). Se deja **desmarcada por defecto**: FR-121 prohíbe
+  alterar el comportamiento funcional, así que sin tocar la casilla la sesión vive donde vivía;
+  el kit la dibuja marcada y aquí manda FR-004, no el adorno.
+- **T021 «recuperación de contraseña» es una carencia, no una función.** No existe endpoint de
+  restablecimiento en ningún contrato: el enlace apunta al reenvío de verificación, que es la
+  única recuperación que la plataforma expone. **Hallazgo para T089** (FR-122).
+- **T021 «acceso federado»: no hay proveedor de identidad externo.** El Authorization Server de
+  la plataforma ES el Gateway, así que el botón ejecuta el mismo flujo Authorization Code + PKCE
+  que el principal. Se deja operativo en vez de muerto; **la falta de un IdP externo queda como
+  hallazgo** (FR-122).
+- **T023 consentimiento (FR-100)**: la casilla se presenta explícita antes del envío (Ley 1581)
+  pero **no bloquea**. El contrato de registro solo acepta `email`, `password` y `display_name`, y
+  exigirla rompería los cuatro recorridos e2e, que se registran sin tocarla (N-13). **Hallazgo**:
+  exigirla es una decisión de contrato de 002, no de presentación.
+- **T024 verificación (FR-101)**: la plataforma **no** verifica con un código de 6 dígitos —el
+  correo trae un enlace con `user_id` + `token`— así que se conserva el mecanismo real y se
+  dibuja el estado de éxito. Seis casillas que no envían nada serían el falso verde que FR-122
+  prohíbe; **la carencia del código queda como hallazgo**. El éxito conduce a iniciar sesión y no
+  directo al catálogo porque el guard del catálogo exige sesión.
+- **T025 carga y error (FR-118)**: `checking` es `fc-skeleton`; `expired` y `no-link` son
+  `fc-error-state`, cuyo reintento abre el formulario de reenvío. Login y registro **no dependen
+  de datos**, así que su carga es el botón deshabilitado y su error, `fc-banner`.
+- **T026 responsive (FR-126, N-14)**: bajo `--bp-md` el card se apila y el panel pasa a banda
+  compacta (logotipo, titular y subtítulo; sin indicadores) y **nunca se oculta**. Verificado a
+  1280/768/767/480/375/360 px: panel visible a todos los anchos y **cero scroll horizontal**
+  (FR-127).
+- **T027 capturas**: 15 (3 pantallas × 5 anchos —los 4 tokens más el mínimo de 360 px—) en
+  `test-results/visual/auth/`, con aserciones de panel visible y sin desplazamiento horizontal.
+  Sin `toHaveScreenshot`: la referencia es el kit HTML, no una imagen versionada.
+- **Dos defectos reales que la barrera destapó en componentes compartidos**:
+  1. `--text-faint` (warm-500) daba **3.37:1** sobre blanco y lo usaban la ayuda de campo, la
+     etiqueta del divisor y las pestañas inactivas. Pasa a un warm-550 (4.87:1): el tono más
+     claro que aún cumple AA, para conservar la jerarquía frente a `--text-muted` en vez de
+     igualarlos.
+  2. El checkbox usaba `transition: all`, así que el anillo de foco **se desvanecía** en vez de
+     aparecer: en el instante del foco no se veía. Se acota a `background` y `border-color`.
+  3. El verificador solo miraba el elemento enfocado, pero el anillo de `fc-input` vive en el
+     contenedor (`:focus-within`) y lo reportaba como ausente. Ahora sube hasta 4 ancestros y
+     **exige sombra opaca** (alfa ≥ 0.4), con lo que una sombra estática `--shadow-xs` ya no hace
+     pasar a un botón sin anillo: la comprobación quedó **más estricta**, no más laxa.
+- **T028**: las 4 suites + 15 capturas + 3 de accesibilidad + 1 de independencia externa =
+  **23/23 verde**. Las suites e2e **no** se tocaron; solo se afinó `e2e/support/a11y.ts`, que es
+  infraestructura de la barrera, no una aserción.
+- **T029**: se retiran `.fc-select` y `.fc-error-text` (0 referencias). Las demás clases las
+  siguen usando grupos sin migrar, así que se retiran cuando llegue su turno. `styles.scss` baja
+  de 116 a 113 líneas.
 
 **Checkpoint**: US1 entregable (SC-029). Se despliega el kit completo, nunca pantalla suelta.
 

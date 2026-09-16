@@ -1,0 +1,73 @@
+:host {
+  display: block;
+}
+
+.fc-auth {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--space-5);
+  background: var(--surface-page);
+}
+
+.fc-auth__card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  max-width: 880px;
+  min-height: 540px;
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.fc-auth__panel {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) var(--space-7);
+}
+
+.fc-auth__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 372px;
+}
+
+.fc-auth__head {
+  margin-bottom: var(--space-1);
+}
+
+.fc-auth__title {
+  font-size: var(--fs-3xl);
+  margin: 0 0 var(--space-1);
+}
+
+.fc-auth__subtitle {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Bajo --bp-md el card partido se apila: la banda de marca arriba y el
+   formulario debajo. `align-items: start` evita que la tarjeta se estire a toda
+   la altura y deje el formulario flotando en el centro en un teléfono. Literal
+   768px porque `var()` no se resuelve dentro de `@media` (tokens/breakpoints.css). */
+@media (max-width: 767.98px) {
+  .fc-auth {
+    align-items: start;
+    padding: var(--space-4);
+  }
+
+  .fc-auth__card {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .fc-auth__panel {
+    padding: var(--space-6) var(--space-5);
+  }
+}

@@ -1,0 +1,47 @@
+/* Ayudas de disposición del formulario de acceso. No son estilo artesanal —no
+   duplican ningún componente de `shared/ui`— sino la colocación del contenido
+   proyectado dentro de `fc-auth-layout`, que por encapsulación no puede
+   estilarse desde fuera del componente. Las tres pantallas las necesitan, así
+   que viven aquí y se repiten por pantalla, no en una hoja global nueva. */
+
+.fc-auth__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fc-auth__between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fc-auth__inline-link {
+  font-size: var(--fs-sm);
+}
+
+.fc-auth__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.fc-auth__divider::before,
+.fc-auth__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-default);
+}
+
+.fc-auth__alt {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}

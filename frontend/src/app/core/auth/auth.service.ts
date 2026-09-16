@@ -45,7 +45,7 @@ export class AuthService {
    * 403 `email_unverified` (falta verificar correo, FR-002) — el llamador
    * distingue por `error.error.code` (ver {@link ErrorBody}).
    */
-  public login(email: string, password: string): Observable<void> {
+  public login(email: string, password: string, remember = false): Observable<void> {
     const verifier = generateCodeVerifier();
 
     return new Observable<void>((subscriber) => {
@@ -72,7 +72,7 @@ export class AuthService {
               };
               this.http.post<TokenResponse>(`${environment.apiBaseUrl}/oauth/token`, tokenReq).subscribe({
                 next: (tokenResp) => {
-                  this.storeTokens(tokenResp);
+                  this.storeTokens(tokenResp, remember);
                   subscriber.next();
                   subscriber.complete();
                 },
@@ -94,7 +94,7 @@ export class AuthService {
     }
     const body: TokenRequest = { grant_type: 'refresh_token', refresh_token: refreshToken };
     return this.http.post<TokenResponse>(`${environment.apiBaseUrl}/oauth/token`, body).pipe(
-      tap((resp) => this.storeTokens(resp)),
+      tap((resp) => this.storeTokens(resp, this.tokens.isPersistent())),
       map(() => undefined),
     );
   }
@@ -118,11 +118,14 @@ export class AuthService {
     return allowed.some((role) => mine.includes(role));
   }
 
-  private storeTokens(resp: TokenResponse): void {
-    this.tokens.save({
-      accessToken: resp.access_token,
-      refreshToken: resp.refresh_token ?? this.tokens.getRefreshToken() ?? '',
-    });
+  private storeTokens(resp: TokenResponse, remember: boolean): void {
+    this.tokens.save(
+      {
+        accessToken: resp.access_token,
+        refreshToken: resp.refresh_token ?? this.tokens.getRefreshToken() ?? '',
+      },
+      remember,
+    );
     this.claimsSignal.set(decodeAccessToken(resp.access_token));
   }
 }

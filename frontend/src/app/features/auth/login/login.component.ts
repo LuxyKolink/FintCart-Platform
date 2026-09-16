@@ -5,12 +5,30 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { ErrorBody } from '../../../core/auth/auth.types';
+import {
+  BannerComponent,
+  ButtonComponent,
+  CheckboxComponent,
+  IconComponent,
+  InputComponent,
+} from '../../../shared/ui';
+import { AuthLayoutComponent } from '../auth-layout/auth-layout.component';
 
 @Component({
   selector: 'fc-login',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    AuthLayoutComponent,
+    BannerComponent,
+    ButtonComponent,
+    CheckboxComponent,
+    IconComponent,
+    InputComponent,
+  ],
   templateUrl: './login.component.html',
+  styleUrl: './login.component.css',
 })
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
@@ -25,6 +43,10 @@ export class LoginComponent {
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]],
+    // Desmarcada por defecto: sin tocarla, la sesión sigue viviendo en
+    // `sessionStorage` como antes (FR-121). Marcarla es la mejora opt-in de
+    // «mantener la sesión iniciada» (FR-099).
+    remember: [false],
   });
 
   protected onSubmit(): void {
@@ -36,8 +58,8 @@ export class LoginComponent {
     this.errorMessage.set(null);
     this.needsVerification.set(false);
 
-    const { email, password } = this.form.getRawValue();
-    this.auth.login(email, password).subscribe({
+    const { email, password, remember } = this.form.getRawValue();
+    this.auth.login(email, password, remember).subscribe({
       next: () => {
         this.submitting.set(false);
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/catalogo';
@@ -48,6 +70,18 @@ export class LoginComponent {
         this.handleError(err);
       },
     });
+  }
+
+  /**
+   * Acceso federado (FR-099). No hay proveedor de identidad externo: el
+   * Authorization Server de la plataforma ES el Gateway (`/oauth/authorize` +
+   * `/oauth/token`, Authorization Code + PKCE), que es justo lo que ejecuta
+   * `AuthService.login`. El botón no es decorativo —dispara el mismo flujo
+   * real— pero tampoco inventa una federación que no existe: la carencia de un
+   * IdP externo queda como hallazgo (FR-122), no se resuelve aquí.
+   */
+  protected onFederated(): void {
+    this.onSubmit();
   }
 
   private handleError(err: unknown): void {

@@ -4,14 +4,26 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { IdentityApiService } from '../../../core/auth/identity-api.service';
+import { BannerComponent, ButtonComponent, ErrorStateComponent, InputComponent, SkeletonComponent } from '../../../shared/ui';
+import { AuthLayoutComponent } from '../auth-layout/auth-layout.component';
 
 type Status = 'checking' | 'no-link' | 'success' | 'expired';
 
 @Component({
   selector: 'fc-verify-email',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    AuthLayoutComponent,
+    BannerComponent,
+    ButtonComponent,
+    ErrorStateComponent,
+    InputComponent,
+    SkeletonComponent,
+  ],
   templateUrl: './verify-email.component.html',
+  styleUrl: './verify-email.component.css',
 })
 export class VerifyEmailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
@@ -22,6 +34,8 @@ export class VerifyEmailComponent implements OnInit {
   protected readonly resent = signal(false);
   protected readonly resending = signal(false);
   protected readonly resendError = signal<string | null>(null);
+  /** El error no ofrece el formulario hasta que se pide: ver `fc-error-state` abajo. */
+  protected readonly resendOpen = signal(false);
 
   protected readonly resendForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -45,6 +59,17 @@ export class VerifyEmailComponent implements OnInit {
       next: () => this.status.set('success'),
       error: () => this.status.set('expired'),
     });
+  }
+
+  /**
+   * La plataforma no verifica con un código de 6 dígitos: el correo trae un enlace
+   * con `user_id` + `token`, y no existe ningún endpoint que acepte un código —
+   * dibujar seis casillas que no envían nada sería la clase de falso verde que este
+   * feature rechaza (FR-122). Se conserva el mecanismo real y la carencia queda
+   * como hallazgo.
+   */
+  protected onResendRequested(): void {
+    this.resendOpen.set(true);
   }
 
   /**

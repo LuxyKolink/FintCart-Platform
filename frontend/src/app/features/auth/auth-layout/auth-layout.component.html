@@ -1,0 +1,18 @@
+<div class="fc-auth">
+  <div class="fc-auth__card">
+    <fc-brand-panel class="fc-auth__brand" />
+
+    <div class="fc-auth__panel">
+      <div class="fc-auth__inner">
+        <div class="fc-auth__head">
+          <h1 class="fc-auth__title">{{ heading() }}</h1>
+          @if (subheading()) {
+            <p class="fc-auth__subtitle">{{ subheading() }}</p>
+          }
+        </div>
+
+        <ng-content />
+      </div>
+    </div>
+  </div>
+</div>
