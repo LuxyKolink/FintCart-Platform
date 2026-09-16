@@ -141,6 +141,10 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 	// iniciar sesión. El resto del catálogo sí vive dentro del grupo autenticado.
 	r.Get("/catalog/categories", h.ListActiveCategories)
 
+	// Catálogo público de calculadoras (FR-052). Pública por la misma razón que el de
+	// categorías: la ve quien todavía no ha entrado, y solo devuelve publicadas.
+	r.Get("/calculators", h.ListCalculators)
+
 	// ── Rutas autenticadas ─────────────────────────────────────────────────
 	r.Group(func(r chi.Router) {
 		r.Use(Authenticate(deps.Verifier, deps.Blacklist, h.logger))
@@ -156,6 +160,19 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		// Simuladores.
 		r.Post("/simulators/{calcType}/run", h.RunSimulation)
 		r.Get("/simulators/history", h.SimulationHistory)
+
+		// Constructor de calculadoras (FR-043…FR-046, FR-051).
+		//
+		// `/calculators/validate` va ANTES que `/calculators/{calculatorId}` a propósito:
+		// chi resuelve por patrón y el segmento literal tiene que registrarse primero, o
+		// «validate» se leería como un identificador de calculadora y la validación en vivo
+		// del constructor respondería 404.
+		r.Get("/me/calculators", h.ListMyCalculators)
+		r.Post("/calculators/validate", h.ValidateDefinition)
+		r.Post("/calculators", h.CreateCalculator)
+		r.Get("/calculators/{calculatorId}", h.GetCalculator)
+		r.Put("/calculators/{calculatorId}", h.UpdateCalculator)
+		r.Delete("/calculators/{calculatorId}", h.DeleteCalculator)
 
 		// Perfil propio. No llevan `{userId}` a propósito: el usuario sale del token y
 		// no de la URL, de modo que no existe la posibilidad de pedir el perfil de otro

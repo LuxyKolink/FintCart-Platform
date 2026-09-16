@@ -422,3 +422,186 @@ func httpFromGRPC(code codes.Code) (int, string, string) {
 		return http.StatusInternalServerError, "internal", "error interno"
 	}
 }
+
+// ── constructor de calculadoras ─────────────────────────────────────────────
+
+// inputTypeByPath es el vocabulario del borde para el tipo de una entrada.
+//
+// Es la misma tabla que `calcTypeByPath` y por la misma razón: el entero del enum es un
+// detalle del transporte gRPC. Va como mapa y no como `switch` para que la inversa
+// —`inputTypePathName`— se recorra sola y las dos direcciones no puedan desincronizarse.
+var inputTypeByPath = map[string]simulatorv1.InputType{
+	"monto":  simulatorv1.InputType_INPUT_TYPE_MONTO,
+	"tasa":   simulatorv1.InputType_INPUT_TYPE_TASA,
+	"entero": simulatorv1.InputType_INPUT_TYPE_ENTERO,
+}
+
+// inputTypeFromPath resuelve el tipo de una entrada o falla con 400.
+//
+// Un tipo desconocido es un error del BORDE y no se deja pasar como el valor cero del
+// enum: `INPUT_TYPE_UNSPECIFIED` llegaría al Simulador y allí significaría «el cliente
+// olvidó el campo», que es un diagnóstico distinto y peor que «el cliente escribió un
+// tipo que no existe».
+func inputTypeFromPath(name string) (simulatorv1.InputType, error) {
+	kind, ok := inputTypeByPath[name]
+	if !ok {
+		return simulatorv1.InputType_INPUT_TYPE_UNSPECIFIED,
+			fmt.Errorf("%w: tipo de entrada desconocido: %q", errBadRequest, name)
+	}
+	return kind, nil
+}
+
+// inputTypePathName es la inversa, para las respuestas.
+func inputTypePathName(kind simulatorv1.InputType) string {
+	for name, value := range inputTypeByPath {
+		if value == kind {
+			return name
+		}
+	}
+	return ""
+}
+
+func calculatorToDTO(c *simulatorv1.Calculator) Calculator {
+	return Calculator{
+		CalculatorID:    c.GetCalculatorId(),
+		OwnerID:         c.GetOwnerId(),
+		Name:            c.GetName(),
+		Description:     c.GetDescription(),
+		IsBuiltin:       c.GetIsBuiltin(),
+		State:           c.GetState(),
+		ApprovedBy:      c.GetApprovedBy(),
+		RejectionReason: c.GetRejectionReason(),
+		Version:         c.GetVersion(),
+		Definition:      definitionToDTO(c.GetDefinition()),
+		IndicatorsUsed:  c.GetIndicatorsUsed(),
+	}
+}
+
+func calculatorsToDTO(items []*simulatorv1.Calculator) []Calculator {
+	out := make([]Calculator, 0, len(items))
+	for _, c := range items {
+		out = append(out, calculatorToDTO(c))
+	}
+	return out
+}
+
+func definitionToDTO(d *simulatorv1.CalculatorDefinition) CalculatorDef {
+	if d == nil {
+		return CalculatorDef{}
+	}
+
+	inputs := make([]CalculatorInput, 0, len(d.GetInputs()))
+	for _, in := range d.GetInputs() {
+		inputs = append(inputs, CalculatorInput{
+			Key:          in.GetKey(),
+			Label:        in.GetLabel(),
+			Type:         inputTypePathName(in.GetType()),
+			Unit:         in.GetUnit(),
+			MinValue:     in.GetMinValue(),
+			MaxValue:     in.GetMaxValue(),
+			DefaultValue: in.GetDefaultValue(),
+			Required:     in.GetRequired(),
+		})
+	}
+
+	validations := make([]CalculatorRule, 0, len(d.GetValidations()))
+	for _, v := range d.GetValidations() {
+		validations = append(validations, CalculatorRule{
+			Expression: v.GetExpression(),
+			Message:    v.GetMessage(),
+		})
+	}
+
+	outputs := make([]CalculatorResult, 0, len(d.GetOutputs()))
+	for _, o := range d.GetOutputs() {
+		outputs = append(outputs, CalculatorResult{
+			Key:        o.GetKey(),
+			Label:      o.GetLabel(),
+			Expression: o.GetExpression(),
+			Scale:      o.GetScale(),
+			When:       o.GetWhen(),
+		})
+	}
+
+	return CalculatorDef{Inputs: inputs, Validations: validations, Outputs: outputs}
+}
+
+// definitionFromDTO traduce la definición que envía el constructor.
+//
+// Los escalares van tal cual y NO se reinterpretan: `min_value` es una cadena decimal y
+// el Gateway no la convierte a `float64` para «comprobarla». El Simulador la analiza con
+// `decimal_str`, y duplicar esa validación aquí rompería el Principio VIII en el borde
+// —que es exactamente donde el comentario de `RunSimulation` dice que no debe romperse—.
+//
+// # Errores
+//
+// `errBadRequest` si un tipo de entrada no está en el vocabulario. El error se compone
+// con `location` —`inputs[1].type`— porque un «tipo desconocido» a secas, con veinte
+// entradas declaradas, obliga a buscarlas a ojo. **Hoy esa ubicación no llega al cliente**:
+// `writeGRPCError` aplana los errores del borde al texto fijo de `errBadRequest`. Se
+// compone igualmente porque es la información correcta y porque el día que el borde deje de
+// aplanar sus propios errores —ver la nota de `TestAnUnknownInputTypeIsRejectedAtTheEdge`—
+// no habrá que volver a este sitio.
+func definitionFromDTO(d CalculatorDef) (*simulatorv1.CalculatorDefinition, error) {
+	inputs := make([]*simulatorv1.CalculatorInput, 0, len(d.Inputs))
+	for i, in := range d.Inputs {
+		kind, err := inputTypeFromPath(in.Type)
+		if err != nil {
+			return nil, fmt.Errorf("inputs[%d].type: %w", i, err)
+		}
+		inputs = append(inputs, &simulatorv1.CalculatorInput{
+			Key:          in.Key,
+			Label:        in.Label,
+			Type:         kind,
+			Unit:         in.Unit,
+			MinValue:     in.MinValue,
+			MaxValue:     in.MaxValue,
+			DefaultValue: in.DefaultValue,
+			Required:     in.Required,
+		})
+	}
+
+	validations := make([]*simulatorv1.CalculatorValidation, 0, len(d.Validations))
+	for _, v := range d.Validations {
+		validations = append(validations, &simulatorv1.CalculatorValidation{
+			Expression: v.Expression,
+			Message:    v.Message,
+		})
+	}
+
+	outputs := make([]*simulatorv1.CalculatorOutput, 0, len(d.Outputs))
+	for _, o := range d.Outputs {
+		outputs = append(outputs, &simulatorv1.CalculatorOutput{
+			Key:        o.Key,
+			Label:      o.Label,
+			Expression: o.Expression,
+			Scale:      o.Scale,
+			When:       o.When,
+		})
+	}
+
+	return &simulatorv1.CalculatorDefinition{
+		Inputs:      inputs,
+		Validations: validations,
+		Outputs:     outputs,
+	}, nil
+}
+
+// issuesToDTO copia los problemas del análisis sin reinterpretarlos.
+//
+// Ni `location` ni `code` se traducen: el vocabulario de códigos lo definió el contrato
+// (`campo_inexistente`, `limite_excedido`, …) y es el mismo que el constructor visual usa
+// para decidir dónde poner el resaltado. Traducirlo aquí obligaría al cliente a mantener
+// dos tablas y al borde a conocer el significado de cada código, que es una decisión de
+// dominio y no de representación.
+func issuesToDTO(errors []*simulatorv1.DefinitionError) []DefinitionIssue {
+	out := make([]DefinitionIssue, 0, len(errors))
+	for _, e := range errors {
+		out = append(out, DefinitionIssue{
+			Location: e.GetLocation(),
+			Code:     e.GetCode(),
+			Message:  e.GetMessage(),
+		})
+	}
+	return out
+}

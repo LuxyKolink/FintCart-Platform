@@ -357,6 +357,112 @@ type SimulationHistoryEntry struct {
 	CreatedAt    string            `json:"created_at"`
 }
 
+// ── DTO del constructor de calculadoras (FR-043…FR-046) ─────────────────────
+
+// Calculator ≡ `components.schemas.Calculator`.
+//
+// La definición viaja ENTERA y no como un resumen: el constructor visual reabre una
+// calculadora para editarla, y eso exige las expresiones tal como las escribió su autor
+// —`expression`, no el AST—. Devolver una versión «normalizada» obligaría al editor a
+// reconstruir el texto, que es justo lo que D-15 prohíbe.
+type Calculator struct {
+	CalculatorID    string        `json:"calculator_id"`
+	OwnerID         string        `json:"owner_id,omitempty"`
+	Name            string        `json:"name"`
+	Description     string        `json:"description"`
+	IsBuiltin       bool          `json:"is_builtin"`
+	State           string        `json:"state"`
+	ApprovedBy      string        `json:"approved_by,omitempty"`
+	RejectionReason string        `json:"rejection_reason,omitempty"`
+	Version         int32         `json:"version"`
+	Definition      CalculatorDef `json:"definition"`
+	IndicatorsUsed  []string      `json:"indicators_used"`
+}
+
+// CalculatorDef ≡ la definición tal como la edita el constructor.
+type CalculatorDef struct {
+	Inputs      []CalculatorInput  `json:"inputs"`
+	Validations []CalculatorRule   `json:"validations"`
+	Outputs     []CalculatorResult `json:"outputs"`
+}
+
+// CalculatorInput ≡ una entrada declarada (FR-044).
+//
+// `type` es el nombre del tipo (`monto`, `tasa`, `entero`) y no el entero del enum: el
+// número es un detalle del transporte gRPC, y publicarlo obligaría al cliente a mantener
+// su propia tabla de equivalencias que se desincroniza en cuanto el enum crezca. Es la
+// misma razón por la que `SimulationHistoryEntry.CalcType` sale como nombre.
+//
+// Las cotas y el valor por defecto son `string` decimal (Principio VIII). La cadena vacía
+// significa «sin cota», que es distinto de cero: un mínimo de `0` prohíbe los negativos y
+// la ausencia de mínimo no prohíbe nada.
+type CalculatorInput struct {
+	Key          string `json:"key"`
+	Label        string `json:"label"`
+	Type         string `json:"type"`
+	Unit         string `json:"unit"`
+	MinValue     string `json:"min_value,omitempty"`
+	MaxValue     string `json:"max_value,omitempty"`
+	DefaultValue string `json:"default_value,omitempty"`
+	Required     bool   `json:"required"`
+}
+
+// CalculatorRule ≡ una regla de dominio del autor, con su mensaje.
+type CalculatorRule struct {
+	Expression string `json:"expression"`
+	Message    string `json:"message"`
+}
+
+// CalculatorResult ≡ una salida calculada.
+type CalculatorResult struct {
+	Key        string `json:"key"`
+	Label      string `json:"label"`
+	Expression string `json:"expression"`
+	Scale      int32  `json:"scale"`
+	When       string `json:"when,omitempty"`
+}
+
+// CalculatorWriteRequest ≡ el cuerpo de `POST /calculators` y `PUT /calculators/{id}`.
+type CalculatorWriteRequest struct {
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Definition  CalculatorDef `json:"definition"`
+}
+
+// DefinitionReport ≡ la respuesta de `POST /calculators/validate`.
+//
+// Devuelve los problemas TODOS y no el primero: es lo que alimenta el aviso en vivo del
+// constructor, y un autor con una errata en cada una de seis salidas no debería
+// descubrirlas guardando seis veces. Es la misma promesa que hace `Draft::parse` en el
+// Simulador, y este DTO es su forma en el borde.
+type DefinitionReport struct {
+	Valid  bool              `json:"valid"`
+	Errors []DefinitionIssue `json:"errors"`
+}
+
+// DefinitionIssue ≡ un problema concreto, con la ubicación que lo señala (FR-046).
+//
+// `location` es lo que permite al constructor resaltar el campo exacto —`outputs[1].expression`—
+// en vez de mostrar un mensaje suelto sobre la definición entera. Los tres campos salen del
+// `DefinitionError` del contrato sin reinterpretarlos: el `code` es un vocabulario cerrado que
+// el cliente ya conoce, y traducirlo aquí lo obligaría a mantener dos.
+type DefinitionIssue struct {
+	Location string `json:"location"`
+	Code     string `json:"code"`
+	Message  string `json:"message"`
+}
+
+// DefinitionRejected ≡ el cuerpo del 422 de `POST`/`PUT /calculators`.
+//
+// `code` y `message` están además de `errors[]` porque un cliente que solo sepa mostrar un
+// mensaje tiene que poder hacerlo sin entender el vocabulario de los códigos, y porque el
+// `ErrorBody` del resto del borde lleva esos dos campos: así el 422 no es un formato aparte.
+type DefinitionRejected struct {
+	Code    string            `json:"code"`
+	Message string            `json:"message"`
+	Errors  []DefinitionIssue `json:"errors"`
+}
+
 // ── DTO de perfil ───────────────────────────────────────────────────────────
 
 // Profile ≡ `GET /me/profile`.

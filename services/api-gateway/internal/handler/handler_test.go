@@ -269,10 +269,65 @@ type fakeSimulator struct {
 	simulatorv1.SimulatorServiceClient
 
 	history *simulatorv1.ListHistoryResponse
+
+	// Constructor de calculadoras. Los `last*` guardan la última petición recibida
+	// porque casi todas las afirmaciones de esas pruebas son sobre lo que el borde
+	// ENVIÓ —de dónde salió el titular, si el identificador viajó—, y un doble que solo
+	// devolviera una respuesta las dejaría sin comprobar.
+	calculators  *simulatorv1.ListCalculatorsResponse
+	calculator   *simulatorv1.Calculator
+	report       *simulatorv1.ValidateDefinitionResponse
+	upsertErr    error
+	lastList     *simulatorv1.ListCalculatorsRequest
+	lastRef      *simulatorv1.CalculatorRef
+	lastUpsert   *simulatorv1.UpsertCalculatorRequest
+	lastValidate *simulatorv1.ValidateDefinitionRequest
+	upsertCalls  int
 }
 
 func (f *fakeSimulator) ListHistory(_ context.Context, _ *simulatorv1.ListHistoryRequest, _ ...grpc.CallOption) (*simulatorv1.ListHistoryResponse, error) {
 	return f.history, nil
+}
+
+func (f *fakeSimulator) ListCalculators(_ context.Context, in *simulatorv1.ListCalculatorsRequest, _ ...grpc.CallOption) (*simulatorv1.ListCalculatorsResponse, error) {
+	f.lastList = in
+	if f.calculators == nil {
+		return &simulatorv1.ListCalculatorsResponse{}, nil
+	}
+	return f.calculators, nil
+}
+
+func (f *fakeSimulator) GetCalculator(_ context.Context, in *simulatorv1.CalculatorRef, _ ...grpc.CallOption) (*simulatorv1.Calculator, error) {
+	f.lastRef = in
+	if f.calculator == nil {
+		return &simulatorv1.Calculator{}, nil
+	}
+	return f.calculator, nil
+}
+
+func (f *fakeSimulator) ValidateDefinition(_ context.Context, in *simulatorv1.ValidateDefinitionRequest, _ ...grpc.CallOption) (*simulatorv1.ValidateDefinitionResponse, error) {
+	f.lastValidate = in
+	if f.report == nil {
+		return &simulatorv1.ValidateDefinitionResponse{Valid: true}, nil
+	}
+	return f.report, nil
+}
+
+func (f *fakeSimulator) UpsertCalculator(_ context.Context, in *simulatorv1.UpsertCalculatorRequest, _ ...grpc.CallOption) (*simulatorv1.Calculator, error) {
+	f.lastUpsert = in
+	f.upsertCalls++
+	if f.upsertErr != nil {
+		return nil, f.upsertErr
+	}
+	if f.calculator == nil {
+		return &simulatorv1.Calculator{}, nil
+	}
+	return f.calculator, nil
+}
+
+func (f *fakeSimulator) DeleteCalculator(_ context.Context, in *simulatorv1.CalculatorRef, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
+	f.lastRef = in
+	return &commonv1.OpResult{Success: true}, nil
 }
 
 // ── dobles de los puertos del borde ─────────────────────────────────────────

@@ -292,7 +292,7 @@ verificar el resultado y su registro en el historial.
 
 ### Borde y frontend
 
-- [ ] T096 [US3] Rutas `/calculators`, `/calculators/validate`, `/calculators/{id}`, `/calculators/{id}/run` y `/me/calculators` en `services/api-gateway/internal/handler/routes.go`, con 422 que devuelve `errors[]` con `location`/`code`/`message` (FR-046)
+- [ ] T096 [US3] Rutas `/calculators`, `/calculators/validate`, `/calculators/{id}`, `/calculators/{id}/run` y `/me/calculators` en `services/api-gateway/internal/handler/routes.go`, con 422 que devuelve `errors[]` con `location`/`code`/`message` (FR-046) — **PARCIAL: seis de las siete rutas están hechas, y `POST /calculators/{id}/run` está BLOQUEADA por un cambio de contrato que ninguna tarea cubre.** Hechas: `GET /calculators` (pública, solo publicadas, el filtro va en la consulta y no en un parámetro que el borde pudiera olvidar), `POST /calculators` (201), `PUT /calculators/{id}` (200, cita el identificador para que el Simulador versione en vez de crear otra), `GET /calculators/{id}`, `DELETE /calculators/{id}`, `POST /calculators/validate` y `GET /me/calculators`. El **422 con `errors[]`** sale de validar antes de guardar: `UpsertCalculator` responde con un `InvalidArgument` cuyo mensaje ya ha aplanado la lista a un párrafo, y solo `ValidateDefinition` devuelve los problemas estructurados. Cuesta un análisis de más sobre un AST acotado a 64 nodos, y a cambio el autor recibe sus seis erratas de una vez en vez de la primera convertida en prosa. Se añade además el vocabulario de tipos de entrada en el borde (`monto`/`tasa`/`entero`): dejar pasar un tipo desconocido como `INPUT_TYPE_UNSPECIFIED` haría que el Simulador diagnosticara «el cliente olvidó el campo» sobre un campo que sí venía. **Verificado**: 60 pruebas en el paquete (11 nuevas), `golangci-lint` con la configuración del CI en 0 incidencias, `go vet` limpio y `gofmt` limpio. Las pruebas incluyen una que fija que `/calculators/validate` NO se lee como un identificador de calculadora —chi resuelve por patrón y el orden de registro de esas dos rutas es un fallo de una línea que ninguna otra prueba vería— y otra que fija que una cota ausente sigue ausente y no se convierte en `0`, porque un mínimo de `0` prohíbe los negativos y la ausencia de mínimo no prohíbe nada. **Lo que falta y por qué**: `/calculators/{id}/run` tiene que recorrer la MISMA saga que `/simulators/{calcType}/run` —el contrato lo dice, y es lo que hace que la ejecución quede auditada (FR-025, D-03)—, y para eso el Orquestador necesita recibir `calculator_id`. **`SimulationRequest` no lo tiene, y este feature no trae ningún delta del proto del Orquestador**: los cinco deltas son learning, simulator, users, `gateway.yaml` y el catálogo de eventos. Así que la ruta no se puede cerrar sin un cambio de contrato que ninguna tarea contempla, y hacerla llamando DIRECTAMENTE al Simulador la dejaría sin evento de auditoría, contradiciendo la línea del contrato que la define. Es el mismo tipo de descubrimiento que el de T091→T101: la tarea daba por hecho algo que no existía
 - [ ] T097 [P] [US3] Constructor visual de calculadoras con validación en vivo contra `/calculators/validate`, y ejecutor de resultados, en `frontend/src/app/features/calculators/{builder,runner}/` — montos, tasas y resultados con `decimal.js` reutilizando `frontend/src/app/shared/decimal-str.ts` y `features/simulators/decimal-validators.ts`; **prohibido `number` nativo** (Principio VIII / FR-048)
 - [ ] T098 [US3] Eliminar `services/simulator/src/calculators/` y redirigir el despacho a las definiciones semilla — **solo después de que T092 pase en verde, y T092 YA PASA**. Pero hay una segunda puerta que no estaba escrita: el despacho redirigido resuelve la definición **desde la base**, así que si el sembrado no ha corrido, el simulador se queda sin ninguna calculadora — la tarea quita el camino nativo y con él la única forma de calcular. Antes de T098, T095 tiene que haber corrido una vez contra una base real. Y `calculators::annuity` NO se elimina con el resto: el motor lo usa para `cuota`/`vf_serie` (decisión de T083), así que la tarea incluye mudarlo al dominio, que es donde D-27 prevé corregir sus multiplicaciones
 
@@ -455,6 +455,23 @@ verificar que aparece en el historial de simulaciones.
 ---
 
 ## Phase 11: Polish & Cross-Cutting
+
+> **Hallazgo (2026-09-16): el borde aplana sus PROPIOS errores, y no los registra.**
+> Encontrado al implementar T096. `writeGRPCError` traduce todo error a un texto fijo por
+> código, y el comentario que lo justifica habla de los mensajes de los **servicios internos**
+> —«puede contener nombres de host, de tabla o el detalle del driver»—, que es una razón
+> buena. Pero la rama de `errBadRequest` aplica la misma regla a los errores que el Gateway
+> redacta a partir de la entrada del cliente, y ahí no protege de nada: no hay infraestructura
+> que filtrar, solo la posición de un campo mal escrito. El efecto observable es que
+> `POST /calculators` con `"type":"porcentaje"` responde «petición inválida» a secas, cuando el
+> borde sabía que el problema estaba en `inputs[1].type`; lo mismo le pasa hoy a
+> `calcTypeFromPath`, cuyo mensaje «tipo de cálculo desconocido: …» no llega a nadie. Y esa
+> rama retorna **antes** del bloque de log, así que el detalle tampoco queda en el registro.
+>
+> No se resuelve aquí a propósito: cambiar qué mensajes cruzan el borde afecta a TODAS las
+> rutas y tiene implicaciones de filtración que merecen su propia decisión —la misma clase de
+> decisión que D-26 o D-29 y no un arreglo de paso—. Queda anotado como candidato a tarea
+> propia, con el detalle en la nota de `TestAnUnknownInputTypeIsRejectedAtTheEdge`.
 
 - [ ] T157 [P] Regla de lint que prohíba `innerHTML` y `bypassSecurityTrust*` en `frontend/src/app/features/learning/` — la verificación por `grep` del quickstart §6 promovida a barrera automática
 - [ ] T158 [P] Extender la regla de análisis estático anti-punto-flotante a `services/simulator/src/domain/formula/` (Constitución §Calidad y Pruebas)
