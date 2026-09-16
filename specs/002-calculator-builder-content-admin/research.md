@@ -496,6 +496,25 @@ que el Principio X le pide.
 **Pendiente**: el paso concreto en `deploy/` no forma parte de las tareas de este feature y no
 se ha escrito. Queda anotado como requisito de puesta en producción.
 
+**Escrito (2026-09-16)**: `deploy/vps/seed`, con el mismo patrón que `deploy/vps/migrate`
+—ejecuta el binario DENTRO del contenedor del Simulador, de modo que hereda su `DB_ADDR` y el
+sembrado no puede apuntar a una base distinta de la que sirve el servicio—, y documentado en
+`deploy/vps/README.md`.
+
+Al escribirlo apareció un segundo hueco, y este no se habría notado hasta el despliegue: **el
+binario de siembra no estaba en la imagen de producción**. `services/simulator/Dockerfile`
+compila el árbol entero —`cargo build --release` construye también `src/bin/seed.rs`— pero
+solo copiaba `fintcart-simulator` a la imagen final. En desarrollo no se veía porque allí el
+sembrado usa `/src/target/debug/seed`, que existe porque la imagen de desarrollo compila todo;
+en el VPS, el primer `deploy/vps/seed` habría fallado con «executable file not found». Ahora
+se copia como `/usr/local/bin/fintcart-seed`, y `src/bin/seed.rs` entra en el `touch` que
+fuerza a Cargo a recompilar los targets propios.
+
+Los indicadores que siembra siguen siendo **valores de EJEMPLO**, y el propio script lo
+recuerda al terminar: la fuente de verdad es `UpsertIndicator` (FR-060). Ese aviso importa
+más en producción que en desarrollo, porque allí nadie va a mirar la tabla para descubrir que
+la UVT sembrada es redonda.
+
 ---
 
 ## D-29 — Tipo con el que se registra una SEMILLA ejecutada por `calculator_id`

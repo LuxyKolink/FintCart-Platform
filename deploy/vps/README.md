@@ -152,6 +152,39 @@ docker compose -f compose.app.yaml --env-file .env.app up -d
 docker compose -f compose.app.yaml logs -f caddy   # confirmar que emitió el certificado
 ```
 
+### Sembrar lo que la plataforma necesita para funcionar
+
+Con los servicios ya levantados, una vez por entorno:
+
+```bash
+./seed
+```
+
+Siembra las **siete calculadoras por defecto** de FR-019 y los **indicadores del año en
+curso**. No es contenido de adorno: sin las semillas, `GET /calculators` no devuelve nada y
+`gmf` no puede calcular, porque depende del indicador `@UVT`.
+
+Va **después** de `./migrate`, y el orden no es una formalidad: el sembrado escribe en
+tablas que las migraciones crean. Además, a partir de T098 el Simulador resuelve la
+definición de una calculadora **desde la base** en el camino de compatibilidad, así que
+sobre una base migrada y sin sembrar se quedaría sin ninguna calculadora — es el motivo por
+el que ese cambio va después de este paso y no antes (research D-30).
+
+Es **idempotente** y **convergente**: compara la definición almacenada con la compilada y
+solo añade una versión nueva cuando difieren. Se puede repetir en cada despliegue sin
+duplicar nada, y si una definición semilla cambia en el código, la base deja de servir el
+AST viejo.
+
+> **Los indicadores sembrados son cifras de EJEMPLO, no las oficiales.** Son redondos a
+> propósito, para que se reconozcan como relleno de puesta en marcha. La fuente de verdad
+> es `UpsertIndicator` (FR-060), que los carga un administrador con el valor real de cada
+> año. Dejarlos así y olvidarse significa que `gmf` calcula con una UVT inventada.
+
+Por qué no lo hace el servicio al arrancar, ni una migración: el arranque de un servicio no
+debe escribir en la base —falla en una réplica de solo lectura y hace que «qué hay en la
+base» dependa de qué binario arrancó último—, y `golang-migrate` versiona el ESQUEMA, no el
+contenido (Principio XI, research D-28).
+
 ### El administrador inicial
 
 `BOOTSTRAP_ADMIN_EMAIL` es la única forma de que exista un administrador en esta
@@ -222,6 +255,14 @@ docker compose -f compose.app.yaml --env-file .env.app up -d
 
 Las migraciones (`./migrate` en `pg_fintcart2`) solo hace falta repetirlas cuando el
 cambio añade una nueva bajo `services/*/migrations/`.
+
+El sembrado (`./seed` en `pg_fintcart`) hay que repetirlo cuando el cambio toca las
+**definiciones semilla** de `services/simulator/src/domain/seeds/`. No es por prudencia:
+una definición semilla es un AST que se guarda en la base, así que si el código cambia y la
+fila no, el servicio ejecutaría la fórmula vieja mientras el binario tiene la nueva, y nada
+fallaría. El binario compara y añade una versión nueva cuando difieren, de modo que
+repetirlo es seguro y **no** repetirlo deja la base sirviendo algo que ya no está en el
+código.
 
 ## Lo que este árbol NO cubre
 

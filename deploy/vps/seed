@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# deploy/vps/seed — siembra las calculadoras por defecto y los indicadores del año
+# contra la máquina de APLICACIÓN del despliegue en las máquinas del colegio.
+#
+# Adaptación de `dev/seed` a esta topología. La diferencia con `dev/seed` es que allí
+# el sembrado carga además el cliente OAuth y el catálogo de ejemplo —datos de
+# desarrollo que no pintan nada en producción—, mientras que aquí solo se ejecuta lo
+# que la plataforma necesita para FUNCIONAR.
+#
+# Por qué existe este paso (research D-28)
+# ----------------------------------------
+# Las siete calculadoras de FR-019 se crean con el binario `services/simulator/src/bin/
+# seed.rs`, y NO al arrancar el servicio: un arranque que escribe en la base falla en
+# una réplica de solo lectura y hace que «qué hay en la base» dependa de qué binario
+# arrancó último. Tampoco es una migración: `golang-migrate` versiona el ESQUEMA, y una
+# migración que insertara filas las llevaría también a un entorno donde ese contenido no
+# corresponde (Principio XI).
+#
+# Y hace falta de verdad: sin las semillas, `ListCalculators` no devuelve nada y `gmf`
+# no puede calcular, porque depende del indicador `@UVT`.
+#
+# Orden: va DESPUÉS de `deploy/vps/migrate`. Al revés no funcionaría —las tablas no
+# existirían— y, sobre todo, a partir de T098 el despacho de compatibilidad resuelve la
+# definición desde la base: sobre una base migrada y sin sembrar, el Simulador se queda
+# sin ninguna calculadora. Ver research D-30.
+#
+# Es IDEMPOTENTE y CONVERGENTE: el binario compara la definición almacenada con la
+# compilada y solo añade una versión nueva cuando difieren, así que se puede repetir en
+# cada despliegue sin duplicar nada y sin dejar la base sirviendo un AST viejo.
+#
+# Uso (en la máquina de APLICACIÓN):
+#   deploy/vps/seed          siembra las definiciones y los indicadores del año
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env.app"
+COMPOSE_FILE="$SCRIPT_DIR/compose.app.yaml"
+
+log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+die()  { printf '\033[1;31merror\033[0m %s\n' "$*" >&2; exit 1; }
+
+command -v docker >/dev/null 2>&1 || die "Docker no está instalado."
+docker info >/dev/null 2>&1 || die "El demonio de Docker no responde."
+[[ -f "$ENV_FILE" ]] || die "falta $ENV_FILE — copiar .env.app.example y rellenarlo."
+[[ -f "$COMPOSE_FILE" ]] || die "falta $COMPOSE_FILE"
+
+# Sin `MSYS_NO_PATHCONV` aquí a propósito: `-f` SÍ necesita que Git Bash convierta la
+# ruta del compose a formato Windows, y desactivarlo en toda la función haría que
+# `docker compose` no encontrara `compose.app.yaml`. La variable se usa solo en el
+# `docker exec` de abajo, que es donde hay una ruta DENTRO del contenedor.
+compose() { docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
+
+sim_cid="$(compose ps -q simulator 2>/dev/null || true)"
+[[ -n "$sim_cid" ]] \
+  || die "'simulator' no está en marcha. Ejecutar 'docker compose -f compose.app.yaml --env-file .env.app up -d' antes."
+
+# El binario se ejecuta DENTRO del contenedor por `docker exec`, y no como un
+# contenedor de un solo uso: así hereda el `DB_ADDR` del compose y el sembrado no puede
+# apuntar a una base distinta de la que sirve el servicio. La imagen es `distroless` y
+# no tiene shell, pero `docker exec` con un binario directo no la necesita.
+#
+# `MSYS_NO_PATHCONV=1` solo hace falta para Git Bash en Windows, donde la traducción de
+# rutas convertiría `/usr/local/bin/fintcart-seed` en una ruta de Windows. No estorba en
+# Linux y evita que este script se comporte distinto según dónde se edite.
+log "sembrando las 7 definiciones de calculadora y los indicadores del año"
+MSYS_NO_PATHCONV=1 docker exec -i "$sim_cid" /usr/local/bin/fintcart-seed
+
+log "OK — datos sembrados en producción"
+cat <<'EOF'
+    Calculadoras   las 7 semillas de FR-019, con su primera versión
+    Indicadores    5 para el año en curso, con valores de EJEMPLO (no oficiales)
+
+    Los indicadores sembrados son cifras redondas a propósito: son relleno para que una
+    base recién sembrada sea utilizable, NO los valores oficiales de cada año. La fuente
+    de verdad es `UpsertIndicator` (FR-060), que los carga un administrador.
+
+    Si esta es la primera puesta en marcha, falta además el administrador inicial:
+    registrar la cuenta desde la SPA, poner su correo en BOOTSTRAP_ADMIN_EMAIL y
+    reiniciar `users` (ver README.md §4).
+EOF

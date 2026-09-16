@@ -33,7 +33,13 @@ COPY services/simulator/ ./
 # `touch` fuerza a Cargo a recompilar los targets propios: si las marcas de tiempo
 # quedaran por detrás de las de la capa anterior, reutilizaría el binario de mentira
 # y la imagen final no contendría el servicio.
-RUN touch src/main.rs src/lib.rs && cargo build --release
+#
+# `src/bin/seed.rs` va en la lista por la misma razón y no por simetría: es un target
+# PROPIO que la capa de dependencias no compiló —allí solo existían `main.rs` y
+# `lib.rs`—, así que sin el `touch` podría quedar con una marca de tiempo anterior y
+# Cargo reutilizaría lo que hubiera. El síntoma sería una imagen sin el binario de
+# siembra, y eso no se nota hasta el despliegue.
+RUN touch src/main.rs src/lib.rs src/bin/seed.rs && cargo build --release
 
 # `cc-debian12` y no `static`: el binario enlaza dinámicamente con glibc. Compilarlo
 # estático con musl es posible, pero `rust_decimal` y `sqlx` con rustls no lo exigen y
@@ -43,6 +49,19 @@ FROM gcr.io/distroless/cc-debian12:nonroot
 USER nonroot:nonroot
 
 COPY --from=build /src/target/release/fintcart-simulator /usr/local/bin/fintcart-simulator
+
+# El binario de SIEMBRA viaja en la imagen y NO se ejecuta al arrancar (Principio X:
+# el entrypoint solo hace config, wiring y shutdown). Lo invoca el paso de despliegue
+# `deploy/vps/seed` una vez por entorno, y las siete definiciones semilla son
+# contenido —no esquema—, así que no pueden ir en una migración (research D-28).
+#
+# No estaba, y su ausencia no se notaba en desarrollo: allí el sembrado usa
+# `/src/target/debug/seed`, que existe porque la imagen de desarrollo compila el árbol
+# entero. En producción `cargo build --release` TAMBIÉN lo construye —es un target de
+# `src/bin/`—, pero sin este COPY se quedaba fuera de la imagen final y el paso de
+# siembra habría fallado con «executable file not found» la primera vez que alguien lo
+# ejecutara de verdad.
+COPY --from=build /src/target/release/seed /usr/local/bin/fintcart-seed
 
 EXPOSE 9090
 
