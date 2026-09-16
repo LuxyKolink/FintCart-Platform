@@ -1,47 +1,57 @@
-<section>
-  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
-    <h1>Tu reporte de actividad</h1>
-    <a class="fc-btn fc-btn--secondary" routerLink="/perfil">Volver al perfil</a>
-  </div>
+<div class="fc-report">
+  <header class="fc-report__head">
+    <h1 class="fc-report__title">Tu reporte de actividad</h1>
+    <p class="fc-report__lead">
+      Cuánto has usado la plataforma hasta hoy. Estas cifras no se pueden editar: salen de tu
+      progreso, tus intentos y tus simulaciones.
+    </p>
+  </header>
 
   @switch (state()) {
     @case ('loading') {
-      <p>Cargando tu reporte…</p>
+      <div class="fc-report__skeleton">
+        <fc-skeleton variant="title" />
+        <fc-skeleton [lines]="4" />
+      </div>
     }
     @case ('error') {
-      <p class="fc-banner fc-banner--error">No pudimos cargar tu reporte. Intenta de nuevo.</p>
+      <fc-error-state
+        icon="info"
+        title="No pudimos cargar tu reporte"
+        message="Puede que hayas perdido la conexión. Tu actividad sigue registrada."
+        (retry)="retry()"
+      />
     }
     @case ('ready') {
       @if (report(); as r) {
-        <div
-          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-4); margin-top: var(--space-4)"
-        >
-          <article class="fc-module">
-            <div class="fc-module-body">
-              <p class="fc-help" style="margin: 0">Puntos acumulados</p>
-              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.points }}</p>
+        @if (isInactive()) {
+          <!--
+            FR-119: el kit no dibuja este caso porque siempre tiene datos. Una cuenta recién
+            creada tiene las cuatro cifras en cero, y decir «0» cuatro veces sin explicación
+            parece un error de carga.
+          -->
+          <fc-empty-state
+            icon="book-open"
+            title="Todavía no registras actividad"
+            message="Cuando leas un artículo, resuelvas un cuestionario o ejecutes una simulación, tus cifras aparecerán aquí."
+          >
+            <fc-link-button variant="primary" to="/catalogo">Ir al catálogo</fc-link-button>
+          </fc-empty-state>
+        }
+
+        <dl class="fc-report__stats">
+          @for (stat of stats(); track stat.label) {
+            <div class="fc-report__stat">
+              <dt class="fc-report__stat-label">{{ stat.label }}</dt>
+              <dd class="fc-num fc-report__stat-value">{{ stat.value }}</dd>
             </div>
-          </article>
-          <article class="fc-module">
-            <div class="fc-module-body">
-              <p class="fc-help" style="margin: 0">Artículos vistos</p>
-              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.articles_viewed }}</p>
-            </div>
-          </article>
-          <article class="fc-module">
-            <div class="fc-module-body">
-              <p class="fc-help" style="margin: 0">Cuestionarios respondidos</p>
-              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.quizzes_attempted }}</p>
-            </div>
-          </article>
-          <article class="fc-module">
-            <div class="fc-module-body">
-              <p class="fc-help" style="margin: 0">Simulaciones ejecutadas</p>
-              <p class="fc-num" style="font-size: var(--fs-2xl); margin: 0">{{ r.simulations_run }}</p>
-            </div>
-          </article>
-        </div>
+          }
+        </dl>
       }
     }
   }
-</section>
+
+  <div class="fc-report__actions">
+    <fc-link-button variant="secondary" to="/perfil">Volver al perfil</fc-link-button>
+  </div>
+</div>

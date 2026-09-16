@@ -1,18 +1,54 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 
+import {
+  BadgeComponent,
+  BannerComponent,
+  ButtonComponent,
+  CardComponent,
+  CheckboxComponent,
+  ErrorStateComponent,
+  InputComponent,
+  LinkButtonComponent,
+  SelectComponent,
+  SkeletonComponent,
+  type BadgeTone,
+  type SelectOption,
+} from '../../shared/ui';
 import { ProfileError, ProfileService } from './profile.service';
 import { PREF_LOCALE, PREF_NOTIF_EMAIL, PREF_NOTIF_INAPP, Profile } from './profile.types';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
-/** Pantalla de perfil y preferencias, con confirmación de cambios (T147, FR-017). */
+/**
+ * Nombres visibles de `account_status`. El `CHECK` de la tabla solo admite `active` y
+ * `anonymized` hoy, pero el catálogo de estados crece con 002 (`pending_deletion`), así
+ * que un valor desconocido se muestra TAL CUAL en vez de traducirse a algo que no es.
+ */
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Activa',
+  anonymized: 'Anonimizada',
+};
+
+/** Pantalla de perfil y preferencias, con confirmación de cambios (T147, FR-017; T055). */
 @Component({
   selector: 'fc-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [
+    ReactiveFormsModule,
+    BadgeComponent,
+    BannerComponent,
+    ButtonComponent,
+    CardComponent,
+    CheckboxComponent,
+    ErrorStateComponent,
+    InputComponent,
+    LinkButtonComponent,
+    SelectComponent,
+    SkeletonComponent,
+  ],
   templateUrl: './profile.component.html',
+  styleUrl: './profile.component.css',
 })
 export class ProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
@@ -24,6 +60,12 @@ export class ProfileComponent implements OnInit {
   protected readonly saved = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
+  protected readonly localeOptions: SelectOption[] = [
+    { value: 'es-CO', label: 'Español (Colombia)' },
+    { value: 'es-MX', label: 'Español (México)' },
+    { value: 'en-US', label: 'English (US)' },
+  ];
+
   protected readonly form = this.fb.nonNullable.group({
     displayName: ['', [Validators.required, Validators.minLength(2)]],
     locale: ['es-CO', [Validators.required]],
@@ -32,6 +74,24 @@ export class ProfileComponent implements OnInit {
   });
 
   public ngOnInit(): void {
+    this.load();
+  }
+
+  protected retry(): void {
+    this.state.set('loading');
+    this.load();
+  }
+
+  protected statusLabel(): string {
+    const status = this.profile()?.account_status ?? '';
+    return STATUS_LABELS[status] ?? status;
+  }
+
+  protected statusTone(): BadgeTone {
+    return this.profile()?.account_status === 'active' ? 'success' : 'warning';
+  }
+
+  private load(): void {
     this.api.getProfile().subscribe({
       next: (profile) => {
         this.profile.set(profile);

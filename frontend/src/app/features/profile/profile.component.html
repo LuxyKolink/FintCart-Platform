@@ -1,66 +1,91 @@
 @switch (state()) {
   @case ('loading') {
-    <p>Cargando tu perfil…</p>
+    <div class="fc-perfil__skeleton">
+      <fc-skeleton variant="title" />
+      <fc-skeleton [lines]="6" />
+    </div>
   }
   @case ('error') {
-    <p class="fc-banner fc-banner--error">No pudimos cargar tu perfil. Intenta de nuevo.</p>
+    <fc-error-state
+      icon="settings"
+      title="No pudimos cargar tu perfil"
+      message="Puede que hayas perdido la conexión. Tus datos siguen guardados."
+      (retry)="retry()"
+    />
   }
   @case ('ready') {
     @if (profile(); as p) {
-      <section class="fc-module" style="max-width: 480px">
-        <header>Tu perfil</header>
-        <div class="fc-module-body">
-          <dl style="margin: 0 0 var(--space-4)">
-            <div style="display: flex; justify-content: space-between; gap: var(--space-2)">
-              <dt class="fc-help">Correo electrónico</dt>
-              <dd style="margin: 0">{{ p.email }}</dd>
+      <div class="fc-perfil">
+        <header class="fc-perfil__head">
+          <h1 class="fc-perfil__title">Tu perfil</h1>
+          <p class="fc-perfil__lead">Tus datos de cuenta y con qué frecuencia quieres que te avisemos.</p>
+        </header>
+
+        <fc-card>
+          <dl class="fc-perfil__facts">
+            <div class="fc-perfil__fact">
+              <dt class="fc-perfil__key">Correo electrónico</dt>
+              <dd class="fc-perfil__value">{{ p.email }}</dd>
+            </div>
+            <div class="fc-perfil__fact">
+              <dt class="fc-perfil__key">Estado de la cuenta</dt>
+              <dd class="fc-perfil__value">
+                <fc-badge [tone]="statusTone()">{{ statusLabel() }}</fc-badge>
+              </dd>
+            </div>
+            <div class="fc-perfil__fact">
+              <dt class="fc-perfil__key">Correo verificado</dt>
+              <dd class="fc-perfil__value">
+                @if (p.email_verified) {
+                  <fc-badge tone="success">Verificado</fc-badge>
+                } @else {
+                  <fc-badge tone="warning">Sin verificar</fc-badge>
+                }
+              </dd>
             </div>
           </dl>
+        </fc-card>
 
-          @if (saved()) {
-            <p class="fc-banner fc-banner--success">Tus cambios se guardaron correctamente.</p>
-          }
-          @if (errorMessage()) {
-            <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
-          }
+        @if (saved()) {
+          <fc-banner tone="success">Tus cambios se guardaron correctamente.</fc-banner>
+        }
+        @if (errorMessage()) {
+          <fc-banner tone="error">{{ errorMessage() }}</fc-banner>
+        }
 
-          <form [formGroup]="form" (ngSubmit)="onSubmit()">
-            <div class="fc-field">
-              <label class="fc-label" for="displayName">Nombre para mostrar</label>
-              <input class="fc-input" id="displayName" type="text" formControlName="displayName" autocomplete="name" />
-            </div>
-            <div class="fc-field">
-              <label class="fc-label" for="locale">Idioma / región</label>
-              <select class="fc-input" id="locale" formControlName="locale">
-                <option value="es-CO">Español (Colombia)</option>
-                <option value="es-MX">Español (México)</option>
-                <option value="en-US">English (US)</option>
-              </select>
-            </div>
-            <div class="fc-field">
-              <label style="display: flex; align-items: center; gap: var(--space-2)">
-                <input type="checkbox" formControlName="notifInApp" />
-                Notificaciones en la bandeja de la plataforma
-              </label>
-            </div>
-            <div class="fc-field">
-              <label style="display: flex; align-items: center; gap: var(--space-2)">
-                <input type="checkbox" formControlName="notifEmail" />
-                Notificaciones por correo electrónico
-              </label>
-            </div>
-            <button class="fc-btn fc-btn--primary fc-btn--block" type="submit" [disabled]="saving()">
-              {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
-            </button>
-          </form>
+        <form class="fc-perfil__form" [formGroup]="form" (ngSubmit)="onSubmit()">
+          <h2 class="fc-perfil__section">Datos y preferencias</h2>
 
-          <nav style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-6)">
-            <a routerLink="/perfil/reporte">Ver reporte de actividad</a>
-            <a routerLink="/perfil/contrasena">Cambiar contraseña</a>
-            <a routerLink="/perfil/eliminar-cuenta">Eliminar mi cuenta</a>
-          </nav>
-        </div>
-      </section>
+          <fc-input label="Nombre para mostrar" formControlName="displayName" autocomplete="name" />
+
+          <fc-select label="Idioma / región" [options]="localeOptions" formControlName="locale" />
+
+          <fc-checkbox
+            label="Notificaciones en la bandeja de la plataforma"
+            formControlName="notifInApp"
+          />
+          <fc-checkbox
+            label="Notificaciones por correo electrónico"
+            formControlName="notifEmail"
+          />
+
+          <fc-button variant="primary" size="lg" type="submit" [block]="true" [disabled]="saving()">
+            {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+          </fc-button>
+        </form>
+
+        <nav class="fc-perfil__links" aria-label="Otras acciones de tu cuenta">
+          <fc-link-button variant="secondary" [block]="true" to="/perfil/reporte">
+            Ver reporte de actividad
+          </fc-link-button>
+          <fc-link-button variant="secondary" [block]="true" to="/perfil/contrasena">
+            Cambiar contraseña
+          </fc-link-button>
+          <fc-link-button variant="danger" [block]="true" to="/perfil/eliminar-cuenta">
+            Eliminar mi cuenta
+          </fc-link-button>
+        </nav>
+      </div>
     }
   }
 }

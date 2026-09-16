@@ -551,16 +551,72 @@ plataforma.
 
 **Sin kit propio**: se resuelven con los componentes compartidos y las guías del design system.
 
-- [ ] T055 [US4] Recomponer `frontend/src/app/features/profile/profile.component.html` con los controles compartidos (FR-111), eliminando sus 7 estilos en línea
-- [ ] T056 [US4] Recomponer `frontend/src/app/features/profile/password/password.component.html`, eliminando sus 2 estilos en línea
-- [ ] T057 [US4] Recomponer el reporte de actividad en `frontend/src/app/features/profile/report/report.component.html` con la tipografía de datos (FR-113) — es la segunda plantilla con más estilos en línea: **10**
-- [ ] T058 [US4] Verificar que las cifras del reporte conservan su precisión decimal, en `frontend/src/app/features/profile/report/` (FR-113, Principio VIII)
-- [ ] T059 [US4] Recomponer `frontend/src/app/features/profile/delete-account/delete-account.component.html` de modo que la consecuencia de la operación y su período de reversión se comuniquen **de forma destacada**, con los componentes de aviso del sistema y no en texto corrido (FR-112), eliminando sus 3 estilos en línea
-- [ ] T060 [P] [US4] Estados de carga, error y vacío —reporte sin actividad— en las cuatro pantallas de `frontend/src/app/features/profile/` (FR-118, FR-119)
-- [ ] T061 [US4] Responsive de las cuatro pantallas hasta el mínimo de 360 px, en `frontend/src/app/features/profile/` (FR-124, SC-038, research D-27)
-- [ ] T062 [P] [US4] Comparación visual por captura contra las guías, a cada punto de corte, en `frontend/e2e/visual/profile.spec.ts`
-- [ ] T063 [US4] Ejecutar `us3-perfil.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
-- [ ] T064 [US4] Retirar de `frontend/src/styles.scss` las clases que ya no referencia ninguna plantilla tras este grupo
+- [x] T055 [US4] Recomponer `frontend/src/app/features/profile/profile.component.html` con los controles compartidos (FR-111), eliminando sus 7 estilos en línea
+- [x] T056 [US4] Recomponer `frontend/src/app/features/profile/password/password.component.html`, eliminando sus 2 estilos en línea
+- [x] T057 [US4] Recomponer el reporte de actividad en `frontend/src/app/features/profile/report/report.component.html` con la tipografía de datos (FR-113) — es la segunda plantilla con más estilos en línea: **10**
+- [x] T058 [US4] Verificar que las cifras del reporte conservan su precisión decimal, en `frontend/src/app/features/profile/report/` (FR-113, Principio VIII)
+- [x] T059 [US4] Recomponer `frontend/src/app/features/profile/delete-account/delete-account.component.html` de modo que la consecuencia de la operación y su período de reversión se comuniquen **de forma destacada**, con los componentes de aviso del sistema y no en texto corrido (FR-112), eliminando sus 3 estilos en línea
+- [x] T060 [P] [US4] Estados de carga, error y vacío —reporte sin actividad— en las cuatro pantallas de `frontend/src/app/features/profile/` (FR-118, FR-119)
+- [x] T061 [US4] Responsive de las cuatro pantallas hasta el mínimo de 360 px, en `frontend/src/app/features/profile/` (FR-124, SC-038, research D-27)
+- [x] T062 [P] [US4] Comparación visual por captura contra las guías, a cada punto de corte, en `frontend/e2e/visual/profile.spec.ts`
+- [x] T063 [US4] Ejecutar `us3-perfil.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
+- [x] T064 [US4] Retirar de `frontend/src/styles.scss` las clases que ya no referencia ninguna plantilla tras este grupo
+
+**Notas del grupo de perfil (T055–T064)**
+
+- **T055–T057 — cuatro pantallas de una columna con la biblioteca.** Perfil (datos de cuenta +
+  formulario de preferencias + accesos), contraseña, reporte y eliminación. Los siete, dos y
+  diez estilos en línea desaparecen; ya no queda ninguno en todo `features/`, salvo el grupo
+  editorial que se migra el último (FR-123).
+- **El perfil muestra el estado REAL de la cuenta.** `account_status` se traduce para los dos
+  valores que el `CHECK` admite hoy (`active`, `anonymized`) y **cualquier otro se enseña tal
+  cual**: 002 añadirá `pending_deletion`, e inventarle una traducción sería describir un
+  estado que la plataforma no tiene. La misma regla que en los indicadores de contenido y en
+  las tasas: lo que no se sabe, no se rellena.
+- **El correo del titular sigue siendo el único texto con ese valor exacto** en la pantalla,
+  porque `us3-perfil.spec.ts` lo busca con `getByText(email, { exact: true })`.
+- **T058 — las cifras del reporte son CONTEOS, no dinero.** `points`, `articles_viewed`,
+  `quizzes_attempted` y `simulations_run` son enteros del contrato (`int32`/`int64`), así que
+  no cruzan ninguna frontera decimal y el Principio VIII no tiene nada que preservar más allá
+  de no manipularlas. Lo que sí se comprueba es que el componente **no suma, no promedia, no
+  redondea y no formatea**: solo pinta el número que recibió, incluso cuando es
+  `9 007 199 254 740 991`. Lo que sí importa —y por eso van con `.fc-num`— es que se lean como
+  datos y no como prosa (FR-113).
+- **T059 — lo que FR-112 pide y lo que hoy se puede decir.** FR-112 pide comunicar «la
+  consecuencia de la operación y **su período de reversión**», y el período de reversión es de
+  002: el estado `pending_deletion` con 30 días de gracia y la reactivación posterior
+  (FR-078/FR-079). **Hoy no existe**: no hay migración de estado (T021), ni endpoint de
+  reactivación, ni purga (T136–T148). Anunciar «tienes 30 días para recuperarla» sería la peor
+  clase de mentira posible en esta pantalla —una promesa de reversibilidad sobre una
+  operación que anonimiza sin vuelta atrás—, así que la advertencia dice lo que la plataforma
+  hace hoy y **el plazo queda reportado como pendiente de 002** (FR-122, FR-123). Hay una
+  prueba que fija que la pantalla NO menciona «30 días». La mitad que sí se cumple se cumple
+  entera: el veredicto va en un aviso con `role="alert"` y las consecuencias, punto por
+  punto, en una ficha — antes del formulario, porque la fricción de escribir la frase solo
+  tiene sentido si primero se leyó la consecuencia.
+- **El botón destructivo usa la variante del sistema.** Antes llevaba
+  `background: var(--color-danger-strong, #c0392b)`: un token **inexistente** con un color
+  literal de reserva. Ahora es `variant="danger"`, que sale de `--danger`.
+- **Las dos salidas conservan su elemento.** En la pantalla de contraseña, «Ir a iniciar
+  sesión» es un ENLACE; en la de eliminación es un BOTÓN que navega por código. `us3` los
+  selecciona con roles distintos (`link` y `button`) y esa distinción no es un capricho del
+  test: son dos acciones de naturaleza distinta.
+- **T062 — la barrera de accesibilidad se extiende sin tocar la suite.** `a11y.spec.ts` recorre
+  `/perfil` pero no sus tres pantallas hijas, y su propio comentario pide ampliarla «por
+  grupo». Se hace desde `e2e/visual/profile.spec.ts`, con los MISMOS ayudantes de
+  `support/a11y.ts`: la nota N-13 prohíbe modificar `e2e/*.spec.ts`, y una barrera copiada es
+  una barrera que se puede relajar sin que nadie lo note. Las cinco anchuras comprueban,
+  además, etiquetas asociadas y contraste AA de todo el texto visible **antes** de capturar,
+  para que una pantalla que no cumple no deje una imagen que parezca aprobada.
+
+**T063/T064**: 20 capturas (4 pantallas × 5 anchos) en `test-results/visual/profile/` y
+**38/38 verde** —4 recorridos + 3 de accesibilidad + 1 de independencia externa + 50 capturas—
+con las suites sin tocar. En `styles.scss` **no queda nada que retirar**, y esa es la noticia
+importante: las seis clases que quedan las usan **solo las tres pantallas editoriales**, así que
+el archivo ya no se puede vaciar hasta que ese grupo se migre — que es exactamente lo que FR-123
+manda (el editorial, el último) y lo que 002 bloquea (T131/T075). La deuda baja a **17 espacios
+en línea** (desde 94), **3 pantallas artesanales** (desde 19) y **17 errores de lint** (desde 89,
+todos en esas tres plantillas). Las pruebas unitarias pasan de 123 a **143**.
 
 **Checkpoint**: US4 entregable.
 

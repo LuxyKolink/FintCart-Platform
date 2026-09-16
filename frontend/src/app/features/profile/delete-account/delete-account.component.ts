@@ -1,7 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 
+import {
+  BannerComponent,
+  ButtonComponent,
+  CardComponent,
+  InputComponent,
+  LinkButtonComponent,
+} from '../../../shared/ui';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileError, ProfileService } from '../profile.service';
 
@@ -12,12 +19,32 @@ function matchesConfirmPhrase(control: AbstractControl<string>): ValidationError
   return control.value === CONFIRM_PHRASE ? null : { mismatch: true };
 }
 
-/** Flujo de eliminación de cuenta con advertencia de irreversibilidad (T151, FR-030). */
+/**
+ * Flujo de eliminación de cuenta con advertencia de irreversibilidad (T151, FR-030; T059,
+ * FR-112).
+ *
+ * SIN PERÍODO DE REVERSIÓN, Y SE DICE. FR-112 pide comunicar «la consecuencia de la
+ * operación y su período de reversión», y el período de reversión es de 002: el estado
+ * `pending_deletion` con 30 días de gracia y la reactivación posterior (FR-078/FR-079). Hoy
+ * **no existe**: no hay migración de estado, ni endpoint de reactivación, ni purga. Anunciar
+ * «tienes 30 días para recuperarla» sería la peor clase de mentira en esta pantalla —una
+ * promesa de reversibilidad sobre una operación que anonimiza sin vuelta atrás—, así que la
+ * advertencia dice lo que la plataforma hace hoy y el plazo queda reportado como pendiente
+ * de 002 (FR-122, FR-123).
+ */
 @Component({
   selector: 'fc-delete-account',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [
+    ReactiveFormsModule,
+    BannerComponent,
+    ButtonComponent,
+    CardComponent,
+    InputComponent,
+    LinkButtonComponent,
+  ],
   templateUrl: './delete-account.component.html',
+  styleUrl: './delete-account.component.css',
 })
 export class DeleteAccountComponent {
   private readonly fb = inject(FormBuilder);

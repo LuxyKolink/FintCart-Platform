@@ -51,7 +51,7 @@ async function signIn(page: Page): Promise<void> {
 async function expectMoneyIsNeverTruncated(page: Page, where: string): Promise<void> {
   const offenders = await page.evaluate(() => {
     const found: string[] = [];
-    for (const figure of document.querySelectorAll<HTMLElement>('.fc-num')) {
+    for (const figure of Array.from(document.querySelectorAll<HTMLElement>('.fc-num'))) {
       const text = (figure.textContent ?? '').trim();
       if (!text.includes('$')) {
         continue;

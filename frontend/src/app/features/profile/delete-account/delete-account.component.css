@@ -1,0 +1,61 @@
+/*
+ * Eliminar cuenta (T059 / FR-112). La advertencia va antes que el formulario y con el peso
+ * visual de una alerta: el orden importa, porque la fricción deliberada (escribir la frase)
+ * solo tiene sentido si primero se leyó la consecuencia.
+ */
+
+.fc-del {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 560px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.fc-del__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-del__title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  overflow-wrap: anywhere;
+}
+
+.fc-del__section {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+}
+
+.fc-del__list {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+}
+
+.fc-del__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fc-del__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.fc-del__note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,86 @@
+/*
+ * Reporte de actividad (T057 / FR-113). Las cifras van con la tipografía de datos —cifras
+ * tabulares, monoespaciadas— para que se lean como datos y no como prosa, y en columnas que
+ * se reparten el ancho hasta el mínimo, donde pasan a una sola.
+ */
+
+.fc-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 900px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.fc-report__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-report__title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  overflow-wrap: anywhere;
+}
+
+.fc-report__lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.fc-report__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fc-report__stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.fc-report__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  min-width: 0;
+}
+
+.fc-report__stat-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.fc-report__stat-value {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  line-height: 1;
+}
+
+.fc-report__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 767.98px) {
+  .fc-report__stat {
+    padding: var(--space-3);
+  }
+}

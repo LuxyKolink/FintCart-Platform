@@ -1,16 +1,30 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 
+import {
+  BannerComponent,
+  ButtonComponent,
+  CardComponent,
+  InputComponent,
+  LinkButtonComponent,
+} from '../../../shared/ui';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileError, ProfileService } from '../profile.service';
 
-/** Flujo de cambio de contraseña (T150, FR-005). */
+/** Flujo de cambio de contraseña (T150, FR-005; T056). */
 @Component({
   selector: 'fc-change-password',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [
+    ReactiveFormsModule,
+    BannerComponent,
+    ButtonComponent,
+    CardComponent,
+    InputComponent,
+    LinkButtonComponent,
+  ],
   templateUrl: './password.component.html',
+  styleUrl: './password.component.css',
 })
 export class PasswordComponent {
   private readonly fb = inject(FormBuilder);

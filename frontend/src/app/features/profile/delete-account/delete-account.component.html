@@ -1,40 +1,60 @@
-<section class="fc-module" style="max-width: 480px">
-  <header>Eliminar mi cuenta</header>
-  <div class="fc-module-body">
-    @if (accepted()) {
-      <p class="fc-banner fc-banner--success">
-        Recibimos tu solicitud. Tu cuenta y tus datos personales se anonimizarán en un plazo de hasta 15 días
-        hábiles. Cerramos tu sesión.
+<div class="fc-del">
+  <header class="fc-del__head">
+    <h1 class="fc-del__title">Eliminar mi cuenta</h1>
+  </header>
+
+  @if (accepted()) {
+    <fc-card>
+      <fc-banner tone="success">Recibimos tu solicitud</fc-banner>
+      <p class="fc-del__note">
+        Tu cuenta y tus datos personales se anonimizarán en un plazo de hasta 15 días hábiles y
+        cerramos tu sesión. Tu progreso y tu historial se conservan de forma anónima.
       </p>
-      <button class="fc-btn fc-btn--primary fc-btn--block" type="button" (click)="goToLogin()">
-        Ir a iniciar sesión
-      </button>
-    } @else {
-      <p class="fc-banner fc-banner--error">
-        Esta acción es <strong>irreversible</strong>. Tu perfil, tu correo y tu nombre se sustituirán por valores
-        anónimos de forma permanente. No podrás volver a iniciar sesión con esta cuenta ni deshacer el cambio.
-        Tu progreso y tu historial se conservan de forma anónima, sin poder asociarse de nuevo contigo.
-      </p>
+      <div class="fc-del__actions">
+        <fc-button variant="primary" size="lg" [block]="true" (pressed)="goToLogin()">
+          Ir a iniciar sesión
+        </fc-button>
+      </div>
+    </fc-card>
+  } @else {
+    <!--
+      FR-112: la consecuencia y su alcance van DESTACADOS, no en texto corrido. Dos piezas:
+      un aviso con el veredicto y una ficha con lo que pasa exactamente, punto por punto.
+    -->
+    <fc-banner tone="error">
+      Esta acción es <strong>irreversible</strong>. No se puede deshacer ni recuperar la cuenta
+      después.
+    </fc-banner>
+
+    <fc-card>
+      <h2 class="fc-del__section">Qué pasa exactamente</h2>
+      <ul class="fc-del__list">
+        <li>Tu perfil, tu correo y tu nombre se sustituyen por valores anónimos, de forma permanente.</li>
+        <li>No podrás volver a iniciar sesión con esta cuenta.</li>
+        <li>Tu progreso y tu historial se conservan anónimos, sin poder asociarse de nuevo contigo.</li>
+        <li>Cerramos tu sesión actual en cuanto aceptemos la solicitud.</li>
+      </ul>
+
       @if (errorMessage()) {
-        <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+        <fc-banner tone="error">{{ errorMessage() }}</fc-banner>
       }
-      <form [formGroup]="form" (ngSubmit)="onSubmit()">
-        <div class="fc-field">
-          <label class="fc-label" for="confirmation">
-            Escribe <strong>{{ confirmPhrase }}</strong> para confirmar
-          </label>
-          <input class="fc-input" id="confirmation" type="text" formControlName="confirmation" autocomplete="off" />
-        </div>
-        <button
-          class="fc-btn fc-btn--primary fc-btn--block"
-          style="background: var(--color-danger-strong, #c0392b); border-color: var(--color-danger-strong, #c0392b)"
-          type="submit"
-          [disabled]="submitting()"
-        >
+
+      <form class="fc-del__form" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <fc-input
+          [label]="'Escribe ' + confirmPhrase + ' para confirmar'"
+          hint="Escribir la frase exacta es la única barrera entre un clic accidental y una operación que nada puede deshacer."
+          formControlName="confirmation"
+          autocomplete="off"
+        />
+
+        <fc-button variant="danger" size="lg" type="submit" [block]="true" [disabled]="submitting()">
           {{ submitting() ? 'Enviando solicitud…' : 'Eliminar mi cuenta de forma permanente' }}
-        </button>
+        </fc-button>
       </form>
-      <a class="fc-help" style="display: inline-block; margin-top: var(--space-4)" routerLink="/perfil">Cancelar</a>
-    }
-  </div>
-</section>
+
+      <div class="fc-del__actions">
+        <fc-link-button variant="ghost" size="sm" to="/perfil">Cancelar</fc-link-button>
+      </div>
+    </fc-card>
+  }
+</div>
