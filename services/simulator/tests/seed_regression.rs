@@ -668,9 +668,13 @@ fn ahorro_y_credito_resuelven_la_tasa_cero() {
     );
 }
 
-#[test]
-fn credito_reproduce_el_codigo_nativo() {
-    let seed = semilla("credito");
+/// Los casos de tabla de `credito`.
+///
+/// Extraida del test que la usaba para que la comparen DOS cosas: la
+/// reproducion contra el codigo nativo mientras exista, y los valores
+/// congelados a partir de T098. Una copia por consumidor se
+/// desincronizaria y las dos afirmarian cosas distintas sobre lo mismo.
+fn casos_credito() -> Vec<Caso> {
     let mut casos: Vec<Caso> = producto(&[
         ("monto", MONTO),
         ("tasa_anual", TASA_CREDITO),
@@ -697,6 +701,13 @@ fn credito_reproduce_el_codigo_nativo() {
         ],
     ));
 
+    casos
+}
+
+#[test]
+fn credito_reproduce_el_codigo_nativo() {
+    let seed = semilla("credito");
+    let casos = casos_credito();
     let mut recuento = Recuento::default();
     for caso in &casos {
         recuento.anota(compara(&seed, caso, |raw| {
@@ -711,9 +722,13 @@ fn credito_reproduce_el_codigo_nativo() {
 // presupuesto
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[test]
-fn presupuesto_reproduce_el_codigo_nativo() {
-    let seed = semilla("presupuesto");
+/// Los casos de tabla de `presupuesto`.
+///
+/// Extraida del test que la usaba para que la comparen DOS cosas: la
+/// reproducion contra el codigo nativo mientras exista, y los valores
+/// congelados a partir de T098. Una copia por consumidor se
+/// desincronizaria y las dos afirmarian cosas distintas sobre lo mismo.
+fn casos_presupuesto() -> Vec<Caso> {
     let mut casos: Vec<Caso> = producto(&[
         (
             "ingreso_mensual",
@@ -754,6 +769,13 @@ fn presupuesto_reproduce_el_codigo_nativo() {
         ));
     }
 
+    casos
+}
+
+#[test]
+fn presupuesto_reproduce_el_codigo_nativo() {
+    let seed = semilla("presupuesto");
+    let casos = casos_presupuesto();
     let mut recuento = Recuento::default();
     for caso in &casos {
         recuento.anota(compara(&seed, caso, |raw| {
@@ -785,9 +807,13 @@ const ANIOS: &[Option<&str>] = &[
 ];
 const INFLACION: &[Option<&str>] = &[None, Some("0"), Some("0.08"), Some("-1")];
 
-#[test]
-fn inversion_reproduce_el_codigo_nativo() {
-    let seed = semilla("inversion");
+/// Los casos de tabla de `inversion`.
+///
+/// Extraida del test que la usaba para que la comparen DOS cosas: la
+/// reproducion contra el codigo nativo mientras exista, y los valores
+/// congelados a partir de T098. Una copia por consumidor se
+/// desincronizaria y las dos afirmarian cosas distintas sobre lo mismo.
+fn casos_inversion() -> Vec<Caso> {
     let casos: Vec<Caso> = producto(&[
         ("capital", &[Some("0"), Some("10000000"), Some("500000000")]),
         ("tasa_anual", TASA_INVERSION),
@@ -799,6 +825,13 @@ fn inversion_reproduce_el_codigo_nativo() {
     .map(|fila| Caso::iguales(describe(&fila), &fila))
     .collect();
 
+    casos
+}
+
+#[test]
+fn inversion_reproduce_el_codigo_nativo() {
+    let seed = semilla("inversion");
+    let casos = casos_inversion();
     let mut recuento = Recuento::default();
     for caso in &casos {
         recuento.anota(compara(&seed, caso, |raw| {
@@ -894,14 +927,25 @@ fn caso_colombiana(operacion: &str, fila: &[(&'static str, Option<&'static str>)
     Caso::iguales(describe(fila), fila).solo_nativo("operacion", operacion)
 }
 
-#[test]
-fn ea_a_mv_reproduce_el_codigo_nativo() {
-    let seed = semilla("ea_a_mv");
+/// Los casos de tabla de `ea_a_mv`.
+///
+/// Extraida del test que la usaba para que la comparen DOS cosas: la
+/// reproducion contra el codigo nativo mientras exista, y los valores
+/// congelados a partir de T098. Una copia por consumidor se
+/// desincronizaria y las dos afirmarian cosas distintas sobre lo mismo.
+fn casos_ea_a_mv() -> Vec<Caso> {
     let casos: Vec<Caso> = producto(&[("tasa_ea", TASAS_EA)])
         .into_iter()
         .map(|fila| caso_colombiana("ea_a_mv", &fila))
         .collect();
 
+    casos
+}
+
+#[test]
+fn ea_a_mv_reproduce_el_codigo_nativo() {
+    let seed = semilla("ea_a_mv");
+    let casos = casos_ea_a_mv();
     let mut recuento = Recuento::default();
     for caso in &casos {
         recuento.anota(compara(&seed, caso, |raw| {
@@ -912,9 +956,13 @@ fn ea_a_mv_reproduce_el_codigo_nativo() {
     exige("ea_a_mv", &recuento, 8, 0, 0);
 }
 
-#[test]
-fn mv_a_ea_reproduce_el_codigo_nativo() {
-    let seed = semilla("mv_a_ea");
+/// Los casos de tabla de `mv_a_ea`.
+///
+/// Extraida del test que la usaba para que la comparen DOS cosas: la
+/// reproducion contra el codigo nativo mientras exista, y los valores
+/// congelados a partir de T098. Una copia por consumidor se
+/// desincronizaria y las dos afirmarian cosas distintas sobre lo mismo.
+fn casos_mv_a_ea() -> Vec<Caso> {
     let casos: Vec<Caso> = producto(&[(
         "tasa_mv",
         &[
@@ -933,6 +981,13 @@ fn mv_a_ea_reproduce_el_codigo_nativo() {
     .map(|fila| caso_colombiana("mv_a_ea", &fila))
     .collect();
 
+    casos
+}
+
+#[test]
+fn mv_a_ea_reproduce_el_codigo_nativo() {
+    let seed = semilla("mv_a_ea");
+    let casos = casos_mv_a_ea();
     let mut recuento = Recuento::default();
     for caso in &casos {
         recuento.anota(compara(&seed, caso, |raw| {
@@ -983,24 +1038,38 @@ fn caso_gmf(monto: Option<&str>, exento: Option<&str>, uvt: &str) -> Caso {
     .con_indicador("UVT", uvt)
 }
 
-#[test]
-fn gmf_reproduce_el_codigo_nativo() {
-    let seed = semilla("gmf");
+/// Los casos de tabla de `gmf`.
+///
+/// Extraida del test que la usaba para que la comparen DOS cosas: la
+/// reproducion contra el codigo nativo mientras exista, y los valores
+/// congelados a partir de T098. Una copia por consumidor se
+/// desincronizaria y las dos afirmarian cosas distintas sobre lo mismo.
+fn casos_gmf() -> Vec<Caso> {
     let montos = [Some("0"), Some("1"), Some("1000000"), Some("99999999.99")];
     let exenciones = [None, Some("0"), Some("1")];
     let uvts = ["1", "47065", "1000000"];
 
-    let mut recuento = Recuento::default();
-
+    let mut casos = Vec::new();
     for monto in montos {
         for exento in exenciones {
             for uvt in uvts {
-                let caso = caso_gmf(monto, exento, uvt);
-                recuento.anota(compara(&seed, &caso, |raw| {
-                    colombia::compute(&Inputs::new(raw))
-                }));
+                casos.push(caso_gmf(monto, exento, uvt));
             }
         }
+    }
+    casos
+}
+
+#[test]
+fn gmf_reproduce_el_codigo_nativo() {
+    let seed = semilla("gmf");
+    let casos = casos_gmf();
+    let mut recuento = Recuento::default();
+
+    for caso in &casos {
+        recuento.anota(compara(&seed, caso, |raw| {
+            colombia::compute(&Inputs::new(raw))
+        }));
     }
 
     exige("gmf", &recuento, 20, 0, 0);
