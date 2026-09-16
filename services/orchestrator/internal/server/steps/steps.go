@@ -70,7 +70,10 @@ const (
 	payloadNotifType   = "notification_type"
 	payloadNotifBody   = "notification_payload"
 
-	payloadCalcType     = "calc_type"
+	payloadCalcType = "calc_type"
+	// Calculadora definida por un usuario (FR-043). Opcional: vacío ⇒ la ejecución va
+	// por `calc_type`.
+	payloadCalculatorID = "calculator_id"
 	payloadCurrency     = "currency"
 	payloadInputs       = "inputs"
 	payloadSimulationID = "simulation_id"
@@ -185,6 +188,28 @@ func (s *State) String(key string) (string, error) {
 	}
 	if value == "" {
 		return "", fmt.Errorf("%w: %q está vacío", ErrPayloadInvalid, key)
+	}
+	return value, nil
+}
+
+// OptionalString extrae un valor de texto que PUEDE no estar o estar vacío.
+//
+// Es la variante de [State.String] para los campos que el contrato declara opcionales.
+// Un campo opcional no se puede leer con `String`: esa rechaza la cadena vacía, y la
+// cadena vacía es precisamente cómo viaja «no se envió» —proto3 no distingue ausente de
+// vacío—. Usar `String` obligaría a un `if _, ok := st.Payload[key]; ok` en cada llamador,
+// que es la comprobación que este helper existe para no repetir.
+//
+// Un tipo equivocado SIGUE siendo un error: la ausencia es legítima, un `42` donde se
+// espera texto no lo es, y tratarlo como ausencia escondería un payload mal construido.
+func (s *State) OptionalString(key string) (string, error) {
+	raw, ok := s.Payload[key]
+	if !ok {
+		return "", nil
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return "", fmt.Errorf("%w: %q es %T y se esperaba una cadena", ErrPayloadInvalid, key, raw)
 	}
 	return value, nil
 }

@@ -173,6 +173,7 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.Get("/calculators/{calculatorId}", h.GetCalculator)
 		r.Put("/calculators/{calculatorId}", h.UpdateCalculator)
 		r.Delete("/calculators/{calculatorId}", h.DeleteCalculator)
+		r.Post("/calculators/{calculatorId}/run", h.RunCalculator)
 
 		// Perfil propio. No llevan `{userId}` a propósito: el usuario sale del token y
 		// no de la URL, de modo que no existe la posibilidad de pedir el perfil de otro

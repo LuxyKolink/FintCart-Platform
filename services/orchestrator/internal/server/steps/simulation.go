@@ -40,6 +40,19 @@ func SimulationDefinition(c Clients) Definition {
 					if err != nil {
 						return nil, err
 					}
+					// FR-043: la ejecución se identifica por la DEFINICIÓN o por el tipo
+					// nativo, nunca por los dos. El Simulador rechaza la petición que traiga
+					// ambos, así que cuando viene `calculator_id` el tipo viaja en su valor
+					// cero. Se decide aquí y no en quien arranca la saga porque este es el
+					// punto donde los dos campos se juntan en un mismo mensaje.
+					calculatorID, err := st.OptionalString(payloadCalculatorID)
+					if err != nil {
+						return nil, err
+					}
+					if calculatorID != "" {
+						calcType = int32(simulatorv1.CalcType_CALC_TYPE_UNSPECIFIED)
+					}
+
 					currency, err := st.String(payloadCurrency)
 					if err != nil {
 						return nil, err
@@ -55,10 +68,11 @@ func SimulationDefinition(c Clients) Definition {
 					}
 
 					resp, err := c.Simulator.Compute(ctx, &simulatorv1.ComputeRequest{
-						UserId:   userID,
-						CalcType: simulatorv1.CalcType(calcType),
-						Currency: currency,
-						Inputs:   inputs,
+						UserId:       userID,
+						CalcType:     simulatorv1.CalcType(calcType),
+						CalculatorId: calculatorID,
+						Currency:     currency,
+						Inputs:       inputs,
 						// El `saga_id` es estable entre reintentos del MISMO paso (T176):
 						// si `Compute` tiene éxito pero el motor no llega a confirmar el
 						// avance (`saga.go::run`, comentario junto a `advance`), la
@@ -95,6 +109,10 @@ func SimulationDefinition(c Clients) Definition {
 					if err != nil {
 						return nil, err
 					}
+					calculatorID, err := st.OptionalString(payloadCalculatorID)
+					if err != nil {
+						return nil, err
+					}
 
 					// El payload lleva el `simulation_id` y el tipo de cálculo, NO los
 					// montos ni los resultados. Auditoría no necesita las cifras para
@@ -102,18 +120,48 @@ func SimulationDefinition(c Clients) Definition {
 					// la fila del Simulador—, y `audit_log` es append-only: un dato
 					// financiero que entre ahí no se puede retirar nunca (FR-031). El
 					// titular viaja como `actor_ref` opaco por la misma razón.
+					// Cuando la ejecución va por definición, el `calc_type` del payload
+					// vale cero —así se mandó al Simulador, porque los dos campos son
+					// excluyentes—, y anotar `CALC_TYPE_UNSPECIFIED` en el registro sería
+					// cierto sobre la petición y **inútil como discriminador**: el log
+					// dejaría de poder contestar «¿qué se ejecutó?», que es la pregunta que
+					// un registro inmutable tiene que responder. El nombre que corresponde
+					// es el que D-26 fijó para esta clase de ejecución, y el
+					// `calculator_id` de al lado dice cuál de ellas.
+					//
+					// Ojo con la asimetría, que es deliberada: el Simulador guarda en
+					// `simulations.calc_type` el tipo NATIVO cuando la definición es una
+					// semilla (D-29), mientras que aquí se anota `CALC_TYPE_USUARIO` para
+					// toda ejecución por identificador. Los dos son ciertos y responden a
+					// preguntas distintas: la columna dice QUÉ CALCULADORA es, y el
+					// registro dice POR QUÉ CAMINO se pidió.
+					typeName := calcTypeName(calcType)
+					if calculatorID != "" {
+						typeName = calcTypeName(int32(simulatorv1.CalcType_CALC_TYPE_USUARIO))
+					}
+
+					payload := map[string]any{
+						payloadSimulationID: simulationID,
+						// Como NOMBRE y no como el entero del enum: un `2` en el
+						// registro de auditoría deja de significar nada el día que
+						// alguien reordene el enum, y un log inmutable no admite que
+						// se reinterprete su contenido a posteriori.
+						payloadCalcType: typeName,
+					}
+					// Cuando la ejecución va por definición, `calc_type` vale
+					// `CALC_TYPE_USUARIO` y no dice CUÁL de las calculadoras de un usuario
+					// se ejecutó: sin el identificador, el registro acredita que hubo una
+					// simulación pero no de qué. Se añade SOLO cuando existe, para que las
+					// entradas del camino nativo conserven exactamente su forma anterior.
+					if calculatorID != "" {
+						payload[payloadCalculatorID] = calculatorID
+					}
+
 					return []Event{{
 						Type:       events.EventSimulationExecuted,
 						RoutingKey: events.EventSimulationExecuted,
 						ActorRef:   userID,
-						Payload: map[string]any{
-							payloadSimulationID: simulationID,
-							// Como NOMBRE y no como el entero del enum: un `2` en el
-							// registro de auditoría deja de significar nada el día que
-							// alguien reordene el enum, y un log inmutable no admite que
-							// se reinterprete su contenido a posteriori.
-							payloadCalcType: calcTypeName(calcType),
-						},
+						Payload:    payload,
 					}}, nil
 				},
 				Compensate: nil,

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	orchestratorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/orchestrator/v1"
 	simulatorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/simulator/v1"
 )
 
@@ -292,4 +293,52 @@ func TestAnAbsentBoundStaysAbsentAndIsNotZero(t *testing.T) {
 	entrada := h.simulator.lastUpsert.GetDefinition().GetInputs()[0]
 	assert.Empty(t, entrada.GetMinValue(), "sin mínimo sigue sin mínimo")
 	assert.Equal(t, "500.00", entrada.GetMaxValue())
+}
+
+// ── ejecutar una calculadora ────────────────────────────────────────────────
+
+// Ejecutar recorre la MISMA saga que el camino nativo (FR-050, FR-025, D-03).
+//
+// Es lo que hace que la ejecución quede auditada: el Simulador no es productor de eventos,
+// así que llamarlo directamente desde aquí sería más corto y dejaría la simulación fuera del
+// registro. La prueba fija las dos cosas que hacen falta para que la mediación funcione —el
+// identificador llega, y el tipo nativo NO— porque una petición con los dos el Simulador la
+// rechaza, y una sin ninguno no identifica nada.
+func TestRunCalculatorGoesThroughTheSagaWithTheIdAndNoCalcType(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.orchestrator.simulation = &orchestratorv1.SimulationResult{
+		SimulationId: "sim-1",
+		Result:       map[string]string{"salida": "3000"},
+	}
+
+	rec := h.do(t, http.MethodPost, "/calculators/calc-7/run",
+		`{"currency":"COP","inputs":{"monto":"1500.00"}}`, true)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NotNil(t, h.orchestrator.lastSimulation)
+	assert.Equal(t, "calc-7", h.orchestrator.lastSimulation.GetCalculatorId())
+	assert.Equal(t, simulatorv1.CalcType_CALC_TYPE_UNSPECIFIED, h.orchestrator.lastSimulation.GetCalcType(),
+		"con calculadora no se manda tipo nativo: son excluyentes")
+	assert.Equal(t, testUserID, h.orchestrator.lastSimulation.GetUserId(),
+		"el titular sale del token, no del cuerpo")
+	assert.Equal(t, "1500.00", h.orchestrator.lastSimulation.GetInputs()["monto"],
+		"el monto cruza como cadena, sin que el borde lo interprete")
+}
+
+// Sin moneda se asume COP (FR-020), igual que en el camino nativo.
+//
+// Las dos rutas de ejecución tienen que comportarse igual en esto: si una exigiera la
+// moneda y la otra la asumiera, el mismo cliente funcionaría por una y fallaría por la
+// otra según cómo hubiera llegado a la calculadora.
+func TestRunCalculatorDefaultsTheCurrency(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.orchestrator.simulation = &orchestratorv1.SimulationResult{SimulationId: "sim-1"}
+
+	rec := h.do(t, http.MethodPost, "/calculators/calc-7/run", `{"inputs":{"monto":"1.00"}}`, true)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NotNil(t, h.orchestrator.lastSimulation)
+	assert.Equal(t, "COP", h.orchestrator.lastSimulation.GetCurrency())
 }

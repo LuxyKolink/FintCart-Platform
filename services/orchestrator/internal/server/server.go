@@ -216,6 +216,7 @@ func (s *Server) StartSimulation(
 	ctx context.Context,
 	userID string,
 	calcType int32,
+	calculatorID string,
 	currency string,
 	inputs map[string]string,
 ) (Simulation, error) {
@@ -236,10 +237,11 @@ func (s *Server) StartSimulation(
 	}
 
 	_, final, err := s.engine.Execute(ctx, storer.SagaSimulacion, map[string]any{
-		"user_id":   userID,
-		"calc_type": calcType,
-		"currency":  currency,
-		"inputs":    inputs,
+		"user_id":       userID,
+		"calc_type":     calcType,
+		"calculator_id": calculatorID,
+		"currency":      currency,
+		"inputs":        inputs,
 	}, nil)
 	if err != nil {
 		// Igual que en la verificación de correo: un `InvalidArgument` del Simulador

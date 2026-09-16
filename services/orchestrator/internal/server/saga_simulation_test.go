@@ -80,7 +80,18 @@ func creditInputs() map[string]string {
 func runSimulation(t *testing.T, engine *Engine, inputs map[string]string) (Simulation, error) {
 	t.Helper()
 	return New(engine).StartSimulation(context.Background(), simUser,
-		int32(simulatorv1.CalcType_CALC_TYPE_CREDITO), "COP", inputs)
+		int32(simulatorv1.CalcType_CALC_TYPE_CREDITO), "", "COP", inputs)
+}
+
+// runSimulationByCalculator arranca la saga por DEFINICIÓN y no por tipo nativo (FR-043).
+//
+// El `calc_type` va en su valor CERO a propósito: una ejecución se identifica por la
+// definición o por el tipo, nunca por los dos, y el Simulador rechaza la petición que
+// traiga ambos. Es exactamente lo que hace el Gateway en `/calculators/{id}/run`.
+func runSimulationByCalculator(t *testing.T, engine *Engine, calculatorID string, inputs map[string]string) (Simulation, error) {
+	t.Helper()
+	return New(engine).StartSimulation(context.Background(), simUser,
+		int32(simulatorv1.CalcType_CALC_TYPE_UNSPECIFIED), calculatorID, "COP", inputs)
 }
 
 // ── camino feliz ────────────────────────────────────────────────────────────
@@ -270,4 +281,66 @@ func TestSimulationSagaDoesNotValidateTheInputs(t *testing.T) {
 	_, err := runSimulation(t, newSimulationEngine(newMemStore(), sim), nil)
 	require.NoError(t, err)
 	require.Empty(t, sim.requests[0].GetInputs())
+}
+
+// Una ejecución por DEFINICIÓN viaja con su identificador y SIN tipo nativo (FR-043).
+//
+// Es la mitad del contrato que permite que `/calculators/{id}/run` recorra esta misma saga
+// en vez de llamar al Simulador por su cuenta: sin el identificador, esa ruta no tendría
+// forma de decir QUÉ calculadora ejecutar, y llamando directamente al Simulador la
+// ejecución quedaría sin evento de auditoría (FR-025, D-03).
+//
+// El `calc_type` en cero no es un descuido: los dos campos son excluyentes y el Simulador
+// rechaza la petición que traiga ambos, así que enviarlos juntos fallaría ruidosamente en
+// vez de que uno se ignorara en silencio.
+func TestSimulationSagaCarriesTheCalculatorIdAndNoCalcType(t *testing.T) {
+	t.Parallel()
+	store := newMemStore()
+	sim := &fakeSimulator{result: map[string]string{"salida": "3000"}}
+
+	_, err := runSimulationByCalculator(t, newSimulationEngine(store, sim), "calc-7", map[string]string{"monto": "1500.00"})
+	require.NoError(t, err)
+
+	require.Len(t, sim.requests, 1)
+	require.Equal(t, "calc-7", sim.requests[0].GetCalculatorId())
+	require.Equal(t, simulatorv1.CalcType_CALC_TYPE_UNSPECIFIED, sim.requests[0].GetCalcType(),
+		"con definición no se manda tipo nativo: son excluyentes")
+}
+
+// El registro de auditoría dice CUÁL de las calculadoras de un usuario se ejecutó.
+//
+// `calc_type` vale `CALC_TYPE_USUARIO` para todas ellas, así que por sí solo acredita que
+// hubo una simulación pero no de qué. Sin el identificador, el registro responde a
+// «¿se ejecutó algo?» y no a «¿qué se ejecutó?», que es la pregunta que un log inmutable
+// tiene que poder contestar.
+func TestSimulationSagaAuditsTheCalculatorIdWhenThereIsOne(t *testing.T) {
+	t.Parallel()
+	store := newMemStore()
+	sim := &fakeSimulator{result: map[string]string{"salida": "3000"}}
+
+	_, err := runSimulationByCalculator(t, newSimulationEngine(store, sim), "calc-9", map[string]string{"monto": "1.00"})
+	require.NoError(t, err)
+
+	require.Len(t, store.events, 1)
+	payload := string(store.events[0].Payload)
+	require.Contains(t, payload, "calc-9")
+	require.Contains(t, payload, "CALC_TYPE_USUARIO",
+		"el nombre del enum lo sigue poniendo el mapa generado")
+}
+
+// Y por el camino NATIVO el payload del evento conserva su forma anterior.
+//
+// Añadir el campo siempre —aunque fuera vacío— cambiaría el payload de todas las
+// simulaciones ya existentes, y `audit_log` es append-only: las entradas viejas y las
+// nuevas dejarían de tener la misma forma sin que nada lo pidiera.
+func TestSimulationSagaLeavesTheAuditPayloadAloneWithoutACalculator(t *testing.T) {
+	t.Parallel()
+	store := newMemStore()
+	sim := &fakeSimulator{result: map[string]string{"cuota_mensual": "1.00"}}
+
+	_, err := runSimulation(t, newSimulationEngine(store, sim), creditInputs())
+	require.NoError(t, err)
+
+	require.Len(t, store.events, 1)
+	require.NotContains(t, string(store.events[0].Payload), "calculator_id")
 }

@@ -81,7 +81,7 @@ func (h *Handler) StartQuizGrading(ctx context.Context, req *orchestratorv1.Quiz
 // cualquier número y el desajuste solo aparecería en ejecución. Este servicio no
 // valida el valor —el dueño del enum lo rechaza si no lo conoce (Principio VI).
 func (h *Handler) StartSimulation(ctx context.Context, req *orchestratorv1.SimulationRequest) (*orchestratorv1.SimulationResult, error) {
-	out, err := h.svc.StartSimulation(ctx, req.GetUserId(), int32(req.GetCalcType()), req.GetCurrency(), req.GetInputs())
+	out, err := h.svc.StartSimulation(ctx, req.GetUserId(), int32(req.GetCalcType()), req.GetCalculatorId(), req.GetCurrency(), req.GetInputs())
 	if err != nil {
 		return nil, grpcError(err)
 	}

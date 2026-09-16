@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	orchestratorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/orchestrator/v1"
 	simulatorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/simulator/v1"
 )
 
@@ -195,6 +196,50 @@ func (h *Handler) ValidateDefinition(w http.ResponseWriter, r *http.Request) {
 		Valid:  report.GetValid(),
 		Errors: issuesToDTO(report.GetErrors()),
 	})
+}
+
+// RunCalculator ≡ `POST /calculators/{calculatorId}/run` (FR-050).
+//
+// Va al ORQUESTADOR y no directamente al Simulador, por la misma razón que
+// `/simulators/{calcType}/run`: el Simulador **no es productor de eventos**, y toda
+// simulación tiene que quedar auditada (FR-025, SC-006, research D-03). Llamar aquí al
+// Simulador sería más corto y dejaría la ejecución fuera del registro.
+//
+// `CalcType` no se rellena a propósito: los dos campos son excluyentes y el Simulador
+// rechaza la petición que traiga ambos, así que enviarlo en su valor cero es lo que hace
+// que un error aquí falle de forma visible en vez de que uno de los dos se ignore.
+//
+// Los `inputs` viajan como `map[string]string` de extremo a extremo, sin que este borde
+// los parsee: convertirlos a `float64` para «validarlos» rompería el Principio VIII en la
+// frontera y duplicaría una validación que el Simulador hace con `rust_decimal`.
+func (h *Handler) RunCalculator(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	var body SimulationRequest
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+	if body.Currency == "" {
+		body.Currency = defaultCurrency
+	}
+
+	resp, err := h.clients.Orchestrator.StartSimulation(r.Context(), &orchestratorv1.SimulationRequest{
+		UserId:       claims.UserID,
+		CalculatorId: chi.URLParam(r, "calculatorId"),
+		Currency:     body.Currency,
+		Inputs:       body.Inputs,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, simulationToDTO(resp))
 }
 
 // DeleteCalculator ≡ `DELETE /calculators/{calculatorId}`.
