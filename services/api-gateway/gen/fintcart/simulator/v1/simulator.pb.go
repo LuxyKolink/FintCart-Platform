@@ -39,6 +39,22 @@ const (
 	CalcType_CALC_TYPE_PRESUPUESTO         CalcType = 3
 	CalcType_CALC_TYPE_INVERSION           CalcType = 4
 	CalcType_CALC_TYPE_COLOMBIA_ESPECIFICA CalcType = 5
+	// La simulación la produjo una calculadora definida por un USUARIO, y por tanto
+	// no tiene ninguno de los cinco tipos nativos de arriba (research D-26).
+	//
+	// NO es un valor «desconocido» ni un centinela: dice algo cierto. Existe porque
+	// `simulations.calc_type` es NOT NULL con un CHECK de los tipos nativos, y una
+	// calculadora de usuario no encaja en ninguno — hasta D-26 no había forma de
+	// insertar su simulación.
+	//
+	// NUNCA es válido en una PETICIÓN. En `ComputeRequest`, pedir «usuario» no
+	// identifica ninguna calculadora: para una definida por un usuario se envía
+	// `calculator_id`. El servicio lo rechaza, y del mismo modo que
+	// CALC_TYPE_UNSPECIFIED, que tampoco identifica nada.
+	//
+	// En una RESPUESTA solo aparece en `ListHistoryResponse.Entry`, donde
+	// `calculator_id` y `calculator_version` dicen de qué definición salió.
+	CalcType_CALC_TYPE_USUARIO CalcType = 6
 )
 
 // Enum value maps for CalcType.
@@ -50,6 +66,7 @@ var (
 		3: "CALC_TYPE_PRESUPUESTO",
 		4: "CALC_TYPE_INVERSION",
 		5: "CALC_TYPE_COLOMBIA_ESPECIFICA",
+		6: "CALC_TYPE_USUARIO",
 	}
 	CalcType_value = map[string]int32{
 		"CALC_TYPE_UNSPECIFIED":         0,
@@ -58,6 +75,7 @@ var (
 		"CALC_TYPE_PRESUPUESTO":         3,
 		"CALC_TYPE_INVERSION":           4,
 		"CALC_TYPE_COLOMBIA_ESPECIFICA": 5,
+		"CALC_TYPE_USUARIO":             6,
 	}
 )
 
@@ -1224,10 +1242,21 @@ func (x *ValidateDefinitionResponse) GetErrors() []*DefinitionError {
 
 type DefinitionError struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
-	Location string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"` // p. ej. "outputs[1].expression" o "validations[0]"
-	Code     string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`         // campo_inexistente | expresion_mal_formada |
+	Location string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"` // p. ej. "outputs[1].expression", "inputs[0].min_value"
+	// o "validations[0].message"
+	Code string `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"` // campo_inexistente | expresion_mal_formada |
 	// limite_excedido | indicador_desconocido |
-	// exponente_no_entero | funcion_desconocida
+	// exponente_no_entero | funcion_desconocida |
+	// tipo_incompatible | definicion_invalida
+	//
+	// `definicion_invalida` cubre lo que no está en una fórmula:
+	// dos entradas con la misma clave, una clave que el lenguaje no
+	// puede nombrar, una etiqueta vacía, un mínimo mayor que su
+	// máximo o un valor por defecto fuera de su propio rango. Tuvo
+	// que ser un código aparte porque `campo_inexistente` dice lo
+	// contrario de lo que pasa —el campo está declarado dos veces,
+	// no ausente— y `expresion_mal_formada` mandaría al constructor
+	// visual a resaltar una expresión que no existe.
 	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2050,14 +2079,15 @@ const file_fintcart_simulator_v1_simulator_proto_rawDesc = "" +
 	"\x11ExpiringIndicator\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
 	"\bvalid_to\x18\x02 \x01(\tR\avalidTo\x12%\n" +
-	"\x0edays_remaining\x18\x03 \x01(\x05R\rdaysRemaining*\xa9\x01\n" +
+	"\x0edays_remaining\x18\x03 \x01(\x05R\rdaysRemaining*\xc0\x01\n" +
 	"\bCalcType\x12\x19\n" +
 	"\x15CALC_TYPE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10CALC_TYPE_AHORRO\x10\x01\x12\x15\n" +
 	"\x11CALC_TYPE_CREDITO\x10\x02\x12\x19\n" +
 	"\x15CALC_TYPE_PRESUPUESTO\x10\x03\x12\x17\n" +
 	"\x13CALC_TYPE_INVERSION\x10\x04\x12!\n" +
-	"\x1dCALC_TYPE_COLOMBIA_ESPECIFICA\x10\x05*i\n" +
+	"\x1dCALC_TYPE_COLOMBIA_ESPECIFICA\x10\x05\x12\x15\n" +
+	"\x11CALC_TYPE_USUARIO\x10\x06*i\n" +
 	"\tInputType\x12\x1a\n" +
 	"\x16INPUT_TYPE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10INPUT_TYPE_MONTO\x10\x01\x12\x13\n" +

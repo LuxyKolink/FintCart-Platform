@@ -258,14 +258,26 @@ pub struct ValidateDefinitionResponse {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DefinitionError {
-    /// p. ej. "outputs\[1\].expression" o "validations\[0\]"
+    /// p. ej. "outputs\[1\].expression", "inputs\[0\].min_value"
     #[prost(string, tag = "1")]
     pub location: ::prost::alloc::string::String,
+    /// o "validations\[0\].message"
+    ///
     /// campo_inexistente | expresion_mal_formada |
     #[prost(string, tag = "2")]
     pub code: ::prost::alloc::string::String,
     /// limite_excedido | indicador_desconocido |
-    /// exponente_no_entero | funcion_desconocida
+    /// exponente_no_entero | funcion_desconocida |
+    /// tipo_incompatible | definicion_invalida
+    ///
+    /// `definicion_invalida` cubre lo que no está en una fórmula:
+    /// dos entradas con la misma clave, una clave que el lenguaje no
+    /// puede nombrar, una etiqueta vacía, un mínimo mayor que su
+    /// máximo o un valor por defecto fuera de su propio rango. Tuvo
+    /// que ser un código aparte porque `campo_inexistente` dice lo
+    /// contrario de lo que pasa —el campo está declarado dos veces,
+    /// no ausente— y `expresion_mal_formada` mandaría al constructor
+    /// visual a resaltar una expresión que no existe.
     #[prost(string, tag = "3")]
     pub message: ::prost::alloc::string::String,
 }
@@ -376,6 +388,22 @@ pub enum CalcType {
     Presupuesto = 3,
     Inversion = 4,
     ColombiaEspecifica = 5,
+    /// La simulación la produjo una calculadora definida por un USUARIO, y por tanto
+    /// no tiene ninguno de los cinco tipos nativos de arriba (research D-26).
+    ///
+    /// NO es un valor «desconocido» ni un centinela: dice algo cierto. Existe porque
+    /// `simulations.calc_type` es NOT NULL con un CHECK de los tipos nativos, y una
+    /// calculadora de usuario no encaja en ninguno — hasta D-26 no había forma de
+    /// insertar su simulación.
+    ///
+    /// NUNCA es válido en una PETICIÓN. En `ComputeRequest`, pedir «usuario» no
+    /// identifica ninguna calculadora: para una definida por un usuario se envía
+    /// `calculator_id`. El servicio lo rechaza, y del mismo modo que
+    /// CALC_TYPE_UNSPECIFIED, que tampoco identifica nada.
+    ///
+    /// En una RESPUESTA solo aparece en `ListHistoryResponse.Entry`, donde
+    /// `calculator_id` y `calculator_version` dicen de qué definición salió.
+    Usuario = 6,
 }
 impl CalcType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -390,6 +418,7 @@ impl CalcType {
             Self::Presupuesto => "CALC_TYPE_PRESUPUESTO",
             Self::Inversion => "CALC_TYPE_INVERSION",
             Self::ColombiaEspecifica => "CALC_TYPE_COLOMBIA_ESPECIFICA",
+            Self::Usuario => "CALC_TYPE_USUARIO",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -401,6 +430,7 @@ impl CalcType {
             "CALC_TYPE_PRESUPUESTO" => Some(Self::Presupuesto),
             "CALC_TYPE_INVERSION" => Some(Self::Inversion),
             "CALC_TYPE_COLOMBIA_ESPECIFICA" => Some(Self::ColombiaEspecifica),
+            "CALC_TYPE_USUARIO" => Some(Self::Usuario),
             _ => None,
         }
     }

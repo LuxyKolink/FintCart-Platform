@@ -27,6 +27,24 @@ export enum CalcType {
   CALC_TYPE_PRESUPUESTO = 3,
   CALC_TYPE_INVERSION = 4,
   CALC_TYPE_COLOMBIA_ESPECIFICA = 5,
+  /**
+   * CALC_TYPE_USUARIO - La simulación la produjo una calculadora definida por un USUARIO, y por tanto
+   * no tiene ninguno de los cinco tipos nativos de arriba (research D-26).
+   *
+   * NO es un valor «desconocido» ni un centinela: dice algo cierto. Existe porque
+   * `simulations.calc_type` es NOT NULL con un CHECK de los tipos nativos, y una
+   * calculadora de usuario no encaja en ninguno — hasta D-26 no había forma de
+   * insertar su simulación.
+   *
+   * NUNCA es válido en una PETICIÓN. En `ComputeRequest`, pedir «usuario» no
+   * identifica ninguna calculadora: para una definida por un usuario se envía
+   * `calculator_id`. El servicio lo rechaza, y del mismo modo que
+   * CALC_TYPE_UNSPECIFIED, que tampoco identifica nada.
+   *
+   * En una RESPUESTA solo aparece en `ListHistoryResponse.Entry`, donde
+   * `calculator_id` y `calculator_version` dicen de qué definición salió.
+   */
+  CALC_TYPE_USUARIO = 6,
   UNRECOGNIZED = -1,
 }
 
@@ -50,6 +68,9 @@ export function calcTypeFromJSON(object: any): CalcType {
     case 5:
     case "CALC_TYPE_COLOMBIA_ESPECIFICA":
       return CalcType.CALC_TYPE_COLOMBIA_ESPECIFICA;
+    case 6:
+    case "CALC_TYPE_USUARIO":
+      return CalcType.CALC_TYPE_USUARIO;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -71,6 +92,8 @@ export function calcTypeToJSON(object: CalcType): string {
       return "CALC_TYPE_INVERSION";
     case CalcType.CALC_TYPE_COLOMBIA_ESPECIFICA:
       return "CALC_TYPE_COLOMBIA_ESPECIFICA";
+    case CalcType.CALC_TYPE_USUARIO:
+      return "CALC_TYPE_USUARIO";
     case CalcType.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -343,13 +366,23 @@ export interface ValidateDefinitionResponse {
 }
 
 export interface DefinitionError {
-  /** p. ej. "outputs[1].expression" o "validations[0]" */
+  /** p. ej. "outputs[1].expression", "inputs[0].min_value" */
   location: string;
-  /** campo_inexistente | expresion_mal_formada | */
+  /** o "validations[0].message" */
   code: string;
   /**
    * limite_excedido | indicador_desconocido |
-   * exponente_no_entero | funcion_desconocida
+   * exponente_no_entero | funcion_desconocida |
+   * tipo_incompatible | definicion_invalida
+   *
+   * `definicion_invalida` cubre lo que no está en una fórmula:
+   * dos entradas con la misma clave, una clave que el lenguaje no
+   * puede nombrar, una etiqueta vacía, un mínimo mayor que su
+   * máximo o un valor por defecto fuera de su propio rango. Tuvo
+   * que ser un código aparte porque `campo_inexistente` dice lo
+   * contrario de lo que pasa —el campo está declarado dos veces,
+   * no ausente— y `expresion_mal_formada` mandaría al constructor
+   * visual a resaltar una expresión que no existe.
    */
   message: string;
 }

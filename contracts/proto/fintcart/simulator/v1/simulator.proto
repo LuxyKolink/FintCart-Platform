@@ -71,6 +71,22 @@ enum CalcType {
   CALC_TYPE_PRESUPUESTO = 3;
   CALC_TYPE_INVERSION = 4;
   CALC_TYPE_COLOMBIA_ESPECIFICA = 5;
+  // La simulación la produjo una calculadora definida por un USUARIO, y por tanto
+  // no tiene ninguno de los cinco tipos nativos de arriba (research D-26).
+  //
+  // NO es un valor «desconocido» ni un centinela: dice algo cierto. Existe porque
+  // `simulations.calc_type` es NOT NULL con un CHECK de los tipos nativos, y una
+  // calculadora de usuario no encaja en ninguno — hasta D-26 no había forma de
+  // insertar su simulación.
+  //
+  // NUNCA es válido en una PETICIÓN. En `ComputeRequest`, pedir «usuario» no
+  // identifica ninguna calculadora: para una definida por un usuario se envía
+  // `calculator_id`. El servicio lo rechaza, y del mismo modo que
+  // CALC_TYPE_UNSPECIFIED, que tampoco identifica nada.
+  //
+  // En una RESPUESTA solo aparece en `ListHistoryResponse.Entry`, donde
+  // `calculator_id` y `calculator_version` dicen de qué definición salió.
+  CALC_TYPE_USUARIO = 6;
 }
 
 message ComputeRequest {
