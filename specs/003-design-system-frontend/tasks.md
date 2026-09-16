@@ -147,12 +147,15 @@ Rutas reales de la aplicación (verificadas en `frontend/src/app/app.routes.ts`)
   commiteado en 002 (`1a9f44e`). Es exactamente lo que T163 de 002 existe para cazar, y
   seguía sin marcar.
 - **T009, tal como está escrito, era imposible de cumplir**: pedía registrar un verde de
-  partida «sin modificarlas», y las 4 suites NO estaban verdes. Dos aserciones eran deuda de
-  002, no del rediseño: `us1` contaba los `fieldset` antes de que respondiera
-  `StartQuizSession` (flaky: 1 de 2 pasadas) y `us4` hacía `.fill()` sobre la categoría, ya
-  convertida en `<select>`. **Se modificaron los dos tests** (`d9910b2`) con autorización
-  explícita del usuario. Queda dicho porque contradice la nota N-13: quien compare contra
-  T009 debe saber que la referencia no salió intacta.
+  partida «sin modificarlas», y las 4 suites NO estaban verdes. **Tres** aserciones eran deuda
+  de 002, no del rediseño: `us1` contaba los `fieldset` antes de que respondiera
+  `StartQuizSession` (flaky: 1 de 2 pasadas); `us4` hacía `.fill()` sobre la categoría, ya
+  convertida en `<select>`; y `us2` usaba `getByText('Cuota mensual')`, que también casaba con
+  la descripción de la calculadora y pasaba **solo por suerte** —cuando el resultado todavía
+  no había renderizado, el único match era el párrafo—. **Se modificaron los tres tests**
+  (`d9910b2` y `fix(002): us2…`) con autorización explícita del usuario. Queda dicho porque
+  contradice la nota N-13: quien compare contra T009 debe saber que la referencia no salió
+  intacta.
 - Lo que sí conserva la garantía de 003: ninguno de los dos cambios toca un selector por rol
   o etiqueta accesible, que es lo que 003 usa como red. Resultado: **4/4**. Como el armazón ya
   estaba migrado cuando se corrió, T009 y T017 comparten el mismo registro — no hay una foto

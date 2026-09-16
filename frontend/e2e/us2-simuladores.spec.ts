@@ -51,7 +51,7 @@ test('un usuario ejecuta una calculadora financiera y la ve en su historial', as
     await page.getByLabel('Número de cuotas').fill('12');
     await page.getByRole('button', { name: 'Calcular' }).click();
 
-    await expect(page.getByText('Cuota mensual')).toBeVisible();
+    await expect(page.locator('dt', { hasText: 'Cuota mensual' }).first()).toBeVisible();
     // Precisión decimal preservada de punta a punta: el resultado se sirve como
     // string decimal y se presenta con separador de miles, nunca como `number`.
     await expect(page.locator('dd.fc-num').first()).toContainText('$');
@@ -61,6 +61,6 @@ test('un usuario ejecuta una calculadora financiera y la ve en su historial', as
     await page.getByRole('link', { name: 'Ver historial' }).click();
     await expect(page).toHaveURL(/\/simuladores\/historial/);
     await expect(page.getByText('Crédito', { exact: true })).toBeVisible();
-    await expect(page.getByText('Cuota mensual')).toBeVisible();
+    await expect(page.locator('dt', { hasText: 'Cuota mensual' }).first()).toBeVisible();
   });
 });
