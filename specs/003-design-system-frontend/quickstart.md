@@ -162,12 +162,26 @@ apoyarse en un servicio externo — regresión de lo que resolvió el feature 00
 
 | | Al empezar | Al terminar |
 |---|---|---|
-| Estilos en línea en plantillas | 94 | **0** |
-| `frontend/src/styles.scss` | 116 líneas | **no existe** |
+| Estilos en línea en plantillas | 94 | **8** |
+| `frontend/src/styles.scss` | 116 líneas | **113 líneas** |
 | Rutas con logotipos | 2 | **1** |
-| `@media` / puntos de corte | 0 | 4 tokens |
-| Suites de extremo a extremo modificadas | — | **0** |
-| Pantallas migradas | 0 | **19 + armazón** |
+| Puntos de corte declarados | 0 | **4 tokens** |
+| Suites de extremo a extremo modificadas | — | **0 aserciones de comportamiento** |
+| Pantallas migradas | 0 | **18 de 19** |
+
+**Leído con honestidad, la tabla tiene tres filas que no llegan a su objetivo, y las tres son la
+misma causa.** Las seis clases artesanales que quedan en `styles.scss` las usa **solo**
+`editor/editor.component.html`: la superficie de redacción del editor pertenece al feature 002
+(FR-123), que la reescribe entera con TipTap. Migrar ese marco antes es trabajo para tirar, y
+borrar las clases antes de tiempo dejaría la pantalla sin estilo (research D-26). Así que T075
+—el criterio de terminación— no está bloqueado por falta de trabajo hecho en 003, sino por una
+dependencia declarada desde el primer día.
+
+Lo que **sí** se cumplió sin matices: los cuatro tokens de punto de corte, el logotipo en una
+sola ubicación, la verificación de accesibilidad sobre las 19 pantallas (incluido el editor),
+la captura a cinco anchuras con etiquetas y contraste comprobados, y las cuatro suites
+funcionales intactas en sus aserciones de comportamiento —las tres que se ajustaron eran
+aserciones de 002 que ya no describían el sistema, y quedó registrado en `tasks.md` (T009)—.
 
 ## Solución de problemas
 

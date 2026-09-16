@@ -721,9 +721,9 @@ y comprobar que la verificación los rechaza.
 2** —antes de la primera migración, que es donde sirven—. Lo que queda aquí es la comprobación
 de que el objetivo se alcanzó de verdad, y eso solo puede medirse con todo migrado.
 
-- [ ] T075 [US6] **Eliminar `frontend/src/styles.scss`** y retirar su declaración de `frontend/angular.json` — la capa artesanal debe quedar vacía tras los cinco grupos. **Es el criterio de terminación del feature** (research D-26)
-- [ ] T076 [US6] Verificar con `frontend/scripts/design-debt.mjs` que los estilos en línea pasaron de 94 a **0** y que ninguna plantilla referencia ya clases artesanales (FR-086, FR-088, SC-027)
-- [ ] T077 [US6] Recorrer las 19 pantallas y el armazón confirmando que ninguna desentona del sistema visual común, contrastando `frontend/src/app/features/` contra los cinco kits de `design/ui_kits/` (FR-086, SC-028)
+- [ ] T075 [US6] **Eliminar `frontend/src/styles.scss`** y retirar su declaración de `frontend/angular.json` — la capa artesanal debe quedar vacía tras los cinco grupos. **Es el criterio de terminación del feature** (research D-26) — **BLOQUEADA por 002 (T131)**: las seis clases que quedan las usa solo el editor
+- [ ] T076 [US6] Verificar con `frontend/scripts/design-debt.mjs` que los estilos en línea pasaron de 94 a **0** y que ninguna plantilla referencia ya clases artesanales (FR-086, FR-088, SC-027) — **BLOQUEADA por T069**: hoy son 8, y los 8 están en el editor
+- [x] T077 [US6] Recorrer las 19 pantallas y el armazón confirmando que ninguna desentona del sistema visual común, contrastando `frontend/src/app/features/` contra los cinco kits de `design/ui_kits/` (FR-086, SC-028)
 - [x] T078 [US6] Verificar los 6 selectores no accesibles de `frontend/e2e/` (research D-29): que `fc-module`, `fc-num`, `fc-eyebrow` y `fc-linklist` **siguen definidas** en `frontend/src/styles/tokens/base.css`, y que el lector conserva `<article>` y el cuestionario conserva `<fieldset>` e `<input type="radio">`
 - [x] T079 [US6] Comprobar que la barrera de T010 rechaza un estilo en línea introducido a propósito, en `frontend/` (FR-089, SC-027)
 - [x] T080 [US6] Recorrido por teclado de las 19 pantallas (automatizado, no a mano) y el armazón: todos los controles alcanzables, foco siempre visible, recorriendo `frontend/src/app/features/` y `frontend/src/app/app.component.ts` (FR-093, FR-094, SC-030)
@@ -797,16 +797,75 @@ superficie la reescribe 002 (FR-123). Es el mismo bloqueo que T069 y T075/T076.
 
 ## Phase 9: Polish & Cross-Cutting
 
-- [ ] T086 [P] Revisar que ningún texto de la interfaz se salió de la voz de marca —español de Colombia, tuteo directo— contrastando con `design/guidelines/brand-voice.html` (FR-091)
-- [ ] T087 [P] Verificar que el presupuesto de tamaño declarado en `frontend/angular.json` no se excedió y que la biblioteca compartida se importa por componente y no entera
-- [ ] T088 [P] Documentar los cuatro puntos de corte y la regla de degradación por disposición en `design/guidelines/`, para que los hereden los features siguientes en vez de redescubrirlos
+- [x] T086 [P] Revisar que ningún texto de la interfaz se salió de la voz de marca —español de Colombia, tuteo directo— contrastando con `design/guidelines/brand-voice.html` (FR-091)
+- [x] T087 [P] Verificar que el presupuesto de tamaño declarado en `frontend/angular.json` no se excedió y que la biblioteca compartida se importa por componente y no entera
+- [x] T088 [P] Documentar los cuatro puntos de corte y la regla de degradación por disposición en `design/guidelines/`, para que los hereden los features siguientes en vez de redescubrirlos
 - [x] T089 [P] Recopilar los hallazgos de datos que la API no expone, si aparecieron, como entrada de un feature posterior, registrados en `specs/003-design-system-frontend/findings.md` — **sin resolverlos aquí** (FR-122)
-- [ ] T090 Verificar los 13 criterios SC-027…SC-039 siguiendo `quickstart.md` §2–§7, prestando atención a **SC-034**: ninguna pantalla que dependa de datos queda en blanco ante un fallo ni ante la ausencia de contenido
-- [ ] T091 Re-evaluar el gate constitucional sobre el código escrito y anotar el resultado en `plan.md` §Constitution Check, con atención al Principio VIII en las pantallas de dinero
-- [ ] T092 [P] Actualizar `README.md` y `frontend/README.md` con la tabla de criterio de terminación de `quickstart.md` §7
-- [ ] T093 [P] Comprobar que `dev/build && dev/up` sigue dejando el frontend funcionando sin ningún paso manual (Principio XII regla 4)
+- [x] T090 Verificar los 13 criterios SC-027…SC-039 siguiendo `quickstart.md` §2–§7, prestando atención a **SC-034**: ninguna pantalla que dependa de datos queda en blanco ante un fallo ni ante la ausencia de contenido
+- [x] T091 Re-evaluar el gate constitucional sobre el código escrito y anotar el resultado en `plan.md` §Constitution Check, con atención al Principio VIII en las pantallas de dinero
+- [x] T092 [P] Actualizar `README.md` y `frontend/README.md` con la tabla de criterio de terminación de `quickstart.md` §7
+- [x] T093 [P] Comprobar que `dev/build && dev/up` sigue dejando el frontend funcionando sin ningún paso manual (Principio XII regla 4)
 
 ---
+
+### Cierre (T077, T086–T093)
+
+- **T077 — las 19 pantallas contra los cinco kits.** El contraste se hizo por bloques y se
+  cierra aquí: **auth** (acceso: panel de marca, formularios), **learner** (el portal de tres
+  zonas, el lector, el cuestionario, el progreso y las notificaciones), **simuladores**
+  (selector, formulario y resultado), **editorial** (listado, bandeja y editor) y el armazón.
+  Las 105 capturas de `test-results/visual/` son la evidencia reproducible. **Hallazgo**: el
+  kit de **marketing** no tiene pantalla correspondiente —la raíz de la SPA redirige al
+  catálogo—, así que de los cinco kits hay uno sin destino. No se inventó una landing: no
+  estaba en el alcance y una pantalla nueva no es un rediseño. Los dos perfiles no tienen kit
+  propio y se resolvieron con las piezas del kit de aprendizaje, que es de donde salen.
+- **T086 — la voz de marca escondía un defecto de datos.** La auditoría de textos no encontró
+  nada (ni tuteo de usted, ni anglicismos, ni exclamaciones de marketing; el único «móvil» de
+  las plantillas está dentro de un comentario), pero al comprobar la regla del manual sobre las
+  cifras apareció que **toda la aplicación formateaba en convención inglesa**. Ver el detalle en
+  la nota de T086 más abajo.
+- **T087 — el presupuesto se respeta con la mitad de margen**: 540,33 kB crudos / 125,36 kB
+  transferidos contra un aviso de 1 MB, y ningún componente excede el presupuesto de hoja de
+  estilos.
+- **T088 — los puntos de corte quedan documentados donde se heredan.** Nueva tarjeta
+  `design/guidelines/responsive-breakpoints.html` con los cuatro valores, la regla de
+  degradación por disposición y el porqué de escribir literales dentro de `@media` (una
+  variable de CSS no se resuelve en una consulta de medios). Los tokens viven en
+  `frontend/src/styles/tokens/breakpoints.css`.
+- **T090 — verificación de los 13 criterios** (tabla abajo). Diez se cumplen sin matices; tres
+  comparten la causa del editor, que es de 002.
+- **T091 — el gate constitucional se re-evaluó y encontró un incumplimiento real del Principio
+  VIII**: conservar la precisión no basta si la cifra se **presenta** mal. Anotado en
+  `plan.md` §Constitution Check.
+- **T092 — `README.md` y `frontend/README.md`** (este último no existía) llevan la tabla del
+  criterio de terminación y la estructura del frontend.
+- **T093 — `dev/build frontend && dev/up` deja la SPA sirviendo sola.** Comprobado de punta a
+  punta al cerrar: la imagen se reconstruye, el contenedor arranca, `http://localhost:4200`
+  responde 200 y las **45** pruebas de extremo a extremo pasan contra esa imagen —no contra el
+  servidor de desarrollo—. Es la única forma de que el verde signifique algo: la imagen sirve
+  el código construido, y las capturas se regeneraron todas contra ella.
+
+#### Verificación de SC-027…SC-039 (T090)
+
+| Criterio | Resultado | Evidencia |
+|---|---|---|
+| SC-027 sin estilos en línea | **Parcial**: 94 → 8, y el rechazo automatizado funciona | `design-debt.mjs`; sonda de T079 |
+| SC-028 las 19 con el sistema común | **Parcial**: 18 de 19 | Mockups de `design/ui_kits/`; 105 capturas |
+| SC-029 qué ofrece la plataforma sin desplazar | Cumplido | Panel de marca en la primera pantalla (`visual/auth/`) |
+| SC-030 recorrible por teclado | Cumplido | `a11y.spec.ts`, 19 pantallas |
+| SC-031 100 % de controles con etiqueta | Cumplido | `expectControlsAreLabelled` en las 19, a 5 anchuras |
+| SC-032 contraste AA | Cumplido | `expectTextMeetsAaContrast`; 2 defectos corregidos en T011 |
+| SC-033 sin conectividad externa | Cumplido | `offline-assets.spec.ts` |
+| SC-034 nunca en blanco | Cumplido | Carga, error y vacío en cada pantalla de datos |
+| SC-035 cifra exacta | Cumplido | `result-format.spec.ts` (2⁵³+1) y la comprobación de recorte al 200 % |
+| SC-036 sin cambio de comportamiento | Cumplido | 45/45 con las suites heredadas; T009 registra los 3 ajustes de 002 |
+| SC-037 marca en una ubicación | Cumplido | `fc-brand-logo` es el único que referencia el recurso |
+| SC-038 utilizable a 360 px | Cumplido | Sin desplazamiento horizontal en las 105 capturas |
+| SC-039 puntos de corte una sola vez | Cumplido | `breakpoints.css`; ningún componente fija anchos |
+
+**Lo que queda abierto, y por qué**: T069 (el marco del editor), T075 (borrar `styles.scss`) y
+T076 (estilos en línea a 0) — que es también la parte no cumplida de SC-027 y SC-028. Las tres
+dependen de que exista la superficie de redacción nueva del feature 002.
 
 ## Dependencies
 

@@ -103,6 +103,18 @@ son una adición al sistema de diseño versionado, no una desviación de un prin
 junto al resto de tokens para que features posteriores los hereden, en lugar de repetirse como
 números sueltos en cada pantalla — que es la forma en que un sistema de diseño se erosiona.
 
+**Re-evaluación de cierre (T091)**: ✅ **PASS**, con una corrección real que el gate no
+anticipó. El Principio VIII (precisión monetaria) no se cumple solo con conservar el valor: hay
+que **presentarlo** sin engañar. Al verificar la voz de marca se encontró que la aplicación
+agrupaba los miles con coma y separaba los decimales con punto —`$1,234,567.89`— mientras el
+manual escribe «1.250.000» y los cinco kits formatean con `es-CO`. En español de Colombia
+`1,234` se lee mil doscientos treinta y cuatro: la cifra que se veía **era otra cifra**. La
+corrección se hizo en un solo sitio (`shared/format-number.ts`) y sin pasar por `number`, que es
+justo lo que el principio prohíbe. El resto de principios se confirma sin cambios: ninguno se
+toca en este feature salvo el VIII, el IX (ningún componente de presentación ganó lógica de
+negocio) y el XII (los verbos de `dev/` siguen sin pasos manuales: `dev/build frontend` +
+`dev/up` dejan la SPA sirviendo y las 45 pruebas de extremo a extremo en verde).
+
 ## Project Structure
 
 ### Documentation (this feature)

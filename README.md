@@ -107,6 +107,26 @@ buf breaking contracts/proto --against '.git#branch=main'   # sin cambios incomp
 
 CI (`.github/workflows/ci.yml`) ejecuta lo anterior por servicio, además de `dev/build && dev/up && dev/migrate` de punta a punta y la verificación de que esta documentación coincide con `dev/` (Principio XII, regla 5).
 
+## Rediseño del frontend (feature 003)
+
+El rediseño (`specs/003-design-system-frontend/`) fue **exclusivamente de presentación**: no
+tocó contratos, ni base de datos, ni eventos. El avance se mide por lo que **desaparece** —una
+capa artesanal retirada— y no por lo que se escribe.
+
+| | Al empezar | Al terminar |
+|---|---|---|
+| Estilos en línea en plantillas | 94 | **8** *(los del editor, bloqueados por 002)* |
+| `frontend/src/styles.scss` | 116 líneas | **113** *(se elimina cuando 002 reescriba el editor)* |
+| Rutas con logotipos | 2 | **1** |
+| Puntos de corte declarados | 0 | **4 tokens** (`styles/tokens/breakpoints.css`) |
+| Pantallas migradas al sistema visual | 0 | **18 de 19** *(falta el editor: 002 lo reescribe, FR-123)* |
+| Suites funcionales heredadas | — | **intactas en sus aserciones de comportamiento** |
+
+La medición es reproducible: `node frontend/scripts/design-debt.mjs`. Las tres tareas que
+quedan abiertas (el marco del editor y el borrado de `styles.scss`) dependen del feature 002,
+que es quien reescribe la superficie de redacción. Los hallazgos de datos que la API no expone
+están en `specs/003-design-system-frontend/findings.md`.
+
 ## Documentación
 
 | Documento | Contenido |
@@ -117,6 +137,7 @@ CI (`.github/workflows/ci.yml`) ejecuta lo anterior por servicio, además de `de
 | [`specs/001-fintcart-platform/quickstart.md`](specs/001-fintcart-platform/quickstart.md) | Entorno local, verificación end-to-end, gates de cumplimiento |
 | [`specs/001-fintcart-platform/tasks.md`](specs/001-fintcart-platform/tasks.md) | Desglose de tareas y estado de implementación |
 | [`contracts/events/events-catalog.md`](contracts/events/events-catalog.md) | Los 11 eventos de dominio, productores y consumidores |
+| [`specs/003-design-system-frontend/findings.md`](specs/003-design-system-frontend/findings.md) | Datos que la API no expone, registrados como entrada de features posteriores |
 | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) | Los doce principios no negociables del proyecto |
 | [`docs/anteproyecto/`](docs/anteproyecto/) | Propuesta y marco académico original del proyecto |
 

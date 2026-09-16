@@ -1,0 +1,89 @@
+<!-- @dsCard group="Layout" viewport="700x260" name="Puntos de corte" subtitle="480 · 768 · 1024 · 1280 y la regla de degradación" -->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 22px;
+        background: var(--surface-page);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .bp {
+        font: var(--fw-bold) var(--fs-2xs) / 1 var(--font-mono);
+        color: var(--text-strong);
+        min-width: 96px;
+      }
+      .bar {
+        height: 18px;
+        border-radius: 3px;
+        background: var(--coral-200);
+        border: 1px solid var(--coral-400);
+      }
+      .note {
+        font: var(--fs-xs) / 1.45 var(--font-sans);
+        color: var(--text-muted);
+        margin: 2px 0 0;
+      }
+      .rule {
+        font: var(--fs-xs) / 1.45 var(--font-sans);
+        color: var(--text-strong);
+        background: var(--surface-card);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+      }
+      code {
+        font-family: var(--font-mono);
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <span class="bp">--bp-sm</span>
+      <div class="bar" style="width: 480px"></div>
+      <span class="note">480 px — el móvil deja de ser una sola columna</span>
+    </div>
+    <div class="row">
+      <span class="bp">--bp-md</span>
+      <div class="bar" style="width: 300px"></div>
+      <span class="note">768 px — aparece la navegación completa; los rieles pasan a laterales</span>
+    </div>
+    <div class="row">
+      <span class="bp">--bp-lg</span>
+      <div class="bar" style="width: 190px"></div>
+      <span class="note">1024 px — dos columnas de contenido</span>
+    </div>
+    <div class="row">
+      <span class="bp">--bp-xl</span>
+      <div class="bar" style="width: 120px"></div>
+      <span class="note">1280 px — el portal de tres zonas, a su anchura de diseño</span>
+    </div>
+    <p class="rule">
+      Mínimo soportado: <strong>360 px</strong>. Ninguna pantalla desplaza en horizontal; lo que
+      no cabe —una tabla de resultados— desplaza <strong>dentro de su contenedor</strong>. La
+      marca degrada a banda compacta en el acceso, pero <strong>nunca se oculta</strong>.
+    </p>
+    <p class="rule">
+      <strong>Qué degrada y qué no.</strong> Los rieles se vuelven desplazadores horizontales; las
+      tablas desplazan dentro de su contenedor; el panel de marca se vuelve banda compacta pero
+      <strong>no desaparece</strong>. Lo que <strong>nunca</strong> degrada es una cifra: un monto
+      recortado no es texto incompleto, es un dato falso.
+    </p>
+    <p class="note">
+      En CSS se escriben literales: <code>@media (min-width: 768px)</code>. Los tokens viven en
+      <code>styles/tokens/breakpoints.css</code> para el JavaScript y la documentación, porque una
+      variable no se puede interpolar dentro de una <code>@media</code>.
+    </p>
+  </body>
+</html>
