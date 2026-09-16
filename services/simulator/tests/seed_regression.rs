@@ -71,6 +71,7 @@ use rust_decimal::Decimal;
 use uuid::Uuid;
 
 use fintcart_simulator::calculators::{ahorro, colombia, credito, inversion, presupuesto, Outcome};
+use fintcart_simulator::domain::decimal_str;
 use fintcart_simulator::domain::error::Error;
 use fintcart_simulator::domain::inputs::{Inputs, MAX_PERIODS};
 use fintcart_simulator::domain::seeds::{self, Compiled};
@@ -1329,4 +1330,153 @@ fn un_nombre_desconocido_no_corresponde_a_ningun_tipo() {
     // ningún tipo: el `CHECK` de la columna no tiene un valor que decir de ella, y elegir
     // uno por defecto sería afirmar algo falso sobre su procedencia.
     assert!(stored_calc_type(true, "inventada").is_err());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Valores congelados (T098)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Ruta del fichero de valores congelados.
+///
+/// `CARGO_MANIFEST_DIR` y no una ruta relativa: las pruebas se ejecutan con el directorio
+/// de trabajo del crate, pero eso es un detalle del arnés y no algo en lo que convenga
+/// apoyarse —`cargo test` desde otro sitio lo rompería—.
+const RUTA_CONGELADOS: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/fixtures/seed_golden.txt"
+);
+
+/// Las siete semillas con SUS tablas de casos.
+///
+/// Existe para que la comparación contra el código nativo y los valores congelados hablen
+/// de los MISMOS casos: una tabla por consumidor se desincronizaría, y las dos afirmarían
+/// cosas distintas sobre lo mismo.
+fn todas_las_tablas() -> Vec<(&'static str, Vec<Caso>)> {
+    vec![
+        ("ahorro", casos_ahorro()),
+        ("credito", casos_credito()),
+        ("presupuesto", casos_presupuesto()),
+        ("inversion", casos_inversion()),
+        ("ea_a_mv", casos_ea_a_mv()),
+        ("mv_a_ea", casos_mv_a_ea()),
+        ("gmf", casos_gmf()),
+    ]
+}
+
+/// Congela el resultado del MOTOR para todos los casos, una línea por caso.
+///
+/// El formato es texto con tabuladores y no JSON a propósito: lo que se hace con este
+/// fichero es **diferirlo**, y un diff línea a línea dice qué caso se movió y cómo. Con
+/// JSON indentado, un cambio en una cifra se leería como un bloque de llaves.
+///
+/// Se congela la salida del MOTOR y no la del código nativo, y eso es legítimo por un
+/// motivo que conviene no perder de vista: **T092 ya demostró que el motor reproduce al
+/// nativo** en todos estos casos. Congelar el motor es, por transitividad, congelar el
+/// comportamiento nativo — y es lo que se seguirá ejecutando cuando el nativo desaparezca.
+/// Hacerlo al revés dejaría el fichero describiendo un código que ya no existe.
+fn congela() -> String {
+    let mut salida = String::new();
+    salida.push_str(
+        "# Valores congelados del motor de fórmulas (T098).\n\
+         #\n\
+         # NO se edita a mano. Se regenera con:\n\
+         #   cargo test --test seed_regression -- --ignored regenerar_valores_congelados\n\
+         #\n\
+         # Cada línea es un caso: semilla, nombre del caso y resultado. `RECHAZADO`\n\
+         # significa que la definición lo rechaza, que es un resultado tan válido como una\n\
+         # cifra — y el mensaje concreto NO se congela, porque las dos implementaciones\n\
+         # escriben para lectores distintos a propósito.\n",
+    );
+
+    for (nombre, casos) in todas_las_tablas() {
+        let seed = semilla(nombre);
+        for caso in &casos {
+            salida.push_str(nombre);
+            salida.push('\t');
+            salida.push_str(&caso.nombre);
+            salida.push('\t');
+            salida.push_str(&congela_uno(&seed, caso));
+            salida.push('\n');
+        }
+    }
+
+    salida
+}
+
+/// El resultado de UN caso, ya en texto.
+///
+/// Las salidas se conservan en el ORDEN declarado de la definición, que es estable y es el
+/// mismo que ve el usuario. Ordenarlas por clave haría el fichero más fácil de diffear por
+/// una razón que no compensa: el orden declarado ya lo es, y cambiarlo sería una decisión
+/// del autor de la calculadora.
+fn congela_uno(seed: &Compiled, caso: &Caso) -> String {
+    match seed.definition.run(&caso.motor, &caso.indicadores) {
+        Ok(salidas) => salidas
+            .into_iter()
+            .map(|(clave, valor)| format!("{clave}={}", decimal_str::format(valor)))
+            .collect::<Vec<_>>()
+            .join(" "),
+        Err(_) => "RECHAZADO".to_owned(),
+    }
+}
+
+/// Regenera el fichero de valores congelados.
+///
+/// Está IGNORADA para que no corra con la suite: escribe en el repositorio, y una prueba
+/// que se ejecuta sola y modifica el árbol de trabajo es justo lo que no debe pasar en un
+/// `cargo test`. Se pide a mano, y solo después de haber mirado por qué cambió algo.
+#[test]
+#[ignore = "escribe tests/fixtures/seed_golden.txt; ejecutar a mano y revisar el diff"]
+fn regenerar_valores_congelados() {
+    let ruta = std::path::Path::new(RUTA_CONGELADOS);
+    std::fs::create_dir_all(ruta.parent().expect("el fichero tiene padre"))
+        .expect("crear el directorio de fixtures");
+
+    std::fs::write(ruta, congela()).expect("escribir los valores congelados");
+}
+
+/// El motor sigue produciendo exactamente los valores congelados.
+///
+/// Es la garantía que sustituye a la comparación contra el código nativo cuando ese código
+/// se retire (T098): sin ella, editar una definición semilla podría cambiar una cifra
+/// financiera sin que ninguna prueba lo dijera, porque todas las demás comprueban el motor
+/// contra sí mismo.
+///
+/// El fallo señala la LÍNEA y muestra las dos versiones. Un `assert_eq!` sobre el fichero
+/// entero volcaría cuatrocientas líneas sin decir cuál se movió.
+#[test]
+fn el_motor_reproduce_los_valores_congelados() {
+    let esperado = std::fs::read_to_string(RUTA_CONGELADOS).unwrap_or_else(|err| {
+        panic!(
+            "no se pudo leer {RUTA_CONGELADOS}: {err}\nRegenerar con:\n  \
+             cargo test --test seed_regression -- --ignored regenerar_valores_congelados"
+        )
+    });
+
+    let obtenido = congela();
+
+    // Se comparan como líneas y no como cadenas enteras para poder decir CUÁL se movió.
+    let esperadas: Vec<&str> = esperado.lines().collect();
+    let obtenidas: Vec<&str> = obtenido.lines().collect();
+
+    for (numero, (esperada, obtenida)) in esperadas.iter().zip(obtenidas.iter()).enumerate() {
+        assert_eq!(
+            esperada,
+            obtenida,
+            "la línea {} de los valores congelados no coincide.\n  \
+             Si el cambio es DELIBERADO —una fórmula que se corrige a propósito—, regenerar con:\n    \
+             cargo test --test seed_regression -- --ignored regenerar_valores_congelados\n  \
+             y revisar el diff antes de commitearlo.",
+            numero + 1
+        );
+    }
+
+    assert_eq!(
+        esperadas.len(),
+        obtenidas.len(),
+        "el fichero tiene {} líneas y el motor produce {}: se añadieron o quitaron casos sin \
+         regenerar los valores congelados",
+        esperadas.len(),
+        obtenidas.len()
+    );
 }

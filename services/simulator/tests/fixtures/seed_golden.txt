@@ -1,0 +1,1187 @@
+# Valores congelados del motor de fórmulas (T098).
+#
+# NO se edita a mano. Se regenera con:
+#   cargo test --test seed_regression -- --ignored regenerar_valores_congelados
+#
+# Cada línea es un caso: semilla, nombre del caso y resultado. `RECHAZADO`
+# significa que la definición lo rechaza, que es un resultado tan válido como una
+# cifra — y el mensaje concreto NO se congela, porque las dos implementaciones
+# escriben para lectores distintos a propósito.
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.000001 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.000001 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.000001 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.000001 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.12 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.12 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.12 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.12 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.6 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.6 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.6 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=ausente tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.000001 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.000001 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.000001 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.000001 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.12 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.12 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.12 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.12 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.6 meses=1	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.6 meses=12	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.6 meses=60	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=0 tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0 meses=12	monto_final=3000000 total_aportado=3000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0 meses=60	monto_final=15000000 total_aportado=15000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0 meses=1200	monto_final=300000000 total_aportado=300000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.000001 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.000001 meses=12	monto_final=3000001.38 total_aportado=3000000 interes_ganado=1.38 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.000001 meses=60	monto_final=15000036.88 total_aportado=15000000 interes_ganado=36.88 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.000001 meses=1200	monto_final=300014988 total_aportado=300000000 interes_ganado=14988 tasa_mensual=0
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.12 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0.01
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.12 meses=12	monto_final=3170625.75 total_aportado=3000000 interes_ganado=170625.75 tasa_mensual=0.01
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.12 meses=60	monto_final=20417417.46 total_aportado=15000000 interes_ganado=5417417.46 tasa_mensual=0.01
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.12 meses=1200	monto_final=3833413920138.17 total_aportado=300000000 interes_ganado=3833113920138.17 tasa_mensual=0.01
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.6 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0.05
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.6 meses=12	monto_final=3979281.63 total_aportado=3000000 interes_ganado=979281.63 tasa_mensual=0.05
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.6 meses=60	monto_final=88395929.47 total_aportado=15000000 interes_ganado=73395929.47 tasa_mensual=0.05
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=ausente aporte_mensual=250000 tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.000001 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.000001 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.000001 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.000001 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.12 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.12 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.12 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.12 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.6 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.6 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.6 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=ausente tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.000001 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.000001 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.000001 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.000001 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.12 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.12 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.12 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.12 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.6 meses=1	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.6 meses=12	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.6 meses=60	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=0 tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0 meses=12	monto_final=3000000 total_aportado=3000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0 meses=60	monto_final=15000000 total_aportado=15000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0 meses=1200	monto_final=300000000 total_aportado=300000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.000001 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.000001 meses=12	monto_final=3000001.38 total_aportado=3000000 interes_ganado=1.38 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.000001 meses=60	monto_final=15000036.88 total_aportado=15000000 interes_ganado=36.88 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.000001 meses=1200	monto_final=300014988 total_aportado=300000000 interes_ganado=14988 tasa_mensual=0
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.12 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0.01
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.12 meses=12	monto_final=3170625.75 total_aportado=3000000 interes_ganado=170625.75 tasa_mensual=0.01
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.12 meses=60	monto_final=20417417.46 total_aportado=15000000 interes_ganado=5417417.46 tasa_mensual=0.01
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.12 meses=1200	monto_final=3833413920138.17 total_aportado=300000000 interes_ganado=3833113920138.17 tasa_mensual=0.01
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.6 meses=1	monto_final=250000 total_aportado=250000 interes_ganado=0 tasa_mensual=0.05
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.6 meses=12	monto_final=3979281.63 total_aportado=3000000 interes_ganado=979281.63 tasa_mensual=0.05
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.6 meses=60	monto_final=88395929.47 total_aportado=15000000 interes_ganado=73395929.47 tasa_mensual=0.05
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=0 aporte_mensual=250000 tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0 meses=1	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0 meses=12	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0 meses=60	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0 meses=1200	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.000001 meses=1	monto_final=1000000.08 total_aportado=1000000 interes_ganado=0.08 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.000001 meses=12	monto_final=1000001 total_aportado=1000000 interes_ganado=1 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.000001 meses=60	monto_final=1000005 total_aportado=1000000 interes_ganado=5 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.000001 meses=1200	monto_final=1000100 total_aportado=1000000 interes_ganado=100 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.12 meses=1	monto_final=1010000 total_aportado=1000000 interes_ganado=10000 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.12 meses=12	monto_final=1126825.03 total_aportado=1000000 interes_ganado=126825.03 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.12 meses=60	monto_final=1816696.7 total_aportado=1000000 interes_ganado=816696.7 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.12 meses=1200	monto_final=153337556805.53 total_aportado=1000000 interes_ganado=153336556805.53 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.6 meses=1	monto_final=1050000 total_aportado=1000000 interes_ganado=50000 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.6 meses=12	monto_final=1795856.33 total_aportado=1000000 interes_ganado=795856.33 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.6 meses=60	monto_final=18679185.89 total_aportado=1000000 interes_ganado=17679185.89 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=ausente tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0 meses=1	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0 meses=12	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0 meses=60	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0 meses=1200	monto_final=1000000 total_aportado=1000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.000001 meses=1	monto_final=1000000.08 total_aportado=1000000 interes_ganado=0.08 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.000001 meses=12	monto_final=1000001 total_aportado=1000000 interes_ganado=1 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.000001 meses=60	monto_final=1000005 total_aportado=1000000 interes_ganado=5 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.000001 meses=1200	monto_final=1000100 total_aportado=1000000 interes_ganado=100 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.12 meses=1	monto_final=1010000 total_aportado=1000000 interes_ganado=10000 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.12 meses=12	monto_final=1126825.03 total_aportado=1000000 interes_ganado=126825.03 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.12 meses=60	monto_final=1816696.7 total_aportado=1000000 interes_ganado=816696.7 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.12 meses=1200	monto_final=153337556805.53 total_aportado=1000000 interes_ganado=153336556805.53 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.6 meses=1	monto_final=1050000 total_aportado=1000000 interes_ganado=50000 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.6 meses=12	monto_final=1795856.33 total_aportado=1000000 interes_ganado=795856.33 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.6 meses=60	monto_final=18679185.89 total_aportado=1000000 interes_ganado=17679185.89 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=0 tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0 meses=1	monto_final=1250000 total_aportado=1250000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0 meses=12	monto_final=4000000 total_aportado=4000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0 meses=60	monto_final=16000000 total_aportado=16000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0 meses=1200	monto_final=301000000 total_aportado=301000000 interes_ganado=0 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.000001 meses=1	monto_final=1250000.08 total_aportado=1250000 interes_ganado=0.08 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.000001 meses=12	monto_final=4000002.38 total_aportado=4000000 interes_ganado=2.38 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.000001 meses=60	monto_final=16000041.88 total_aportado=16000000 interes_ganado=41.88 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.000001 meses=1200	monto_final=301015088 total_aportado=301000000 interes_ganado=15088 tasa_mensual=0
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.000001 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.000001 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.12 meses=1	monto_final=1260000 total_aportado=1250000 interes_ganado=10000 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.12 meses=12	monto_final=4297450.78 total_aportado=4000000 interes_ganado=297450.78 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.12 meses=60	monto_final=22234114.16 total_aportado=16000000 interes_ganado=6234114.16 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.12 meses=1200	monto_final=3986751476943.7 total_aportado=301000000 interes_ganado=3986450476943.7 tasa_mensual=0.01
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.12 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.12 meses=1201	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.6 meses=1	monto_final=1300000 total_aportado=1250000 interes_ganado=50000 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.6 meses=12	monto_final=5775137.96 total_aportado=4000000 interes_ganado=1775137.96 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.6 meses=60	monto_final=107075115.36 total_aportado=16000000 interes_ganado=91075115.36 tasa_mensual=0.05
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.6 meses=1200	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.6 meses=0	RECHAZADO
+ahorro	deposito_inicial=1000000 aporte_mensual=250000 tasa_anual=0.6 meses=1201	RECHAZADO
+ahorro	depósito negativo con aporte	monto_final=3057943.25 total_aportado=2900000 interes_ganado=157943.25 tasa_mensual=0.01
+ahorro	los dos negativos	monto_final=-2649.18 total_aportado=-2500 interes_ganado=-149.18 tasa_mensual=0.01
+ahorro	los dos en cero	RECHAZADO
+ahorro	tasa negativa	RECHAZADO
+credito	monto=0 tasa_anual=0 meses=1	RECHAZADO
+credito	monto=0 tasa_anual=0 meses=12	RECHAZADO
+credito	monto=0 tasa_anual=0 meses=60	RECHAZADO
+credito	monto=0 tasa_anual=0 meses=240	RECHAZADO
+credito	monto=0 tasa_anual=0 meses=1200	RECHAZADO
+credito	monto=0 tasa_anual=0 meses=0	RECHAZADO
+credito	monto=0 tasa_anual=0 meses=1201	RECHAZADO
+credito	monto=0 tasa_anual=0.000001 meses=1	RECHAZADO
+credito	monto=0 tasa_anual=0.000001 meses=12	RECHAZADO
+credito	monto=0 tasa_anual=0.000001 meses=60	RECHAZADO
+credito	monto=0 tasa_anual=0.000001 meses=240	RECHAZADO
+credito	monto=0 tasa_anual=0.000001 meses=1200	RECHAZADO
+credito	monto=0 tasa_anual=0.000001 meses=0	RECHAZADO
+credito	monto=0 tasa_anual=0.000001 meses=1201	RECHAZADO
+credito	monto=0 tasa_anual=0.24 meses=1	RECHAZADO
+credito	monto=0 tasa_anual=0.24 meses=12	RECHAZADO
+credito	monto=0 tasa_anual=0.24 meses=60	RECHAZADO
+credito	monto=0 tasa_anual=0.24 meses=240	RECHAZADO
+credito	monto=0 tasa_anual=0.24 meses=1200	RECHAZADO
+credito	monto=0 tasa_anual=0.24 meses=0	RECHAZADO
+credito	monto=0 tasa_anual=0.24 meses=1201	RECHAZADO
+credito	monto=0 tasa_anual=0.6 meses=1	RECHAZADO
+credito	monto=0 tasa_anual=0.6 meses=12	RECHAZADO
+credito	monto=0 tasa_anual=0.6 meses=60	RECHAZADO
+credito	monto=0 tasa_anual=0.6 meses=240	RECHAZADO
+credito	monto=0 tasa_anual=0.6 meses=1200	RECHAZADO
+credito	monto=0 tasa_anual=0.6 meses=0	RECHAZADO
+credito	monto=0 tasa_anual=0.6 meses=1201	RECHAZADO
+credito	monto=1 tasa_anual=0 meses=1	cuota_mensual=1 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0 meses=12	cuota_mensual=0.08 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0 meses=60	cuota_mensual=0.02 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0 meses=240	cuota_mensual=0 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0 meses=1200	cuota_mensual=0 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0 meses=0	RECHAZADO
+credito	monto=1 tasa_anual=0 meses=1201	RECHAZADO
+credito	monto=1 tasa_anual=0.000001 meses=1	cuota_mensual=1 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0.000001 meses=12	cuota_mensual=0.08 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0.000001 meses=60	cuota_mensual=0.02 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0.000001 meses=240	cuota_mensual=0 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0.000001 meses=1200	cuota_mensual=0 total_pagado=1 interes_total=0 tasa_mensual=0
+credito	monto=1 tasa_anual=0.000001 meses=0	RECHAZADO
+credito	monto=1 tasa_anual=0.000001 meses=1201	RECHAZADO
+credito	monto=1 tasa_anual=0.24 meses=1	cuota_mensual=1.02 total_pagado=1.02 interes_total=0.02 tasa_mensual=0.02
+credito	monto=1 tasa_anual=0.24 meses=12	cuota_mensual=0.09 total_pagado=1.13 interes_total=0.13 tasa_mensual=0.02
+credito	monto=1 tasa_anual=0.24 meses=60	cuota_mensual=0.03 total_pagado=1.73 interes_total=0.73 tasa_mensual=0.02
+credito	monto=1 tasa_anual=0.24 meses=240	cuota_mensual=0.02 total_pagado=4.84 interes_total=3.84 tasa_mensual=0.02
+credito	monto=1 tasa_anual=0.24 meses=1200	cuota_mensual=0.02 total_pagado=24 interes_total=23 tasa_mensual=0.02
+credito	monto=1 tasa_anual=0.24 meses=0	RECHAZADO
+credito	monto=1 tasa_anual=0.24 meses=1201	RECHAZADO
+credito	monto=1 tasa_anual=0.6 meses=1	cuota_mensual=1.05 total_pagado=1.05 interes_total=0.05 tasa_mensual=0.05
+credito	monto=1 tasa_anual=0.6 meses=12	cuota_mensual=0.11 total_pagado=1.35 interes_total=0.35 tasa_mensual=0.05
+credito	monto=1 tasa_anual=0.6 meses=60	cuota_mensual=0.05 total_pagado=3.17 interes_total=2.17 tasa_mensual=0.05
+credito	monto=1 tasa_anual=0.6 meses=240	cuota_mensual=0.05 total_pagado=12 interes_total=11 tasa_mensual=0.05
+credito	monto=1 tasa_anual=0.6 meses=1200	cuota_mensual=0.05 total_pagado=60 interes_total=59 tasa_mensual=0.05
+credito	monto=1 tasa_anual=0.6 meses=0	RECHAZADO
+credito	monto=1 tasa_anual=0.6 meses=1201	RECHAZADO
+credito	monto=1000000 tasa_anual=0 meses=1	cuota_mensual=1000000 total_pagado=1000000 interes_total=0 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0 meses=12	cuota_mensual=83333.33 total_pagado=1000000 interes_total=0 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0 meses=60	cuota_mensual=16666.67 total_pagado=1000000 interes_total=0 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0 meses=240	cuota_mensual=4166.67 total_pagado=1000000 interes_total=0 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0 meses=1200	cuota_mensual=833.33 total_pagado=1000000 interes_total=0 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0 meses=0	RECHAZADO
+credito	monto=1000000 tasa_anual=0 meses=1201	RECHAZADO
+credito	monto=1000000 tasa_anual=0.000001 meses=1	cuota_mensual=1000000.08 total_pagado=1000000.08 interes_total=0.08 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0.000001 meses=12	cuota_mensual=83333.38 total_pagado=1000000.54 interes_total=0.54 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0.000001 meses=60	cuota_mensual=16666.71 total_pagado=1000002.54 interes_total=2.54 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0.000001 meses=240	cuota_mensual=4166.71 total_pagado=1000010.04 interes_total=10.04 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0.000001 meses=1200	cuota_mensual=833.38 total_pagado=1000050.04 interes_total=50.04 tasa_mensual=0
+credito	monto=1000000 tasa_anual=0.000001 meses=0	RECHAZADO
+credito	monto=1000000 tasa_anual=0.000001 meses=1201	RECHAZADO
+credito	monto=1000000 tasa_anual=0.24 meses=1	cuota_mensual=1020000 total_pagado=1020000 interes_total=20000 tasa_mensual=0.02
+credito	monto=1000000 tasa_anual=0.24 meses=12	cuota_mensual=94559.6 total_pagado=1134715.16 interes_total=134715.16 tasa_mensual=0.02
+credito	monto=1000000 tasa_anual=0.24 meses=60	cuota_mensual=28767.97 total_pagado=1726077.95 interes_total=726077.95 tasa_mensual=0.02
+credito	monto=1000000 tasa_anual=0.24 meses=240	cuota_mensual=20174.08 total_pagado=4841779.55 interes_total=3841779.55 tasa_mensual=0.02
+credito	monto=1000000 tasa_anual=0.24 meses=1200	cuota_mensual=20000 total_pagado=24000000 interes_total=23000000 tasa_mensual=0.02
+credito	monto=1000000 tasa_anual=0.24 meses=0	RECHAZADO
+credito	monto=1000000 tasa_anual=0.24 meses=1201	RECHAZADO
+credito	monto=1000000 tasa_anual=0.6 meses=1	cuota_mensual=1050000 total_pagado=1050000 interes_total=50000 tasa_mensual=0.05
+credito	monto=1000000 tasa_anual=0.6 meses=12	cuota_mensual=112825.41 total_pagado=1353904.92 interes_total=353904.92 tasa_mensual=0.05
+credito	monto=1000000 tasa_anual=0.6 meses=60	cuota_mensual=52828.18 total_pagado=3169691.07 interes_total=2169691.07 tasa_mensual=0.05
+credito	monto=1000000 tasa_anual=0.6 meses=240	cuota_mensual=50000.41 total_pagado=12000098.57 interes_total=11000098.57 tasa_mensual=0.05
+credito	monto=1000000 tasa_anual=0.6 meses=1200	RECHAZADO
+credito	monto=1000000 tasa_anual=0.6 meses=0	RECHAZADO
+credito	monto=1000000 tasa_anual=0.6 meses=1201	RECHAZADO
+credito	monto=50000000 tasa_anual=0 meses=1	cuota_mensual=50000000 total_pagado=50000000 interes_total=0 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0 meses=12	cuota_mensual=4166666.67 total_pagado=50000000 interes_total=0 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0 meses=60	cuota_mensual=833333.33 total_pagado=50000000 interes_total=0 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0 meses=240	cuota_mensual=208333.33 total_pagado=50000000 interes_total=0 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0 meses=1200	cuota_mensual=41666.67 total_pagado=50000000 interes_total=0 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0 meses=0	RECHAZADO
+credito	monto=50000000 tasa_anual=0 meses=1201	RECHAZADO
+credito	monto=50000000 tasa_anual=0.000001 meses=1	cuota_mensual=50000004.17 total_pagado=50000004.17 interes_total=4.17 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0.000001 meses=12	cuota_mensual=4166668.92 total_pagado=50000027.08 interes_total=27.08 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0.000001 meses=60	cuota_mensual=833335.45 total_pagado=50000127.08 interes_total=127.08 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0.000001 meses=240	cuota_mensual=208335.43 total_pagado=50000502.08 interes_total=502.08 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0.000001 meses=1200	cuota_mensual=41668.75 total_pagado=50002502.12 interes_total=2502.12 tasa_mensual=0
+credito	monto=50000000 tasa_anual=0.000001 meses=0	RECHAZADO
+credito	monto=50000000 tasa_anual=0.000001 meses=1201	RECHAZADO
+credito	monto=50000000 tasa_anual=0.24 meses=1	cuota_mensual=51000000 total_pagado=51000000 interes_total=1000000 tasa_mensual=0.02
+credito	monto=50000000 tasa_anual=0.24 meses=12	cuota_mensual=4727979.83 total_pagado=56735757.97 interes_total=6735757.97 tasa_mensual=0.02
+credito	monto=50000000 tasa_anual=0.24 meses=60	cuota_mensual=1438398.29 total_pagado=86303897.48 interes_total=36303897.48 tasa_mensual=0.02
+credito	monto=50000000 tasa_anual=0.24 meses=240	cuota_mensual=1008704.07 total_pagado=242088977.65 interes_total=192088977.65 tasa_mensual=0.02
+credito	monto=50000000 tasa_anual=0.24 meses=1200	cuota_mensual=1000000 total_pagado=1200000000.06 interes_total=1150000000.06 tasa_mensual=0.02
+credito	monto=50000000 tasa_anual=0.24 meses=0	RECHAZADO
+credito	monto=50000000 tasa_anual=0.24 meses=1201	RECHAZADO
+credito	monto=50000000 tasa_anual=0.6 meses=1	cuota_mensual=52500000 total_pagado=52500000 interes_total=2500000 tasa_mensual=0.05
+credito	monto=50000000 tasa_anual=0.6 meses=12	cuota_mensual=5641270.5 total_pagado=67695246.01 interes_total=17695246.01 tasa_mensual=0.05
+credito	monto=50000000 tasa_anual=0.6 meses=60	cuota_mensual=2641409.23 total_pagado=158484553.58 interes_total=108484553.58 tasa_mensual=0.05
+credito	monto=50000000 tasa_anual=0.6 meses=240	cuota_mensual=2500020.54 total_pagado=600004928.59 interes_total=550004928.59 tasa_mensual=0.05
+credito	monto=50000000 tasa_anual=0.6 meses=1200	RECHAZADO
+credito	monto=50000000 tasa_anual=0.6 meses=0	RECHAZADO
+credito	monto=50000000 tasa_anual=0.6 meses=1201	RECHAZADO
+credito	monto negativo	RECHAZADO
+credito	tasa negativa	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=ausente gastos_variables=ausente	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=ausente gastos_variables=0	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=ausente gastos_variables=800000	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=ausente gastos_variables=50000000	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=0 gastos_variables=ausente	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=0 gastos_variables=0	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=0 gastos_variables=800000	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=0 gastos_variables=50000000	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=1200000 gastos_variables=ausente	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=1200000 gastos_variables=0	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=1200000 gastos_variables=800000	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=1200000 gastos_variables=50000000	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=50000000 gastos_variables=ausente	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=50000000 gastos_variables=0	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=50000000 gastos_variables=800000	RECHAZADO
+presupuesto	ingreso_mensual=0 gastos_fijos=50000000 gastos_variables=50000000	RECHAZADO
+presupuesto	ingreso_mensual=1 gastos_fijos=ausente gastos_variables=ausente	gasto_total=0 balance=1 tasa_ahorro=1
+presupuesto	ingreso_mensual=1 gastos_fijos=ausente gastos_variables=0	gasto_total=0 balance=1 tasa_ahorro=1
+presupuesto	ingreso_mensual=1 gastos_fijos=ausente gastos_variables=800000	gasto_total=800000 balance=-799999 tasa_ahorro=-799999
+presupuesto	ingreso_mensual=1 gastos_fijos=ausente gastos_variables=50000000	gasto_total=50000000 balance=-49999999 tasa_ahorro=-49999999
+presupuesto	ingreso_mensual=1 gastos_fijos=0 gastos_variables=ausente	gasto_total=0 balance=1 tasa_ahorro=1
+presupuesto	ingreso_mensual=1 gastos_fijos=0 gastos_variables=0	gasto_total=0 balance=1 tasa_ahorro=1
+presupuesto	ingreso_mensual=1 gastos_fijos=0 gastos_variables=800000	gasto_total=800000 balance=-799999 tasa_ahorro=-799999
+presupuesto	ingreso_mensual=1 gastos_fijos=0 gastos_variables=50000000	gasto_total=50000000 balance=-49999999 tasa_ahorro=-49999999
+presupuesto	ingreso_mensual=1 gastos_fijos=1200000 gastos_variables=ausente	gasto_total=1200000 balance=-1199999 tasa_ahorro=-1199999
+presupuesto	ingreso_mensual=1 gastos_fijos=1200000 gastos_variables=0	gasto_total=1200000 balance=-1199999 tasa_ahorro=-1199999
+presupuesto	ingreso_mensual=1 gastos_fijos=1200000 gastos_variables=800000	gasto_total=2000000 balance=-1999999 tasa_ahorro=-1999999
+presupuesto	ingreso_mensual=1 gastos_fijos=1200000 gastos_variables=50000000	gasto_total=51200000 balance=-51199999 tasa_ahorro=-51199999
+presupuesto	ingreso_mensual=1 gastos_fijos=50000000 gastos_variables=ausente	gasto_total=50000000 balance=-49999999 tasa_ahorro=-49999999
+presupuesto	ingreso_mensual=1 gastos_fijos=50000000 gastos_variables=0	gasto_total=50000000 balance=-49999999 tasa_ahorro=-49999999
+presupuesto	ingreso_mensual=1 gastos_fijos=50000000 gastos_variables=800000	gasto_total=50800000 balance=-50799999 tasa_ahorro=-50799999
+presupuesto	ingreso_mensual=1 gastos_fijos=50000000 gastos_variables=50000000	gasto_total=100000000 balance=-99999999 tasa_ahorro=-99999999
+presupuesto	ingreso_mensual=3000000 gastos_fijos=ausente gastos_variables=ausente	gasto_total=0 balance=3000000 tasa_ahorro=1
+presupuesto	ingreso_mensual=3000000 gastos_fijos=ausente gastos_variables=0	gasto_total=0 balance=3000000 tasa_ahorro=1
+presupuesto	ingreso_mensual=3000000 gastos_fijos=ausente gastos_variables=800000	gasto_total=800000 balance=2200000 tasa_ahorro=0.733333
+presupuesto	ingreso_mensual=3000000 gastos_fijos=ausente gastos_variables=50000000	gasto_total=50000000 balance=-47000000 tasa_ahorro=-15.666667
+presupuesto	ingreso_mensual=3000000 gastos_fijos=0 gastos_variables=ausente	gasto_total=0 balance=3000000 tasa_ahorro=1
+presupuesto	ingreso_mensual=3000000 gastos_fijos=0 gastos_variables=0	gasto_total=0 balance=3000000 tasa_ahorro=1
+presupuesto	ingreso_mensual=3000000 gastos_fijos=0 gastos_variables=800000	gasto_total=800000 balance=2200000 tasa_ahorro=0.733333
+presupuesto	ingreso_mensual=3000000 gastos_fijos=0 gastos_variables=50000000	gasto_total=50000000 balance=-47000000 tasa_ahorro=-15.666667
+presupuesto	ingreso_mensual=3000000 gastos_fijos=1200000 gastos_variables=ausente	gasto_total=1200000 balance=1800000 tasa_ahorro=0.6
+presupuesto	ingreso_mensual=3000000 gastos_fijos=1200000 gastos_variables=0	gasto_total=1200000 balance=1800000 tasa_ahorro=0.6
+presupuesto	ingreso_mensual=3000000 gastos_fijos=1200000 gastos_variables=800000	gasto_total=2000000 balance=1000000 tasa_ahorro=0.333333
+presupuesto	ingreso_mensual=3000000 gastos_fijos=1200000 gastos_variables=50000000	gasto_total=51200000 balance=-48200000 tasa_ahorro=-16.066667
+presupuesto	ingreso_mensual=3000000 gastos_fijos=50000000 gastos_variables=ausente	gasto_total=50000000 balance=-47000000 tasa_ahorro=-15.666667
+presupuesto	ingreso_mensual=3000000 gastos_fijos=50000000 gastos_variables=0	gasto_total=50000000 balance=-47000000 tasa_ahorro=-15.666667
+presupuesto	ingreso_mensual=3000000 gastos_fijos=50000000 gastos_variables=800000	gasto_total=50800000 balance=-47800000 tasa_ahorro=-15.933333
+presupuesto	ingreso_mensual=3000000 gastos_fijos=50000000 gastos_variables=50000000	gasto_total=100000000 balance=-97000000 tasa_ahorro=-32.333333
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=ausente gastos_variables=ausente	gasto_total=0 balance=99999999.99 tasa_ahorro=1
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=ausente gastos_variables=0	gasto_total=0 balance=99999999.99 tasa_ahorro=1
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=ausente gastos_variables=800000	gasto_total=800000 balance=99199999.99 tasa_ahorro=0.992
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=ausente gastos_variables=50000000	gasto_total=50000000 balance=49999999.99 tasa_ahorro=0.5
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=0 gastos_variables=ausente	gasto_total=0 balance=99999999.99 tasa_ahorro=1
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=0 gastos_variables=0	gasto_total=0 balance=99999999.99 tasa_ahorro=1
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=0 gastos_variables=800000	gasto_total=800000 balance=99199999.99 tasa_ahorro=0.992
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=0 gastos_variables=50000000	gasto_total=50000000 balance=49999999.99 tasa_ahorro=0.5
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=1200000 gastos_variables=ausente	gasto_total=1200000 balance=98799999.99 tasa_ahorro=0.988
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=1200000 gastos_variables=0	gasto_total=1200000 balance=98799999.99 tasa_ahorro=0.988
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=1200000 gastos_variables=800000	gasto_total=2000000 balance=97999999.99 tasa_ahorro=0.98
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=1200000 gastos_variables=50000000	gasto_total=51200000 balance=48799999.99 tasa_ahorro=0.488
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=50000000 gastos_variables=ausente	gasto_total=50000000 balance=49999999.99 tasa_ahorro=0.5
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=50000000 gastos_variables=0	gasto_total=50000000 balance=49999999.99 tasa_ahorro=0.5
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=50000000 gastos_variables=800000	gasto_total=50800000 balance=49199999.99 tasa_ahorro=0.492
+presupuesto	ingreso_mensual=99999999.99 gastos_fijos=50000000 gastos_variables=50000000	gasto_total=100000000 balance=-0.01 tasa_ahorro=0
+presupuesto	déficit	gasto_total=1500000 balance=-500000 tasa_ahorro=-0.5
+presupuesto	gastos fijos negativos	RECHAZADO
+presupuesto	gastos variables negativos	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=0 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=9500000 capital_invertido=10000000 rendimiento=-500000
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=9500000 capital_invertido=10000000 rendimiento=-500000 valor_futuro_real=9500000
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=9500000 capital_invertido=10000000 rendimiento=-500000 valor_futuro_real=8796296.3
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=10700000 capital_invertido=11200000 rendimiento=-500000
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=10700000 capital_invertido=11200000 rendimiento=-500000 valor_futuro_real=10700000
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=10700000 capital_invertido=11200000 rendimiento=-500000 valor_futuro_real=9907407.41
+inversion	capital=10000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=5987369.39 capital_invertido=10000000 rendimiento=-4012630.61
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=5987369.39 capital_invertido=10000000 rendimiento=-4012630.61 valor_futuro_real=5987369.39
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=5987369.39 capital_invertido=10000000 rendimiento=-4012630.61 valor_futuro_real=2773310.51
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=15617682.85 capital_invertido=22000000 rendimiento=-6382317.15
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=15617682.85 capital_invertido=22000000 rendimiento=-6382317.15 valor_futuro_real=15617682.85
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=15617682.85 capital_invertido=22000000 rendimiento=-6382317.15 valor_futuro_real=7234009
+inversion	capital=10000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=59205.29 capital_invertido=10000000 rendimiento=-9940794.71
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=59205.29 capital_invertido=10000000 rendimiento=-9940794.71 valor_futuro_real=59205.29
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=59205.29 capital_invertido=10000000 rendimiento=-9940794.71 valor_futuro_real=26.91
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=23917112.59 capital_invertido=130000000 rendimiento=-106082887.41
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=23917112.59 capital_invertido=130000000 rendimiento=-106082887.41 valor_futuro_real=23917112.59
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=23917112.59 capital_invertido=130000000 rendimiento=-106082887.41 valor_futuro_real=10872.59
+inversion	capital=10000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=0 capital_invertido=10000000 rendimiento=-10000000
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=0	valor_futuro=0 capital_invertido=10000000 rendimiento=-10000000 valor_futuro_real=0
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=24000000 capital_invertido=1450000000 rendimiento=-1426000000
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=0	valor_futuro=24000000 capital_invertido=1450000000 rendimiento=-1426000000 valor_futuro_real=24000000
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0 valor_futuro_real=10000000
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0 valor_futuro_real=9259259.26
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=11200000 capital_invertido=11200000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=11200000 capital_invertido=11200000 rendimiento=0 valor_futuro_real=11200000
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=11200000 capital_invertido=11200000 rendimiento=0 valor_futuro_real=10370370.37
+inversion	capital=10000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0 valor_futuro_real=10000000
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0 valor_futuro_real=4631934.88
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=22000000 capital_invertido=22000000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=22000000 capital_invertido=22000000 rendimiento=0 valor_futuro_real=22000000
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=22000000 capital_invertido=22000000 rendimiento=0 valor_futuro_real=10190256.74
+inversion	capital=10000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0 valor_futuro_real=10000000
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0 valor_futuro_real=4545.95
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=130000000 capital_invertido=130000000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=130000000 capital_invertido=130000000 rendimiento=0 valor_futuro_real=130000000
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=130000000 capital_invertido=130000000 rendimiento=0 valor_futuro_real=59097.32
+inversion	capital=10000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=0	valor_futuro=10000000 capital_invertido=10000000 rendimiento=0 valor_futuro_real=10000000
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=1450000000 capital_invertido=1450000000 rendimiento=0
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=0	valor_futuro=1450000000 capital_invertido=1450000000 rendimiento=0 valor_futuro_real=1450000000
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=10800000 capital_invertido=10000000 rendimiento=800000
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=10800000 capital_invertido=10000000 rendimiento=800000 valor_futuro_real=10800000
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=10800000 capital_invertido=10000000 rendimiento=800000 valor_futuro_real=10000000
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=12000000 capital_invertido=11200000 rendimiento=800000
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=12000000 capital_invertido=11200000 rendimiento=800000 valor_futuro_real=12000000
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=12000000 capital_invertido=11200000 rendimiento=800000 valor_futuro_real=11111111.11
+inversion	capital=10000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=21589249.97 capital_invertido=10000000 rendimiento=11589249.97
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=21589249.97 capital_invertido=10000000 rendimiento=11589249.97 valor_futuro_real=21589249.97
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=21589249.97 capital_invertido=10000000 rendimiento=11589249.97 valor_futuro_real=10000000
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=38973124.93 capital_invertido=22000000 rendimiento=16973124.93
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=38973124.93 capital_invertido=22000000 rendimiento=16973124.93 valor_futuro_real=38973124.93
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=38973124.93 capital_invertido=22000000 rendimiento=16973124.93 valor_futuro_real=18052097.68
+inversion	capital=10000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=21997612563.41 capital_invertido=10000000 rendimiento=21987612563.41
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=21997612563.41 capital_invertido=10000000 rendimiento=21987612563.41 valor_futuro_real=21997612563.41
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=21997612563.41 capital_invertido=10000000 rendimiento=21987612563.41 valor_futuro_real=10000000
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=54979031408.53 capital_invertido=130000000 rendimiento=54849031408.53
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=54979031408.53 capital_invertido=130000000 rendimiento=54849031408.53 valor_futuro_real=54979031408.53
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=54979031408.53 capital_invertido=130000000 rendimiento=54849031408.53 valor_futuro_real=24993181.08
+inversion	capital=10000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=15000000 capital_invertido=10000000 rendimiento=5000000
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=15000000 capital_invertido=10000000 rendimiento=5000000 valor_futuro_real=15000000
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=15000000 capital_invertido=10000000 rendimiento=5000000 valor_futuro_real=13888888.89
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=16200000 capital_invertido=11200000 rendimiento=5000000
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=16200000 capital_invertido=11200000 rendimiento=5000000 valor_futuro_real=16200000
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=16200000 capital_invertido=11200000 rendimiento=5000000 valor_futuro_real=15000000
+inversion	capital=10000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=576650390.62 capital_invertido=10000000 rendimiento=566650390.62
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=576650390.62 capital_invertido=10000000 rendimiento=566650390.62 valor_futuro_real=576650390.62
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=576650390.62 capital_invertido=10000000 rendimiento=566650390.62 valor_futuro_real=267100705.84
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=712646484.38 capital_invertido=22000000 rendimiento=690646484.38
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=712646484.38 capital_invertido=22000000 rendimiento=690646484.38 valor_futuro_real=712646484.38
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=712646484.38 capital_invertido=22000000 rendimiento=690646484.38 valor_futuro_real=330093210.87
+inversion	capital=10000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=4065611775352152373972797.08 capital_invertido=10000000 rendimiento=4065611775352152363972797.08
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=4065611775352152373972797.08 capital_invertido=10000000 rendimiento=4065611775352152363972797.08 valor_futuro_real=4065611775352152373972797.08
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=4065611775352152373972797.08 capital_invertido=10000000 rendimiento=4065611775352152363972797.08 valor_futuro_real=1848205919452463933934.76
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=5041358601436668941326268.37 capital_invertido=130000000 rendimiento=5041358601436668811326268.37
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=5041358601436668941326268.37 capital_invertido=130000000 rendimiento=5041358601436668811326268.37 valor_futuro_real=5041358601436668941326268.37
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=5041358601436668941326268.37 capital_invertido=130000000 rendimiento=5041358601436668811326268.37 valor_futuro_real=2291775340121055276988.07
+inversion	capital=10000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=10000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-1 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=475000000 capital_invertido=500000000 rendimiento=-25000000
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=475000000 capital_invertido=500000000 rendimiento=-25000000 valor_futuro_real=475000000
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=475000000 capital_invertido=500000000 rendimiento=-25000000 valor_futuro_real=439814814.81
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=476200000 capital_invertido=501200000 rendimiento=-25000000
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=476200000 capital_invertido=501200000 rendimiento=-25000000 valor_futuro_real=476200000
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=476200000 capital_invertido=501200000 rendimiento=-25000000 valor_futuro_real=440925925.93
+inversion	capital=500000000 tasa_anual=-0.05 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=299368469.62 capital_invertido=500000000 rendimiento=-200631530.38
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=299368469.62 capital_invertido=500000000 rendimiento=-200631530.38 valor_futuro_real=299368469.62
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=299368469.62 capital_invertido=500000000 rendimiento=-200631530.38 valor_futuro_real=138665525.67
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=308998783.08 capital_invertido=512000000 rendimiento=-203001216.92
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=308998783.08 capital_invertido=512000000 rendimiento=-203001216.92 valor_futuro_real=308998783.08
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=308998783.08 capital_invertido=512000000 rendimiento=-203001216.92 valor_futuro_real=143126224.15
+inversion	capital=500000000 tasa_anual=-0.05 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=2960264.61 capital_invertido=500000000 rendimiento=-497039735.39
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=2960264.61 capital_invertido=500000000 rendimiento=-497039735.39 valor_futuro_real=2960264.61
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=2960264.61 capital_invertido=500000000 rendimiento=-497039735.39 valor_futuro_real=1345.72
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=26818171.91 capital_invertido=620000000 rendimiento=-593181828.09
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=26818171.91 capital_invertido=620000000 rendimiento=-593181828.09 valor_futuro_real=26818171.91
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=26818171.91 capital_invertido=620000000 rendimiento=-593181828.09 valor_futuro_real=12191.4
+inversion	capital=500000000 tasa_anual=-0.05 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=0 capital_invertido=500000000 rendimiento=-500000000
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=0	valor_futuro=0 capital_invertido=500000000 rendimiento=-500000000 valor_futuro_real=0
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=24000000 capital_invertido=1940000000 rendimiento=-1916000000
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=0	valor_futuro=24000000 capital_invertido=1940000000 rendimiento=-1916000000 valor_futuro_real=24000000
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=-0.05 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0 valor_futuro_real=500000000
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0 valor_futuro_real=462962962.96
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=501200000 capital_invertido=501200000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=501200000 capital_invertido=501200000 rendimiento=0 valor_futuro_real=501200000
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=501200000 capital_invertido=501200000 rendimiento=0 valor_futuro_real=464074074.07
+inversion	capital=500000000 tasa_anual=0 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0 valor_futuro_real=500000000
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0 valor_futuro_real=231596744.04
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=512000000 capital_invertido=512000000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=512000000 capital_invertido=512000000 rendimiento=0 valor_futuro_real=512000000
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=512000000 capital_invertido=512000000 rendimiento=0 valor_futuro_real=237155065.9
+inversion	capital=500000000 tasa_anual=0 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0 valor_futuro_real=500000000
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0 valor_futuro_real=227297.39
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=620000000 capital_invertido=620000000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=620000000 capital_invertido=620000000 rendimiento=0 valor_futuro_real=620000000
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=620000000 capital_invertido=620000000 rendimiento=0 valor_futuro_real=281848.77
+inversion	capital=500000000 tasa_anual=0 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=0	valor_futuro=500000000 capital_invertido=500000000 rendimiento=0 valor_futuro_real=500000000
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=1940000000 capital_invertido=1940000000 rendimiento=0
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=0	valor_futuro=1940000000 capital_invertido=1940000000 rendimiento=0 valor_futuro_real=1940000000
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=540000000 capital_invertido=500000000 rendimiento=40000000
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=540000000 capital_invertido=500000000 rendimiento=40000000 valor_futuro_real=540000000
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=540000000 capital_invertido=500000000 rendimiento=40000000 valor_futuro_real=500000000
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=541200000 capital_invertido=501200000 rendimiento=40000000
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=541200000 capital_invertido=501200000 rendimiento=40000000 valor_futuro_real=541200000
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=541200000 capital_invertido=501200000 rendimiento=40000000 valor_futuro_real=501111111.11
+inversion	capital=500000000 tasa_anual=0.08 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=1079462498.64 capital_invertido=500000000 rendimiento=579462498.64
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=1079462498.64 capital_invertido=500000000 rendimiento=579462498.64 valor_futuro_real=1079462498.64
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=1079462498.64 capital_invertido=500000000 rendimiento=579462498.64 valor_futuro_real=500000000
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=1096846373.6 capital_invertido=512000000 rendimiento=584846373.6
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=1096846373.6 capital_invertido=512000000 rendimiento=584846373.6 valor_futuro_real=1096846373.6
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=1096846373.6 capital_invertido=512000000 rendimiento=584846373.6 valor_futuro_real=508052097.68
+inversion	capital=500000000 tasa_anual=0.08 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=1099880628170.64 capital_invertido=500000000 rendimiento=1099380628170.64
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=1099880628170.64 capital_invertido=500000000 rendimiento=1099380628170.64 valor_futuro_real=1099880628170.64
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=1099880628170.64 capital_invertido=500000000 rendimiento=1099380628170.64 valor_futuro_real=500000000
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=1132862047015.76 capital_invertido=620000000 rendimiento=1132242047015.76
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=1132862047015.76 capital_invertido=620000000 rendimiento=1132242047015.76 valor_futuro_real=1132862047015.76
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=1132862047015.76 capital_invertido=620000000 rendimiento=1132242047015.76 valor_futuro_real=514993181.08
+inversion	capital=500000000 tasa_anual=0.08 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.08 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=750000000 capital_invertido=500000000 rendimiento=250000000
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=0	valor_futuro=750000000 capital_invertido=500000000 rendimiento=250000000 valor_futuro_real=750000000
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=750000000 capital_invertido=500000000 rendimiento=250000000 valor_futuro_real=694444444.44
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=751200000 capital_invertido=501200000 rendimiento=250000000
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=0	valor_futuro=751200000 capital_invertido=501200000 rendimiento=250000000 valor_futuro_real=751200000
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=751200000 capital_invertido=501200000 rendimiento=250000000 valor_futuro_real=695555555.56
+inversion	capital=500000000 tasa_anual=0.5 anios=1 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=28832519531.25 capital_invertido=500000000 rendimiento=28332519531.25
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=0	valor_futuro=28832519531.25 capital_invertido=500000000 rendimiento=28332519531.25 valor_futuro_real=28832519531.25
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=28832519531.25 capital_invertido=500000000 rendimiento=28332519531.25 valor_futuro_real=13355035291.95
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=28968515625 capital_invertido=512000000 rendimiento=28456515625
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=0	valor_futuro=28968515625 capital_invertido=512000000 rendimiento=28456515625 valor_futuro_real=28968515625
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=28968515625 capital_invertido=512000000 rendimiento=28456515625 valor_futuro_real=13418027796.98
+inversion	capital=500000000 tasa_anual=0.5 anios=10 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=ausente	valor_futuro=203280588767607618698639853.77 capital_invertido=500000000 rendimiento=203280588767607618198639853.77
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=0	valor_futuro=203280588767607618698639853.77 capital_invertido=500000000 rendimiento=203280588767607618198639853.77 valor_futuro_real=203280588767607618698639853.77
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=0.08	valor_futuro=203280588767607618698639853.77 capital_invertido=500000000 rendimiento=203280588767607618198639853.77 valor_futuro_real=92410295972623196696737.99
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=ausente	valor_futuro=204256335593692135265993325.07 capital_invertido=620000000 rendimiento=204256335593692134645993325.07
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=0	valor_futuro=204256335593692135265993325.07 capital_invertido=620000000 rendimiento=204256335593692134645993325.07 valor_futuro_real=204256335593692135265993325.07
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=0.08	valor_futuro=204256335593692135265993325.07 capital_invertido=620000000 rendimiento=204256335593692134645993325.07 valor_futuro_real=92853865393291788039791.31
+inversion	capital=500000000 tasa_anual=0.5 anios=100 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1200 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=0 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=ausente inflacion_anual=-1	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=ausente	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=0	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=0.08	RECHAZADO
+inversion	capital=500000000 tasa_anual=0.5 anios=1201 aporte_anual=1200000 inflacion_anual=-1	RECHAZADO
+ea_a_mv	tasa_ea=-1.5	RECHAZADO
+ea_a_mv	tasa_ea=-1	RECHAZADO
+ea_a_mv	tasa_ea=-0.99	tasa_mv=-0.318708 tasa_nominal_anual=-3.824495
+ea_a_mv	tasa_ea=-0.5	tasa_mv=-0.056126 tasa_nominal_anual=-0.673508
+ea_a_mv	tasa_ea=0	tasa_mv=0 tasa_nominal_anual=0
+ea_a_mv	tasa_ea=0.000001	tasa_mv=0 tasa_nominal_anual=0.000001
+ea_a_mv	tasa_ea=0.05	tasa_mv=0.004074 tasa_nominal_anual=0.048889
+ea_a_mv	tasa_ea=0.24	tasa_mv=0.018088 tasa_nominal_anual=0.217051
+ea_a_mv	tasa_ea=0.5	tasa_mv=0.034366 tasa_nominal_anual=0.412393
+ea_a_mv	tasa_ea=1	tasa_mv=0.059463 tasa_nominal_anual=0.713557
+ea_a_mv	tasa_ea=5	tasa_mv=0.161037 tasa_nominal_anual=1.93244
+ea_a_mv	tasa_ea=99	tasa_mv=0.467799 tasa_nominal_anual=5.613591
+mv_a_ea	tasa_mv=-1.5	RECHAZADO
+mv_a_ea	tasa_mv=-1	RECHAZADO
+mv_a_ea	tasa_mv=-0.99	tasa_ea=-1 tasa_nominal_anual=-11.88
+mv_a_ea	tasa_mv=-0.5	tasa_ea=-0.999756 tasa_nominal_anual=-6
+mv_a_ea	tasa_mv=0	tasa_ea=0 tasa_nominal_anual=0
+mv_a_ea	tasa_mv=0.000001	tasa_ea=0.000012 tasa_nominal_anual=0.000012
+mv_a_ea	tasa_mv=0.02	tasa_ea=0.268242 tasa_nominal_anual=0.24
+mv_a_ea	tasa_mv=0.1	tasa_ea=2.138428 tasa_nominal_anual=1.2
+mv_a_ea	tasa_mv=0.5	tasa_ea=128.746338 tasa_nominal_anual=6
+gmf	monto=Some("0") exento=None uvt=1	RECHAZADO
+gmf	monto=Some("0") exento=None uvt=47065	RECHAZADO
+gmf	monto=Some("0") exento=None uvt=1000000	RECHAZADO
+gmf	monto=Some("0") exento=Some("0") uvt=1	RECHAZADO
+gmf	monto=Some("0") exento=Some("0") uvt=47065	RECHAZADO
+gmf	monto=Some("0") exento=Some("0") uvt=1000000	RECHAZADO
+gmf	monto=Some("0") exento=Some("1") uvt=1	RECHAZADO
+gmf	monto=Some("0") exento=Some("1") uvt=47065	RECHAZADO
+gmf	monto=Some("0") exento=Some("1") uvt=1000000	RECHAZADO
+gmf	monto=Some("1") exento=None uvt=1	gravamen=0 base_gravable=1 monto_exento=0 tope_exencion=350 neto_recibido=1
+gmf	monto=Some("1") exento=None uvt=47065	gravamen=0 base_gravable=1 monto_exento=0 tope_exencion=16472750 neto_recibido=1
+gmf	monto=Some("1") exento=None uvt=1000000	gravamen=0 base_gravable=1 monto_exento=0 tope_exencion=350000000 neto_recibido=1
+gmf	monto=Some("1") exento=Some("0") uvt=1	gravamen=0 base_gravable=1 monto_exento=0 tope_exencion=350 neto_recibido=1
+gmf	monto=Some("1") exento=Some("0") uvt=47065	gravamen=0 base_gravable=1 monto_exento=0 tope_exencion=16472750 neto_recibido=1
+gmf	monto=Some("1") exento=Some("0") uvt=1000000	gravamen=0 base_gravable=1 monto_exento=0 tope_exencion=350000000 neto_recibido=1
+gmf	monto=Some("1") exento=Some("1") uvt=1	gravamen=0 base_gravable=0 monto_exento=1 tope_exencion=350 neto_recibido=1
+gmf	monto=Some("1") exento=Some("1") uvt=47065	gravamen=0 base_gravable=0 monto_exento=1 tope_exencion=16472750 neto_recibido=1
+gmf	monto=Some("1") exento=Some("1") uvt=1000000	gravamen=0 base_gravable=0 monto_exento=1 tope_exencion=350000000 neto_recibido=1
+gmf	monto=Some("1000000") exento=None uvt=1	gravamen=4000 base_gravable=1000000 monto_exento=0 tope_exencion=350 neto_recibido=996000
+gmf	monto=Some("1000000") exento=None uvt=47065	gravamen=4000 base_gravable=1000000 monto_exento=0 tope_exencion=16472750 neto_recibido=996000
+gmf	monto=Some("1000000") exento=None uvt=1000000	gravamen=4000 base_gravable=1000000 monto_exento=0 tope_exencion=350000000 neto_recibido=996000
+gmf	monto=Some("1000000") exento=Some("0") uvt=1	gravamen=4000 base_gravable=1000000 monto_exento=0 tope_exencion=350 neto_recibido=996000
+gmf	monto=Some("1000000") exento=Some("0") uvt=47065	gravamen=4000 base_gravable=1000000 monto_exento=0 tope_exencion=16472750 neto_recibido=996000
+gmf	monto=Some("1000000") exento=Some("0") uvt=1000000	gravamen=4000 base_gravable=1000000 monto_exento=0 tope_exencion=350000000 neto_recibido=996000
+gmf	monto=Some("1000000") exento=Some("1") uvt=1	gravamen=3998.6 base_gravable=999650 monto_exento=350 tope_exencion=350 neto_recibido=996001.4
+gmf	monto=Some("1000000") exento=Some("1") uvt=47065	gravamen=0 base_gravable=0 monto_exento=1000000 tope_exencion=16472750 neto_recibido=1000000
+gmf	monto=Some("1000000") exento=Some("1") uvt=1000000	gravamen=0 base_gravable=0 monto_exento=1000000 tope_exencion=350000000 neto_recibido=1000000
+gmf	monto=Some("99999999.99") exento=None uvt=1	gravamen=400000 base_gravable=99999999.99 monto_exento=0 tope_exencion=350 neto_recibido=99599999.99
+gmf	monto=Some("99999999.99") exento=None uvt=47065	gravamen=400000 base_gravable=99999999.99 monto_exento=0 tope_exencion=16472750 neto_recibido=99599999.99
+gmf	monto=Some("99999999.99") exento=None uvt=1000000	gravamen=400000 base_gravable=99999999.99 monto_exento=0 tope_exencion=350000000 neto_recibido=99599999.99
+gmf	monto=Some("99999999.99") exento=Some("0") uvt=1	gravamen=400000 base_gravable=99999999.99 monto_exento=0 tope_exencion=350 neto_recibido=99599999.99
+gmf	monto=Some("99999999.99") exento=Some("0") uvt=47065	gravamen=400000 base_gravable=99999999.99 monto_exento=0 tope_exencion=16472750 neto_recibido=99599999.99
+gmf	monto=Some("99999999.99") exento=Some("0") uvt=1000000	gravamen=400000 base_gravable=99999999.99 monto_exento=0 tope_exencion=350000000 neto_recibido=99599999.99
+gmf	monto=Some("99999999.99") exento=Some("1") uvt=1	gravamen=399998.6 base_gravable=99999649.99 monto_exento=350 tope_exencion=350 neto_recibido=99600001.39
+gmf	monto=Some("99999999.99") exento=Some("1") uvt=47065	gravamen=334109 base_gravable=83527249.99 monto_exento=16472750 tope_exencion=16472750 neto_recibido=99665890.99
+gmf	monto=Some("99999999.99") exento=Some("1") uvt=1000000	gravamen=0 base_gravable=0 monto_exento=99999999.99 tope_exencion=350000000 neto_recibido=99999999.99
