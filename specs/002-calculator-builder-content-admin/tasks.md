@@ -66,15 +66,23 @@ historia puede empezar.
 
 **⚠️ CRÍTICO**: ninguna historia arranca hasta terminar esta fase.
 
-**⚠️ Aplicar las migraciones SOLO junto al código que las usa.** Comprobado el 2026-09-16:
-las cuatro de `simulator_db` se aplicaron y verificaron porque el código del Simulador ya
-existe; las de `learning_db` y `users_db` **no se aplicaron a propósito**, y hacerlo ahora
-habría roto servicios en marcha. `20260902101500_link_articles_to_categories` termina con
-`ALTER TABLE articles DROP COLUMN category`, que es la columna que el Aprendizaje que corre
-hoy lee: aplicarla antes de implementar US1 dejaría el servicio consultando una columna que
-ya no existe. El flujo de Principio XII (`dev/build → dev/up → dev/migrate → dev/seed`) da
-por supuesto que código y migraciones avanzan juntos, y adelantar la migración rompe esa
-suposición sin que nada avise.
+**✅ Las once migraciones de este feature están aplicadas y verificadas contra PostgreSQL 16**
+(2026-09-16): cuatro en `simulator_db`, seis en `learning_db` y una en `users_db`.
+
+**Y aquí me equivoqué una vez, de una forma que conviene no repetir.** Al aplicar las del
+Simulador decidí NO aplicar las de Aprendizaje y Usuarios, razonando que
+`20260902101500_link_articles_to_categories` termina con `ALTER TABLE articles DROP COLUMN
+category` y que eso «rompería el Aprendizaje, porque US1 no está implementado». **US1 sí está
+implementado**: `services/learning/src/` tiene `categories/`, `quizzes/` y `publishing/`, y
+`articles.repository.ts` hace `JOIN categories c ON c.id = a.category_id`. El código llevaba
+tareas esperando su esquema, no al revés.
+
+El error fue deducir el estado del código a partir de lo que yo había tocado en la sesión, en
+lugar de mirarlo. La lección es concreta: **antes de decidir que una migración es insegura de
+aplicar, hay que comprobar si su código ya existe** —y `grep` cuesta menos que razonar sobre
+una suposición—. Aplicadas después, las once pasan limpio, y la conversión de datos de
+`link_articles_to_categories` conservó las categorías de los artículos sembrados y de tres
+artículos de prueba E2E que ya estaban en la base.
 
 > Las tres migraciones con **conversión de datos** (T013, T015, T017) son el mayor riesgo
 > silencioso del feature. Cada una es transaccional y respeta el orden poblar → restringir;
