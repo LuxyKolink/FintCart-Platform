@@ -1,0 +1,80 @@
+/*
+ * Armazón — el marco que rodea las 19 pantallas (research D-30).
+ *
+ * Esta hoja NO es una capa artesanal nueva: no define botones, campos ni banners.
+ * Solo dispone el marco y lo hace con los tokens del sistema de diseño, igual que
+ * cualquier componente de `shared/ui`. Todo lo que antes vivía embebido en el
+ * `styles` del componente (y que era la vigésima superficie sin migrar) está aquí.
+ */
+
+.fc-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-card);
+  border-bottom: var(--border-hairline) solid var(--border-default);
+}
+
+.fc-topbar__brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+.fc-topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+}
+
+.fc-topbar__toggle {
+  display: none;
+}
+
+.fc-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+/*
+ * Bajo `--bp-md` (768px, ver `tokens/breakpoints.css`) la navegación horizontal no
+ * cabe y colapsa a un menú desplegable. Las propiedades personalizadas no se
+ * resuelven dentro de `@media`, así que el literal va escrito y el token citado:
+ * es la regla documentada en el propio archivo de tokens.
+ */
+@media (max-width: 767.98px) {
+  .fc-topbar__toggle {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+    padding: var(--space-1) var(--space-3);
+    font: inherit;
+    font-weight: var(--fw-semibold);
+    color: var(--text-link);
+    background: transparent;
+    border: var(--border-hairline) solid var(--border-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+
+  .fc-topbar__nav {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-left: 0;
+  }
+
+  .fc-topbar__nav--open {
+    display: flex;
+  }
+
+  .fc-topbar__nav > a {
+    padding: var(--space-2) 0;
+    border-bottom: var(--border-hairline) solid var(--border-default);
+  }
+}

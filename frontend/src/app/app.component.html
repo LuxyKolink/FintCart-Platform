@@ -1,0 +1,44 @@
+<header class="fc-topbar" (keydown.escape)="closeMenu()">
+  <a class="fc-topbar__brand" routerLink="/catalogo" aria-label="FintCart — ir al catálogo">
+    <fc-brand-logo variant="full" [width]="120" [height]="29" />
+  </a>
+
+  @if (auth.isAuthenticated()) {
+    <button
+      type="button"
+      class="fc-topbar__toggle"
+      [attr.aria-expanded]="menuOpen()"
+      aria-controls="fc-app-nav"
+      (click)="toggleMenu()"
+    >
+      {{ menuOpen() ? 'Cerrar menú' : 'Menú' }}
+    </button>
+
+    <nav
+      id="fc-app-nav"
+      class="fc-topbar__nav"
+      [class.fc-topbar__nav--open]="menuOpen()"
+      (click)="closeMenu()"
+    >
+      <a routerLink="/catalogo">Catálogo</a>
+      <a routerLink="/simuladores">Simuladores</a>
+      <a routerLink="/progreso">Tu progreso</a>
+      <a routerLink="/notificaciones">Notificaciones</a>
+      @if (auth.hasRole('editor', 'coordinador_editorial')) {
+        <a routerLink="/editorial">Editorial</a>
+      }
+      @if (auth.hasRole('coordinador_editorial')) {
+        <a routerLink="/editorial/revision">Revisión</a>
+      }
+      @if (auth.hasRole('administrador')) {
+        <a routerLink="/admin/categorias">Administración</a>
+      }
+      <a routerLink="/perfil">Tu perfil</a>
+      <fc-button variant="ghost" size="sm" (pressed)="onLogout()">Cerrar sesión</fc-button>
+    </nav>
+  }
+</header>
+
+<main class="fc-shell">
+  <router-outlet />
+</main>

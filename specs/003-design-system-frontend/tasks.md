@@ -48,14 +48,45 @@ Rutas reales de la aplicación (verificadas en `frontend/src/app/app.routes.ts`)
 
 **Purpose**: lo que hace falta antes de tocar la primera pantalla.
 
-- [ ] T001 **Verificar que `frontend/src/app/shared/ui/` existe y su galería renderiza** — es la biblioteca que entrega el feature 002 (sus T032–T048). Si no está, **este feature no arranca**: improvisar componentes locales sería reconstruir la capa artesanal que venimos a retirar (research D-26)
-- [ ] T002 Crear los cuatro tokens de punto de corte en `frontend/src/styles/tokens/breakpoints.css`: `--bp-sm: 480px`, `--bp-md: 768px`, `--bp-lg: 1024px`, `--bp-xl: 1280px` (FR-125, SC-039, research D-27) — son **adición al sistema de diseño**, no valores sueltos por pantalla
-- [ ] T003 Declarar `breakpoints.css` en el manifiesto de importaciones `frontend/src/styles/styles.css`, junto al resto de tokens (FR-125)
-- [ ] T004 [P] Componente `Skeleton` (estado de carga con la forma del contenido que va a aparecer) en `frontend/src/app/shared/ui/skeleton/` (research D-32, FR-118)
-- [ ] T005 [P] Componente `EmptyState` (ilustración, mensaje y acción sugerida) en `frontend/src/app/shared/ui/empty-state/` (research D-32, FR-119)
-- [ ] T006 [P] Componente `ErrorState` (mensaje comprensible y acción de reintento) en `frontend/src/app/shared/ui/error-state/` (research D-32, FR-118)
-- [ ] T007 [P] Pruebas unitarias y de accesibilidad de los tres componentes de estado en `frontend/src/app/shared/ui/{skeleton,empty-state,error-state}/*.spec.ts`
-- [ ] T008 Script de medición de deuda de estilo en `frontend/scripts/design-debt.mjs`: cuenta estilos en línea, líneas de `styles.scss` y referencias a clases artesanales. Registrar la **línea base** (94 / 116 / 19 pantallas) para poder medir el avance por lo que desaparece (nota N-12)
+- [x] T001 **Verificar que `frontend/src/app/shared/ui/` existe y su galería renderiza** — es la biblioteca que entrega el feature 002 (sus T032–T048). Si no está, **este feature no arranca**: improvisar componentes locales sería reconstruir la capa artesanal que venimos a retirar (research D-26)
+- [x] T002 Crear los cuatro tokens de punto de corte en `frontend/src/styles/tokens/breakpoints.css`: `--bp-sm: 480px`, `--bp-md: 768px`, `--bp-lg: 1024px`, `--bp-xl: 1280px` (FR-125, SC-039, research D-27) — son **adición al sistema de diseño**, no valores sueltos por pantalla
+- [x] T003 Declarar `breakpoints.css` en el manifiesto de importaciones `frontend/src/styles/styles.css`, junto al resto de tokens (FR-125)
+- [x] T004 [P] Componente `Skeleton` (estado de carga con la forma del contenido que va a aparecer) en `frontend/src/app/shared/ui/skeleton/` (research D-32, FR-118)
+- [x] T005 [P] Componente `EmptyState` (ilustración, mensaje y acción sugerida) en `frontend/src/app/shared/ui/empty-state/` (research D-32, FR-119)
+- [x] T006 [P] Componente `ErrorState` (mensaje comprensible y acción de reintento) en `frontend/src/app/shared/ui/error-state/` (research D-32, FR-118)
+- [x] T007 [P] Pruebas unitarias y de accesibilidad de los tres componentes de estado en `frontend/src/app/shared/ui/{skeleton,empty-state,error-state}/*.spec.ts`
+- [x] T008 Script de medición de deuda de estilo en `frontend/scripts/design-debt.mjs`: cuenta estilos en línea, líneas de `styles.scss` y referencias a clases artesanales. Registrar la **línea base** (94 / 116 / 19 pantallas) para poder medir el avance por lo que desaparece (nota N-12)
+**Notas de implementación (T001–T008)**
+
+- **T001**: `shared/ui` está completo (13 componentes + galería) y compila; la galería se
+  construye sin cambios. La compuerta del feature se cumple.
+- **T002/T003 — límite técnico que el enunciado no decía**: las propiedades personalizadas
+  **no** se resuelven dentro de `@media`, así que `@media (max-width: var(--bp-md))` es
+  inválido. Los tokens siguen siendo la fuente única de verdad, pero cada `@media` escribe el
+  literal (`768px`) y cita el token en un comentario. Resolverlo con `@custom-media` habría
+  exigido PostCSS, es decir una dependencia nueva que el Technical Context prohíbe. Queda
+  documentado en el encabezado de `breakpoints.css`.
+- **T004 — por qué las dimensiones no son `[style]`**: `no-inline-styles` marca tanto el
+  atributo `style="…"` como los bindings `[style.x]` (comprobado: el primer intento de
+  `Skeleton` con `[style.--fc-skeleton-w]` falló el lint). Se fijan con `Renderer2` y
+  `RendererStyleFlags2.DashCase`, el mismo patrón que ya usaba `ProgressBar` para el ancho de
+  su relleno: la plantilla queda limpia y la hoja de estilos sigue mandando.
+- **T005/T006**: `EmptyState` proyecta la acción sugerida (el vacío del catálogo y el del
+  progreso no ofrecen la misma), y `ErrorState` lleva el reintento dentro porque un mensaje sin
+  salida deja al usuario atrapado. `role="status"` en el vacío y `role="alert"` en el error:
+  la diferencia no es cosmética — un error que no se anuncia deja al usuario esperando una
+  carga que ya terminó.
+- **T007**: 13 pruebas nuevas (5 + 4 + 4). Suite completa en **47/47**, verde.
+- **T008 — la línea base se midió, no se copió**: 94 estilos en línea, 116 líneas y **19**
+  pantallas, exactamente los valores declarados. El detector cuenta **clases**, no tags: `fc-input`
+  es a la vez clase artesanal y `<fc-input>` del design system, y contar el tag habría dado un
+  falso positivo que nunca baja a cero (el `grep` del quickstart §2 tiene ese defecto; el script
+  no). **Hallazgo que el ledger debe ver**: `features/admin/categories` (dueño: feature 002)
+  todavía referencia clases artesanales y por tanto **bloquea** la eliminación de `styles.scss`;
+  el script lo reporta aparte en vez de diluirlo en el total.
+- **Estado de `npm run lint`**: sigue en rojo por los 94 estilos en línea preexistentes. No es
+  una regresión de este bloque: es exactamente la deuda que el feature retira (T076 exige 0).
+
 - [ ] T009 Ejecutar las 4 suites de extremo a extremo **sin modificarlas** y registrar el resultado verde de partida, en `frontend/e2e/` — es la referencia contra la que se comparará tras cada grupo (research D-29)
 
 ---
@@ -70,13 +101,41 @@ Rutas reales de la aplicación (verificadas en `frontend/src/app/app.routes.ts`)
 > convertiría este feature en un maquillaje: el siguiente cambio urgente reintroduce el primer
 > estilo en línea y en seis meses estamos igual (spec, historia 6).
 
-- [ ] T010 Regla de lint que rechaza el atributo `style="..."` en toda plantilla de `frontend/src/app/**/*.html`, configurada en el lint del frontend (FR-088, FR-089)
+- [x] T010 Regla de lint que rechaza el atributo `style="..."` en toda plantilla de `frontend/src/app/**/*.html`, configurada en el lint del frontend (FR-088, FR-089)
 - [ ] T011 [P] Verificación automatizada de accesibilidad por pantalla —recorrido por teclado, etiqueta asociada, contraste AA— etiquetada `@a11y` en `frontend/e2e/a11y.spec.ts` (FR-093…FR-096, SC-030…SC-032)
 - [ ] T012 [P] Verificación de que la interfaz se presenta completa con la conectividad externa bloqueada, en `frontend/e2e/offline-assets.spec.ts` (FR-092, SC-033)
-- [ ] T013 Migrar el armazón —barra superior, navegación por rol, cierre de sesión— a los componentes compartidos y a `BrandLogo`, en `frontend/src/app/app.component.ts` (FR-086, research D-30). La navegación **sigue derivándose del rol**; no se añade lógica de autorización a la vista (Principio VII)
-- [ ] T014 Comportamiento responsive del armazón: bajo `--bp-md` la navegación colapsa a menú, en `frontend/src/app/app.component.ts` (FR-124, FR-126, SC-038)
-- [ ] T015 Retirar el CSS embebido del bloque `styles` de `frontend/src/app/app.component.ts`, sustituido por los componentes compartidos (FR-086, FR-088, research D-30)
-- [ ] T016 [P] Deduplicar los logotipos: conservar `frontend/src/styles/assets/logo/`, eliminar `frontend/src/assets/logo/` y reapuntar toda referencia, verificando que ninguna queda rota (FR-090, SC-037)
+- [x] T013 Migrar el armazón —barra superior, navegación por rol, cierre de sesión— a los componentes compartidos y a `BrandLogo`, en `frontend/src/app/app.component.ts` (FR-086, research D-30). La navegación **sigue derivándose del rol**; no se añade lógica de autorización a la vista (Principio VII)
+- [x] T014 Comportamiento responsive del armazón: bajo `--bp-md` la navegación colapsa a menú, en `frontend/src/app/app.component.ts` (FR-124, FR-126, SC-038)
+- [x] T015 Retirar el CSS embebido del bloque `styles` de `frontend/src/app/app.component.ts`, sustituido por los componentes compartidos (FR-086, FR-088, research D-30)
+- [x] T016 [P] Deduplicar los logotipos: conservar `frontend/src/styles/assets/logo/`, eliminar `frontend/src/assets/logo/` y reapuntar toda referencia, verificando que ninguna queda rota (FR-090, SC-037)
+**Notas del armazón (T010, T013–T016)**
+
+- **T010**: la regla ya existía — la añadió 002 en `abc21a7` (`frontend/.eslintrc.json`,
+  `@angular-eslint/template/no-inline-styles: error`). Se verificó que rechaza **tanto** el
+  atributo `style="…"` como los bindings `[style.x]`: fue justo lo que obligó a rehacer
+  `Skeleton`. No se tocó nada.
+- **T013–T015**: `app.component` pasa a `templateUrl` + `styleUrl`, así que el bloque `styles`
+  embebido desaparece y la estética ya no puede divergir en silencio. El `<img>` suelto del
+  logotipo se sustituye por `fc-brand-logo`, y «Cerrar sesión» por
+  `fc-button variant="ghost"`. La navegación **sigue derivándose del rol** con
+  `auth.hasRole(...)`: no se añadió ni una comprobación de autorización a la vista
+  (Principio VII). 10 pruebas nuevas en `app.component.spec.ts` cubren la derivación por rol
+  —incluida la frontera de que `administrador` **no** hereda atribuciones editoriales— y el menú.
+- **T014 — por qué el botón del menú no es `fc-button`**: un control de divulgación necesita
+  `aria-expanded`/`aria-controls` **en el propio `<button>`**. Escritos sobre `<fc-button>`
+  aterrizan en el elemento anfitrión, no en el botón interior, y un lector de pantalla los
+  ignora. Se usa un `<button>` nativo con clase propia; también por eso el menú se cierra con
+  `Escape` y al elegir un destino. La accesibilidad manda sobre la uniformidad estética.
+- **T016 — el enunciado tenía las rutas invertidas**: `frontend/src/styles/assets/logo/` **ya
+  no existe**; `frontend/src/styles/assets/` solo contiene tipografías. La deduplicación ya la
+  había hecho 002: la copia que sobrevive es `frontend/src/assets/logo/` (la que Angular sirve
+  y la que `BrandLogo` resuelve), con los 5 SVG. Ejecutar la instrucción al pie de la letra
+  —borrar `src/assets/logo/`— habría roto todos los logotipos. Verificado: 0 referencias a
+  `styles/assets/logo` y toda referencia viva apunta a `assets/logo/`.
+- **Pendiente de Docker**: T011, T012 y T017 (e2e/a11y) no se pueden cerrar sin la pila. El
+  colapso real de la navegación bajo 768 px solo queda verificado a nivel de estado en
+  unitarias; falta verlo en navegador.
+
 - [ ] T017 Ejecutar las suites de extremo a extremo **sin modificarlas** tras migrar el armazón, en `frontend/e2e/` — el armazón se ve en el 100 % de las vistas, así que un fallo aquí afecta a todas
 
 **Checkpoint**: barreras activas y armazón migrado. Las historias pueden empezar.
