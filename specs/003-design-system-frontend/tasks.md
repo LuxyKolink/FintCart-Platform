@@ -87,7 +87,7 @@ Rutas reales de la aplicación (verificadas en `frontend/src/app/app.routes.ts`)
 - **Estado de `npm run lint`**: sigue en rojo por los 94 estilos en línea preexistentes. No es
   una regresión de este bloque: es exactamente la deuda que el feature retira (T076 exige 0).
 
-- [ ] T009 Ejecutar las 4 suites de extremo a extremo **sin modificarlas** y registrar el resultado verde de partida, en `frontend/e2e/` — es la referencia contra la que se comparará tras cada grupo (research D-29)
+- [x] T009 Ejecutar las 4 suites de extremo a extremo **sin modificarlas** y registrar el resultado verde de partida, en `frontend/e2e/` — es la referencia contra la que se comparará tras cada grupo (research D-29)
 
 ---
 
@@ -102,8 +102,8 @@ Rutas reales de la aplicación (verificadas en `frontend/src/app/app.routes.ts`)
 > estilo en línea y en seis meses estamos igual (spec, historia 6).
 
 - [x] T010 Regla de lint que rechaza el atributo `style="..."` en toda plantilla de `frontend/src/app/**/*.html`, configurada en el lint del frontend (FR-088, FR-089)
-- [ ] T011 [P] Verificación automatizada de accesibilidad por pantalla —recorrido por teclado, etiqueta asociada, contraste AA— etiquetada `@a11y` en `frontend/e2e/a11y.spec.ts` (FR-093…FR-096, SC-030…SC-032)
-- [ ] T012 [P] Verificación de que la interfaz se presenta completa con la conectividad externa bloqueada, en `frontend/e2e/offline-assets.spec.ts` (FR-092, SC-033)
+- [x] T011 [P] Verificación automatizada de accesibilidad por pantalla —recorrido por teclado, etiqueta asociada, contraste AA— etiquetada `@a11y` en `frontend/e2e/a11y.spec.ts` (FR-093…FR-096, SC-030…SC-032)
+- [x] T012 [P] Verificación de que la interfaz se presenta completa con la conectividad externa bloqueada, en `frontend/e2e/offline-assets.spec.ts` (FR-092, SC-033)
 - [x] T013 Migrar el armazón —barra superior, navegación por rol, cierre de sesión— a los componentes compartidos y a `BrandLogo`, en `frontend/src/app/app.component.ts` (FR-086, research D-30). La navegación **sigue derivándose del rol**; no se añade lógica de autorización a la vista (Principio VII)
 - [x] T014 Comportamiento responsive del armazón: bajo `--bp-md` la navegación colapsa a menú, en `frontend/src/app/app.component.ts` (FR-124, FR-126, SC-038)
 - [x] T015 Retirar el CSS embebido del bloque `styles` de `frontend/src/app/app.component.ts`, sustituido por los componentes compartidos (FR-086, FR-088, research D-30)
@@ -132,11 +132,57 @@ Rutas reales de la aplicación (verificadas en `frontend/src/app/app.routes.ts`)
   y la que `BrandLogo` resuelve), con los 5 SVG. Ejecutar la instrucción al pie de la letra
   —borrar `src/assets/logo/`— habría roto todos los logotipos. Verificado: 0 referencias a
   `styles/assets/logo` y toda referencia viva apunta a `assets/logo/`.
-- **Pendiente de Docker**: T011, T012 y T017 (e2e/a11y) no se pueden cerrar sin la pila. El
-  colapso real de la navegación bajo 768 px solo queda verificado a nivel de estado en
-  unitarias; falta verlo en navegador.
+- **T011/T012 ya corren**: la accesibilidad y la independencia de servicios externos están
+  verdes contra la pila. Lo que sigue sin afirmarse a 360/480 px es el colapso de la
+  navegación: el harness mide teclado, etiquetas y contraste, no anchos.
 
-- [ ] T017 Ejecutar las suites de extremo a extremo **sin modificarlas** tras migrar el armazón, en `frontend/e2e/` — el armazón se ve en el 100 % de las vistas, así que un fallo aquí afecta a todas
+- [x] T017 Ejecutar las suites de extremo a extremo **sin modificarlas** tras migrar el armazón, en `frontend/e2e/` — el armazón se ve en el 100 % de las vistas, así que un fallo aquí afecta a todas
+
+**Notas de la línea base e2e (T009, T017)**
+
+- **La pila se levantó de verdad** (`dev/build` → `dev/up` → `dev/migrate` → `dev/seed`) y
+  destapó un fallo que solo existe con infraestructura en pie: `dev/seed` seguía insertando
+  en `articles.category`, la columna que la migración de 002 eliminó. Como el bloque del
+  catálogo va ANTES que el del Simulador, tampoco sembraba las 7 calculadoras. Arreglado y
+  commiteado en 002 (`1a9f44e`). Es exactamente lo que T163 de 002 existe para cazar, y
+  seguía sin marcar.
+- **T009, tal como está escrito, era imposible de cumplir**: pedía registrar un verde de
+  partida «sin modificarlas», y las 4 suites NO estaban verdes. Dos aserciones eran deuda de
+  002, no del rediseño: `us1` contaba los `fieldset` antes de que respondiera
+  `StartQuizSession` (flaky: 1 de 2 pasadas) y `us4` hacía `.fill()` sobre la categoría, ya
+  convertida en `<select>`. **Se modificaron los dos tests** (`d9910b2`) con autorización
+  explícita del usuario. Queda dicho porque contradice la nota N-13: quien compare contra
+  T009 debe saber que la referencia no salió intacta.
+- Lo que sí conserva la garantía de 003: ninguno de los dos cambios toca un selector por rol
+  o etiqueta accesible, que es lo que 003 usa como red. Resultado: **4/4**. Como el armazón ya
+  estaba migrado cuando se corrió, T009 y T017 comparten el mismo registro — no hay una foto
+  de «antes del armazón» que recuperar, y los dos fallos ajenos la habrían empañado igual.
+
+**Notas de las barreras (T011, T012)**
+
+- **T011 encontró dos defectos reales el primer día, y eso es lo que la hace valer.**
+  1. Texto blanco sobre `--brand-primary` (coral 400, `#DE4D2B`) daba **4.04:1**, por debajo
+     del 4.5:1 de AA. Afectaba a *todos* los botones primarios, a la pestaña activa del
+     catálogo y a los badges sólidos. Se corrigió en el token —`--brand-primary` pasa a coral
+     500, **5.11:1**—, no componente a componente (FR-125). El kit es autoridad visual, pero
+     no puede ganarle a un MUST de accesibilidad.
+  2. El botón fantasma (`fc-button variant="ghost"`) se enfocaba **sin ninguna señal**:
+     `[data-variant='ghost']` declara `box-shadow: var(--shadow-none)` con la MISMA
+     especificidad que `.fc-btn:focus-visible` y, por ir después en el archivo, le ganaba
+     por orden. La regla del anillo de foco se movió al final. Un MUST de accesibilidad no
+     puede depender de en qué línea se escribió una variante.
+- **T011 — alcance, y cómo crece**: cubre las pantallas de acceso y el recorrido del aprendiz
+  (catálogo, simuladores, progreso, notificaciones, perfil). Cada grupo añade las suyas;
+  correr la suite sobre pantallas aún sin migrar llenaría el informe de trabajo pendiente, no
+  de regresiones. **No es una auditoría WCAG completa**: no cubre regiones vivas ni orden de
+  lectura de lectores de pantalla, y no usa `@axe-core` porque el plan prohíbe dependencias
+  nuevas (las tres comprobaciones se miden contra el navegador real).
+- **T012 — medido, no afirmado**: bloquea toda petición fuera de `localhost` y comprueba que
+  la galería interna sigue mostrando las tres familias tipográficas (forzando su carga, no
+  fiándose de la que la pantalla usó de casualidad), los iconos y el logotipo. Si algo viniera
+  de un CDN, aquí se vería.
+- **Sigue sin verificarse**: el colapso real de la navegación a 360/480 px, que el harness no
+  mide (no evalúa anchos). Se cubrirá con las capturas por punto de corte de T027.
 
 **Checkpoint**: barreras activas y armazón migrado. Las historias pueden empezar.
 
