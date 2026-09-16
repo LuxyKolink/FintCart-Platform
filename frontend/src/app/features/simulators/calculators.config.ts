@@ -58,6 +58,20 @@ export interface CalculatorDefinition {
 
 const TASA_HELP = 'Como fracción, no como porcentaje: 12 % anual se escribe 0.12.';
 
+/**
+ * Para las calculadoras cuya fórmula usa `tasa_periodica`, que en el motor es una división
+ * NOMINAL (`anual / m`, ver `services/simulator/src/domain/formula/ast.rs`).
+ *
+ * POR QUÉ SE DICE: «Tasa anual» a secas se lee como Efectiva Anual, y no lo es. Con 0.24, el
+ * reparto nominal da 2 % mensual —26.82 % E.A. equivalente—, mientras que la conversión
+ * efectiva daría 1.8087 % y una cuota distinta. La diferencia entre las dos lecturas es de
+ * decenas de miles de pesos, así que el campo lo aclara en lugar de dejar que el usuario lo
+ * suponga. `inversion` NO lleva esta ayuda: su fórmula compone la tasa anual directamente,
+ * sin repartirla.
+ */
+const TASA_NOMINAL_HELP =
+  'Como fracción: 12 % anual se escribe 0.12. El cálculo la reparte entre 12 (tasa nominal), no la convierte a efectiva.';
+
 export const CALCULATORS: CalculatorDefinition[] = [
   {
     calcType: 'ahorro',
@@ -70,7 +84,7 @@ export const CALCULATORS: CalculatorDefinition[] = [
         fields: [
           { key: 'deposito_inicial', label: 'Depósito inicial', kind: 'money', required: false, help: 'Lo que ya tienes ahorrado hoy (opcional).' },
           { key: 'aporte_mensual', label: 'Aporte mensual', kind: 'money', required: false, help: 'Lo que aportarás al final de cada mes (opcional).' },
-          { key: 'tasa_anual', label: 'Tasa anual', kind: 'rate', required: true, forbidNegative: true, help: TASA_HELP },
+          { key: 'tasa_anual', label: 'Tasa anual', kind: 'rate', required: true, forbidNegative: true, help: TASA_NOMINAL_HELP },
           { key: 'meses', label: 'Plazo (meses)', kind: 'periods', required: true },
         ],
         atLeastOneOf: ['deposito_inicial', 'aporte_mensual'],
@@ -93,7 +107,7 @@ export const CALCULATORS: CalculatorDefinition[] = [
         label: '',
         fields: [
           { key: 'monto', label: 'Monto del crédito', kind: 'money', required: true, strictlyPositive: true },
-          { key: 'tasa_anual', label: 'Tasa anual', kind: 'rate', required: true, forbidNegative: true, help: TASA_HELP },
+          { key: 'tasa_anual', label: 'Tasa anual', kind: 'rate', required: true, forbidNegative: true, help: TASA_NOMINAL_HELP },
           { key: 'meses', label: 'Número de cuotas', kind: 'periods', required: true },
         ],
         resultFields: [

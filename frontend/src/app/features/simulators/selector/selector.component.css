@@ -1,0 +1,74 @@
+/*
+ * Portada de simuladores (T044/T050). Dos zonas: riel de calculadoras y contenido.
+ * El formulario vive en su propia ruta y reutiliza el MISMO riel (FR-107).
+ */
+
+.fc-sims {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.fc-sims__center {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.fc-sims__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-sims__title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  overflow-wrap: anywhere;
+}
+
+.fc-sims__lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.fc-sims__section {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+}
+
+.fc-sims__steps {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+}
+
+.fc-sims__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-sims__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* Bajo `--bp-md` el riel (que ya se vuelve horizontal en su propia hoja) pasa arriba. */
+@media (max-width: 767.98px) {
+  .fc-sims {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

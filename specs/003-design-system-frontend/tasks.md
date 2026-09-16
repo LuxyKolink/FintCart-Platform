@@ -452,17 +452,91 @@ resultado e historial.
 README advierte que sus cálculos son de demostración y que en la plataforma real la precisión
 decimal es responsabilidad del backend.
 
-- [ ] T044 [US3] Riel de calculadoras junto al formulario de la seleccionada en `frontend/src/app/features/simulators/selector/selector.component.html` (FR-107), eliminando sus 4 estilos en línea
-- [ ] T045 [US3] Recomponer el formulario de parámetros en `frontend/src/app/features/simulators/forms/simulator-form.component.html` con `Input` y `Button` compartidos, eliminando sus 6 estilos en línea
-- [ ] T046 [US3] Presentar las cifras monetarias con la tipografía de datos del sistema, distinguibles del texto corrido, en `frontend/src/app/features/simulators/result/result.component.html` (FR-108), eliminando sus 3 estilos en línea
-- [ ] T047 [US3] Recomponer el historial en `frontend/src/app/features/simulators/history/history.component.html` de modo que permita comparar ejecuciones sin abrir cada una (FR-110) — es la plantilla con **más estilos en línea de todas: 13**
-- [ ] T048 [US3] **Verificar que ninguna cifra pasa por una conversión que altere su precisión**: se conservan `frontend/src/app/shared/decimal-str.ts`, `features/simulators/decimal-validators.ts` y `result-format.ts`; prohibido `number` nativo (FR-109, Principio VIII NON-NEGOTIABLE)
-- [ ] T049 [US3] Una cifra monetaria **nunca trunca**: si no cabe, se reduce el contenedor o cambia la disposición, en `frontend/src/app/features/simulators/` — un importe cortado no es texto incompleto, es un dato falso (nota N-15)
-- [ ] T050 [US3] Responsive: el riel de calculadoras pasa a selector horizontal desplazable sobre el formulario bajo `--bp-md`; el historial desplaza **dentro de su contenedor** y la página nunca en horizontal (FR-127, research D-27)
-- [ ] T051 [P] [US3] Estados de carga, error y vacío —historial sin simulaciones— en las cuatro pantallas de `frontend/src/app/features/simulators/` (FR-118, FR-119)
-- [ ] T052 [P] [US3] Comparación visual por captura contra el kit, a cada punto de corte, en `frontend/e2e/visual/simulators.spec.ts`
-- [ ] T053 [US3] Ejecutar `us2-simuladores.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
-- [ ] T054 [US3] Retirar de `frontend/src/styles.scss` las clases que ya no referencia ninguna plantilla tras este grupo
+- [x] T044 [US3] Riel de calculadoras junto al formulario de la seleccionada en `frontend/src/app/features/simulators/selector/selector.component.html` (FR-107), eliminando sus 4 estilos en línea
+- [x] T045 [US3] Recomponer el formulario de parámetros en `frontend/src/app/features/simulators/forms/simulator-form.component.html` con `Input` y `Button` compartidos, eliminando sus 6 estilos en línea
+- [x] T046 [US3] Presentar las cifras monetarias con la tipografía de datos del sistema, distinguibles del texto corrido, en `frontend/src/app/features/simulators/result/result.component.html` (FR-108), eliminando sus 3 estilos en línea
+- [x] T047 [US3] Recomponer el historial en `frontend/src/app/features/simulators/history/history.component.html` de modo que permita comparar ejecuciones sin abrir cada una (FR-110) — es la plantilla con **más estilos en línea de todas: 13**
+- [x] T048 [US3] **Verificar que ninguna cifra pasa por una conversión que altere su precisión**: se conservan `frontend/src/app/shared/decimal-str.ts`, `features/simulators/decimal-validators.ts` y `result-format.ts`; prohibido `number` nativo (FR-109, Principio VIII NON-NEGOTIABLE)
+- [x] T049 [US3] Una cifra monetaria **nunca trunca**: si no cabe, se reduce el contenedor o cambia la disposición, en `frontend/src/app/features/simulators/` — un importe cortado no es texto incompleto, es un dato falso (nota N-15)
+- [x] T050 [US3] Responsive: el riel de calculadoras pasa a selector horizontal desplazable sobre el formulario bajo `--bp-md`; el historial desplaza **dentro de su contenedor** y la página nunca en horizontal (FR-127, research D-27)
+- [x] T051 [P] [US3] Estados de carga, error y vacío —historial sin simulaciones— en las cuatro pantallas de `frontend/src/app/features/simulators/` (FR-118, FR-119)
+- [x] T052 [P] [US3] Comparación visual por captura contra el kit, a cada punto de corte, en `frontend/e2e/visual/simulators.spec.ts`
+- [x] T053 [US3] Ejecutar `us2-simuladores.spec.ts` y la verificación `@a11y` **sin modificarlas**, en `frontend/e2e/`
+- [x] T054 [US3] Retirar de `frontend/src/styles.scss` las clases que ya no referencia ninguna plantilla tras este grupo
+
+**Notas del grupo de simuladores (T044–T054)**
+
+- **T044/T050 — un solo riel, usado por DOS pantallas.** `fc-calculator-rail` vive en
+  `features/simulators/rail/` y lo comparten el selector y el formulario, porque FR-107 pide
+  que las calculadoras acompañen al formulario de la elegida. Duplicar la lista habría dejado
+  dos sitios donde olvidarse de una calculadora nueva. Bajo `--bp-md` el riel deja de ser una
+  columna y pasa a ser un selector horizontal que se desplaza dentro de su contenedor
+  (FR-126/FR-127).
+- **EL SELECTOR NO REPITE LOS NOMBRES.** `us2-simuladores.spec.ts` selecciona
+  `getByRole('link', { name: 'Crédito' })`, que coincide por **subcadena**: si la portada
+  mostrara el riel **y** tarjetas con los mismos nombres, el localizador resolvería a dos
+  elementos y el recorrido fallaría por ambigüedad (N-13). La lista aparece una sola vez, en el
+  riel, y el centro explica cómo funciona el módulo.
+- **El riel NO lleva iconos.** El kit dibuja uno por calculadora (`wallet`, `trending-up`,
+  `landmark`) y **ninguno de los tres está entre los 25 iconos registrados** (research D-32).
+  Poner una alcancía en «Inversión» sería otro dato inventado (N-15), no una licencia creativa.
+- **T045 — `fc-input` gana `inputMode`.** Un monto o una tasa se capturan con teclado decimal
+  y un número de cuotas con el numérico; sin declararlo, un campo que no puede tener letras
+  abría el teclado alfabético en el móvil. Es el mismo criterio que el `autocomplete` que se
+  añadió en el grupo de acceso: lo que el campo ES tiene que llegar al `<input>` interno.
+- **T046/T049 — la cifra principal primero, y nunca recortada.** El resultado conserva
+  `<dl>`/`<dt>`/`<dd class="fc-num">` porque `us2` afirma un `dt` con «Cuota mensual» y que el
+  **primer** `dd.fc-num` de la pantalla lleve el símbolo del peso: el ORDEN de `resultFields`
+  es lo que decide cuál es la cifra protagonista, y su inversión no rompería la maquetación
+  sino la afirmación. La fila principal se pinta más grande y las demás como secundarias.
+- **N-15 verificado en el navegador.** No hay `text-overflow` ni `line-clamp` en ninguna regla
+  de dinero; las filas usan `flex-wrap`, así que una cifra que no cabe **baja entera a la línea
+  siguiente** en vez de encogerse o abreviarse. La comprobación vive en
+  `e2e/visual/simulators.spec.ts` porque es geometría —`scrollWidth` contra `clientWidth`, más
+  los estilos computados— y eso solo existe dentro de un navegador: se ejecuta en las **cinco
+  anchuras** sobre el resultado y sobre el historial.
+- **T047 — el historial es una TABLA, no una lista de tarjetas.** FR-110 pide poder comparar
+  sin abrir cada ejecución, y comparar es leer la misma columna: cada fila lleva su calculadora,
+  su fecha, sus parámetros y su resultado ya formateados. Se desplaza dentro de su contenedor
+  (FR-127). El mapeo entrada→filas se extrajo a `history-rows.ts` porque lo usan **dos** sitios
+  —el historial y el resumen del formulario—, y dos copias acabarían llamando «Monto» a lo que
+  la otra llama «Monto del crédito».
+- **El formulario gana la tercera zona del kit**: un resumen de las tres últimas simulaciones,
+  con datos reales del mismo endpoint del historial. Se relee después de cada cálculo porque,
+  si no, diría «todavía no has guardado ninguna» justo después de guardar una. Va con
+  `<span class="fc-num">` y no con `<dd>`: el `dd.fc-num` que `us2` busca tiene que seguir siendo
+  el del resultado.
+- **T048 — la precisión, comprobada por el resultado y no por la regla.** `result-format.spec.ts`
+  fija que `$9,007,199,254,740,993.01` (2⁵³ + 1, el primer entero que un `double` no puede
+  representar) sale **exacto**, que un monto con tres decimales se **rechaza** en vez de
+  redondearse, y que `formatRate('0.123456')` es `12.3456 %`. La regla de lint
+  (`no-restricted-types` + `no-restricted-globals` sobre `Number`/`parseFloat`) ya prohíbe el
+  atajo en `features/simulators/**`; estas pruebas comprueban lo que la regla protege.
+- **T051 — el selector no tiene estados de carga ni de error, y es correcto.** Las cinco
+  calculadoras salen de `calculators.config.ts`, que es un espejo de los contratos: no hay
+  lectura de red que pueda fallar. FR-118 obliga a las pantallas que DEPENDEN de datos. Las
+  otras sí los tienen, cada una por su cuenta: que el riel de últimas simulaciones falle no
+  puede impedir calcular (hay una prueba que lo fija).
+
+#### Un hallazgo de presentación que sí se corrigió: «Tasa anual» no dice qué tasa es
+
+Las fórmulas de la semilla para **ahorro** y **crédito** usan `tasa_periodica(tasa_anual, 12)`,
+que en el motor es una **división nominal** —`ast.rs` lo documenta literalmente como «división
+NOMINAL anual / m»—, mientras que **inversión** compone la tasa anual directamente. Con 0.24, el
+reparto nominal da 2 % mensual (26.82 % E.A. equivalente) y no 1.8087 %, y la cuota del ejemplo
+(945 595.97 sobre 10 000 000 a 12 meses) corresponde exactamente a ese 2 %.
+
+No es un defecto del cálculo: es una decisión documentada en el motor. Pero «Tasa anual» a secas
+se lee como **Efectiva Anual**, así que el campo ahora lo aclara
+(`TASA_NOMINAL_HELP`), y **`inversion` no lleva esa ayuda** porque no reparte nada. Cambiar el
+cálculo no era una opción: 003 es de presentación (FR-121).
+
+**T052/T053/T054**: 25 capturas (5 pantallas × 5 anchos) en `test-results/visual/simulators/` y
+**33/33 verde** —4 recorridos + 3 de accesibilidad + 1 de independencia externa + 45 capturas—
+con las suites sin tocar. En `styles.scss` **no queda nada que retirar**: las seis clases que
+quedan las siguen usando los grupos de perfil y editorial, que son los dos últimos. La deuda baja
+a **39 espacios en línea** (desde 94), **7 pantallas artesanales** (desde 19) y **39 errores de
+lint** (desde 89). Las pruebas unitarias pasan de 100 a **123**.
 
 **Checkpoint**: US3 entregable (SC-035).
 

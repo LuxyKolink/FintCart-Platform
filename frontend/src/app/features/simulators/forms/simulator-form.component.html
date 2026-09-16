@@ -1,94 +1,154 @@
 @switch (state()) {
   @case ('not-found') {
-    <p class="fc-banner fc-banner--error">Esa calculadora no existe.</p>
+    <fc-error-state
+      icon="calculator"
+      title="Esa calculadora no existe"
+      message="Puede que el enlace esté mal escrito o que la calculadora ya no esté disponible."
+      [retryLabel]="null"
+    >
+      <fc-link-button variant="secondary" to="/simuladores">Ver las calculadoras</fc-link-button>
+    </fc-error-state>
   }
   @case ('ready') {
     @if (definition(); as def) {
-      <section style="max-width: 640px; margin: 0 auto">
-        <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
-          <h1>{{ def.label }}</h1>
-          <a class="fc-btn fc-btn--secondary" routerLink="/simuladores">Cambiar calculadora</a>
-        </div>
-        <p class="fc-help">{{ def.description }}</p>
+      <div class="fc-sim">
+        <!-- El mismo riel que el selector (FR-107): las calculadoras acompañan al formulario. -->
+        <fc-calculator-rail [active]="def.calcType" />
 
-        @if (def.modes.length > 1) {
-          <nav style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4)">
-            @for (m of def.modes; track m.value) {
-              <button
-                type="button"
-                class="fc-btn"
-                [class.fc-btn--primary]="mode()?.value === m.value"
-                [class.fc-btn--secondary]="mode()?.value !== m.value"
-                (click)="selectModeValue(m.value)"
-              >
-                {{ m.label }}
-              </button>
-            }
-          </nav>
-        }
+        <div class="fc-sim__center">
+          <header class="fc-sim__head">
+            <h1 class="fc-sim__title">{{ def.label }}</h1>
+            <p class="fc-sim__lead">{{ def.description }}</p>
+          </header>
 
-        @if (mode(); as m) {
-          <form class="fc-module" [formGroup]="form()" (ngSubmit)="onSubmit()">
-            <div class="fc-module-body">
+          @if (def.modes.length > 1) {
+            <nav class="fc-sim__modes" aria-label="Modo de cálculo">
+              @for (m of def.modes; track m.value) {
+                <fc-button
+                  size="sm"
+                  [variant]="mode()?.value === m.value ? 'primary' : 'secondary'"
+                  (pressed)="selectModeValue(m.value)"
+                >
+                  {{ m.label }}
+                </fc-button>
+              }
+            </nav>
+          }
+
+          @if (mode(); as m) {
+            <form class="fc-sim__form" [formGroup]="form()" (ngSubmit)="onSubmit()">
               @if (errorMessage()) {
-                <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+                <fc-banner tone="error">{{ errorMessage() }}</fc-banner>
               }
               @if (crossFieldError()) {
-                <p class="fc-banner fc-banner--error">
+                <fc-banner tone="error">
                   Indica al menos un depósito inicial o un aporte mensual mayor que cero.
-                </p>
+                </fc-banner>
               }
 
-              @for (field of m.fields; track field.key) {
-                <div class="fc-field">
-                  <label class="fc-label" [for]="field.key">{{ field.label }}</label>
-                  @switch (field.kind) {
-                    @case ('select') {
-                      <select class="fc-input" [id]="field.key" [formControlName]="field.key">
-                        @for (opt of field.options; track opt.value) {
-                          <option [value]="opt.value">{{ opt.label }}</option>
-                        }
-                      </select>
-                    }
-                    @case ('periods') {
-                      <input class="fc-input" [id]="field.key" type="text" inputmode="numeric" [formControlName]="field.key" />
-                    }
-                    @default {
-                      <input
-                        class="fc-input"
-                        [id]="field.key"
-                        type="text"
-                        inputmode="decimal"
-                        placeholder="0.00"
-                        [formControlName]="field.key"
-                      />
-                    }
+              <div class="fc-sim__fields">
+                @for (field of m.fields; track field.key) {
+                  @if (field.kind === 'select') {
+                    <fc-select
+                      [label]="field.label"
+                      [options]="field.options ?? []"
+                      [hint]="field.help"
+                      [error]="fieldError(field.key) ?? undefined"
+                      [formControlName]="field.key"
+                    />
+                  } @else {
+                    <!--
+                      `inputMode` decide el teclado del móvil: un monto o una tasa se
+                      capturan con teclado decimal y un número de cuotas con el numérico.
+                      Sin declararlo, un dato que no puede tener letras abría un teclado
+                      alfabético.
+                    -->
+                    <fc-input
+                      [label]="field.label"
+                      [hint]="field.help"
+                      [error]="fieldError(field.key) ?? undefined"
+                      [inputMode]="field.kind === 'periods' ? 'numeric' : 'decimal'"
+                      placeholder="0.00"
+                      [formControlName]="field.key"
+                    />
                   }
-                  @if (field.help) {
-                    <span class="fc-help">{{ field.help }}</span>
-                  }
-                  @if (fieldError(field.key); as err) {
-                    <span class="fc-help" style="color: var(--color-danger-strong, #c0392b)">{{ err }}</span>
-                  }
+                }
+              </div>
+
+              <fc-button
+                variant="primary"
+                size="lg"
+                type="submit"
+                [block]="true"
+                [disabled]="submitState() === 'submitting'"
+              >
+                {{
+                  submitState() === 'submitting'
+                    ? 'Calculando…'
+                    : result()
+                      ? 'Actualizar resultado'
+                      : 'Calcular'
+                }}
+              </fc-button>
+            </form>
+
+            @if (result(); as r) {
+              <fc-simulation-result [fields]="m.resultFields" [result]="r.result" />
+            }
+          }
+
+          <div class="fc-sim__foot">
+            <fc-link-button variant="secondary" to="/simuladores/historial">
+              Ver historial
+            </fc-link-button>
+          </div>
+        </div>
+
+        <aside class="fc-sim__aside">
+          <fc-module-box title="Últimas simulaciones" accent="accent" [padded]="false">
+            <a fcActions class="fc-sim__more" routerLink="/simuladores/historial">Ver todas</a>
+
+            @switch (recentState()) {
+              @case ('loading') {
+                <div class="fc-sim__pad">
+                  <fc-skeleton [lines]="3" />
                 </div>
               }
-
-              <button class="fc-btn fc-btn--primary fc-btn--block" type="submit" [disabled]="submitState() === 'submitting'">
-                {{ submitState() === 'submitting' ? 'Calculando…' : result() ? 'Actualizar resultado' : 'Calcular' }}
-              </button>
-            </div>
-          </form>
-
-          @if (result(); as r) {
-            <div style="margin-top: var(--space-4)">
-              <fc-simulation-result [fields]="m.resultFields" [result]="r.result" />
-              <a class="fc-btn fc-btn--secondary" style="margin-top: var(--space-2); display: inline-block" routerLink="/simuladores/historial">
-                Ver historial
-              </a>
-            </div>
-          }
-        }
-      </section>
+              @case ('error') {
+                <div class="fc-sim__pad">
+                  <p class="fc-sim__note">No pudimos cargar tus últimas simulaciones.</p>
+                </div>
+              }
+              @case ('ready') {
+                @if (recent().length === 0) {
+                  <div class="fc-sim__pad">
+                    <p class="fc-sim__note">
+                      Todavía no has guardado ninguna simulación. La primera que ejecutes aparecerá
+                      aquí.
+                    </p>
+                  </div>
+                } @else {
+                  <ul class="fc-sim__recent">
+                    @for (entry of recent(); track entry.simulation_id) {
+                      <li class="fc-sim__recent-item">
+                        <span class="fc-sim__recent-label">{{ labelOf(entry) }}</span>
+                        <!--
+                          Un `<span>` con `.fc-num`, no un `<dd>`: `us2` busca el primer
+                          `dd.fc-num` de la pantalla y ese tiene que ser el del resultado.
+                        -->
+                        <span class="fc-num fc-sim__recent-value">{{ primaryOf(entry).value }}</span>
+                        <time class="fc-sim__recent-time" [attr.datetime]="entry.created_at">
+                          {{ entry.created_at | date: 'short' }}
+                        </time>
+                      </li>
+                    }
+                  </ul>
+                }
+              }
+            }
+          </fc-module-box>
+        </aside>
+      </div>
     }
   }
 }

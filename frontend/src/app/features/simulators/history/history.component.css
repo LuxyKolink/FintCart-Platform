@@ -1,0 +1,126 @@
+/*
+ * Historial de simulaciones (T047). Una tabla comparable: los valores de la misma
+ * naturaleza quedan en la misma columna, y lo que no cabe se desplaza DENTRO de la tabla
+ * para que la página no se mueva (FR-127).
+ */
+
+.fc-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.fc-history__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-history__title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  overflow-wrap: anywhere;
+}
+
+.fc-history__lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.fc-history__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fc-history__scroll {
+  overflow-x: auto;
+  border: var(--border-hairline) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.fc-history__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.fc-history__caption {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.fc-history__table th,
+.fc-history__table td {
+  padding: var(--space-3);
+  text-align: left;
+  vertical-align: top;
+}
+
+.fc-history__table thead th {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: var(--border-hairline) solid var(--border-default);
+  white-space: nowrap;
+}
+
+.fc-history__table tbody tr + tr > * {
+  border-top: var(--border-hairline) dotted var(--border-default);
+}
+
+.fc-history__calc {
+  white-space: nowrap;
+}
+
+.fc-history__when {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.fc-history__pairs {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* La columna puede crecer con un nombre largo, pero nunca por debajo de esto. */
+  min-width: 12rem;
+}
+
+.fc-history__pair {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+}
+
+.fc-history__key {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  /* FR-120: el nombre completo se conserva y se parte antes que desbordar la celda. */
+  overflow-wrap: anywhere;
+}
+
+/*
+ * N-15: una cifra monetaria NUNCA se recorta. Aquí no hay `text-overflow` ni
+ * `line-clamp`; si la cifra no cabe junto a su etiqueta, la fila envuelve y baja la cifra
+ * entera a la línea siguiente.
+ */
+.fc-history__value {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.fc-history__more {
+  display: flex;
+}

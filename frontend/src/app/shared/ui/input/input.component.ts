@@ -31,6 +31,7 @@ let nextId = 0;
           [type]="type()"
           [placeholder]="placeholder() ?? ''"
           [attr.autocomplete]="autocomplete()"
+          [attr.inputmode]="inputMode()"
           [attr.aria-invalid]="!!error() || null"
           [attr.aria-describedby]="hint() || error() ? inputId + '-help' : null"
           [disabled]="disabled()"
@@ -63,6 +64,12 @@ export class InputComponent implements ControlValueAccessor {
   readonly placeholder = input<string>();
   /** Se reenvía al `<input>` interno: sin esto los gestores de contraseñas no reconocen el campo. */
   readonly autocomplete = input<string | null>(null);
+  /**
+   * Teclado que el sistema operativo ofrece en móvil. Un monto se captura con
+   * `decimal` y un número de cuotas con `numeric`: sin declararlo, el campo abre un
+   * teclado alfabético para un dato que no puede tener letras.
+   */
+  readonly inputMode = input<'text' | 'decimal' | 'numeric' | 'email' | 'tel' | 'url' | 'search' | null>(null);
 
   protected readonly inputId = `fc-input-${++nextId}`;
   protected readonly value = signal('');

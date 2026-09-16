@@ -1,16 +1,33 @@
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import {
+  BannerComponent,
+  ButtonComponent,
+  ErrorStateComponent,
+  InputComponent,
+  LinkButtonComponent,
+  ModuleBoxComponent,
+  SelectComponent,
+  SkeletonComponent,
+} from '../../../shared/ui';
 import * as decimalStr from '../../../shared/decimal-str';
 import { CalculatorDefinition, CalculatorMode, FieldConfig, calculatorFor } from '../calculators.config';
 import { moneyValidator, periodsValidator, rateValidator } from '../decimal-validators';
+import { calcLabelOf, primaryResult } from '../history-rows';
+import { CalculatorRailComponent } from '../rail/calculator-rail.component';
 import { ResultComponent } from '../result/result.component';
 import { SimulationError, SimulatorsService } from '../simulators.service';
-import { CalcType, SimulationResult } from '../simulators.types';
+import { CalcType, SimulationHistoryEntry, SimulationResult } from '../simulators.types';
 
 type LoadState = 'ready' | 'not-found';
 type SubmitState = 'idle' | 'submitting' | 'error';
+type PanelState = 'loading' | 'ready' | 'error';
+
+/** Cuántas simulaciones recientes caben en el riel sin que haya que desplazarse. */
+const RECENT_LIMIT = 3;
 
 /**
  * Formulario de parámetros de una calculadora (T125, FR-019–FR-021).
@@ -33,8 +50,23 @@ type SubmitState = 'idle' | 'submitting' | 'error';
 @Component({
   selector: 'fc-simulator-form',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, ResultComponent],
+  imports: [
+    DatePipe,
+    ReactiveFormsModule,
+    RouterLink,
+    BannerComponent,
+    ButtonComponent,
+    CalculatorRailComponent,
+    ErrorStateComponent,
+    InputComponent,
+    LinkButtonComponent,
+    ModuleBoxComponent,
+    ResultComponent,
+    SelectComponent,
+    SkeletonComponent,
+  ],
   templateUrl: './simulator-form.component.html',
+  styleUrl: './simulator-form.component.css',
 })
 export class SimulatorFormComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
@@ -50,6 +82,14 @@ export class SimulatorFormComponent implements OnInit {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly result = signal<SimulationResult | null>(null);
 
+  /**
+   * Riel de «últimas simulaciones». Es la tercera zona del kit y la única forma de
+   * comparar sin salir del formulario. Vive aparte del resultado: que falle no puede
+   * impedir calcular.
+   */
+  protected readonly recentState = signal<PanelState>('loading');
+  protected readonly recent = signal<SimulationHistoryEntry[]>([]);
+
   private calcType: CalcType | null = null;
 
   public ngOnInit(): void {
@@ -61,6 +101,7 @@ export class SimulatorFormComponent implements OnInit {
     }
     this.calcType = def.calcType;
     this.definition.set(def);
+    this.loadRecent();
     const firstMode = def.modes[0];
     if (firstMode !== undefined) {
       this.selectMode(firstMode);
@@ -154,6 +195,10 @@ export class SimulatorFormComponent implements OnInit {
       next: (res) => {
         this.submitState.set('idle');
         this.result.set(res);
+        // El servidor guarda el intento al ejecutarlo, así que el riel se relee para
+        // reflejarlo: si no, el usuario vería «todavía no has guardado ninguna» justo
+        // después de guardar una.
+        this.loadRecent();
       },
       error: (err: unknown) => {
         this.submitState.set('error');
@@ -162,6 +207,14 @@ export class SimulatorFormComponent implements OnInit {
         );
       },
     });
+  }
+
+  protected labelOf(entry: SimulationHistoryEntry): string {
+    return calcLabelOf(entry);
+  }
+
+  protected primaryOf(entry: SimulationHistoryEntry): { label: string; value: string } {
+    return primaryResult(entry);
   }
 
   protected fieldError(key: string): string | null {
@@ -192,6 +245,17 @@ export class SimulatorFormComponent implements OnInit {
       return 'Debe estar entre 1 y 1200.';
     }
     return 'Valor inválido.';
+  }
+
+  private loadRecent(): void {
+    this.recentState.set('loading');
+    this.api.listHistory(undefined).subscribe({
+      next: (page) => {
+        this.recent.set(page.items.slice(0, RECENT_LIMIT));
+        this.recentState.set('ready');
+      },
+      error: () => this.recentState.set('error'),
+    });
   }
 
   private satisfiesAtLeastOne(mode: CalculatorMode, form: FormGroup): boolean {

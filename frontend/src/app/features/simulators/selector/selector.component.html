@@ -1,17 +1,39 @@
-<section>
-  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
-    <h1>Simuladores financieros</h1>
-    <a class="fc-btn fc-btn--secondary" routerLink="/simuladores/historial">Ver tu historial</a>
-  </div>
+<div class="fc-sims">
+  <fc-calculator-rail />
 
-  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4)">
-    @for (calc of calculators; track calc.calcType) {
-      <a class="fc-module" [routerLink]="['/simuladores', calc.calcType]" style="display: block; color: inherit">
-        <header>{{ calc.label }}</header>
-        <div class="fc-module-body">
-          <p class="fc-help" style="margin: 0">{{ calc.description }}</p>
-        </div>
-      </a>
-    }
+  <div class="fc-sims__center">
+    <header class="fc-sims__head">
+      <h1 class="fc-sims__title">Simuladores financieros</h1>
+      <p class="fc-sims__lead">
+        {{ calculatorCount }} calculadoras para poner tus números en pesos. Elige una en el riel
+        para abrir su formulario.
+      </p>
+    </header>
+
+    <fc-card>
+      <h2 class="fc-sims__section">Cómo funciona</h2>
+      <ol class="fc-sims__steps">
+        <li>Elige una calculadora del riel.</li>
+        <li>Escribe los parámetros en pesos y tasas, tal como los tienes.</li>
+        <li>
+          El cálculo lo hace el Simulador con aritmética decimal exacta y el resultado queda en tu
+          historial, para que puedas compararlo con el de otra simulación.
+        </li>
+      </ol>
+
+      <p class="fc-sims__note">
+        <fc-icon name="shield-check" [size]="16" />
+        FintCart no almacena datos bancarios reales: solo los parámetros que escribes aquí.
+      </p>
+
+      <div class="fc-sims__actions">
+        <fc-link-button variant="primary" [to]="['/simuladores', calculators[0].calcType]">
+          Empezar con {{ calculators[0].label }}
+        </fc-link-button>
+        <fc-link-button variant="secondary" to="/simuladores/historial">
+          Ver tu historial
+        </fc-link-button>
+      </div>
+    </fc-card>
   </div>
-</section>
+</div>

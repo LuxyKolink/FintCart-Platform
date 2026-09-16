@@ -1,0 +1,79 @@
+/*
+ * Resultado de una simulación (T046/T049, FR-108).
+ *
+ * La tipografía de datos la pone `.fc-num` (primitiva de `tokens/base.css`): monoespaciada
+ * con cifras tabulares, para que las cifras se alineen entre filas y se distingan de un
+ * vistazo del texto corrido. Aquí solo se dispone y se da jerarquía.
+ */
+
+.fc-result {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/*
+ * `flex-wrap` es la garantía de N-15: si una cifra no cabe junto a su etiqueta, la fila
+ * envuelve y la cifra pasa a su propia línea **completa**, en lugar de encogerse,
+ * recortarse o abreviarse. No hay `text-overflow` ni `line-clamp` en ninguna regla de
+ * dinero, y no debe haberlos: un importe cortado es un importe distinto.
+ */
+.fc-result__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-hairline) dotted var(--border-default);
+}
+
+.fc-result__row:last-child {
+  border-bottom: 0;
+}
+
+.fc-result__row--primary {
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hairline) solid var(--border-default);
+}
+
+.fc-result__label {
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.fc-result__row--primary .fc-result__label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fc-result__value {
+  margin: 0 0 0 auto;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  text-align: right;
+  /* Nunca parte una cifra por la mitad; si no cabe, la fila entera la baja de línea. */
+  white-space: nowrap;
+}
+
+.fc-result__row--primary .fc-result__value {
+  font-size: var(--fs-2xl);
+}
+
+.fc-result__caption {
+  margin: var(--space-3) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+@media (max-width: 767.98px) {
+  .fc-result__row--primary .fc-result__value {
+    font-size: var(--fs-xl);
+  }
+}

@@ -1,0 +1,160 @@
+/*
+ * Formulario de una calculadora (T045/T050). Tres zonas: riel, formulario con su
+ * resultado, y resumen de las últimas simulaciones. Igual que el catálogo, bajo `--bp-md`
+ * el riel se vuelve horizontal (en su propia hoja) y el resumen baja.
+ */
+
+.fc-sim {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr) 260px;
+  grid-template-areas: 'rail center aside';
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.fc-sim > fc-calculator-rail {
+  grid-area: rail;
+  min-width: 0;
+}
+
+.fc-sim__center {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.fc-sim__aside {
+  grid-area: aside;
+  min-width: 0;
+}
+
+.fc-sim__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fc-sim__title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  overflow-wrap: anywhere;
+}
+
+.fc-sim__lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.fc-sim__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fc-sim__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.fc-sim__fields {
+  display: grid;
+  /* Dos columnas cuando hay ancho; una sola en un móvil. Nunca una columna más estrecha
+     que el propio campo, que es lo que haría que un monto no cupiera. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.fc-sim__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fc-sim__pad {
+  padding: var(--space-3);
+}
+
+.fc-sim__note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.fc-sim__more {
+  font-size: var(--fs-xs);
+}
+
+.fc-sim__recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fc-sim__recent-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+}
+
+.fc-sim__recent-item + .fc-sim__recent-item {
+  border-top: var(--border-hairline) dotted var(--border-default);
+}
+
+.fc-sim__recent-label {
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+}
+
+.fc-sim__recent-value {
+  color: var(--text-body);
+}
+
+.fc-sim__recent-time {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+/* Bajo `--bp-lg` cae primero el resumen; bajo `--bp-md`, el riel pasa arriba y horizontal. */
+@media (max-width: 1023.98px) {
+  .fc-sim {
+    grid-template-columns: 230px minmax(0, 1fr);
+    grid-template-areas:
+      'rail center'
+      'aside aside';
+  }
+
+  .fc-sim__aside {
+    max-width: 460px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .fc-sim {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'rail'
+      'center'
+      'aside';
+  }
+
+  .fc-sim__aside {
+    max-width: none;
+  }
+
+  .fc-sim__form {
+    padding: var(--space-3);
+  }
+}

@@ -1,44 +1,68 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
-import { CalculatorMode, FieldKind, ResultKind, calculatorFor } from '../calculators.config';
-import * as resultFormat from '../result-format';
+import {
+  BadgeComponent,
+  ButtonComponent,
+  EmptyStateComponent,
+  ErrorStateComponent,
+  LinkButtonComponent,
+  SkeletonComponent,
+} from '../../../shared/ui';
+import { calcLabelOf, inputRows, resultRows } from '../history-rows';
 import { SimulatorsService } from '../simulators.service';
 import { SimulationHistoryEntry } from '../simulators.types';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
-interface Row {
-  label: string;
-  value: string;
+/** Una fila con sus parámetros y su resultado ya resueltos, para no resolverlos dos veces. */
+interface HistoryRow {
+  readonly entry: SimulationHistoryEntry;
+  readonly label: string;
+  readonly inputs: readonly { label: string; value: string }[];
+  readonly results: readonly { label: string; value: string }[];
 }
 
-/** Historial de simulaciones del usuario (T127, FR-022). */
+/**
+ * Historial de simulaciones (T047, FR-022, FR-110).
+ *
+ * Una TABLA y no una lista de tarjetas: FR-110 pide poder **comparar** ejecuciones sin
+ * abrir cada una, y comparar es mirar valores en la misma columna. Los parámetros y el
+ * resultado de cada simulación se muestran en su fila, ya formateados, así que no hay
+ * nada que desplegar para verlos.
+ *
+ * La tabla se desplaza DENTRO de su contenedor cuando no cabe (FR-127): una comparación
+ * pierde su sentido si hay que mover la página entera para leer la última columna.
+ */
 @Component({
   selector: 'fc-simulation-history',
   standalone: true,
-  imports: [RouterLink, DatePipe],
+  imports: [
+    DatePipe,
+    BadgeComponent,
+    ButtonComponent,
+    EmptyStateComponent,
+    ErrorStateComponent,
+    LinkButtonComponent,
+    SkeletonComponent,
+  ],
   templateUrl: './history.component.html',
+  styleUrl: './history.component.css',
 })
 export class HistoryComponent implements OnInit {
   private readonly api = inject(SimulatorsService);
 
   protected readonly state = signal<LoadState>('loading');
-  protected readonly entries = signal<SimulationHistoryEntry[]>([]);
+  protected readonly rows = signal<HistoryRow[]>([]);
   protected readonly nextPageToken = signal<string | undefined>(undefined);
   protected readonly loadingMore = signal(false);
 
   public ngOnInit(): void {
-    this.state.set('loading');
-    this.api.listHistory(undefined).subscribe({
-      next: (page) => {
-        this.entries.set(page.items);
-        this.nextPageToken.set(page.next_page_token);
-        this.state.set('ready');
-      },
-      error: () => this.state.set('error'),
-    });
+    this.load();
+  }
+
+  protected retry(): void {
+    this.load();
   }
 
   protected loadMore(): void {
@@ -49,7 +73,7 @@ export class HistoryComponent implements OnInit {
     this.loadingMore.set(true);
     this.api.listHistory(token).subscribe({
       next: (page) => {
-        this.entries.set([...this.entries(), ...page.items]);
+        this.rows.set([...this.rows(), ...page.items.map((entry) => this.toRow(entry))]);
         this.nextPageToken.set(page.next_page_token);
         this.loadingMore.set(false);
       },
@@ -57,52 +81,24 @@ export class HistoryComponent implements OnInit {
     });
   }
 
-  protected calcLabel(entry: SimulationHistoryEntry): string {
-    return calculatorFor(entry.calc_type)?.label ?? entry.calc_type;
-  }
-
-  protected inputRows(entry: SimulationHistoryEntry): Row[] {
-    const mode = this.modeFor(entry);
-    return Object.entries(entry.inputs)
-      .filter(([key]) => key !== 'operacion')
-      .map(([key, value]) => {
-        const field = mode?.fields.find((f) => f.key === key);
-        return { label: field?.label ?? key, value: this.formatValue(value, field?.kind) };
-      });
-  }
-
-  protected resultRows(entry: SimulationHistoryEntry): Row[] {
-    const mode = this.modeFor(entry);
-    return Object.entries(entry.result).map(([key, value]) => {
-      const resultField = mode?.resultFields.find((f) => f.key === key);
-      return { label: resultField?.label ?? key, value: this.formatValue(value, resultField?.kind) };
+  private load(): void {
+    this.state.set('loading');
+    this.api.listHistory(undefined).subscribe({
+      next: (page) => {
+        this.rows.set(page.items.map((entry) => this.toRow(entry)));
+        this.nextPageToken.set(page.next_page_token);
+        this.state.set('ready');
+      },
+      error: () => this.state.set('error'),
     });
   }
 
-  private modeFor(entry: SimulationHistoryEntry): CalculatorMode | undefined {
-    const def = calculatorFor(entry.calc_type);
-    if (def === undefined) {
-      return undefined;
-    }
-    if (def.modes.length === 1) {
-      return def.modes[0];
-    }
-    const operation = entry.inputs['operacion'];
-    return def.modes.find((m) => m.value === operation) ?? def.modes[0];
-  }
-
-  private formatValue(raw: string, kind: FieldKind | ResultKind | undefined): string {
-    try {
-      if (kind === 'money') {
-        return resultFormat.formatMoney(raw);
-      }
-      if (kind === 'rate') {
-        return resultFormat.formatRate(raw);
-      }
-    } catch {
-      // Un valor histórico que ya no cumple el formato canónico (no debería ocurrir)
-      // se muestra tal cual en lugar de romper toda la fila.
-    }
-    return raw;
+  private toRow(entry: SimulationHistoryEntry): HistoryRow {
+    return {
+      entry,
+      label: calcLabelOf(entry),
+      inputs: inputRows(entry),
+      results: resultRows(entry),
+    };
   }
 }

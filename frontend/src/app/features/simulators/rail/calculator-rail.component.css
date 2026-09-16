@@ -1,0 +1,65 @@
+/*
+ * Riel de calculadoras (T044). Comparte forma con el riel de categorías del catálogo:
+ * una lista de enlaces con la opción activa marcada por barra de acento, fondo y peso.
+ */
+
+.fc-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fc-rail__link {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  /* FR-120: un nombre largo de calculadora se parte antes que desbordar el riel. */
+  overflow-wrap: anywhere;
+  color: var(--text-link);
+  border-left: var(--border-accent) solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.fc-rail__link:hover {
+  background: var(--purple-50);
+  text-decoration: none;
+}
+
+/*
+ * La opción activa se marca con tres señales —barra de acento, fondo y peso— y no solo
+ * con color: el mismo criterio que en la bandeja (FR-106) y en el cuestionario.
+ */
+.fc-rail__link--active {
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  background: var(--surface-sunken);
+  border-left-color: var(--brand-primary);
+}
+
+/*
+ * T050 / FR-126: bajo `--bp-md` (768 px, ver `tokens/breakpoints.css`) el riel deja de
+ * ser una columna y pasa a ser un selector horizontal que se desplaza DENTRO de su
+ * contenedor: la página nunca se mueve en horizontal (FR-127). Las propiedades
+ * personalizadas no se resuelven dentro de `@media`, así que el literal va escrito.
+ */
+@media (max-width: 767.98px) {
+  .fc-rail__list {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: var(--space-2);
+  }
+
+  .fc-rail__link {
+    white-space: nowrap;
+    border-left: 0;
+    border-bottom: var(--border-accent) solid transparent;
+  }
+
+  .fc-rail__link--active {
+    border-left-color: transparent;
+    border-bottom-color: var(--brand-primary);
+  }
+}

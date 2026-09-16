@@ -1,65 +1,99 @@
-<section>
-  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2)">
-    <h1>Tu historial de simulaciones</h1>
-    <a class="fc-btn fc-btn--secondary" routerLink="/simuladores">Nueva simulación</a>
-  </div>
+<section class="fc-history">
+  <header class="fc-history__head">
+    <h1 class="fc-history__title">Tu historial de simulaciones</h1>
+    <p class="fc-history__lead">
+      Cada fila es una simulación completa, con sus parámetros y su resultado, para que puedas
+      compararlas sin abrir ninguna.
+    </p>
+  </header>
 
   @switch (state()) {
     @case ('loading') {
-      <p>Cargando historial…</p>
+      <div class="fc-history__skeleton">
+        <fc-skeleton variant="title" />
+        <fc-skeleton [lines]="6" />
+      </div>
     }
     @case ('error') {
-      <p class="fc-banner fc-banner--error">No pudimos cargar tu historial. Intenta de nuevo.</p>
+      <fc-error-state
+        icon="calculator"
+        title="No pudimos cargar tu historial"
+        message="Puede que hayas perdido la conexión. Tus simulaciones siguen guardadas."
+        (retry)="retry()"
+      />
     }
     @case ('ready') {
-      @if (entries().length === 0) {
-        <p>Todavía no has ejecutado ninguna simulación.</p>
+      @if (rows().length === 0) {
+        <!-- FR-119: el kit siempre tiene historial; el caso vacío es el de todo usuario nuevo. -->
+        <fc-empty-state
+          icon="calculator"
+          title="Todavía no has ejecutado ninguna simulación"
+          message="Elige una calculadora, escribe tus números y el resultado quedará aquí para compararlo más adelante."
+        >
+          <fc-link-button variant="primary" to="/simuladores">Ir a las calculadoras</fc-link-button>
+        </fc-empty-state>
       } @else {
-        <div style="display: flex; flex-direction: column; gap: var(--space-4)">
-          @for (entry of entries(); track entry.simulation_id) {
-            <article class="fc-module">
-              <header style="display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2)">
-                <span>{{ calcLabel(entry) }}</span>
-                <time class="fc-help" [attr.datetime]="entry.created_at">{{ entry.created_at | date: 'medium' }}</time>
-              </header>
-              <div class="fc-module-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4)">
-                <div>
-                  <p class="fc-label" style="margin: 0 0 var(--space-1)">Parámetros</p>
-                  <dl style="margin: 0">
-                    @for (row of inputRows(entry); track row.label) {
-                      <div style="display: flex; justify-content: space-between; gap: var(--space-2)">
-                        <dt class="fc-help">{{ row.label }}</dt>
-                        <dd class="fc-num" style="margin: 0">{{ row.value }}</dd>
-                      </div>
-                    }
-                  </dl>
-                </div>
-                <div>
-                  <p class="fc-label" style="margin: 0 0 var(--space-1)">Resultado</p>
-                  <dl style="margin: 0">
-                    @for (row of resultRows(entry); track row.label) {
-                      <div style="display: flex; justify-content: space-between; gap: var(--space-2)">
-                        <dt class="fc-help">{{ row.label }}</dt>
-                        <dd class="fc-num" style="margin: 0">{{ row.value }}</dd>
-                      </div>
-                    }
-                  </dl>
-                </div>
-              </div>
-            </article>
-          }
+        <div class="fc-history__scroll">
+          <table class="fc-history__table">
+            <caption class="fc-history__caption">
+              Simulaciones ejecutadas, de la más reciente a la más antigua
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Calculadora</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Resultado</th>
+                <th scope="col">Parámetros</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.entry.simulation_id) {
+                <tr>
+                  <th scope="row" class="fc-history__calc">
+                    <fc-badge tone="neutral">{{ row.label }}</fc-badge>
+                  </th>
+                  <td class="fc-history__when">
+                    <time [attr.datetime]="row.entry.created_at">
+                      {{ row.entry.created_at | date: 'short' }}
+                    </time>
+                  </td>
+                  <td>
+                    <!--
+                      `<dl>` con `<dt>`/`<dd>`: es una lista de pares nombre-valor, y ese es
+                      el marcado que la suite de extremo a extremo busca (`dt` con «Cuota
+                      mensual»). Los valores van con la tipografía de datos (FR-108).
+                    -->
+                    <dl class="fc-history__pairs">
+                      @for (item of row.results; track item.label) {
+                        <div class="fc-history__pair">
+                          <dt class="fc-history__key">{{ item.label }}</dt>
+                          <dd class="fc-num fc-history__value">{{ item.value }}</dd>
+                        </div>
+                      }
+                    </dl>
+                  </td>
+                  <td>
+                    <dl class="fc-history__pairs">
+                      @for (item of row.inputs; track item.label) {
+                        <div class="fc-history__pair">
+                          <dt class="fc-history__key">{{ item.label }}</dt>
+                          <dd class="fc-num fc-history__value">{{ item.value }}</dd>
+                        </div>
+                      }
+                    </dl>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
         </div>
 
         @if (nextPageToken()) {
-          <button
-            type="button"
-            class="fc-btn fc-btn--secondary"
-            style="margin-top: var(--space-4)"
-            [disabled]="loadingMore()"
-            (click)="loadMore()"
-          >
-            {{ loadingMore() ? 'Cargando…' : 'Cargar más' }}
-          </button>
+          <div class="fc-history__more">
+            <fc-button variant="secondary" [disabled]="loadingMore()" (pressed)="loadMore()">
+              {{ loadingMore() ? 'Cargando…' : 'Cargar más' }}
+            </fc-button>
+          </div>
         }
       }
     }
