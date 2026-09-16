@@ -27,7 +27,8 @@
 
 use rust_decimal::Decimal;
 
-use crate::calculators::{annuity, Outcome};
+use crate::calculators::Outcome;
+use crate::domain::annuity;
 use crate::domain::currency::round_money;
 use crate::domain::error::{Error, Result};
 use crate::domain::inputs::Inputs;

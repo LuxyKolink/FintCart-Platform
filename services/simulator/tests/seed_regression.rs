@@ -51,13 +51,16 @@
 //!
 //! - [`el_motor_no_hereda_los_panicos_del_codigo_nativo`]: `ahorro.rs:60` multiplica con `*`,
 //!   que aborta al desbordar, y el motor no, porque su evaluador usa `checked_mul`.
-//! - [`el_motor_hereda_los_panicos_de_annuity`]: por la vía de `cuota`/`vf_serie` el motor
-//!   **sí** aborta, porque comparte `calculators::annuity` con el nativo y ahí las
-//!   multiplicaciones también son `*`. **Está pendiente de corrección**, como cambio propio.
+//! - [`annuity_no_entra_en_panico_y_el_motor_tampoco`]: por la vía de `cuota`/`vf_serie` el
+//!   motor **sí** abortaba, porque compartía `annuity` con el nativo y ahí las
+//!   multiplicaciones también eran `*` —al contrario de lo que prometía la documentación del
+//!   módulo—. **Corregido en T098** (D-27) al mudar `annuity` a `domain`: ahora los dos
+//!   devuelven un error de dominio.
 //!
 //! Las cifras de la tabla, para que un cambio futuro en ellas se lea como lo que es: `ahorro`
-//! tiene 3 casos en los que solo aborta el nativo y 2 en los que abortan los dos; `credito`,
-//! 2 en los que abortan los dos. Los otros cinco no tienen ninguno.
+//! conserva 3 casos en los que solo aborta el NATIVO —su `ahorro.rs` sigue multiplicando con
+//! `*`, y ese archivo lo retira T098— y **cero** en los que abortan los dos. Los otros seis no
+//! tienen ninguno.
 
 use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
@@ -134,11 +137,14 @@ enum Desenlace {
     /// Las dos entraron en **pánico**.
     ///
     /// No es «las dos rechazaron». Coinciden en abortar, que no es coincidir en un resultado:
-    /// ninguna de las dos produjo nada que se pueda comparar. Ocurre porque el motor **comparte**
-    /// `calculators::annuity` con el nativo —decisión deliberada de T083, para que esta suite no
-    /// comparara el motor contra sí mismo— y ese módulo multiplica con `*` en vez de con
-    /// `checked_mul`, al contrario de lo que promete su propia documentación. Ver
-    /// [`el_motor_hereda_los_panicos_de_annuity`].
+    /// ninguna de las dos produjo nada que se pueda comparar.
+    ///
+    /// Ocurría porque el motor **comparte** `annuity` con el nativo —decisión deliberada de
+    /// T083, para que esta suite no comparara el motor contra sí mismo— y ese módulo
+    /// multiplicaba con `*` en vez de con `checked_mul`. **Corregido en T098** (D-27), así que
+    /// hoy esta variante es inalcanzable y su tope está en cero para todas las semillas: no se
+    /// retira para que, si alguien reintroduce una multiplicación que aborta en un camino que
+    /// las dos comparten, la cuenta lo diga en vez de pasar por un rechazo.
     PanicoCompartido,
 }
 
@@ -603,7 +609,7 @@ fn ahorro_reproduce_el_codigo_nativo() {
         }));
     }
 
-    exige("ahorro", &recuento, 40, 3, 2);
+    exige("ahorro", &recuento, 40, 3, 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -698,7 +704,7 @@ fn credito_reproduce_el_codigo_nativo() {
         }));
     }
 
-    exige("credito", &recuento, 40, 0, 2);
+    exige("credito", &recuento, 40, 0, 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1077,30 +1083,24 @@ fn el_motor_no_hereda_los_panicos_del_codigo_nativo() {
     );
 }
 
-/// El motor **sí** hereda los pánicos de `calculators::annuity`.
+/// `annuity` ya NO entra en pánico, y el motor tampoco (D-27, T098).
 ///
-/// Es la cara opuesta del hallazgo anterior, y la que de verdad importa de cara a producción:
-/// aquí quien aborta es el MOTOR. `cuota(...)` no reimplementa la cuota —T083 decidió que
-/// delegara en `annuity::level_payment` para que esta suite no comparara el motor contra sí
-/// mismo, y esa decisión sigue siendo la correcta—, y `annuity.rs:104` multiplica con `*`:
+/// Aquí vivía la cara opuesta de [`el_motor_no_hereda_los_panicos_del_codigo_nativo`]: un
+/// caso en el que las DOS implementaciones abortaban, porque el motor comparte `annuity` con
+/// el código nativo y ese módulo multiplicaba con `*` en vez de con `checked_mul`, al
+/// contrario de lo que prometía su propia documentación.
 ///
-/// ```text
-/// (principal * rate * factor).checked_div(factor - Decimal::ONE)
-/// ```
+/// Se corrigió en T098 al mudar el módulo a `domain`, y conviene notar cómo se supo: la
+/// suite ACOTABA estos casos en lugar de ignorarlos, y esa cota es lo que hizo que esta
+/// prueba fallara sola en cuanto el código nativo dejó de abortar. Un `#[ignore]` o un
+/// «no se comparan» sin número habrían dejado pasar la corrección sin decir nada.
 ///
-/// La división está protegida y la multiplicación que la alimenta no. Lo mismo en
-/// `annuity.rs:74` y `:80` (`payment * …`), que son la vía de `vf_serie`. Su documentación
-/// promete lo contrario —«[`Error::InvalidInput`] si el cálculo desborda»—, así que el módulo
-/// incumple su propio contrato, y `functions.rs` hereda la promesa al decir que «ningún camino
-/// entra en pánico».
-///
-/// **No se arregla en esta tarea.** Cambiar la aritmética de referencia mientras se establece
-/// la suite de regresión debilitaría justo la evidencia que la suite existe para dar: ya no se
-/// sabría si las semillas reproducen el código nativo de hoy o uno modificado. Se corrige
-/// después, como cambio propio, y esta suite —que ya compara todas las combinaciones que sí se
-/// pueden comparar— dirá si algo se movió.
+/// Lo que se fija ahora es la propiedad que importa, y no un recuento: los dos devuelven un
+/// error de DOMINIO. Un pánico en el hilo del RPC se convierte en un fallo interno del
+/// servicio, así que el usuario que escribió un plazo irrazonable vería «error del servidor»
+/// en lugar del parámetro que envió mal.
 #[test]
-fn el_motor_hereda_los_panicos_de_annuity() {
+fn annuity_no_entra_en_panico_y_el_motor_tampoco() {
     let desbordante: HashMap<String, String> = [
         ("monto", "50000000"),
         ("tasa_anual", "0.6"),
@@ -1110,21 +1110,24 @@ fn el_motor_hereda_los_panicos_de_annuity() {
     .map(|(key, value)| (key.to_owned(), value.to_owned()))
     .collect();
 
+    let nativo = catch_unwind(AssertUnwindSafe(|| {
+        credito::compute(&Inputs::new(&desbordante))
+    }));
+    let nativo =
+        nativo.expect("`annuity` ya no debe abortar: sus multiplicaciones son `checked_mul`");
     assert!(
-        catch_unwind(AssertUnwindSafe(|| credito::compute(&Inputs::new(
-            &desbordante
-        ))))
-        .is_err(),
-        "el código nativo ya no entra en pánico en `credito`; revisar la nota"
+        matches!(nativo, Err(Error::InvalidInput(_))),
+        "el nativo debe devolver un error de dominio y no un pánico, ni un resultado: {nativo:?}"
     );
 
     let seed = semilla("credito");
+    let motor = catch_unwind(AssertUnwindSafe(|| {
+        seed.definition.run(&desbordante, &HashMap::new())
+    }));
+    let motor = motor.expect("el motor hereda `annuity`, así que tampoco debe abortar");
     assert!(
-        catch_unwind(AssertUnwindSafe(|| seed
-            .definition
-            .run(&desbordante, &HashMap::new())))
-        .is_err(),
-        "el motor ya no entra en pánico: si `annuity` se corrigió, esta prueba y su nota sobran"
+        matches!(motor, Err(Error::InvalidInput(_))),
+        "el motor debe devolver un error de dominio: {motor:?}"
     );
 }
 

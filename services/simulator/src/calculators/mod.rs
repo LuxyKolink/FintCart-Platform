@@ -23,7 +23,7 @@
 use rust_decimal::Decimal;
 
 pub mod ahorro;
-pub mod annuity;
+
 pub mod colombia;
 pub mod credito;
 pub mod inversion;

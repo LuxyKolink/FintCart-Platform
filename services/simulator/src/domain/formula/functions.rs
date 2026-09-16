@@ -18,7 +18,7 @@
 //!
 //! ## Las primitivas financieras NO se reimplementan aquí
 //!
-//! `cuota`, `vf_serie` y `tasa_periodica` delegan en [`crate::calculators::annuity`],
+//! `cuota`, `vf_serie` y `tasa_periodica` delegan en [`crate::domain::annuity`],
 //! que es el módulo que ya usan las cinco calculadoras nativas. Reimplementar las
 //! fórmulas en este archivo crearía dos definiciones de la misma cuota, y la suite de
 //! regresión de las semillas (T092) compararía el motor contra sí mismo en lugar de
@@ -34,7 +34,7 @@
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, MathematicalOps};
 
-use crate::calculators::annuity;
+use crate::domain::annuity;
 use crate::domain::currency::round_money;
 use crate::domain::decimal_str;
 use crate::domain::error::{Error, Result as DomainResult};

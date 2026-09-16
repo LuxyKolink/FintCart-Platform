@@ -24,7 +24,7 @@
 
 use std::collections::HashMap;
 
-use fintcart_simulator::calculators::annuity;
+use fintcart_simulator::domain::annuity;
 use fintcart_simulator::domain::currency::{self, round_money};
 use fintcart_simulator::domain::decimal_str;
 use fintcart_simulator::domain::dispatch::{self, Kind};

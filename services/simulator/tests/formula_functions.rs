@@ -2,7 +2,7 @@
 //!
 //! ## Qué se compara contra qué, y por qué es lo importante de esta suite
 //!
-//! Las primitivas del motor **delegan** en [`fintcart_simulator::calculators::annuity`], el
+//! Las primitivas del motor **delegan** en [`fintcart_simulator::domain::annuity`], el
 //! mismo módulo que usan las cinco calculadoras nativas. Estas pruebas comparan el
 //! resultado del motor contra esa llamada directa: si alguien reimplementara `cuota` dentro
 //! del motor, la comparación seguiría pasando —estarían comparándose dos copias de lo
@@ -23,7 +23,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use fintcart_simulator::calculators::annuity;
+use fintcart_simulator::domain::annuity;
 use fintcart_simulator::domain::decimal_str;
 use fintcart_simulator::domain::formula::ast::{Func, InputKind, Schema};
 use fintcart_simulator::domain::formula::eval::{evaluate, Scope};
