@@ -78,15 +78,32 @@ export interface QuizGradingResult {
 export interface SimulationRequest {
   user_id: string;
   /**
+   * CAMBIO DE CONTRATO (FR-043): `calc_type` identifica una calculadora NATIVA.
+   *
    * Reutiliza el enum del contrato del Simulador en lugar de un `int32` con el
    * tipo indicado en un comentario: si CalcType gana un valor, un entero suelto
    * seguiría aceptando cualquier número y el desajuste solo aparecería en
    * ejecución. El cambio es compatible a nivel de cable (ambos son varint).
+   *
+   * Es EXCLUYENTE con `calculator_id`, igual que en `ComputeRequest`: una
+   * ejecución se identifica por el tipo nativo o por la definición, nunca por
+   * los dos. El Simulador rechaza la petición que traiga ambos, así que un
+   * llamador que los rellene por descuido falla de forma visible en vez de que
+   * uno de los dos se ignore en silencio.
    */
   calc_type: CalcType;
   currency: string;
   /** [decimal] */
   inputs: { [key: string]: string };
+  /**
+   * Calculadora DEFINIDA por un usuario (FR-043, camino preferente). Es lo que
+   * permite que `/calculators/{id}/run` recorra esta misma saga en vez de llamar
+   * al Simulador por su cuenta: la ejecución queda auditada (FR-025, D-03) porque
+   * el único productor de `simulation.executed` es este servicio.
+   *
+   * Vacío ⇒ la ejecución va por `calc_type`.
+   */
+  calculator_id: string;
 }
 
 export interface SimulationRequest_InputsEntry {
@@ -827,7 +844,7 @@ export const QuizGradingResult: MessageFns<QuizGradingResult> = {
 };
 
 function createBaseSimulationRequest(): SimulationRequest {
-  return { user_id: "", calc_type: 0, currency: "", inputs: {} };
+  return { user_id: "", calc_type: 0, currency: "", inputs: {}, calculator_id: "" };
 }
 
 export const SimulationRequest: MessageFns<SimulationRequest> = {
@@ -844,6 +861,9 @@ export const SimulationRequest: MessageFns<SimulationRequest> = {
     Object.entries(message.inputs).forEach(([key, value]) => {
       SimulationRequest_InputsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
     });
+    if (message.calculator_id !== "") {
+      writer.uint32(42).string(message.calculator_id);
+    }
     return writer;
   },
 
@@ -889,6 +909,14 @@ export const SimulationRequest: MessageFns<SimulationRequest> = {
           }
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -909,6 +937,7 @@ export const SimulationRequest: MessageFns<SimulationRequest> = {
           return acc;
         }, {})
         : {},
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
     };
   },
 
@@ -932,6 +961,9 @@ export const SimulationRequest: MessageFns<SimulationRequest> = {
         });
       }
     }
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
     return obj;
   },
 
@@ -949,6 +981,7 @@ export const SimulationRequest: MessageFns<SimulationRequest> = {
       }
       return acc;
     }, {});
+    message.calculator_id = object.calculator_id ?? "";
     return message;
   },
 };

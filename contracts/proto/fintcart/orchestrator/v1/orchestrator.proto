@@ -72,13 +72,28 @@ message QuizGradingResult {
 
 message SimulationRequest {
   string user_id = 1;
+  // CAMBIO DE CONTRATO (FR-043): `calc_type` identifica una calculadora NATIVA.
+  //
   // Reutiliza el enum del contrato del Simulador en lugar de un `int32` con el
   // tipo indicado en un comentario: si CalcType gana un valor, un entero suelto
   // seguiría aceptando cualquier número y el desajuste solo aparecería en
   // ejecución. El cambio es compatible a nivel de cable (ambos son varint).
+  //
+  // Es EXCLUYENTE con `calculator_id`, igual que en `ComputeRequest`: una
+  // ejecución se identifica por el tipo nativo o por la definición, nunca por
+  // los dos. El Simulador rechaza la petición que traiga ambos, así que un
+  // llamador que los rellene por descuido falla de forma visible en vez de que
+  // uno de los dos se ignore en silencio.
   fintcart.simulator.v1.CalcType calc_type = 2;
   string currency = 3;
   map<string, string> inputs = 4; // [decimal]
+  // Calculadora DEFINIDA por un usuario (FR-043, camino preferente). Es lo que
+  // permite que `/calculators/{id}/run` recorra esta misma saga en vez de llamar
+  // al Simulador por su cuenta: la ejecución queda auditada (FR-025, D-03) porque
+  // el único productor de `simulation.executed` es este servicio.
+  //
+  // Vacío ⇒ la ejecución va por `calc_type`.
+  string calculator_id = 5;
 }
 message SimulationResult {
   string simulation_id = 1;

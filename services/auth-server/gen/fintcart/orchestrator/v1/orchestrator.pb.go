@@ -439,13 +439,28 @@ func (x *QuizGradingResult) GetPointsAfter() int32 {
 type SimulationRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// CAMBIO DE CONTRATO (FR-043): `calc_type` identifica una calculadora NATIVA.
+	//
 	// Reutiliza el enum del contrato del Simulador en lugar de un `int32` con el
 	// tipo indicado en un comentario: si CalcType gana un valor, un entero suelto
 	// seguiría aceptando cualquier número y el desajuste solo aparecería en
 	// ejecución. El cambio es compatible a nivel de cable (ambos son varint).
-	CalcType      v1.CalcType       `protobuf:"varint,2,opt,name=calc_type,json=calcType,proto3,enum=fintcart.simulator.v1.CalcType" json:"calc_type,omitempty"`
-	Currency      string            `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
-	Inputs        map[string]string `protobuf:"bytes,4,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	//
+	// Es EXCLUYENTE con `calculator_id`, igual que en `ComputeRequest`: una
+	// ejecución se identifica por el tipo nativo o por la definición, nunca por
+	// los dos. El Simulador rechaza la petición que traiga ambos, así que un
+	// llamador que los rellene por descuido falla de forma visible en vez de que
+	// uno de los dos se ignore en silencio.
+	CalcType v1.CalcType       `protobuf:"varint,2,opt,name=calc_type,json=calcType,proto3,enum=fintcart.simulator.v1.CalcType" json:"calc_type,omitempty"`
+	Currency string            `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
+	Inputs   map[string]string `protobuf:"bytes,4,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	// Calculadora DEFINIDA por un usuario (FR-043, camino preferente). Es lo que
+	// permite que `/calculators/{id}/run` recorra esta misma saga en vez de llamar
+	// al Simulador por su cuenta: la ejecución queda auditada (FR-025, D-03) porque
+	// el único productor de `simulation.executed` es este servicio.
+	//
+	// Vacío ⇒ la ejecución va por `calc_type`.
+	CalculatorId  string `protobuf:"bytes,5,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -506,6 +521,13 @@ func (x *SimulationRequest) GetInputs() map[string]string {
 		return x.Inputs
 	}
 	return nil
+}
+
+func (x *SimulationRequest) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
 }
 
 type SimulationResult struct {
@@ -599,12 +621,13 @@ const file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc = "" +
 	"attempt_no\x18\x02 \x01(\x05R\tattemptNo\x12\x14\n" +
 	"\x05score\x18\x03 \x01(\tR\x05score\x12\x16\n" +
 	"\x06passed\x18\x04 \x01(\bR\x06passed\x12!\n" +
-	"\fpoints_after\x18\x05 \x01(\x05R\vpointsAfter\"\x92\x02\n" +
+	"\fpoints_after\x18\x05 \x01(\x05R\vpointsAfter\"\xb7\x02\n" +
 	"\x11SimulationRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12<\n" +
 	"\tcalc_type\x18\x02 \x01(\x0e2\x1f.fintcart.simulator.v1.CalcTypeR\bcalcType\x12\x1a\n" +
 	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x12O\n" +
-	"\x06inputs\x18\x04 \x03(\v27.fintcart.orchestrator.v1.SimulationRequest.InputsEntryR\x06inputs\x1a9\n" +
+	"\x06inputs\x18\x04 \x03(\v27.fintcart.orchestrator.v1.SimulationRequest.InputsEntryR\x06inputs\x12#\n" +
+	"\rcalculator_id\x18\x05 \x01(\tR\fcalculatorId\x1a9\n" +
 	"\vInputsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc2\x01\n" +
