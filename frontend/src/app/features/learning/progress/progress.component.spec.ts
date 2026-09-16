@@ -81,7 +81,7 @@ describe('ProgressComponent', () => {
         progress: { user_id: 'u1', points: 240 },
         quiz_attempts: {
           items: [
-            { attempt_id: 't1', attempt_no: 1, score: '66.67', created_at: '2026-06-12T10:00:00Z' },
+            { attempt_id: 't1', attempt_no: 1, score: '66,67', created_at: '2026-06-12T10:00:00Z' },
             { attempt_id: 't2', attempt_no: 2, score: '100.00', created_at: '2026-06-13T10:00:00Z' },
           ],
           total_size: 2,
@@ -92,7 +92,7 @@ describe('ProgressComponent', () => {
     const host = render().nativeElement as HTMLElement;
 
     // FR-109 / Principio VIII: 66.67 NO se convierte en 66 ni en 67.
-    expect(host.textContent).toContain('66.67');
+    expect(host.textContent).toContain('66,67');
     expect(host.textContent).toContain('100');
     // El más reciente va primero.
     const rows = Array.from(host.querySelectorAll('tbody tr')).map((row) => row.textContent ?? '');

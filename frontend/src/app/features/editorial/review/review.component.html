@@ -73,6 +73,9 @@
                      `us4-editorial.spec.ts` usa para identificar la versión correcta. -->
                 <blockquote class="fc-rev__preview">{{ preview(v) }}</blockquote>
 
+                <!-- Una sola acción porque el servicio solo tiene una: no hay transición
+                     que saque una versión de `en_revision` salvo publicarla. Ver el
+                     comentario de la clase y `findings.md`. -->
                 <div class="fc-rev__decision">
                   <fc-button
                     variant="primary"
@@ -82,15 +85,6 @@
                     (pressed)="onApprove(v)"
                   >
                     {{ isBusy(v) ? 'Publicando…' : 'Aprobar y publicar' }}
-                  </fc-button>
-                  <fc-button
-                    variant="secondary"
-                    size="lg"
-                    [block]="true"
-                    [disabled]="deciding() !== null"
-                    (pressed)="onArchive(v)"
-                  >
-                    Archivar versión
                   </fc-button>
                 </div>
               </article>

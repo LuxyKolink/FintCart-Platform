@@ -70,7 +70,7 @@ describe('ReportComponent', () => {
 
     // El mayor entero exacto de un `double`. Un conteo así no es realista, pero si algún
     // día el componente formateara o redondeara, se vería aquí.
-    expect(figures(host)[1]).toBe('9007199254740991');
+    expect(figures(host)[1]).toBe('9.007.199.254.740.991');
   });
 
   it('explains a report full of zeros instead of showing four bare numbers', async () => {

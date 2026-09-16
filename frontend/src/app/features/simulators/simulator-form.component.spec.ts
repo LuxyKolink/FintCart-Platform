@@ -96,7 +96,7 @@ describe('SimulatorFormComponent', () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.textContent).toContain('$568,900.50');
+    expect(host.textContent).toContain('$568.900,50');
     expect(api.run).toHaveBeenCalled();
   });
 
@@ -135,8 +135,8 @@ describe('ResultComponent', () => {
     const values = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('dd')).map((dd) =>
       (dd.textContent ?? '').trim(),
     );
-    expect(values[0]).toBe('$1,234,567.89');
-    expect(values[1]).toBe('1.989%');
+    expect(values[0]).toBe('$1.234.567,89');
+    expect(values[1]).toBe('1,989 %');
   });
 
   it('omits an optional field that the simulation did not return', () => {

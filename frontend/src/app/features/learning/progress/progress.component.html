@@ -22,7 +22,7 @@
           porque `us1-aprendizaje.spec.ts` afirma `/\d+ puntos/` sobre un locator que
           tiene que resolver a un solo elemento (nota N-13, ver la nota de T035).
         -->
-        <p class="fc-num fc-progress__points">{{ p.points }} puntos</p>
+        <p class="fc-num fc-progress__points">{{ formatPoints(p.points) }} puntos</p>
         <fc-progress-bar [value]="withinMilestone(p.points)" [max]="100" />
         <p class="fc-progress__note">
           {{ withinMilestone(p.points) }} de 100 hacia los {{ nextMilestone(p.points) }} · hito

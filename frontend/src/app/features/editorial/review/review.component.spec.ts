@@ -30,6 +30,8 @@ describe('ReviewComponent', () => {
     api = {
       listVersions: jasmine.createSpy('listVersions').and.returnValue(of({ items: [version], total_size: 1 })),
       approveAndPublish: jasmine.createSpy('approveAndPublish').and.returnValue(of({ ok: true })),
+      // `archive` sigue en la API —archiva versiones PUBLICADAS— y por eso se declara: si
+      // la pantalla volviera a llamarlo sobre una versión en revisión, la prueba lo vería.
       archive: jasmine.createSpy('archive').and.returnValue(of({ ok: true })),
     };
     auth = { userId: jasmine.createSpy('userId').and.returnValue('yo') };
@@ -55,15 +57,21 @@ describe('ReviewComponent', () => {
     expect(api.listVersions).toHaveBeenCalledWith({ state: 'en_revision' });
   });
 
-  it('offers both halves of the decision, not only publishing', async () => {
+  /**
+   * FR-115 pide la decisión de aprobar **o rechazar**, y la segunda mitad no existe en el
+   * servicio: no hay transición que saque una versión de `en_revision` salvo publicarla. La
+   * prueba fija lo que la pantalla hace de verdad —una sola acción— para que nadie vuelva a
+   * añadir un «rechazar» que el borde responde con `FailedPrecondition`. Se descubrió
+   * pulsándolo contra el servicio real; esta prueba no lo habría detectado nunca, y por eso
+   * el comentario: aquí solo se garantiza que la vista no prometa lo que no hay.
+   */
+  it('offers the only decision the service can carry out, and does not promise another', async () => {
     const host = (await render()).nativeElement as HTMLElement;
     const actions = Array.from(host.querySelectorAll('.fc-rev__decision button')).map((b) =>
       (b.textContent ?? '').trim(),
     );
 
-    // FR-115: aprobar **o** rechazar. Antes solo existía publicar, así que un coordinador que
-    // no quería publicar una versión no tenía forma de sacarla de la cola.
-    expect(actions).toEqual(['Aprobar y publicar', 'Archivar versión']);
+    expect(actions).toEqual(['Aprobar y publicar']);
   });
 
   it('keeps the preview, which is what lets a coordinator decide without opening the editor', async () => {
@@ -83,18 +91,8 @@ describe('ReviewComponent', () => {
     fixture.detectChanges();
 
     expect(api.approveAndPublish).toHaveBeenCalledWith('v1');
+    expect(api.archive).not.toHaveBeenCalled();
     expect(host.textContent).toContain('No hay nada pendiente de revisión');
-  });
-
-  it('takes the version out of the queue after archiving', async () => {
-    const fixture = await render();
-    const host = fixture.nativeElement as HTMLElement;
-
-    (host.querySelectorAll('.fc-rev__decision button')[1] as HTMLButtonElement).click();
-    fixture.detectChanges();
-
-    expect(api.archive).toHaveBeenCalledWith('v1');
-    expect(host.textContent).not.toContain('Aprobar y publicar');
   });
 
   it('explains the self-approval block as a rule, not as a generic error', async () => {

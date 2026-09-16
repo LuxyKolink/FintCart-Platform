@@ -6,6 +6,7 @@ import {
   LinkButtonComponent,
   SkeletonComponent,
 } from '../../../shared/ui';
+import { formatInteger } from '../../../shared/format-number';
 import { ProfileService } from '../profile.service';
 import { ActivityReport } from '../profile.types';
 
@@ -64,6 +65,14 @@ export class ReportComponent implements OnInit {
 
   public ngOnInit(): void {
     this.load();
+  }
+
+  /**
+   * El conteo con el agrupado de miles local. La cifra no se toca: solo se escribe como
+   * se escribe aquí (a partir de mil, «1.250» y no «1250»).
+   */
+  protected display(value: number): string {
+    return formatInteger(value);
   }
 
   protected retry(): void {

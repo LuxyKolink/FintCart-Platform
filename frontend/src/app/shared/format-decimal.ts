@@ -1,4 +1,5 @@
 import * as decimalStr from './decimal-str';
+import { toColombian } from './format-number';
 
 /** Umbral de «buen puntaje» del historial, en la misma representación del contrato. */
 const GOOD_SCORE = '80';
@@ -28,7 +29,9 @@ const GOOD_SCORE = '80';
  */
 export function formatScore(score: string): string {
   try {
-    return decimalStr.format(decimalStr.parseScore(score));
+    // La calificación se presenta con la coma decimal local: «85,5 de 100». La escala
+    // se conserva igual —los ceros finales se van, el valor no—.
+    return toColombian(decimalStr.format(decimalStr.parseScore(score)));
   } catch {
     return score;
   }
@@ -50,7 +53,7 @@ export function isGoodScore(score: string): boolean {
   }
 }
 
-/** La misma calificación con su denominador: «85.5 de 100». */
+/** La misma calificación con su denominador: «85,5 de 100». */
 export function formatScoreOutOf(score: string, outOf = '100'): string {
   return `${formatScore(score)} de ${outOf}`;
 }

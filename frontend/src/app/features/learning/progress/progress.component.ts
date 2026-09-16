@@ -15,6 +15,7 @@ import {
 import { ProfileService } from '../../profile/profile.service';
 import { ActivityReport, QuizAttempt } from '../../profile/profile.types';
 import { formatScore as formatScoreText, isGoodScore } from '../../../shared/format-decimal';
+import { formatInteger } from '../../../shared/format-number';
 import { currentMilestone, nextMilestone, withinMilestone } from './milestones';
 import { ProgressApiService } from './progress-api.service';
 import { PointsCount, Progress } from './progress.types';
@@ -95,6 +96,15 @@ export class ProgressComponent implements OnInit {
 
   protected nextMilestone(points: PointsCount): PointsCount {
     return nextMilestone(points);
+  }
+
+  /**
+   * Los puntos con el agrupado de miles local: a partir de mil, «1250» se lee mal y
+   * «1.250» no. El valor no cambia —sigue siendo el entero que devolvió el borde—,
+   * solo cambia cómo se escribe.
+   */
+  protected formatPoints(points: PointsCount): string {
+    return formatInteger(points);
   }
 
   /**

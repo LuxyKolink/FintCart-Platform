@@ -72,7 +72,7 @@ describe('NotificationsComponent', () => {
     expect(host.querySelectorAll('.fc-inbox__item--unread').length).toBe(0);
     expect(host.textContent).not.toContain('Marcar como leída');
     // El puntaje llega como cadena decimal y se muestra sin truncar (Principio VIII).
-    expect(host.textContent).toContain('66.67 de 100');
+    expect(host.textContent).toContain('66,67 de 100');
     expect(host.textContent).toContain('Aprobado');
   });
 

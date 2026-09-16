@@ -49,9 +49,9 @@ describe('HistoryComponent', () => {
     const row = host.querySelector('tbody tr') as HTMLTableRowElement;
     expect(row.textContent).toContain('Crédito');
     expect(row.textContent).toContain('Monto del crédito');
-    expect(row.textContent).toContain('$10,000,000.00');
+    expect(row.textContent).toContain('$10.000.000,00');
     expect(row.textContent).toContain('Cuota mensual');
-    expect(row.textContent).toContain('$945,596.34');
+    expect(row.textContent).toContain('$945.596,34');
   });
 
   it('does not show the mode selector as if the user had typed it', async () => {
@@ -79,7 +79,7 @@ describe('HistoryComponent', () => {
     const values = Array.from(host.querySelectorAll('dd.fc-num')).map((dd) => (dd.textContent ?? '').trim());
 
     // N-15: la cifra no es texto incompleto. El valor completo está en el DOM.
-    expect(values).toContain('$945,596.34');
+    expect(values).toContain('$945.596,34');
   });
 
   it('offers a way out when there is nothing to compare', async () => {

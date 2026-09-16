@@ -110,6 +110,31 @@ export async function expectKeyboardReaches(
   expected: readonly string[],
   maxStops = 60,
 ): Promise<void> {
+  /**
+   * El recorrido empieza SIEMPRE por el principio del documento.
+   *
+   * Sin esto, mediría otra cosa: tras una navegación interna (`routerLink`), Chromium
+   * sigue tabulando desde donde estaba el enlace que se acaba de pulsar, así que el
+   * recorrido arrancaría a mitad de la página y el armazón —cabecera y navegación—
+   * quedaría para el final. Se vio en el lector: el primer tabulador entraba en el
+   * cuerpo del artículo y la barra superior no aparecía hasta después de dar la vuelta.
+   *
+   * El contador de identidad de parada también se limpia: en una SPA el contenedor del
+   * documento sobrevive a la navegación, y los índices de la pantalla anterior dejaron
+   * de corresponder a elementos que ya no existen.
+   */
+  await page.evaluate((): void => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    document.body.tabIndex = -1;
+    document.body.focus();
+    for (const tagged of document.querySelectorAll('[data-fc-focus]')) {
+      tagged.removeAttribute('data-fc-focus');
+    }
+    document.documentElement.dataset['fcFocusCounter'] = '0';
+  });
+
   const reached: string[] = [];
   const withoutIndicator: string[] = [];
   const focusKeys = new Set<string>();

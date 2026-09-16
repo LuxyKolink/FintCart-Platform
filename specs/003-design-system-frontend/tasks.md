@@ -659,11 +659,16 @@ herramienta editorial.
   la versión es tuya. **Hallazgo**: no hay endpoint que traduzca un `user_id` a un nombre
   visible, así que un coordinador no puede saber *quién* escribió lo que revisa —solo que no
   fue él—; el `created_by` se muestra en mono para poder trazar (FR-122).
-- **T066 — la decisión tenía una sola mitad.** La bandeja solo ofrecía «Aprobar y publicar»
-  (`POST …/publish`), así que un coordinador que **no** quería publicar una versión no tenía
-  forma de sacarla de la cola: faltaba el rechazo, que ya existía en el contrato como
-  `POST /editorial/versions/{id}/archive` y ninguna pantalla usaba. Ahora las dos salidas van
-  juntas y destacadas al pie de cada versión (FR-115).
+- **T066 — la decisión sigue teniendo una sola mitad, y ahora se sabe por qué.** FR-115 pide
+  presentar la decisión de aprobar **o rechazar**. Se añadió un «Archivar versión» que reusaba
+  `POST …/archive` —la única ruta que parecía sobrar en el contrato—, la prueba unitaria pasó
+  (simulaba la API) y **contra el servicio real da `FailedPrecondition`**: ese endpoint es
+  `publicado → archivado`. Aprendizaje **no tiene ninguna transición que saque una versión de
+  `en_revision` salvo publicarla**. El botón se ha **retirado**: una acción que siempre falla
+  es peor que su ausencia, e inventar la transición sería cambiar una regla de negocio
+  (FR-121). La mitad «rechazar» de FR-115 queda **bloqueada por 002** y registrada en
+  `findings.md` con su evidencia. Lo que sí queda de T066: la decisión se presenta destacada
+  al pie de cada versión, con el diseño del sistema en lugar de cuatro estilos en línea.
 - **T067 — FR-116 se explica, no se reimplementa.** Que un coordinador no pueda aprobar su
   propio contenido lo decide Aprendizaje; la vista no lo comprueba por su cuenta. Cuando el
   borde lo rechaza (`EditorialError.kind === 'forbidden'`), aparece un aviso **propio** —tono
@@ -719,16 +724,74 @@ de que el objetivo se alcanzó de verdad, y eso solo puede medirse con todo migr
 - [ ] T075 [US6] **Eliminar `frontend/src/styles.scss`** y retirar su declaración de `frontend/angular.json` — la capa artesanal debe quedar vacía tras los cinco grupos. **Es el criterio de terminación del feature** (research D-26)
 - [ ] T076 [US6] Verificar con `frontend/scripts/design-debt.mjs` que los estilos en línea pasaron de 94 a **0** y que ninguna plantilla referencia ya clases artesanales (FR-086, FR-088, SC-027)
 - [ ] T077 [US6] Recorrer las 19 pantallas y el armazón confirmando que ninguna desentona del sistema visual común, contrastando `frontend/src/app/features/` contra los cinco kits de `design/ui_kits/` (FR-086, SC-028)
-- [ ] T078 [US6] Verificar los 6 selectores no accesibles de `frontend/e2e/` (research D-29): que `fc-module`, `fc-num`, `fc-eyebrow` y `fc-linklist` **siguen definidas** en `frontend/src/styles/tokens/base.css`, y que el lector conserva `<article>` y el cuestionario conserva `<fieldset>` e `<input type="radio">`
-- [ ] T079 [US6] Comprobar que la barrera de T010 rechaza un estilo en línea introducido a propósito, en `frontend/` (FR-089, SC-027)
-- [ ] T080 [US6] Recorrido manual por teclado de las 19 pantallas y el armazón: todos los controles alcanzables, foco siempre visible, recorriendo `frontend/src/app/features/` y `frontend/src/app/app.component.ts` (FR-093, FR-094, SC-030)
-- [ ] T081 [US6] Auditoría de que el 100 % de los controles de formulario tiene etiqueta asociada anunciable por lector de pantalla, sobre `frontend/src/app/**/*.html` (FR-095, SC-031)
-- [ ] T082 [US6] Auditoría de contraste AA de todo el texto frente a su fondo, sobre los tokens de `frontend/src/styles/tokens/colors.css` tal como se aplican en `frontend/src/app/` (FR-096, SC-032)
-- [ ] T083 [US6] Verificar que la interfaz sigue siendo utilizable con el tamaño de fuente del navegador al 200 %, sin pérdida de contenido ni funcionalidad, sobre `frontend/src/app/` (FR-097)
-- [ ] T084 [US6] Ejecutar `frontend/e2e/offline-assets.spec.ts` con la conectividad externa bloqueada: tipografía e iconos presentes (FR-092, SC-033)
-- [ ] T085 [US6] Ejecutar las **4 suites completas sin modificar** y confirmar que pasan con las mismas aserciones que en T009, en `frontend/e2e/` — es la garantía de SC-036, de que ningún comportamiento cambió
+- [x] T078 [US6] Verificar los 6 selectores no accesibles de `frontend/e2e/` (research D-29): que `fc-module`, `fc-num`, `fc-eyebrow` y `fc-linklist` **siguen definidas** en `frontend/src/styles/tokens/base.css`, y que el lector conserva `<article>` y el cuestionario conserva `<fieldset>` e `<input type="radio">`
+- [x] T079 [US6] Comprobar que la barrera de T010 rechaza un estilo en línea introducido a propósito, en `frontend/` (FR-089, SC-027)
+- [x] T080 [US6] Recorrido por teclado de las 19 pantallas (automatizado, no a mano) y el armazón: todos los controles alcanzables, foco siempre visible, recorriendo `frontend/src/app/features/` y `frontend/src/app/app.component.ts` (FR-093, FR-094, SC-030)
+- [x] T081 [US6] Auditoría de que el 100 % de los controles de formulario tiene etiqueta asociada anunciable por lector de pantalla, sobre `frontend/src/app/**/*.html` (FR-095, SC-031)
+- [x] T082 [US6] Auditoría de contraste AA de todo el texto frente a su fondo, sobre los tokens de `frontend/src/styles/tokens/colors.css` tal como se aplican en `frontend/src/app/` (FR-096, SC-032)
+- [x] T083 [US6] Verificar que la interfaz sigue siendo utilizable con el tamaño de fuente del navegador al 200 %, sin pérdida de contenido ni funcionalidad, sobre `frontend/src/app/` (FR-097)
+- [x] T084 [US6] Ejecutar `frontend/e2e/offline-assets.spec.ts` con la conectividad externa bloqueada: tipografía e iconos presentes (FR-092, SC-033)
+- [x] T085 [US6] Ejecutar las **4 suites completas sin modificar** y confirmar que pasan con las mismas aserciones que en T009, en `frontend/e2e/` — es la garantía de SC-036, de que ningún comportamiento cambió
 
-**Checkpoint**: US6 entregable. `styles.scss` no existe.
+**Notas de la verificación final (T078–T085, T089)**
+
+- **T080/T081/T082 — la barrera cubre las 19 pantallas, y se hizo con código.** Las tres
+  tareas pedían un recorrido y dos auditorías «a mano» sobre 19 pantallas; se hicieron
+  automatizadas en `e2e/a11y.spec.ts` porque una auditoría manual no deja rastro y no se
+  puede repetir tras el siguiente cambio. La suite pasó de 7 pantallas a **19**: las de
+  acceso (con la de verificación, que antes nadie miraba), las del portal, las cuatro de
+  perfil, las tres de simuladores —incluido el **resultado** con sus cifras— y las tres del
+  editorial. Las que dependen de datos se descubren navegando, porque su ruta lleva un
+  identificador real. Un cuarto recorrido recorre el editorial con una cuenta que tiene los
+  dos roles.
+- **Un defecto de la propia medición, encontrado al ampliarla.** El recorrido por teclado
+  empezaba donde hubiera quedado el foco: tras una navegación interna de la SPA, Chromium
+  sigue tabulando **desde el enlace que se acaba de pulsar**, así que el recorrido arrancaba
+  a mitad de la página y la cabecera quedaba para el final. Se vio en el lector —el primer
+  tabulador entraba en el cuerpo del artículo y la barra superior no aparecía hasta dar la
+  vuelta—. Ahora `expectKeyboardReaches` reinicia el foco y la identidad de parada antes de
+  recorrer; sin eso, una pantalla con la navegación inalcanzable habría pasado.
+- **T078 — las primitivas de portal y los selectores prestados siguen en pie.** `fc-module`,
+  `fc-num`, `fc-eyebrow` y `fc-linklist` siguen definidas en `tokens/base.css`; el lector
+  tiene **un solo** `<article>` (la suite lo busca por etiqueta y dos la harían ambigua) y el
+  cuestionario conserva `<fieldset>` + `<input type="radio">`.
+- **T079 — la barrera rechaza de verdad, y se comprobó.** Se introdujo a propósito un
+  `style="color: red"` en una plantilla: el lint lo rechaza (`no-inline-styles`) **y**
+  `design-debt.mjs` lo cuenta (8 → 9). Se probó también la variante de enlace
+  `[style.color]`, que el mismo criterio rechaza. La plantilla se revirtió y la medida
+  volvió a 8. Vale la pena el detalle: la comprobación se hizo sobre una sonda real en vez de
+  confiar en que la regla estuviera bien escrita.
+- **T083 — la comprobación del 200 % existe y pasa.** Con `html { font-size: 200% }` sobre
+  seis pantallas: la página no desplaza en horizontal y **ninguna cifra queda recortada**
+  (se compara el ancho del contenido con el de su caja, no basta con que siga habiendo un
+  `$`). Es la comprobación que enlaza FR-097 con N-15: una cifra recortada por el zoom no es
+  texto incompleto, es un dato falso.
+- **T086 — el rediseño tenía las cifras en el formato del inglés.** El manual de voz y tono
+  (`design/guidelines/brand-voice.html`) escribe «1.250.000» y los cinco kits formatean con
+  `toLocaleString('es-CO')`; la aplicación agrupaba los miles con **coma** y separaba los
+  decimales con **punto** (`$1,234,567.89`). No es una preferencia: en español de Colombia
+  `1,234` se lee mil doscientos treinta y cuatro. Se corrigió en un único sitio
+  (`shared/format-number.ts`), del que ahora salen dinero, porcentajes, calificaciones y
+  conteos. **No se usó `toLocaleString`**: obliga a pasar por `number`, y el agrupado se hace
+  sobre la cadena decimal canónica para no perder precisión por el camino (Principio VIII).
+  El porcentaje también lleva su espacio antes del signo, como la norma y el kit.
+- **T087 — el presupuesto se respeta y el tamaño real está a la mitad.** Inicial
+  **540,33 kB** en crudo y **125,36 kB** transferidos, contra un aviso de 1 MB; ningún
+  componente pasa del presupuesto de hoja de estilos. Los trozos diferidos (`catalog`,
+  `simulator-form`, `editor`, `categories`) confirman que la biblioteca viaja por pantalla y
+  no entera.
+- **T089 — diez hallazgos, en `findings.md`.** El más caro: **Aprendizaje no tiene ninguna
+  transición que saque una versión de `en_revision` salvo publicarla**, así que la mitad
+  «rechazar» de FR-115 no se puede ofrecer (evidencia: las RPC del proto, las cinco
+  transiciones SQL y el `FailedPrecondition` del servicio real). El más grande para el
+  usuario: **no hay restablecimiento de contraseña**. Y el más silencioso: el borde colapsa
+  `FailedPrecondition` en un `400` sin causa, así que la interfaz no puede explicar por qué
+  un conflicto de estado no salió.
+
+**Checkpoint**: US6 entregable en todo lo que no depende del editor. `styles.scss` NO se
+elimina todavía: le quedan seis clases que usa solo `editor/editor.component.html`, y esa
+superficie la reescribe 002 (FR-123). Es el mismo bloqueo que T069 y T075/T076.
+
 
 ---
 
@@ -737,7 +800,7 @@ de que el objetivo se alcanzó de verdad, y eso solo puede medirse con todo migr
 - [ ] T086 [P] Revisar que ningún texto de la interfaz se salió de la voz de marca —español de Colombia, tuteo directo— contrastando con `design/guidelines/brand-voice.html` (FR-091)
 - [ ] T087 [P] Verificar que el presupuesto de tamaño declarado en `frontend/angular.json` no se excedió y que la biblioteca compartida se importa por componente y no entera
 - [ ] T088 [P] Documentar los cuatro puntos de corte y la regla de degradación por disposición en `design/guidelines/`, para que los hereden los features siguientes en vez de redescubrirlos
-- [ ] T089 [P] Recopilar los hallazgos de datos que la API no expone, si aparecieron, como entrada de un feature posterior, registrados en `specs/003-design-system-frontend/findings.md` — **sin resolverlos aquí** (FR-122)
+- [x] T089 [P] Recopilar los hallazgos de datos que la API no expone, si aparecieron, como entrada de un feature posterior, registrados en `specs/003-design-system-frontend/findings.md` — **sin resolverlos aquí** (FR-122)
 - [ ] T090 Verificar los 13 criterios SC-027…SC-039 siguiendo `quickstart.md` §2–§7, prestando atención a **SC-034**: ninguna pantalla que dependa de datos queda en blanco ante un fallo ni ante la ausencia de contenido
 - [ ] T091 Re-evaluar el gate constitucional sobre el código escrito y anotar el resultado en `plan.md` §Constitution Check, con atención al Principio VIII en las pantallas de dinero
 - [ ] T092 [P] Actualizar `README.md` y `frontend/README.md` con la tabla de criterio de terminación de `quickstart.md` §7

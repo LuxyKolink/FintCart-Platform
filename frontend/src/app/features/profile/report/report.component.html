@@ -43,7 +43,7 @@
           @for (stat of stats(); track stat.label) {
             <div class="fc-report__stat">
               <dt class="fc-report__stat-label">{{ stat.label }}</dt>
-              <dd class="fc-num fc-report__stat-value">{{ stat.value }}</dd>
+              <dd class="fc-num fc-report__stat-value">{{ display(stat.value) }}</dd>
             </div>
           }
         </dl>
