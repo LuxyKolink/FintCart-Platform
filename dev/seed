@@ -219,7 +219,18 @@ log "sembrando las 7 definiciones de calculadora y los indicadores del año"
 sim_cid="$(compose ps -q simulator 2>/dev/null || true)"
 [[ -n "$sim_cid" ]] \
   || die "'simulator' no está en marcha. Ejecutar 'dev/up' antes de 'dev/seed'."
-compose exec -T simulator /src/target/debug/seed
+
+# `docker exec` sobre el id del contenedor, y no `compose exec`, por la misma razón
+# que `psql_exec`: MSYS reescribe todo argumento que parezca una ruta POSIX antes de
+# que el proceso lo reciba, y convertiría `/src/target/debug/seed` en
+# `C:/Program Files/Git/src/target/debug/seed` — el contenedor respondería "no such
+# file or directory" sobre un binario que sí existe. Es la trampa que documenta
+# `dev/migrate` para `-path=/migrations`.
+#
+# `MSYS_NO_PATHCONV=1` va AQUÍ y no en `common.sh`: `docker compose -f` SÍ necesita
+# la ruta del compose convertida a formato Windows, y desactivarlo en todo el script
+# hace que `compose` no encuentre `dev/docker-compose.yaml`.
+MSYS_NO_PATHCONV=1 docker exec -i "$sim_cid" /src/target/debug/seed
 
 # El relleno del historial de T020 lo repite el propio binario tras sembrar, y tiene que
 # hacerlo: la migración corre ANTES que este script, así que sobre una base virgen no

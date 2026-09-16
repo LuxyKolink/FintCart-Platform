@@ -146,10 +146,23 @@ async fn sembrar_una(pool: &PgPool, seed: &Compiled) -> Result<Sembrada> {
                 return Ok(Sembrada::Creada);
             };
 
-            // Se compara el AST almacenado con el compilado. `Definition` deriva `PartialEq`, y
-            // la comparación es sobre el árbol y no sobre el texto: dos fórmulas que solo
-            // difieran en un espacio producen el mismo árbol y NO merecen una versión nueva,
-            // porque nada de lo que se ejecuta cambió.
+            // Se compara la definición almacenada ENTERA con la compilada, `texto` incluido.
+            //
+            // Comprobado contra una base real, y el resultado corrige lo que yo había escrito
+            // aquí: un cambio de SOLO espaciado en una fórmula **sí** crea una versión nueva,
+            // porque `OutputField::source` forma parte de `Definition` y el árbol no es lo
+            // único que se compara. No es un defecto que haya que arreglar; es la elección
+            // conservadora, y conviene tener claro cuál de las dos es:
+            //
+            //   · Comparar de menos (ignorar `source`) arriesga dejar un AST VIEJO en la base
+            //     mientras el binario tiene el nuevo — el fallo silencioso que esta función
+            //     existe para impedir.
+            //   · Comparar de más cuesta una fila de versión de más cuando alguien refluye una
+            //     fórmula. El `texto` es lo que el constructor reabre, así que refrescarlo
+            //     tampoco es gratis.
+            //
+            // Se elige el error barato. Y de paso queda consistente con la regla de la tabla:
+            // una definición nunca se actualiza, editar produce una fila nueva.
             let almacenada = definition_vigente(tx, id).await?;
             if almacenada == definition {
                 return Ok(Sembrada::Igual);
