@@ -10,6 +10,7 @@ export * from './empty-state/empty-state.component';
 export * from './error-state/error-state.component';
 export * from './icon/icon.component';
 export * from './input/input.component';
+export * from './link-button/link-button.component';
 export * from './module-box/module-box.component';
 export * from './skeleton/skeleton.component';
 export * from './progress-bar/progress-bar.component';

@@ -108,3 +108,15 @@
   outline: none;
   box-shadow: var(--focus-ring);
 }
+
+/*
+ * El enlace hereda el dibujo del botón, pero un `<a>` llega con lo suyo: subrayado,
+ * `color` de enlace y un alto que ignora `[data-size]` si el texto desborda la línea.
+ * Se corrige aquí y no en cada plantilla para que las dos formas del componente no
+ * puedan divergir.
+ */
+a.fc-btn {
+  box-sizing: border-box;
+  text-decoration: none;
+  cursor: pointer;
+}

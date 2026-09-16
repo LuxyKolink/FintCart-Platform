@@ -1,6 +1,24 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ButtonComponent } from './button.component';
+
+/**
+ * Host mínimo: el texto del botón llega por PROYECCIÓN, así que una prueba que solo
+ * mire el `<button>` no verifica nada. Es la misma lección que dejó `fc-link-button`
+ * (ver la nota de `LinkButtonComponent`): proyectar dentro de un bloque `@if` deja el
+ * elemento vacío, y solo se nota afirmando el TEXTO.
+ */
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<fc-button variant="danger" size="lg" (pressed)="clicks = clicks + 1">
+    Eliminar cuenta
+  </fc-button>`,
+})
+class HostComponent {
+  clicks = 0;
+}
 
 describe('ButtonComponent', () => {
   let fixture: ComponentFixture<ButtonComponent>;
@@ -38,5 +56,18 @@ describe('ButtonComponent', () => {
     fixture.detectChanges();
     expect(button().getAttribute('data-variant')).toBe('danger');
     expect(button().getAttribute('data-size')).toBe('lg');
+  });
+
+  it('renders the projected content inside the button', async () => {
+    const host = TestBed.createComponent(HostComponent);
+    host.detectChanges();
+
+    const rendered = host.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(rendered.textContent?.trim()).toBe('Eliminar cuenta');
+    expect(rendered.getAttribute('data-variant')).toBe('danger');
+  });
+
+  it('is never an anchor: la navegación es de `fc-link-button`', () => {
+    expect(fixture.nativeElement.querySelector('a')).toBeNull();
   });
 });

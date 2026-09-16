@@ -57,7 +57,9 @@ test(
       await document.fonts.ready;
       const logo = document.querySelector<HTMLImageElement>('fc-brand-logo img');
       return {
-        fontFaces: document.fonts.size,
+        // `FontFaceSet.size` existe en el navegador pero no en los tipos de lib.dom
+        // de esta versión de TypeScript, así que se lee por índice.
+        fontFaces: (document.fonts as unknown as { readonly size: number }).size,
         roboto: document.fonts.check('16px Roboto'),
         notoSans: document.fonts.check('16px "Noto Sans JP"'),
         plexMono: document.fonts.check('16px "IBM Plex Mono"'),
