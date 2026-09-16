@@ -24,7 +24,12 @@
   display: grid;
   place-items: center;
   cursor: inherit;
-  transition: all var(--dur-fast);
+  /* NO `transition: all`: animaba también el `box-shadow`, así que el anillo de
+     foco aparecía desvaneciéndose en vez de de inmediato — y una barrera que mide
+     el instante del foco lo veía como «sin indicador» (FR-094, SC-030). */
+  transition:
+    background var(--dur-fast),
+    border-color var(--dur-fast);
   accent-color: var(--brand-primary);
 }
 

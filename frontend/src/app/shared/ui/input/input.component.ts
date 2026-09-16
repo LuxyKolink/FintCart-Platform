@@ -30,6 +30,7 @@ let nextId = 0;
           [id]="inputId"
           [type]="type()"
           [placeholder]="placeholder() ?? ''"
+          [attr.autocomplete]="autocomplete()"
           [attr.aria-invalid]="!!error() || null"
           [attr.aria-describedby]="hint() || error() ? inputId + '-help' : null"
           [disabled]="disabled()"
@@ -60,6 +61,8 @@ export class InputComponent implements ControlValueAccessor {
   readonly size = input<FieldSize>('md');
   readonly type = input<string>('text');
   readonly placeholder = input<string>();
+  /** Se reenvía al `<input>` interno: sin esto los gestores de contraseñas no reconocen el campo. */
+  readonly autocomplete = input<string | null>(null);
 
   protected readonly inputId = `fc-input-${++nextId}`;
   protected readonly value = signal('');

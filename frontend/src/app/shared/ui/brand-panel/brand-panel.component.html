@@ -1,0 +1,22 @@
+<div class="fc-brand-panel">
+  <div class="fc-brand-panel__brand">
+    <fc-brand-logo variant="mark" [width]="40" [height]="40" />
+    <span class="fc-brand-panel__wordmark">FintCart</span>
+  </div>
+
+  <div class="fc-brand-panel__intro">
+    <h2 class="fc-brand-panel__title">{{ title() }}</h2>
+    <p class="fc-brand-panel__subtitle">{{ subtitle() }}</p>
+
+    @if (indicators().length > 0) {
+      <ul class="fc-brand-panel__indicators">
+        @for (indicator of indicators(); track indicator.label) {
+          <li class="fc-brand-panel__indicator">
+            <fc-icon [name]="indicator.icon" [size]="18" />
+            <span>{{ indicator.label }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

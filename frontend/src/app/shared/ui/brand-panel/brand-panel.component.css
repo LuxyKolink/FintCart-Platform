@@ -1,0 +1,95 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  /* El color sólido va DEBAJO del degradado: fija el peor caso de contraste para
+     el verificador (que lee `background-color`, no la imagen) y sirve de respaldo
+     si el degradado no se pinta. Coral 500 y no el coral 400 del kit porque el
+     blanco sobre coral 400 da 4.04:1, por debajo de AA (FR-096, SC-032). */
+  background-color: var(--coral-500);
+  background-image: linear-gradient(
+    160deg,
+    var(--coral-500) 0%,
+    var(--coral-700) 70%,
+    var(--purple-700) 140%
+  );
+  color: var(--text-on-brand);
+  padding: var(--space-8) var(--space-7);
+  position: relative;
+  overflow: hidden;
+}
+
+.fc-brand-panel__brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.fc-brand-panel__wordmark {
+  font-family: var(--font-display);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-2xl);
+  line-height: 1;
+  color: var(--text-on-brand);
+}
+
+.fc-brand-panel__intro {
+  margin-top: auto;
+}
+
+.fc-brand-panel__title {
+  font-size: 34px;
+  line-height: var(--lh-tight);
+  color: var(--text-on-brand);
+  margin: 0 0 var(--space-3);
+}
+
+.fc-brand-panel__subtitle {
+  font-size: var(--fs-md);
+  color: rgb(255 255 255 / 92%);
+  margin: 0;
+  max-width: 320px;
+}
+
+.fc-brand-panel__indicators {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-5);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+}
+
+.fc-brand-panel__indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-on-brand);
+}
+
+/* Degradación del panel (FR-126, N-14): bajo --bp-md el panel pasa a BANDA
+   compacta —conserva logotipo, titular y subtítulo, sacrifica los tres
+   indicadores— y NUNCA se oculta. Se escribe el literal 768px porque `var()` no
+   se resuelve dentro de `@media` (ver tokens/breakpoints.css). */
+@media (max-width: 767.98px) {
+  :host {
+    padding: var(--space-5);
+  }
+
+  .fc-brand-panel__intro {
+    margin-top: var(--space-4);
+  }
+
+  .fc-brand-panel__title {
+    font-size: var(--fs-xl);
+    margin-bottom: var(--space-1);
+  }
+
+  .fc-brand-panel__subtitle {
+    max-width: none;
+  }
+
+  .fc-brand-panel__indicators {
+    display: none;
+  }
+}

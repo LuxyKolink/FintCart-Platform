@@ -122,6 +122,48 @@ export async function expectKeyboardReaches(
         return null;
       }
 
+      /**
+       * FR-094: ¿señala el foco este elemento? El design system lo señala de dos
+       * maneras: un `outline` (enlaces, controles nativos) o un anillo de
+       * `box-shadow`, que a veces vive en el contenedor que envuelve al control
+       * (`fc-input` pinta el anillo en `.fc-field__control:focus-within`). Por eso
+       * se sube por los ancestros: el anillo del contenedor es una señal legítima.
+       *
+       * Un `box-shadow` solo cuenta si su color es opaco. Las sombras decorativas
+       * del sistema van con alfa 0.04–0.16, así que exigir alfa ≥ 0.4 convierte la
+       * comprobación en algo que una sombra estática no satisface por accidente:
+       * antes, un botón sin anillo pasaba por llevar `--shadow-xs`.
+       */
+      const focusIndicator = (start: HTMLElement): Pick<FocusObservation, 'hasRing' | 'hasShadow'> => {
+        const isStrongShadow = (value: string): boolean => {
+          if (value === 'none') {
+            return false;
+          }
+          const colors = value.match(/rgba?\([^)]+\)/g) ?? [];
+          return colors.some((color) => {
+            const parts =
+              /rgba?\(([^)]+)\)/u
+                .exec(color)?.[1]
+                .split(',')
+                .map((part) => Number.parseFloat(part.trim())) ?? [];
+            return (parts.length > 3 ? parts[3] : 1) >= 0.4;
+          });
+        };
+
+        let ring = false;
+        let shadow = false;
+        let node: HTMLElement | null = start;
+        for (let depth = 0; node !== null && depth < 4; depth += 1, node = node.parentElement) {
+          const style = getComputedStyle(node);
+          ring = ring || (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0);
+          shadow = shadow || isStrongShadow(style.boxShadow);
+          if (ring || shadow) {
+            break;
+          }
+        }
+        return { hasRing: ring, hasShadow: shadow };
+      };
+
       // Identidad de parada por índice asignado una sola vez: `tag+class` colisiona
       // entre enlaces hermanos y haría creer que el recorrido cicló antes de tiempo.
       const root = document.documentElement;
@@ -161,12 +203,10 @@ export async function expectKeyboardReaches(
         .replace(/\s+/gu, ' ')
         .slice(0, 60) ?? '';
 
-      const style = getComputedStyle(element);
       return {
         key: index,
         name,
-        hasRing: style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0,
-        hasShadow: style.boxShadow !== 'none',
+        ...focusIndicator(element),
       };
     });
 

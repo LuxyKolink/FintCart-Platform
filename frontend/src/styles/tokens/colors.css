@@ -15,6 +15,7 @@
   --warm-300: #DDD1BC;
   --warm-400: #C3B49A;
   --warm-500: #998A72;
+  --warm-550: #7F6F55; /* tono más claro que aún cumple AA sobre blanco (4.87:1) */
   --warm-600: #6E6353;
   --warm-700: #4C4339;
   --warm-800: #2E2822;
@@ -76,7 +77,13 @@
   --text-strong:  var(--warm-900);
   --text-body:    var(--warm-800);
   --text-muted:   var(--warm-600);
-  --text-faint:   var(--warm-500);
+  /* `--text-faint` NO es el warm-500 del kit: ese tono da 3.37:1 sobre blanco y el
+   * texto secundario (ayuda de campo, etiqueta del divisor, pestañas inactivas) caía
+   * por debajo del 4.5:1 de AA (FR-096, SC-032). Se sustituye por el tono más claro
+   * que SÍ cumple (4.87:1) para conservar la jerarquía frente a `--text-muted` en vez
+   * de igualarlos. Mismo criterio que el coral 500 del botón primario: el kit es
+   * autoridad visual, pero no puede ganarle a un MUST de accesibilidad. */
+  --text-faint:   var(--warm-550);
   --text-inverse: var(--warm-50);
   --text-link:    var(--purple-500);
   --text-link-hover: var(--purple-600);
