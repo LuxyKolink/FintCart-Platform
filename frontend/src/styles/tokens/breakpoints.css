@@ -1,0 +1,36 @@
+/* ============================================================
+   FintCart — Responsive breakpoint tokens (research D-27, FR-125)
+
+   El frontend no tenía ni un `@media` ni un token de punto de corte:
+   el responsive se define aquí por primera vez. Estos cuatro valores
+   son una ADICIÓN al design system, no una desviación — se declaran
+   junto al resto de tokens para que los features siguientes los
+   hereden en vez de repetir números sueltos por pantalla.
+
+   Regla de degradación por disposición (D-27):
+     --bp-sm  480px  Móvil. Una sola columna; los rieles se apilan.
+     --bp-md  768px  Tableta vertical. Dos zonas; se sacrifica el
+                     riel secundario, nunca el principal.
+     --bp-lg 1024px  Tableta horizontal / portátil. Tres zonas con
+                     rieles estrechos.
+     --bp-xl 1280px  Escritorio. La disposición de los kits, tal cual.
+
+   AVISO TÉCNICO — por qué esto NO se usa como `var(--bp-md)` dentro
+   de un `@media`: las propiedades personalizadas de CSS no se
+   resuelven en el contexto de una consulta de medios, así que
+   `@media (max-width: var(--bp-md))` es inválido y el navegador
+   descarta la consulta entera. Estos tokens son la fuente única de
+   verdad; cada `@media` de un componente escribe el valor literal
+   (768px) y cita el token en un comentario para que la correspondencia
+   sea verificable. Cambiar un punto de corte es cambiar este archivo
+   Y los literales que lo citan — no se puede hacer mejor sin un
+   preprocesador de `@custom-media`, que este feature no introduce
+   (Technical Context: ninguna dependencia nueva).
+   ============================================================ */
+
+:root {
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+}

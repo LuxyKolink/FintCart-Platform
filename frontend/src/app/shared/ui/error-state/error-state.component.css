@@ -1,0 +1,41 @@
+.fc-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-body);
+}
+
+.fc-error-state__icon {
+  color: var(--danger);
+}
+
+.fc-error-state__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  text-wrap: balance;
+}
+
+.fc-error-state__message {
+  margin: 0;
+  max-width: 42ch;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.fc-error-state__action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
