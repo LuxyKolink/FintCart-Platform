@@ -8,3 +8,4 @@ pub mod dispatch;
 pub mod error;
 pub mod formula;
 pub mod inputs;
+pub mod seeds;
