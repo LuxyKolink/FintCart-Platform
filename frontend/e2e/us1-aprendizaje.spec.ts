@@ -55,6 +55,10 @@ test('un usuario nuevo completa registro, verificación, login, lectura y cuesti
     }
     await startQuiz.click();
     await expect(page).toHaveURL(/\/cuestionarios\//);
+    // La sesión se pide al abrir la pantalla (`StartQuizSession`, FR-038), así que
+    // las preguntas NO están cuando cambia la URL: sin esta espera el conteo ve 0
+    // fieldsets, el bucle no corre y el botón queda deshabilitado.
+    await expect(page.locator('fieldset').first()).toBeVisible();
 
     const fieldsets = page.locator('fieldset');
     const total = await fieldsets.count();

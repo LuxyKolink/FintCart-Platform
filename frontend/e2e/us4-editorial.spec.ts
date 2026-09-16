@@ -57,7 +57,7 @@ test('un editor publica un artículo tras la aprobación de un coordinador disti
     await expect(page).toHaveURL(/\/editorial$/);
 
     await page.getByLabel('Título').fill(title);
-    await page.getByLabel('Categoría').fill('ahorro');
+    await page.getByLabel('Categoría').selectOption({ label: 'Ahorro' });
     await page.getByLabel('Cuerpo', { exact: true }).fill('Cuerpo del artículo de prueba, con suficiente longitud.');
     await page.getByRole('button', { name: 'Crear borrador' }).click();
     await expect(page.getByText('Estado actual:')).toBeVisible();
