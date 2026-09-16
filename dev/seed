@@ -140,15 +140,36 @@ INSERT INTO seed_ids VALUES (
   '00000000-0000-4000-8000-00000000c007'
 );
 
-INSERT INTO articles (id, title, category, author_id)
-SELECT v.id, v.title, v.category, s.editor
-FROM seed_ids s, (VALUES
+-- Categorías temáticas (SC-009). La migración de conversión ya deja las canónicas en
+-- una base nueva, pero `dev/seed` no debe depender del orden en que se poblaron: se
+-- aseguran aquí de forma idempotente. Las posiciones se encadenan tras el máximo
+-- existente para no chocar con `categories_position_active_uniq`.
+INSERT INTO categories (name, slug, position)
+SELECT c.name, c.slug, (base.max_position + c.ord)::integer
+FROM (VALUES
+  (1, 'Presupuesto',          'presupuesto'),
+  (2, 'Ahorro',               'ahorro'),
+  (3, 'Crédito',              'credito'),
+  (4, 'Inversión',            'inversion'),
+  (5, 'Seguridad financiera', 'seguridad-financiera')
+) AS c(ord, name, slug)
+CROSS JOIN (SELECT COALESCE(max(position), 0) AS max_position FROM categories) base
+ON CONFLICT (slug) DO NOTHING;
+
+-- `articles.category` (texto libre) desapareció en la migración 20260902101500:
+-- ahora es `category_id` y la identidad de la categoría es su `slug`. El JOIN, y no
+-- un identificador fijo, mantiene la siembra atada al catálogo real (FR-034).
+INSERT INTO articles (id, title, category_id, author_id)
+SELECT v.id, v.title, c.id, s.editor
+FROM seed_ids s
+CROSS JOIN (VALUES
   ('00000000-0000-4000-8000-000000000a01'::UUID, 'Cómo construir tu primer presupuesto mensual', 'presupuesto'),
   ('00000000-0000-4000-8000-000000000a02'::UUID, 'El fondo de emergencia: cuánto y dónde', 'ahorro'),
   ('00000000-0000-4000-8000-000000000a03'::UUID, 'Entender la tasa efectiva anual antes de pedir un crédito', 'credito'),
   ('00000000-0000-4000-8000-000000000a04'::UUID, 'Interés compuesto: por qué el tiempo pesa más que el monto', 'inversion'),
-  ('00000000-0000-4000-8000-000000000a05'::UUID, 'El 4x1000 y otros costos que no aparecen en la tasa', 'seguridad_financiera')
-) AS v(id, title, category)
+  ('00000000-0000-4000-8000-000000000a05'::UUID, 'El 4x1000 y otros costos que no aparecen en la tasa', 'seguridad-financiera')
+) AS v(id, title, category_slug)
+JOIN categories c ON c.slug = v.category_slug
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO article_versions (id, article_id, version_no, body, state, created_by, approved_by, published_at)
