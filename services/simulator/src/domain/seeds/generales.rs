@@ -25,6 +25,8 @@
 //! un `/` daría un resultado distinto del que calcula el código nativo. Con los paréntesis
 //! puestos donde se define la sub-expresión, componer no puede cambiar el significado.
 
+use uuid::Uuid;
+
 use super::{
     entero, monto, monto_opcional, regla, salida, salida_condicional, tasa, tasa_opcional, Seed,
 };
@@ -43,7 +45,7 @@ const ESCALA_MONETARIA: u32 = 2;
 /// no a la vez: sin ninguno no hay nada que capitalizar, y devolver ceros sería un resultado
 /// indistinguible de un cálculo legítimo.
 #[must_use]
-pub fn ahorro() -> Seed {
+pub fn ahorro(id: Uuid) -> Seed {
     // El factor de capitalización y la serie de aportes aparecen DOS veces cada uno (en el
     // saldo y en el interés, que se deriva de él). Se escriben como macros para que las dos
     // apariciones sean literalmente el mismo texto: dos copias que se separaran darían un
@@ -72,6 +74,7 @@ pub fn ahorro() -> Seed {
     }
 
     Seed {
+        id,
         name: "ahorro",
         description: "Cuánto tendrás si guardas un aporte cada mes.",
         draft: Draft {
@@ -126,7 +129,7 @@ pub fn ahorro() -> Seed {
 /// un total que no cuadra con el interés. Las tres salidas se calculan a precisión plena y se
 /// redondean una sola vez, de modo que `interes_total = total_pagado − monto` exactamente.
 #[must_use]
-pub fn credito() -> Seed {
+pub fn credito(id: Uuid) -> Seed {
     // Cuota SIN redondear, compartida por las tres salidas que la usan.
     macro_rules! cuota {
         () => {
@@ -140,6 +143,7 @@ pub fn credito() -> Seed {
     }
 
     Seed {
+        id,
         name: "credito",
         description: "Cuota mensual y costo total de un crédito con amortización francesa.",
         draft: Draft {
@@ -181,7 +185,7 @@ pub fn credito() -> Seed {
 /// NEGATIVO como respuesta legítima: un presupuesto en déficit es exactamente lo que el
 /// usuario necesita ver, así que no se recorta a cero.
 #[must_use]
-pub fn presupuesto() -> Seed {
+pub fn presupuesto(id: Uuid) -> Seed {
     macro_rules! gasto {
         () => {
             "(gastos_fijos + gastos_variables)"
@@ -194,6 +198,7 @@ pub fn presupuesto() -> Seed {
     }
 
     Seed {
+        id,
         name: "presupuesto",
         description: "Cuánto te queda del ingreso del mes después de los gastos.",
         draft: Draft {
@@ -239,7 +244,7 @@ pub fn presupuesto() -> Seed {
 /// se mide en años y el aporte es anual: son dos preguntas distintas del usuario, y una sola
 /// calculadora «universal» obligaría a explicarle qué es un periodo antes de responderle.
 #[must_use]
-pub fn inversion() -> Seed {
+pub fn inversion(id: Uuid) -> Seed {
     // El valor futuro SIN redondear, compartido por las dos salidas que lo usan. Y tiene que
     // ser el MISMO número: `valor_futuro_real` descuenta el importe que `valor_futuro`
     // redondea (así lo hace `inversion.rs:78`), de modo que las dos cifras que ve el usuario
@@ -257,6 +262,7 @@ pub fn inversion() -> Seed {
     }
 
     Seed {
+        id,
         name: "inversion",
         description: "Cuánto valdrá tu inversión en un horizonte de años.",
         draft: Draft {

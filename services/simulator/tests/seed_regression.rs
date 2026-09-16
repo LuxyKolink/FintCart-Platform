@@ -65,6 +65,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::str::FromStr;
 
 use rust_decimal::Decimal;
+use uuid::Uuid;
 
 use fintcart_simulator::calculators::{ahorro, colombia, credito, inversion, presupuesto, Outcome};
 use fintcart_simulator::domain::error::Error;
@@ -403,6 +404,74 @@ fn las_siete_semillas_existen_con_su_nombre() {
             "gmf",
         ]
     );
+}
+
+/// Los siete identificadores son distintos y viven en el bloque reservado (T095).
+///
+/// Es la invariante de la que depende el sembrado: si dos semillas compartieran identificador,
+/// la segunda no se insertaría —la primera ya está— y `dev/seed` diría «7 semillas» sobre una
+/// base con seis. Y si una se saliera del bloque `…e0NN`, dejaría de ser reconocible como
+/// semilla en la base, que es la única señal de que esa fila no la creó nadie.
+#[test]
+fn cada_semilla_tiene_un_identificador_estable_y_distinto() {
+    let semillas = semillas();
+    let ids: Vec<Uuid> = semillas.iter().map(|seed| seed.id).collect();
+
+    let distintos: std::collections::BTreeSet<Uuid> = ids.iter().copied().collect();
+    assert_eq!(
+        distintos.len(),
+        ids.len(),
+        "dos semillas comparten identificador: {ids:?}"
+    );
+
+    for (seed, id) in semillas.iter().zip(&ids) {
+        let texto = id.to_string();
+        assert!(
+            texto.starts_with("00000000-0000-4000-8000-00000000e0"),
+            "«{}» tiene {texto}, fuera del bloque reservado a las semillas",
+            seed.name
+        );
+    }
+}
+
+/// Los nombres de los indicadores sembrados son EXACTAMENTE el catálogo de las semillas.
+///
+/// Las dos listas existen por razones distintas —una dice qué indicadores crea `dev/seed`, la
+/// otra contra qué catálogo se analizan las fórmulas— y por eso pueden divergir. Si divergieran,
+/// el síntoma sería una fila invisible: un indicador que existe en la base y que ninguna fórmula
+/// puede referenciar, porque el analizador no lo conoce. La prueba las ata.
+#[test]
+fn los_indicadores_sembrados_son_el_catalogo_de_las_semillas() {
+    let sembrados: Vec<&str> = fintcart_simulator::repo::seeds::YEAR_INDICATORS
+        .iter()
+        .map(|(name, _)| *name)
+        .collect();
+
+    assert_eq!(
+        sembrados,
+        fintcart_simulator::domain::seeds::INDICATORS.to_vec()
+    );
+}
+
+/// Los valores de indicador que se siembran son decimales canónicos dentro de su columna.
+///
+/// `value` es `NUMERIC(20,6)` y `financial_indicators_value_non_negative` exige que no sea
+/// negativo. Un valor sembrado que no encajara no fallaría hasta la siembra, y el mensaje sería
+/// del driver.
+#[test]
+fn los_valores_sembrados_caben_en_su_columna() {
+    for (name, value) in fintcart_simulator::repo::seeds::YEAR_INDICATORS {
+        let decimal = Decimal::from_str(value)
+            .unwrap_or_else(|_| panic!("«{name}» tiene un valor que no es decimal: {value:?}"));
+        assert!(
+            decimal >= Decimal::ZERO,
+            "«{name}» tiene un valor negativo: {value}"
+        );
+        assert!(
+            decimal.scale() <= 6,
+            "«{name}» tiene más de seis decimales y no cabe en NUMERIC(20,6): {value}"
+        );
+    }
 }
 
 /// Solo `gmf` depende de un indicador.

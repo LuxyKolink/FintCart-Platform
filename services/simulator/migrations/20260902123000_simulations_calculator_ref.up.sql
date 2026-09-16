@@ -19,8 +19,12 @@ ALTER TABLE simulations
 -- ANTES que el sembrado (`dev/build → dev/up → dev/migrate → dev/seed`, Principio XII).
 -- Sobre una base ya sembrada el relleno actúa; sobre una recién migrada no encuentra
 -- nada y deja las filas en NULL, que es la verdad —no había semilla que citar cuando
--- se migró—. `dev/seed` repite este mismo UPDATE tras sembrar, así que el resultado
--- final es el mismo en los dos órdenes.
+-- se migró—. `repo::seeds::backfill_history` repite este mismo UPDATE tras sembrar —lo
+-- invoca `dev/seed`—, así que el resultado final es el mismo en los dos órdenes.
+--
+-- La regla está escrita DOS veces, aquí y en esa función, y no hay forma de evitarlo: una
+-- migración ya aplicada no se reescribe y el SQL no puede llamar a código Rust. Las dos
+-- copias se apuntan mutuamente para que quien cambie una vea la otra.
 --
 -- `colombia_especifica` NO se puede emparejar por `calc_type`: era UNA calculadora con
 -- un discriminador de texto que D-16 separa en tres. Cuál de las tres fue cada fila lo

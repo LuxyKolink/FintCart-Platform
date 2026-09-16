@@ -34,6 +34,8 @@
 //!
 //! Ver la nota del módulo padre sobre los paréntesis en las sub-expresiones compartidas.
 
+use uuid::Uuid;
+
 use super::{entero_opcional, monto, regla, salida, tasa, Seed};
 use crate::domain::definition::Draft;
 
@@ -82,7 +84,7 @@ macro_rules! exencion_uvt {
 /// exigiría un exponente entero, que es otra operación. Es la separación que D-16 señala como
 /// condición para que FR-049 se mantenga cerrado.
 #[must_use]
-pub fn ea_a_mv() -> Seed {
+pub fn ea_a_mv(id: Uuid) -> Seed {
     // La tasa mensual entre paréntesis: se compone con ` * 12` para la nominal anual, y sin
     // ellos `potd(...) - 1 * 12` restaría doce en vez de multiplicar la tasa.
     macro_rules! mes_vencido {
@@ -92,6 +94,7 @@ pub fn ea_a_mv() -> Seed {
     }
 
     Seed {
+        id,
         name: "ea_a_mv",
         description: "Convierte una tasa efectiva anual a nominal mes vencido.",
         draft: Draft {
@@ -122,8 +125,9 @@ pub fn ea_a_mv() -> Seed {
 /// a un entero es multiplicación repetida, sin funciones trascendentes de por medio, y por eso
 /// usa `pot`.
 #[must_use]
-pub fn mv_a_ea() -> Seed {
+pub fn mv_a_ea(id: Uuid) -> Seed {
     Seed {
+        id,
         name: "mv_a_ea",
         description: "Convierte una tasa nominal mes vencido a efectiva anual.",
         draft: Draft {
@@ -164,7 +168,7 @@ pub fn mv_a_ea() -> Seed {
 /// lo que un lenguaje sin texto puede expresar, y su rango `[0, 1]` hace que un valor distinto
 /// se rechace en vez de leerse como «no».
 #[must_use]
-pub fn gmf() -> Seed {
+pub fn gmf(id: Uuid) -> Seed {
     macro_rules! tope {
         () => {
             concat!("@UVT * ", exencion_uvt!())
@@ -195,6 +199,7 @@ pub fn gmf() -> Seed {
     }
 
     Seed {
+        id,
         name: "gmf",
         description: "Gravamen a los movimientos financieros (el «4 × 1000»).",
         draft: Draft {

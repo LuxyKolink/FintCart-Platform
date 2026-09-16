@@ -43,6 +43,7 @@
 use std::collections::BTreeSet;
 
 use rust_decimal::Decimal;
+use uuid::Uuid;
 
 use crate::domain::definition::{
     Definition, Draft, DraftOutput, DraftValidation, InputField, Issue,
@@ -51,6 +52,25 @@ use crate::domain::formula::ast::InputKind;
 
 pub mod colombia;
 pub mod generales;
+
+/// Identificador estable de una semilla, en `calculators.id` (T095).
+///
+/// Las siete viven en un bloque fijo y consecutivo —`…-00000000e001` a `…-00000000e007`— en
+/// lugar de recibir un `gen_random_uuid()` como cualquier calculadora. La razón no es la
+/// comodidad: `dev/seed` es idempotente y el relleno del historial de T020 empareja las
+/// simulaciones viejas con las semillas **por nombre**, así que un identificador aleatorio
+/// haría que una segunda ejecución creara un juego nuevo de semillas y dejara el historial
+/// apuntando a la copia que ya nadie actualiza.
+///
+/// Se construye desde la POSICIÓN en la lista y no desde el nombre para que el bloque sea
+/// legible en la base: un `…e003` en `calculators.id` es una semilla de la plataforma y no la
+/// calculadora de alguien.
+///
+/// El parámetro es `u16` y el bloque reserva los dígitos bajos, así que la posición no puede
+/// desbordar hacia el `e` que lo identifica.
+const fn seed_id(posicion: u16) -> Uuid {
+    Uuid::from_u128(0x0000_0000_0000_4000_8000_0000_0000_e000 | posicion as u128)
+}
 
 /// Indicadores que la plataforma siembra (T095) y que una semilla puede referenciar.
 ///
@@ -66,6 +86,8 @@ pub const INDICATORS: [&str; 5] = ["IPC", "SMMLV", "TASA_USURA", "UVR", "UVT"];
 /// Una semilla todavía en texto, antes de analizarse.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Seed {
+    /// Identificador estable de la fila. Ver [`seed_id`].
+    pub id: Uuid,
     /// Nombre con el que se persiste y con el que se referencia desde `Compute`.
     pub name: &'static str,
     /// Descripción que ve el usuario en el catálogo.
@@ -77,6 +99,8 @@ pub struct Seed {
 /// Una semilla ya analizada, lista para persistir y para ejecutar.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Compiled {
+    /// Identificador estable con el que se siembra y se cita desde `simulations`.
+    pub id: Uuid,
     /// Nombre de la semilla.
     pub name: &'static str,
     /// Descripción visible.
@@ -98,16 +122,20 @@ pub struct SeedError {
 }
 
 /// Las siete semillas en texto, en el orden en que se listan al usuario.
+///
+/// El identificador se pasa en la MISMA línea que el constructor y no se asigna después: así
+/// no existe una semilla sin identificador, ni un identificador sin semilla, ni una lista
+/// paralela de la que alguien pueda olvidarse.
 #[must_use]
 pub fn drafts() -> Vec<Seed> {
     vec![
-        generales::ahorro(),
-        generales::credito(),
-        generales::presupuesto(),
-        generales::inversion(),
-        colombia::ea_a_mv(),
-        colombia::mv_a_ea(),
-        colombia::gmf(),
+        generales::ahorro(seed_id(1)),
+        generales::credito(seed_id(2)),
+        generales::presupuesto(seed_id(3)),
+        generales::inversion(seed_id(4)),
+        colombia::ea_a_mv(seed_id(5)),
+        colombia::mv_a_ea(seed_id(6)),
+        colombia::gmf(seed_id(7)),
     ]
 }
 
@@ -132,6 +160,7 @@ pub fn compile() -> Result<Vec<Compiled>, Vec<SeedError>> {
     for seed in drafts() {
         match seed.draft.parse(&catalog) {
             Ok(definition) => compiled.push(Compiled {
+                id: seed.id,
                 name: seed.name,
                 description: seed.description,
                 definition,

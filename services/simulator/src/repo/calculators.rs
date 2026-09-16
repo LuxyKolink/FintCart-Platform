@@ -469,7 +469,11 @@ async fn bump(
 }
 
 /// Inserta la definición de una versión. Nunca actualiza: ver la nota del módulo.
-async fn insert_definition(
+///
+/// `pub(crate)` y no privada porque la siembra de T095 (`repo::seeds`) escribe definiciones
+/// por el MISMO camino. Una segunda copia del `INSERT` tendría que conocer la forma almacenada,
+/// y la forma almacenada vive en un solo sitio a propósito: ver la nota de [`OutputJson`].
+pub(crate) async fn insert_definition(
     tx: &mut Transaction<'static, Postgres>,
     id: Uuid,
     version: i32,
@@ -692,7 +696,7 @@ fn to_stored(definition: &Definition) -> Result<Stored> {
 /// [`Error::Storage`] si una columna no tiene la forma documentada. Se trata como fallo de
 /// persistencia, que es lo que es: la fila la escribió este mismo módulo, así que una que no
 /// encaje significa que algo la tocó por fuera.
-fn from_stored(
+pub(crate) fn from_stored(
     inputs: serde_json::Value,
     validations: serde_json::Value,
     outputs: serde_json::Value,

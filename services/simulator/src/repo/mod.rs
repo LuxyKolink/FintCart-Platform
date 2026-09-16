@@ -9,6 +9,7 @@
 //! Separarla sugeriría que toca otro almacén.
 
 pub mod calculators;
+pub mod seeds;
 pub mod simulations;
 pub mod tx;
 
