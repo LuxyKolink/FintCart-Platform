@@ -9,6 +9,13 @@
 #   · `GET /catalog/articles` devuelve una lista vacía y `POST /quizzes/{id}/attempts`
 #     no tiene ningún cuestionario al que apuntar, porque el catálogo solo se llena
 #     por el flujo editorial, que a su vez exige un usuario con rol.
+#   · `GET /calculators` no lista ninguna de las siete calculadoras por defecto de la
+#     plataforma (FR-019), así que el simulador arranca sin nada que ejecutar, y `gmf`
+#     no puede calcular porque depende del indicador `@UVT`.
+#
+# Las siete calculadoras y los indicadores los siembra un BINARIO del Simulador y no SQL
+# de este script: una definición son tres columnas JSONB producidas por el analizador de
+# fórmulas. Ver `services/simulator/src/repo/seeds.rs`.
 #
 # Por qué NO es una migración: `golang-migrate` versiona el ESQUEMA, y una migración
 # que insertara filas las llevaría también a producción, donde este cliente OAuth de
@@ -18,7 +25,7 @@
 # de modo que ejecutarlo dos veces no duplica nada.
 #
 # Uso:
-#   dev/seed                          cliente OAuth + catálogo de ejemplo
+#   dev/seed                          cliente OAuth + catálogo de ejemplo + semillas
 #   dev/seed role <correo> <rol>      concede un rol a una cuenta ya registrada
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
@@ -197,11 +204,33 @@ ON CONFLICT (id) DO NOTHING;
 COMMIT;
 SQL
 
+# ── semillas del Simulador ──────────────────────────────────────────────────
+#
+# Las siete calculadoras de FR-019 y los indicadores del año. A diferencia del resto de
+# este script, NO es SQL desde aquí: una definición semilla son tres columnas JSONB
+# producidas por el ANALIZADOR de fórmulas, así que hay que ejecutar el binario que las
+# compila. Escribirlas a mano en un INSERT sería mantener una segunda copia del AST, y
+# una copia que no pasa por el analizador es justo lo que el motor existe para impedir.
+# Ver `services/simulator/src/repo/seeds.rs`.
+#
+# El binario se llama con el entorno del contenedor ya puesto, así que `DB_ADDR` sale del
+# compose y el sembrado no puede apuntar a una base distinta de la que se migra.
+log "sembrando las 7 definiciones de calculadora y los indicadores del año"
+sim_cid="$(compose ps -q simulator 2>/dev/null || true)"
+[[ -n "$sim_cid" ]] \
+  || die "'simulator' no está en marcha. Ejecutar 'dev/up' antes de 'dev/seed'."
+compose exec -T simulator /src/target/debug/seed
+
+# El relleno del historial de T020 lo repite el propio binario tras sembrar, y tiene que
+# hacerlo: la migración corre ANTES que este script, así que sobre una base virgen no
+# encuentra ninguna semilla que citar y deja las filas anteriores en NULL.
 log "OK — datos sembrados"
 cat <<'EOF'
     Cliente OAuth  fintcart-spa  (público, PKCE S256)
     redirect_uri   http://localhost:4200/auth/callback
     Cuestionario   00000000-0000-4000-8000-000000000c01
+    Calculadoras   las 7 semillas, ids 00000000-0000-4000-8000-00000000e001…e007
+    Indicadores    5 para el año en curso, con valores de EJEMPLO (no oficiales)
 
     Para el flujo editorial hace falta un rol:
       dev/seed role <correo> editor
