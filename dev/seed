@@ -63,9 +63,13 @@ seed_role() {
   local email="${1:-}" role="${2:-}"
   [[ -n "$email" && -n "$role" ]] || die "uso: dev/seed role <correo> <rol>"
 
+  # La lista es la de `roles_assignment_role_valid`, y se mantiene a mano porque el
+  # script no consulta el esquema: si el CHECK crece y esta línea no, el síntoma es
+  # que `dev/seed role` rechaza un rol que la base SÍ admitiría — que es exactamente
+  # lo que pasó al añadirse 'administrador' en FR-080 (T022).
   case "$role" in
-    usuario_final|editor|coordinador_editorial) ;;
-    *) die "rol inválido: '$role' (usuario_final, editor o coordinador_editorial)" ;;
+    usuario_final|editor|coordinador_editorial|administrador) ;;
+    *) die "rol inválido: '$role' (usuario_final, editor, coordinador_editorial o administrador)" ;;
   esac
 
   log "concediendo '$role' a $email"
@@ -246,4 +250,11 @@ cat <<'EOF'
     Para el flujo editorial hace falta un rol:
       dev/seed role <correo> editor
       dev/seed role <correo> coordinador_editorial
+
+    Para la administración (categorías, indicadores, cuentas):
+      dev/seed role <correo> administrador
+      (o poner el correo en BOOTSTRAP_ADMIN_EMAIL y reiniciar `users`)
+
+    Ojo: 'administrador' NO hereda las atribuciones de 'coordinador_editorial'
+    (FR-082) — quien tenga que aprobar contenido necesita el segundo, no el primero.
 EOF

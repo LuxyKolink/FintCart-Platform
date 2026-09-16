@@ -141,6 +141,7 @@ nano .env.app
 #   DOMAIN              → ya viene prellenado con fintcart.bucaramanga.upb.edu.co
 #   SMTP_FROM / SMTP_USER → tu cuenta de Gmail
 #   SMTP_PASSWORD       → la contraseña de aplicación de 16 caracteres
+#   BOOTSTRAP_ADMIN_EMAIL → el correo que será administrador (ver abajo)
 
 # La construcción compila 5 binarios Go, un binario Rust en modo release y el bundle
 # de Angular. En 2 vCPU puede tardar varios minutos — es esperable, no un fallo.
@@ -150,6 +151,51 @@ docker compose -f compose.app.yaml --env-file .env.app up -d
 
 docker compose -f compose.app.yaml logs -f caddy   # confirmar que emitió el certificado
 ```
+
+### El administrador inicial
+
+`BOOTSTRAP_ADMIN_EMAIL` es la única forma de que exista un administrador en esta
+plataforma, y conviene saber por qué antes de dejarlo vacío:
+
+- El rol **no se concede por la API**. Un endpoint capaz de otorgar `administrador`
+  anularía la separación de responsabilidades de FR-008 —el mismo motivo por el que
+  `dev/seed role` existe—; y `administrador` **no hereda** las atribuciones de
+  `coordinador_editorial` (FR-082), así que tampoco sirve conceder el otro.
+- El rol **no se siembra en una migración**: quedaría un usuario privilegiado escrito
+  en el repositorio, y con él la contraseña del que lo cree (D-21).
+
+Así que la secuencia es: la cuenta se registra desde la SPA por el flujo normal,
+y después se pone su correo en `.env.app` y se reinicia `users`:
+
+```bash
+docker compose -f compose.app.yaml --env-file .env.app up -d users
+```
+
+La promoción es **idempotente**, así que reiniciar de más no duplica nada. Si el
+correo todavía no corresponde a ninguna cuenta registrada, el servicio arranca igual
+y registra `BOOTSTRAP_ADMIN_EMAIL no corresponde a ninguna cuenta registrada`: no es
+un error, es la promoción esperando a que el registro termine. Cualquier **otro**
+fallo sí detiene el arranque, porque un `BOOTSTRAP_ADMIN_EMAIL` que no se puede
+aplicar es una configuración errónea que conviene ver de inmediato.
+
+Dejarlo vacío deja las pantallas de categorías, indicadores anuales y cuentas
+inaccesibles. Nada más falla: el catálogo, los cuestionarios y el simulador funcionan
+sin administrador.
+
+### Los dos barridos periódicos
+
+`PURGE_SWEEP_INTERVAL` e `INDICATOR_SWEEP_INTERVAL` gobiernan los dos únicos trabajos
+periódicos de la plataforma, y ambos viven en el **Orquestador** por la misma razón
+que las sagas: son secuenciación, no dominio. Deciden *cuándo* preguntar; *qué*
+responder lo responde el servicio dueño por gRPC —`Users.ListAccountsDueForPurge` para
+las purgas y el calendario del Simulador para los indicadores—, nunca leyendo su base
+(Principio III).
+
+El formato es el de `time.ParseDuration` de Go (`1h`, `30m`, `12h`). Los valores por
+defecto (1h y 12h) son holgados a propósito: la purga tiene un plazo de gracia de 30
+días y el aviso de vencimiento se publica con semanas de antelación, así que bajarlos
+solo añade consultas. En desarrollo van a 5m para que las dos rutas se puedan recorrer
+dentro de una sesión.
 
 ## 5. Verificación de punta a punta
 

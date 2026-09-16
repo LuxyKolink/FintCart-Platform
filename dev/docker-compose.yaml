@@ -210,6 +210,18 @@ services:
       # se piden por gRPC, NUNCA leyendo la base de otro servicio.
       LEARNING_SVC_ADDR: "learning:9090"
       SIMULATOR_SVC_ADDR: "simulator:9090"
+      # Promoción del primer administrador (D-21, FR-083). Vacío por defecto a
+      # propósito: en desarrollo no hay ninguna cuenta dada de alta —el registro se
+      # hace desde la SPA—, así que no existe un correo que promover. Se pone aquí
+      # el correo con el que uno se registre y se reinicia `users`; la promoción es
+      # idempotente y tolera que la cuenta aún no exista (`main.go` registra el
+      # aviso y sigue), de modo que rellenarlo ANTES de registrarse tampoco rompe
+      # nada: el arranque siguiente la consuma.
+      #
+      # La alternativa es `dev/seed role <correo> administrador`, que no exige
+      # reiniciar. Ninguna de las dos siembra el privilegio en una migración, que es
+      # lo que D-21 prohíbe: quedaría un usuario privilegiado escrito en el repositorio.
+      BOOTSTRAP_ADMIN_EMAIL: "${BOOTSTRAP_ADMIN_EMAIL:-}"
       GRPC_PORT: "9090"
       LOG_LEVEL: "debug"
     ports: ["9092:9090"]
@@ -254,6 +266,18 @@ services:
       USERS_SVC_ADDR: "users:9090"
       LEARNING_SVC_ADDR: "learning:9090"
       SIMULATOR_SVC_ADDR: "simulator:9090"
+      # Los dos barridos periódicos del Orquestador (N-06: son SECUENCIACIÓN, no
+      # dominio — deciden CUÁNDO preguntar, y a quién preguntar lo responde el
+      # servicio dueño por gRPC). Son de este servicio y no del Simulador ni de
+      # Usuarios porque ninguno de los dos puede iniciar trabajo sobre el otro.
+      #
+      # El formato es el de `time.ParseDuration` de Go (`300ms`, `1.5h`, `5m`), que
+      # es lo que usará `sweeper.go` (T105, T144). Los valores de desarrollo son
+      # CORTOS a propósito: US7 no se puede probar si la purga solo se revisa cada
+      # 24 h, porque una sesión de desarrollo no dura eso. En producción van en
+      # horas (ver `deploy/vps`).
+      PURGE_SWEEP_INTERVAL: "${PURGE_SWEEP_INTERVAL:-5m}"
+      INDICATOR_SWEEP_INTERVAL: "${INDICATOR_SWEEP_INTERVAL:-5m}"
       GRPC_PORT: "9090"
       LOG_LEVEL: "debug"
     ports: ["9095:9090"]

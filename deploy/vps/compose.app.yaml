@@ -53,6 +53,17 @@ services:
       AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD}@${DATA_HOST}:5672/"
       LEARNING_SVC_ADDR: "learning:9090"
       SIMULATOR_SVC_ADDR: "simulator:9090"
+      # Promoción del primer administrador (D-21, FR-083). Vacío por defecto, igual
+      # que en desarrollo, pero aquí NO es un valor de relleno: en el VPS se pone el
+      # correo institucional del administrador en `.env.app` y se reinicia el
+      # servicio. Es la única forma de que exista un administrador, porque el rol no
+      # se puede conceder por la API —un endpoint que lo permitiera anularía la
+      # separación de responsabilidades de FR-008— y no se siembra en una migración
+      # (sería un privilegio escrito en el repositorio).
+      #
+      # Dejarlo vacío deja la plataforma sin administrador: las pantallas de
+      # categorías, indicadores y cuentas quedan inaccesibles, pero nada más falla.
+      BOOTSTRAP_ADMIN_EMAIL: "${BOOTSTRAP_ADMIN_EMAIL:-}"
       GRPC_PORT: "9090"
       LOG_LEVEL: "info"
 
@@ -86,6 +97,19 @@ services:
       USERS_SVC_ADDR: "users:9090"
       LEARNING_SVC_ADDR: "learning:9090"
       SIMULATOR_SVC_ADDR: "simulator:9090"
+      # Barridos periódicos del Orquestador (T105, T144). Formato de
+      # `time.ParseDuration` de Go. Los valores de producción son HOLGADOS porque
+      # ninguno de los dos tiene prisa:
+      #
+      #   · La purga vencida tiene una gracia de 30 días: revisar cada hora deja el
+      #     error máximo en una hora sobre un mes de plazo.
+      #   · El aviso de vencimiento del calendario de indicadores se publica con
+      #     semanas de antelación (research D-23); revisar dos veces al día sobra.
+      #
+      # En desarrollo van a 5m (ver `dev/docker-compose.yaml`) para que las dos
+      # rutas se puedan recorrer dentro de una sesión.
+      PURGE_SWEEP_INTERVAL: "${PURGE_SWEEP_INTERVAL:-1h}"
+      INDICATOR_SWEEP_INTERVAL: "${INDICATOR_SWEEP_INTERVAL:-12h}"
       GRPC_PORT: "9090"
       LOG_LEVEL: "info"
 
