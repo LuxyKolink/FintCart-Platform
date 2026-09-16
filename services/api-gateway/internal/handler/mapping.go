@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -365,7 +366,18 @@ func (h *Handler) writeGRPCError(w http.ResponseWriter, r *http.Request, err err
 	// Los fallos detectados en el propio borde, antes de llamar a nadie.
 	switch {
 	case errors.Is(err, errBadRequest):
-		writeError(w, http.StatusBadRequest, "bad_request", "petición inválida")
+		// El detalle SÍ sale, al contrario que en el camino de abajo, y la diferencia no
+		// es un descuido: este error lo redacta el borde a partir de la entrada del
+		// cliente, así que no puede llevar dentro nombres de host, de tabla ni detalle del
+		// driver —que es de lo que protege el mensaje fijo de `httpFromGRPC`—. Aplanarlo
+		// aquí no protegía de nada y además lo hacía invisible: esta rama retorna ANTES
+		// del bloque de log, de modo que el detalle no quedaba ni en el registro.
+		//
+		// Los mensajes se componen con `fmt.Errorf("%w: …", errBadRequest, …)` y el valor
+		// del cliente va con `%q`, que escapa lo que haga falta: reflejar la entrada de
+		// quien llama es seguro y es justo lo que necesita para corregirla.
+		h.logEdgeError(r, err)
+		writeError(w, http.StatusBadRequest, "bad_request", edgeMessage(err))
 		return
 	case errors.Is(err, errUnauthorized):
 		writeError(w, http.StatusUnauthorized, "unauthenticated", "no autenticado")
@@ -389,6 +401,43 @@ func (h *Handler) writeGRPCError(w http.ResponseWriter, r *http.Request, err err
 	)
 
 	writeError(w, httpStatus, errCode, message)
+}
+
+// edgeMessage extrae el detalle de un error compuesto por el propio borde.
+//
+// Los errores del borde se escriben `fmt.Errorf("%w: …", errBadRequest, …)`, así que su
+// texto lleva dentro el del centinela. Se quita ESA aparición y se conserva todo lo demás:
+// el prefijo que añade un envoltorio —`definitionFromDTO` compone
+// `inputs[1].type: <el error del tipo>`— es contexto útil, y quedarse solo con lo que sigue
+// al centinela lo perdería.
+//
+// El resultado de un envoltorio anidado es `inputs[1].type: tipo de entrada desconocido:
+// "porcentaje"`: se lee entero y nombra el campo. Lo que desaparece es «handler: petición
+// inválida», que no le dice nada al cliente y nombra un paquete que no es asunto suyo.
+//
+// Cae al texto genérico cuando no queda nada —un `errBadRequest` desnudo—, porque una
+// cadena vacía en el cuerpo del error es peor que un mensaje que al menos dice que la
+// petición no valía.
+func edgeMessage(err error) string {
+	const centinela = "handler: petición inválida"
+	detalle := strings.Replace(err.Error(), centinela+": ", "", 1)
+	if detalle == "" || detalle == centinela {
+		return "petición inválida"
+	}
+	return detalle
+}
+
+// logEdgeError registra un rechazo del borde.
+//
+// Va a `warn` y no a `error`: un 400 es un cliente equivocado y no un problema nuestro, que
+// es el mismo criterio que usa el camino de los servicios internos. Se registra porque un
+// rechazo sin rastro es lo que hace imposible responder a «¿por qué me da 400?».
+func (h *Handler) logEdgeError(r *http.Request, err error) {
+	h.logger.LogAttrs(r.Context(), slog.LevelWarn, "petición rechazada en el borde",
+		slog.String("method", r.Method),
+		slog.String("path", r.URL.Path),
+		slog.String("error", err.Error()),
+	)
 }
 
 // httpFromGRPC es la tabla de traducción de códigos.

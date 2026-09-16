@@ -250,15 +250,11 @@ func TestCalculatorRoutesRequireAuthentication(t *testing.T) {
 // olvidó el campo», que es un diagnóstico distinto —y peor— que «el cliente escribió un
 // tipo que no existe»: el autor se pondría a revisar un campo que sí rellenó.
 //
-// Lo que esta prueba NO puede afirmar hoy, y conviene que se lea aquí: **el mensaje que
-// recibe el cliente es «petición inválida» a secas**. `writeGRPCError` aplana todo error del
-// borde a un texto fijo por código, así que la ubicación que `definitionFromDTO` compone
-// —`inputs[1].type`— no sale, y tampoco se registra: esa rama retorna antes del bloque de
-// log. Es la política del borde y es deliberada (no filtrar mensajes de servicios internos),
-// pero aplicada a un error que el PROPIO borde redacta a partir de la entrada del cliente no
-// protege de nada, y deja al autor con un «petición inválida» delante de una errata que el
-// servidor sabía señalar. Cambiarlo afecta a todas las rutas y es una decisión propia; queda
-// anotado en el ledger en vez de resuelto de paso en esta tarea.
+// Y el mensaje NOMBRA la entrada que falla, que es la mitad útil del error: un «petición
+// inválida» a secas, con veinte entradas declaradas y una errata en la segunda, obliga a
+// buscarla a ojo. El borde redacta ese detalle a partir de la entrada del cliente, así que
+// mostrarlo no filtra nada de la infraestructura —la razón por la que los mensajes de los
+// servicios internos sí van fijos—, y va con `%q`, que escapa lo que haga falta.
 func TestAnUnknownInputTypeIsRejectedAtTheEdge(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
@@ -270,6 +266,10 @@ func TestAnUnknownInputTypeIsRejectedAtTheEdge(t *testing.T) {
 	rec := h.do(t, http.MethodPost, "/calculators", cuerpo, true)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), "inputs[1].type",
+		"el autor tiene que saber CUÁL de las entradas falla")
+	assert.Contains(t, rec.Body.String(), "porcentaje",
+		"y conviene que vea el valor que escribió, para reconocer la errata")
 	assert.Zero(t, h.simulator.upsertCalls, "un tipo que no es del contrato no llega a guardarse")
 	assert.Nil(t, h.simulator.lastValidate, "no se llega a validar: el tipo no es del contrato")
 }
