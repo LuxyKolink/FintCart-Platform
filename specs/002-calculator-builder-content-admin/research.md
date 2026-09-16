@@ -498,6 +498,43 @@ se ha escrito. Queda anotado como requisito de puesta en producción.
 
 ---
 
+## D-29 — Tipo con el que se registra una SEMILLA ejecutada por `calculator_id`
+
+**Decisión**: `simulations.calc_type` guarda el tipo nativo que la definición reproduce cuando
+la ejecución viene por `calculator_id` y la calculadora es una de las siete semillas; y
+`'usuario'` solo cuando la calculadora **no** es una semilla. La correspondencia vive en
+`domain::dispatch::SEEDS`, que relaciona el nombre de cada semilla con su tipo nativo.
+
+**El problema que resuelve**: D-26 justificó el sexto valor diciendo que significa «definida por
+el usuario», y eso es cierto para una calculadora de un usuario. Pero **el catálogo público
+ofrece las siete semillas y el ejecutor las pide por `calculator_id`** —es el camino PREFERENTE
+del contrato (FR-043, `ComputeRequest.calculator_id`: «exactamente uno de los dos debe venir
+relleno»)—, así que ese es el camino NORMAL de las calculadoras por defecto, no un caso raro.
+Escribir `'usuario'` sobre ellas afirmaría que un usuario las definió cuando las define el
+repositorio: la columna diría algo falso sobre siete calculadoras que existían antes que ella.
+
+**Justificación**: una semilla se registra con el tipo nativo que reproduce —`gmf`, `ea_a_mv` y
+`mv_a_ea` como `colombia_especifica`— y eso la deja **consistente con el historial que la
+migración de T020 ya rellenó**: las 13.493 filas `credito` y las sintéticas de
+`colombia_especifica` citan esas mismas semillas con esos mismos tipos. Sin esta decisión, una
+simulación de `gmf` hecha por el catálogo quedaría registrada como `'usuario'` mientras una
+idéntica hecha por `calc_type` queda como `colombia_especifica`, y las dos dirían ser la verdad.
+
+**Que la atribución sea legítima lo sostiene T092**: las semillas reproducen el código nativo,
+así que citar la semilla es una cuenta exacta de lo que el nativo calculó. Es el mismo permiso
+con el que T020 rellenó el historial anterior.
+
+**Alternativa considerada**: `'usuario'` para todo lo que llegue por identificador. Es más
+simple —una sola regla— pero hace que `calc_type` mienta en el caso más frecuente, y el
+`calculator_id` de al lado no lo compensa: un lector de la tabla que vea `'usuario'` junto a la
+semilla `gmf` concluiría lo contrario de lo que pasó. La columna dejaría de ser un dato para
+ser un centinela, que es exactamente lo que D-26 dijo que NO quería que fuera.
+
+**Alcance**: toca T091 (ejecutar por `calculator_id`) y T103 (persistir `calc_type` junto a la
+procedencia). Se resolvió en la misma unidad, que es donde las dos se encontraron.
+
+---
+
 ## Resumen de impacto por servicio
 
 | Servicio | Impacto |

@@ -117,6 +117,23 @@ pub struct CalculatorRow {
     pub definition: Definition,
 }
 
+/// Identificador y versión vigente de una calculadora, sin su definición.
+///
+/// Es lo que `simulations` cita, y los dos campos viajan juntos porque una versión sin su
+/// calculadora no se puede interpretar — la misma restricción que impone
+/// `simulations_calculator_version_requires_id` en la base.
+///
+/// Existe en lugar de devolver la [`CalculatorRow`] entera porque la ejecución por
+/// `calc_type` solo necesita la PROCEDENCIA que anotar: cargar la definición para
+/// descartarla costaría tres columnas `JSONB` por simulación.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VersionRef {
+    /// Calculadora.
+    pub id: Uuid,
+    /// Versión vigente, que es la que la simulación cita.
+    pub version: i32,
+}
+
 /// Una página del listado.
 #[derive(Debug, Clone)]
 pub struct CalculatorPage {
@@ -213,6 +230,28 @@ pub trait Calculators: Send + Sync + 'static {
     ///
     /// [`Error::Storage`] si falla la consulta.
     async fn known_indicators(&self) -> Result<BTreeSet<String>>;
+
+    /// Versión vigente de una definición SEMILLA, por nombre.
+    ///
+    /// La necesita el camino de compatibilidad por `calc_type`: el contrato dice que
+    /// `calc_type` «se resuelve a la definición semilla correspondiente» (FR-043), y
+    /// `simulations` cita la versión EXACTA con la que calculó (FR-050). Sin esta consulta,
+    /// una simulación nueva por `calc_type` quedaría sin procedencia mientras las 13.493
+    /// históricas sí la tienen — dos filas idénticas explicadas de dos maneras distintas, y
+    /// la nueva sería la peor explicada.
+    ///
+    /// Que la atribución sea legítima lo sostiene T092: las semillas reproducen el código
+    /// nativo, así que citar la semilla es una cuenta exacta de lo que el nativo calculó.
+    /// Es el mismo permiso con el que la migración de T020 rellenó el historial anterior.
+    ///
+    /// Devuelve `None` si no hay ninguna semilla con ese nombre, y NO es un error: sobre una
+    /// base migrada y todavía sin sembrar no hay definición que citar, y la fila se guarda
+    /// sin procedencia — que es la verdad.
+    ///
+    /// # Errores
+    ///
+    /// [`Error::Storage`] si falla la consulta.
+    async fn builtin_version(&self, name: &str) -> Result<Option<VersionRef>>;
 }
 
 /// Implementación sobre PostgreSQL.
@@ -382,6 +421,28 @@ impl Calculators for PgCalculators {
                 .await
                 .map_err(Error::from_sqlx)?;
         Ok(names.into_iter().collect())
+    }
+
+    async fn builtin_version(&self, name: &str) -> Result<Option<VersionRef>> {
+        // Sin transacción: es una lectura, y abrirla solo retendría la conexión más tiempo
+        // sin ganar ninguna garantía.
+        //
+        // No se filtra por estado: las semillas nacen `publicada` y ninguna transición de
+        // curaduría las alcanza —`bump` y `delete` exigen autor, y una semilla no tiene—,
+        // así que un filtro por estado aquí sería una condición que nunca se evalúa.
+        let row = sqlx::query("SELECT id, version FROM calculators WHERE is_builtin AND name = $1")
+            .bind(name)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(Error::from_sqlx)?;
+
+        row.map(|row| {
+            Ok(VersionRef {
+                id: row.try_get("id").map_err(Error::from_sqlx)?,
+                version: row.try_get("version").map_err(Error::from_sqlx)?,
+            })
+        })
+        .transpose()
     }
 }
 

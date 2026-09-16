@@ -48,24 +48,23 @@ fn rfc3339(instant: chrono::DateTime<chrono::Utc>) -> String {
 
 /// Convierte la fila recién insertada en la respuesta de `Compute`.
 ///
-/// `calculator_version` e `indicators_used` se dejan en su valor neutro porque `Compute`
-/// todavía resuelve por `calc_type` —el camino de compatibilidad de FR-043— y ese camino
-/// no pasa por ninguna definición versionada: no hay versión que citar ni indicador que
-/// snapshotar. Rellenarlos con otra cosa inventaría una procedencia que no existe.
+/// La procedencia sale de la FILA y no de la petición, que es lo que la hace cierta: es lo
+/// que la base acabó guardando. En el camino por idempotencia la fila es la que ya existía,
+/// con su versión y su snapshot originales, así que un reintento de la saga devuelve lo
+/// mismo que devolvió la primera llamada — que es justo lo que un reintento espera (T176).
 ///
-/// Cuando T091 ejecute por `calculator_id`, esta función recibirá la versión y el
-/// snapshot ya resueltos y los escribirá. El valor 0 y el mapa vacío **no** son un
-/// marcador de «pendiente»: son la respuesta correcta para una simulación que se calculó
-/// con el código nativo y constantes cableadas, que es lo mismo que la migración de T020
-/// registra en las filas históricas.
+/// El valor `0` y el mapa vacío siguen siendo respuestas correctas, no marcadores de
+/// «pendiente», para las filas del historial anterior a la enmienda que la migración de T020
+/// no pudo atribuir: se calcularon con el código nativo y constantes cableadas, y no había
+/// definición que citar.
 #[must_use]
 pub fn compute_response(row: &SimulationRow) -> ComputeResponse {
     ComputeResponse {
         simulation_id: row.id.to_string(),
         result: row.result.clone(),
         computed_at: rfc3339(row.created_at),
-        calculator_version: 0,
-        indicators_used: std::collections::HashMap::new(),
+        calculator_version: row.calculator_version.unwrap_or(0),
+        indicators_used: row.indicators_snapshot.clone(),
     }
 }
 
@@ -87,13 +86,16 @@ pub fn history_response(page: HistoryPage) -> Result<ListHistoryResponse> {
                 inputs: row.inputs,
                 result: row.result,
                 created_at: rfc3339(row.created_at),
-                // Ver la nota de `compute_response`: mientras la fila no traiga
-                // procedencia —T103 lee las columnas que añadió la migración de T020—, un
-                // historial calculado por el camino de compatibilidad se explica con
-                // `calc_type`, que es lo que sí tiene.
-                calculator_id: String::new(),
-                calculator_version: 0,
-                indicators_used: std::collections::HashMap::new(),
+                // FR-058: la entrada se explica por sí sola. Los tres campos salen de la
+                // FILA, así que una simulación de hace un año sigue diciendo con qué
+                // versión y con qué indicadores se calculó aunque los dos hayan cambiado
+                // desde entonces — que es exactamente lo que SC-019 comprueba.
+                calculator_id: row
+                    .calculator_id
+                    .map(|id| id.to_string())
+                    .unwrap_or_default(),
+                calculator_version: row.calculator_version.unwrap_or(0),
+                indicators_used: row.indicators_snapshot,
             })
         })
         .collect::<Result<Vec<_>>>()?;
@@ -414,4 +416,13 @@ pub fn parse_optional_uuid(raw: &str, field: &str) -> Result<Option<uuid::Uuid>>
 /// de tipos de PostgreSQL en lugar del campo que venía mal.
 pub fn parse_user_id(raw: &str) -> Result<uuid::Uuid> {
     parse_uuid(raw, "user_id")
+}
+
+/// Interpreta el identificador de una calculadora del constructor.
+///
+/// # Errores
+///
+/// [`Error::InvalidInput`] si no es un UUID, con la misma razón que [`parse_user_id`].
+pub fn parse_calculator_id(raw: &str) -> Result<uuid::Uuid> {
+    parse_uuid(raw, "calculator_id")
 }

@@ -28,8 +28,13 @@ use fintcart_simulator::pb::fintcart::simulator::v1::{
     ComputeRequest, InputType, ListCalculatorsRequest, UpsertCalculatorRequest,
     ValidateDefinitionRequest,
 };
-use fintcart_simulator::repo::calculators::{CalculatorPage, CalculatorRow, Calculators, State};
-use fintcart_simulator::repo::simulations::{HistoryPage, SimulationRow, Simulations};
+use fintcart_simulator::repo::calculators::{
+    CalculatorPage, CalculatorRow, Calculators, State, VersionRef,
+};
+use fintcart_simulator::repo::indicators::Indicators;
+use fintcart_simulator::repo::simulations::{
+    HistoryPage, NewSimulation, SimulationRow, Simulations,
+};
 use rust_decimal_macros::dec;
 use tonic::transport::{Endpoint, Server, Uri};
 use tonic::Code;
@@ -346,6 +351,45 @@ impl Calculators for FakeCalculators {
     async fn known_indicators(&self) -> Result<BTreeSet<String>> {
         Ok((*self.indicadores).clone())
     }
+
+    /// Busca la semilla entre las filas del doble, igual que hace el repositorio real.
+    ///
+    /// Se implementa de verdad y no se hace fallar: la operación es legítima —la llama
+    /// `Compute` por el camino de compatibilidad— y un doble que la rechazara convertiría
+    /// un uso correcto en un fallo que no dice nada sobre lo que se está probando.
+    async fn builtin_version(&self, name: &str) -> Result<Option<VersionRef>> {
+        Ok(self
+            .rows
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|row| row.is_builtin && row.name == name)
+            .map(|row| VersionRef {
+                id: row.id,
+                version: row.version,
+            }))
+    }
+}
+
+/// Doble del repositorio de indicadores que NO se puede usar.
+///
+/// Estas pruebas no ejecutan ninguna definición, así que no hay indicadores que resolver.
+/// Fallar en vez de devolver vacío hace que una consulta colada aquí se note: devolver un
+/// mapa vacío la dejaría pasar, y el síntoma sería una simulación sin snapshot que nadie
+/// echaría de menos hasta leer el historial.
+struct NoIndicators;
+
+#[tonic::async_trait]
+impl Indicators for NoIndicators {
+    async fn resolve(
+        &self,
+        _names: &BTreeSet<String>,
+        _on: chrono::NaiveDate,
+    ) -> Result<HashMap<String, rust_decimal::Decimal>> {
+        Err(Error::NotImplemented(
+            "estas pruebas no ejecutan definiciones".to_owned(),
+        ))
+    }
 }
 
 /// Doble del historial que NO se puede usar: estas pruebas no simulan nada, y fallar en vez
@@ -354,15 +398,7 @@ struct NoSimulations;
 
 #[tonic::async_trait]
 impl Simulations for NoSimulations {
-    async fn insert(
-        &self,
-        _user_id: Uuid,
-        _calc_type: &str,
-        _currency: &str,
-        _inputs: &HashMap<String, String>,
-        _result: &HashMap<String, String>,
-        _idempotency_key: Option<&str>,
-    ) -> Result<SimulationRow> {
+    async fn insert(&self, _new: &NewSimulation) -> Result<SimulationRow> {
         Err(Error::NotImplemented(
             "estas pruebas no usan el historial".to_owned(),
         ))
@@ -394,6 +430,7 @@ async fn start(repo: FakeCalculators) -> SimulatorServiceClient<tonic::transport
             .add_service(SimulatorServiceServer::new(Service::new(
                 NoSimulations,
                 repo,
+                NoIndicators,
             )))
             .serve_with_incoming(tokio_stream::once(Ok::<_, std::io::Error>(server_io)))
             .await;
@@ -893,47 +930,23 @@ async fn delete_no_toca_una_calculadora_ajena() {
     assert_eq!(repo.rows.lock().unwrap().len(), 1, "sigue ahí");
 }
 
-// ── Compute: el camino de compatibilidad y el que falta ─────────────────────
+// ── Compute: los dos caminos de identificación ──────────────────────────────
 
-/// `Compute` con `calculator_id` NO se resuelve todavía, y se dice.
-///
-/// Antes de esto el campo se ignoraba en silencio y la simulación se calculaba por
-/// `calc_type`: un cliente que pidió una calculadora concreta recibía el resultado de OTRA
-/// sin que nada se lo dijera. Un `Unimplemented` que nombra la tarea que lo implementa es
-/// mucho mejor que un resultado equivocado.
-#[tokio::test]
-async fn compute_por_calculator_id_avisa_de_que_aun_no_esta() {
-    let mut client = start(FakeCalculators::default()).await;
-
-    let status = client
-        .compute(ComputeRequest {
-            user_id: USER.to_owned(),
-            calc_type: CalcType::Credito as i32,
-            currency: "COP".to_owned(),
-            inputs: HashMap::new(),
-            idempotency_key: String::new(),
-            calculator_id: Uuid::new_v4().to_string(),
-        })
-        .await
-        .unwrap_err();
-
-    assert_eq!(status.code(), Code::Unimplemented);
-    assert!(
-        status.message().contains("T091"),
-        "el mensaje debe nombrar la tarea que lo implementa: {}",
-        status.message()
-    );
-}
-
-/// Y el contraste: sin `calculator_id`, el camino de compatibilidad sigue funcionando y NO
-/// consulta el repositorio de calculadoras.
+/// El camino de compatibilidad NO consulta los indicadores (FR-043, D-22).
 ///
 /// Los dos dobles de esta prueba fallan al ser llamados y cada uno lo dice con su propio
 /// mensaje, así que el mensaje que llega identifica **de dónde** vino el fallo. Es lo que
 /// convierte esta prueba en algo más que «devuelve un error»: el `calc_type` es válido, la
-/// petición llega hasta la persistencia del historial, y el constructor no se toca.
+/// petición llega hasta la persistencia del historial, y los indicadores no se tocan.
+///
+/// Que no se toquen es una afirmación con consecuencia: las cinco calculadoras nativas
+/// llevan sus constantes cableadas —`gmf` recibe la UVT como ENTRADA— y resolver el
+/// catálogo entero por simulación sería una ida y vuelta a PostgreSQL que no cambia ningún
+/// resultado. El doble de calculadoras SÍ se consulta, y debe hacerlo: es donde el contrato
+/// dice que «`calc_type` se resuelve a la definición semilla correspondiente», y esa
+/// consulta es la que deja la fila explicable (FR-050).
 #[tokio::test]
-async fn compute_por_calc_type_no_consulta_las_calculadoras() {
+async fn compute_por_calc_type_no_resuelve_indicadores() {
     let mut client = start(FakeCalculators::default()).await;
 
     let status = client
@@ -958,7 +971,36 @@ async fn compute_por_calc_type_no_consulta_las_calculadoras() {
     assert_eq!(status.code(), Code::Unimplemented);
     assert!(
         status.message().contains("historial"),
-        "el fallo debe venir del repositorio del historial y no del constructor: {}",
+        "el fallo debe venir del repositorio del historial y no del de indicadores: {}",
+        status.message()
+    );
+}
+
+/// Un `calc_type` que no existe en el contrato se distingue de uno ausente.
+///
+/// En proto3 el cero es el valor por defecto, así que un cliente que OLVIDA el campo llega
+/// indistinguible de uno que lo puso a cero. Elegir una calculadora por defecto para ese
+/// caso ejecutaría un cálculo que nadie pidió y lo guardaría en el historial del usuario.
+#[tokio::test]
+async fn compute_rechaza_un_calc_type_desconocido() {
+    let mut client = start(FakeCalculators::default()).await;
+
+    let status = client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: 999,
+            currency: "COP".to_owned(),
+            inputs: HashMap::new(),
+            idempotency_key: String::new(),
+            calculator_id: String::new(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(
+        status.message().contains("999"),
+        "el mensaje debe nombrar el valor recibido: {}",
         status.message()
     );
 }

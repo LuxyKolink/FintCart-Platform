@@ -8,6 +8,8 @@
 
 use std::collections::HashMap;
 
+use rust_decimal::Decimal;
+
 use crate::calculators::{ahorro, colombia, credito, inversion, presupuesto, Outcome};
 use crate::domain::decimal_str;
 use crate::domain::error::{Error, Result};
@@ -42,6 +44,103 @@ pub fn stored_to_proto(value: &str) -> Result<CalcType> {
         return Ok(CalcType::Usuario);
     }
     Ok(Kind::from_db(value)?.as_proto())
+}
+
+/// Las siete definiciones semilla y el tipo NATIVO que cada una reproduce (D-16).
+///
+/// Es la tabla que relaciona los dos vocabularios, y existe porque **no son el mismo**:
+/// `colombia_especifica` era UNA calculadora nativa con un discriminador de texto, y D-16
+/// la separó en tres definiciones. Las otras cuatro van una a una, y por eso el nombre de
+/// la semilla y `Kind::as_db` coinciden en ellas — lo que hace tentador saltarse la tabla
+/// para esas cuatro, y es justo lo que no hay que hacer: una regla partida en dos sitios
+/// es una regla que se desincroniza en uno.
+///
+/// Que las siete sean ESTAS siete lo comprueba `seed_regression` contra `seeds::drafts()`,
+/// que es la lista de verdad. Igual que `INDICATORS` frente a los indicadores sembrados:
+/// la duplicación se admite porque hay una prueba que la hace imposible de divergir.
+pub const SEEDS: [(&str, Kind); 7] = [
+    ("ahorro", Kind::Ahorro),
+    ("credito", Kind::Credito),
+    ("presupuesto", Kind::Presupuesto),
+    ("inversion", Kind::Inversion),
+    ("ea_a_mv", Kind::ColombiaEspecifica),
+    ("mv_a_ea", Kind::ColombiaEspecifica),
+    ("gmf", Kind::ColombiaEspecifica),
+];
+
+/// Nombre de la semilla que reproduce una ejecución nativa.
+///
+/// Lo usa el camino de compatibilidad por `calc_type` para atribuir la simulación a la
+/// definición que la explica (FR-050). El contrato ya lo dice así: «`calc_type` se mantiene
+/// por compatibilidad y **se resuelve a la definición semilla correspondiente**».
+///
+/// El caso de `colombia_especifica` necesita las entradas y no solo el tipo, porque a las
+/// tres semillas que salieron de ella las distingue el discriminador `operacion` — que es
+/// exactamente el dato con el que la migración de T020 desambiguó el historial.
+///
+/// # Errores
+///
+/// [`Error::Storage`] con `RowNotFound` si un `colombia_especifica` llega sin un
+/// `operacion` reconocible. No se inventa una recuperación —no hay nombre al que atribuir
+/// la fila— por la misma razón que en `repo::seeds::definition_vigente`: se dice lo que
+/// pasa. Es inalcanzable por construcción, porque
+/// [`crate::calculators::colombia::compute`] valida `operacion` antes y ya habría fallado.
+pub fn seed_name(kind: Kind, raw_inputs: &HashMap<String, String>) -> Result<&'static str> {
+    if kind != Kind::ColombiaEspecifica {
+        return Ok(kind.as_db());
+    }
+
+    let operacion = raw_inputs.get("operacion").map_or("", String::as_str);
+    SEEDS
+        .iter()
+        .find(|(name, seed_kind)| *seed_kind == Kind::ColombiaEspecifica && *name == operacion)
+        .map(|(name, _)| *name)
+        .ok_or(Error::Storage(sqlx::Error::RowNotFound))
+}
+
+/// Tipo nativo al que corresponde una definición semilla, si corresponde a alguno.
+///
+/// La inversa de [`seed_name`] para el caso en que las entradas no hacen falta: dado el
+/// NOMBRE de una semilla, qué calculadora nativa reproduce. Devuelve `None` para cualquier
+/// otro nombre, incluidas las calculadoras de usuario.
+#[must_use]
+pub fn kind_of_seed(name: &str) -> Option<Kind> {
+    SEEDS
+        .iter()
+        .find(|(seed, _)| *seed == name)
+        .map(|(_, kind)| *kind)
+}
+
+/// `calc_type` con el que se registra una ejecución hecha por `calculator_id` (D-29).
+///
+/// ## Por qué no es `'usuario'` para todo lo que llega por identificador
+///
+/// D-26 justificó el sexto valor diciendo que significa «definida por el usuario», y eso es
+/// cierto para una calculadora de un usuario. Pero las siete semillas también se ejecutan
+/// por `calculator_id` —es el camino PREFERENTE del contrato, y el catálogo público las
+/// ofrece—, y escribir `'usuario'` sobre ellas afirmaría que un administrador las definió
+/// cuando las define el repositorio. La columna diría algo falso sobre siete calculadoras
+/// que existen desde antes que la columna.
+///
+/// Así que una semilla se registra con el tipo nativo que reproduce —`gmf` como
+/// `colombia_especifica`, igual que las 13.493 filas históricas que la migración de T020
+/// atribuyó a esa misma semilla— y `'usuario'` queda para lo que de verdad no tiene
+/// equivalente nativo.
+///
+/// # Errores
+///
+/// [`Error::Storage`] con `RowNotFound` si una fila marcada `is_builtin` tiene un nombre
+/// que no es ninguna de las siete. Hoy es inalcanzable —solo `dev/seed` y
+/// [`crate::repo::seeds`] crean semillas, y las dos escriben esos siete nombres—, y no se
+/// elige un valor por defecto porque cualquier valor sería una afirmación falsa sobre la
+/// procedencia de la fila.
+pub fn stored_calc_type(is_builtin: bool, name: &str) -> Result<&'static str> {
+    if !is_builtin {
+        return Ok(CALC_TYPE_USUARIO);
+    }
+    kind_of_seed(name)
+        .map(Kind::as_db)
+        .ok_or(Error::Storage(sqlx::Error::RowNotFound))
 }
 
 /// Tipo de cálculo ya validado, con su nombre en la base de datos.
@@ -151,14 +250,27 @@ impl Kind {
     }
 }
 
-/// Ejecuta la calculadora que corresponda y devuelve el resultado ya en la forma del
-/// contrato: `map<string, string>` con decimales canónicas.
+/// Serializa un resultado a la forma del contrato: `map<string, string>` canónico.
 ///
-/// La serialización ocurre AQUÍ y no dentro de cada calculadora, que devuelve
-/// [`rust_decimal::Decimal`]. Así hay un solo punto donde un valor se convierte en
-/// texto, y ninguna calculadora puede inventarse un formato propio —una con notación
-/// científica o con separador de miles rompería el `NUMERIC` de quien la consuma
-/// (Principio VIII / D-10).
+/// Es el ÚNICO punto donde un `Decimal` se convierte en texto para el cliente, y por eso lo
+/// comparten los dos caminos de ejecución —el nativo y el de definiciones—. Dos copias
+/// divergirían en un formato que el `NUMERIC` de quien consuma no admitiría: una con
+/// notación científica o con separador de miles rompería la columna del servicio que lea
+/// el resultado (Principio VIII / D-10).
+///
+/// Genérica sobre la clave porque el código nativo produce `&'static str` —las claves están
+/// cableadas— y una definición produce `String` —salen del AST—, y obligar a uno de los dos
+/// a convertir antes de llamar aquí repartiría la decisión de formato otra vez.
+pub fn to_contract<K: Into<String>>(
+    outcome: impl IntoIterator<Item = (K, Decimal)>,
+) -> HashMap<String, String> {
+    outcome
+        .into_iter()
+        .map(|(key, value)| (key.into(), decimal_str::format(value)))
+        .collect()
+}
+
+/// Ejecuta la calculadora NATIVA que corresponda (FR-019).
 ///
 /// # Errores
 ///
@@ -176,8 +288,5 @@ pub fn compute(
         Kind::ColombiaEspecifica => colombia::compute(&inputs)?,
     };
 
-    Ok(outcome
-        .into_iter()
-        .map(|(key, value)| (key.to_owned(), decimal_str::format(value)))
-        .collect())
+    Ok(to_contract(outcome))
 }

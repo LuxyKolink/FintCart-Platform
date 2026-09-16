@@ -7,5 +7,6 @@ pub mod definition;
 pub mod dispatch;
 pub mod error;
 pub mod formula;
+pub mod indicators;
 pub mod inputs;
 pub mod seeds;

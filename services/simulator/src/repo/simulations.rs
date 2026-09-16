@@ -24,6 +24,7 @@ use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use crate::domain::error::{Error, Result};
+use crate::repo::calculators::VersionRef;
 use crate::repo::tx::exec_tx;
 use crate::repo::{clamp_page_size, parse_page_token};
 
@@ -42,8 +43,98 @@ pub struct SimulationRow {
     pub inputs: HashMap<String, String>,
     /// Resultados, con la misma convención.
     pub result: HashMap<String, String>,
+    /// Calculadora cuya definición produjo el resultado (FR-050).
+    ///
+    /// `None` en el historial anterior a la enmienda que la migración de T020 no pudo
+    /// atribuir —una base migrada y todavía sin sembrar, o una fila de
+    /// `colombia_especifica` cuya entrada `operacion` no reconocía—. `None` es honesto ahí:
+    /// no había definición que citar.
+    pub calculator_id: Option<Uuid>,
+    /// Versión exacta de esa definición. Nunca viene sin [`Self::calculator_id`]; lo impone
+    /// `simulations_calculator_version_requires_id`.
+    pub calculator_version: Option<i32>,
+    /// Indicadores que la ejecución usó, como cadena decimal canónica (FR-058).
+    ///
+    /// Vacío cuando no usó ninguno, que es la verdad sobre las cinco calculadoras nativas:
+    /// llevan sus constantes en el código y `gmf` recibe la UVT como ENTRADA.
+    pub indicators_snapshot: HashMap<String, String>,
     /// Instante de creación.
     pub created_at: DateTime<Utc>,
+}
+
+/// De qué definición salió una simulación y qué indicadores usó.
+///
+/// Los tres campos viajan juntos porque describen UNA cosa —por qué el resultado es el que
+/// es— y porque las tres columnas se escriben en el mismo `INSERT`. Separarlos en tres
+/// argumentos sueltos invitaría a rellenar dos y olvidar el tercero, y ese olvido no
+/// fallaría: `indicators_snapshot` tiene valor por defecto, y `calculator_id` es anulable.
+/// La fila quedaría sin procedencia sin que nada lo dijera.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Provenance {
+    /// Definición que la produjo, si se pudo determinar.
+    pub calculator_id: Option<Uuid>,
+    /// Versión exacta de esa definición. Nunca sin [`Self::calculator_id`].
+    pub calculator_version: Option<i32>,
+    /// Indicadores usados, como cadena decimal canónica (FR-058).
+    pub indicators: HashMap<String, String>,
+}
+
+impl Provenance {
+    /// La de una ejecución del código NATIVO, atribuida a la semilla que lo reproduce.
+    ///
+    /// Sin indicadores a propósito: las cinco calculadoras nativas llevan sus constantes
+    /// cableadas y `gmf` recibe la UVT como entrada, así que no leen ninguna fila de
+    /// `financial_indicators`. Un mapa vacío es la verdad sobre ellas, y es lo mismo que la
+    /// migración de T020 registró en el historial anterior.
+    #[must_use]
+    pub fn native(version: Option<VersionRef>) -> Self {
+        Self {
+            calculator_id: version.map(|v| v.id),
+            calculator_version: version.map(|v| v.version),
+            indicators: HashMap::new(),
+        }
+    }
+
+    /// La de una ejecución de una DEFINICIÓN, por `calculator_id`.
+    #[must_use]
+    pub fn definition(id: Uuid, version: i32, indicators: HashMap<String, String>) -> Self {
+        Self {
+            calculator_id: Some(id),
+            calculator_version: Some(version),
+            indicators,
+        }
+    }
+}
+
+/// Una simulación a punto de escribirse.
+///
+/// Existe porque la fila tiene NUEVE columnas y una función con nueve parámetros no se puede
+/// leer: en la llamada, `&inputs` y `&result` son dos mapas del mismo tipo y el compilador no
+/// distingue uno de otro, así que intercambiarlos guardaría los parámetros como resultado sin
+/// que nada fallara. Con un struct, cada campo se nombra en el sitio donde se rellena.
+///
+/// No es [`SimulationRow`] con otro nombre: esta es la forma de ENTRADA y no lleva `id` ni
+/// `created_at` —los asigna la base con `RETURNING`, y calcularlos en Rust abriría la puerta
+/// a que el historial afirme un instante distinto del que quedó indexado—.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewSimulation {
+    /// Titular, como UUID opaco (Principio III).
+    pub user_id: Uuid,
+    /// Nombre de la calculadora, tal como lo admite el CHECK de la tabla.
+    pub calc_type: String,
+    /// Código ISO-4217.
+    pub currency: String,
+    /// Parámetros, TAL COMO LLEGARON del cliente y sin normalizar.
+    ///
+    /// Es lo que hace reproducible el historial: canonicalizarlos haría que el usuario viera
+    /// en su historial una cifra distinta de la que escribió.
+    pub inputs: HashMap<String, String>,
+    /// Resultados, con la convención de cadena decimal canónica.
+    pub result: HashMap<String, String>,
+    /// De qué definición salió y qué indicadores usó (FR-050, FR-058).
+    pub provenance: Provenance,
+    /// Clave de idempotencia, si la llamada viene de una saga (T176).
+    pub idempotency_key: Option<String>,
 }
 
 /// Página del historial.
@@ -72,7 +163,7 @@ pub struct HistoryPage {
 pub trait Simulations: Send + Sync + 'static {
     /// Persiste una simulación recién calculada.
     ///
-    /// `idempotency_key`: `None` inserta siempre una fila nueva (llamada directa, fuera
+    /// `new.idempotency_key`: `None` inserta siempre una fila nueva (llamada directa, fuera
     /// de una saga). `Some` repite lo que ya se guardó para esa clave en vez de
     /// duplicar, para que un reintento del paso `simulator.compute` del Orquestador
     /// (`saga.go::run`: "de ahí que Do deba ser idempotente") no infle el historial
@@ -81,15 +172,7 @@ pub trait Simulations: Send + Sync + 'static {
     /// # Errores
     ///
     /// [`Error::Storage`] si falla la escritura.
-    async fn insert(
-        &self,
-        user_id: Uuid,
-        calc_type: &str,
-        currency: &str,
-        inputs: &HashMap<String, String>,
-        result: &HashMap<String, String>,
-        idempotency_key: Option<&str>,
-    ) -> Result<SimulationRow>;
+    async fn insert(&self, new: &NewSimulation) -> Result<SimulationRow>;
 
     /// Devuelve una página del historial del usuario.
     ///
@@ -132,37 +215,14 @@ impl PgSimulations {
 
 #[tonic::async_trait]
 impl Simulations for PgSimulations {
-    async fn insert(
-        &self,
-        user_id: Uuid,
-        calc_type: &str,
-        currency: &str,
-        inputs: &HashMap<String, String>,
-        result: &HashMap<String, String>,
-        idempotency_key: Option<&str>,
-    ) -> Result<SimulationRow> {
-        // Los argumentos se clonan para el futuro boxeado de `exec_tx`, que necesita
-        // `'static`. Es una copia de dos mapas pequeños frente a una ida y vuelta a
-        // PostgreSQL: no es donde está el coste.
-        let calc_type = calc_type.to_owned();
-        let currency = currency.to_owned();
-        let inputs = inputs.clone();
-        let result = result.clone();
-        let idempotency_key = idempotency_key.map(str::to_owned);
+    async fn insert(&self, new: &NewSimulation) -> Result<SimulationRow> {
+        // La fila se clona para el futuro boxeado de `exec_tx`, que necesita `'static`. Es
+        // una copia de tres mapas pequeños frente a una ida y vuelta a PostgreSQL: no es
+        // donde está el coste.
+        let new = new.clone();
 
         exec_tx(&self.pool, move |tx| {
-            Box::pin(async move {
-                insert(
-                    tx,
-                    user_id,
-                    &calc_type,
-                    &currency,
-                    &inputs,
-                    &result,
-                    idempotency_key.as_deref(),
-                )
-                .await
-            })
+            Box::pin(async move { insert(tx, &new).await })
         })
         .await
     }
@@ -206,26 +266,31 @@ impl Simulations for PgSimulations {
 /// lo causó (inconsistencia que no debería ocurrir dentro de la misma transacción).
 pub async fn insert(
     tx: &mut Transaction<'static, Postgres>,
-    user_id: Uuid,
-    calc_type: &str,
-    currency: &str,
-    inputs: &HashMap<String, String>,
-    result: &HashMap<String, String>,
-    idempotency_key: Option<&str>,
+    new: &NewSimulation,
 ) -> Result<SimulationRow> {
     let row = sqlx::query(
         r"
-        INSERT INTO simulations (user_id, calc_type, currency, inputs, result, idempotency_key)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO simulations (
+            user_id, calc_type, currency, inputs, result,
+            calculator_id, calculator_version, indicators_snapshot,
+            idempotency_key
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (idempotency_key) DO NOTHING
         RETURNING id, created_at",
     )
-    .bind(user_id)
-    .bind(calc_type)
-    .bind(currency)
-    .bind(to_json(inputs))
-    .bind(to_json(result))
-    .bind(idempotency_key)
+    .bind(new.user_id)
+    .bind(&new.calc_type)
+    .bind(&new.currency)
+    .bind(to_json(&new.inputs))
+    .bind(to_json(&new.result))
+    .bind(new.provenance.calculator_id)
+    .bind(new.provenance.calculator_version)
+    // El snapshot se guarda con la MISMA `to_json` que `inputs` y `result`, y por la misma
+    // razón: nunca produce un número JSON, que es lo que hace cierto desde este lado el
+    // CHECK `simulations_indicators_snapshot_no_json_numbers`.
+    .bind(to_json(&new.provenance.indicators))
+    .bind(new.idempotency_key.as_deref())
     .fetch_optional(&mut **tx)
     .await
     .map_err(Error::from_sqlx)?;
@@ -233,16 +298,22 @@ pub async fn insert(
     if let Some(row) = row {
         return Ok(SimulationRow {
             id: row.try_get("id").map_err(Error::from_sqlx)?,
-            user_id,
-            calc_type: calc_type.to_owned(),
-            currency: currency.to_owned(),
-            inputs: inputs.clone(),
-            result: result.clone(),
+            user_id: new.user_id,
+            calc_type: new.calc_type.clone(),
+            currency: new.currency.clone(),
+            inputs: new.inputs.clone(),
+            result: new.result.clone(),
+            calculator_id: new.provenance.calculator_id,
+            calculator_version: new.provenance.calculator_version,
+            indicators_snapshot: new.provenance.indicators.clone(),
             created_at: row.try_get("created_at").map_err(Error::from_sqlx)?,
         });
     }
 
-    let key = idempotency_key.ok_or_else(|| Error::Storage(sqlx::Error::RowNotFound))?;
+    let key = new
+        .idempotency_key
+        .as_deref()
+        .ok_or_else(|| Error::Storage(sqlx::Error::RowNotFound))?;
     by_idempotency_key(tx, key)
         .await?
         .ok_or_else(|| Error::Storage(sqlx::Error::RowNotFound))
@@ -255,7 +326,8 @@ async fn by_idempotency_key(
 ) -> Result<Option<SimulationRow>> {
     let row = sqlx::query(
         r"
-        SELECT id, user_id, calc_type, currency, inputs, result, created_at
+        SELECT id, user_id, calc_type, currency, inputs, result,
+               calculator_id, calculator_version, indicators_snapshot, created_at
           FROM simulations
          WHERE idempotency_key = $1",
     )
@@ -264,18 +336,33 @@ async fn by_idempotency_key(
     .await
     .map_err(Error::from_sqlx)?;
 
-    row.map(|row| {
-        Ok(SimulationRow {
-            id: row.try_get("id").map_err(Error::from_sqlx)?,
-            user_id: row.try_get("user_id").map_err(Error::from_sqlx)?,
-            calc_type: row.try_get("calc_type").map_err(Error::from_sqlx)?,
-            currency: row.try_get("currency").map_err(Error::from_sqlx)?,
-            inputs: from_json(row.try_get("inputs").map_err(Error::from_sqlx)?)?,
-            result: from_json(row.try_get("result").map_err(Error::from_sqlx)?)?,
-            created_at: row.try_get("created_at").map_err(Error::from_sqlx)?,
-        })
+    row.map(row_from).transpose()
+}
+
+/// Convierte una fila en el tipo de dominio, con las nueve columnas.
+///
+/// Escrito UNA vez porque hay tres consultas que devuelven la misma proyección —la
+/// relectura por idempotencia y las dos ramas del listado—: tres listas de columnas
+/// copiadas divergen en cuanto alguien añada una, y el síntoma sería un campo que unas
+/// consultas rellenan y otras dejan vacío.
+fn row_from(row: sqlx::postgres::PgRow) -> Result<SimulationRow> {
+    Ok(SimulationRow {
+        id: row.try_get("id").map_err(Error::from_sqlx)?,
+        user_id: row.try_get("user_id").map_err(Error::from_sqlx)?,
+        calc_type: row.try_get("calc_type").map_err(Error::from_sqlx)?,
+        currency: row.try_get("currency").map_err(Error::from_sqlx)?,
+        inputs: from_json(row.try_get("inputs").map_err(Error::from_sqlx)?)?,
+        result: from_json(row.try_get("result").map_err(Error::from_sqlx)?)?,
+        calculator_id: row.try_get("calculator_id").map_err(Error::from_sqlx)?,
+        calculator_version: row
+            .try_get("calculator_version")
+            .map_err(Error::from_sqlx)?,
+        indicators_snapshot: from_json(
+            row.try_get("indicators_snapshot")
+                .map_err(Error::from_sqlx)?,
+        )?,
+        created_at: row.try_get("created_at").map_err(Error::from_sqlx)?,
     })
-    .transpose()
 }
 
 /// Lista el historial de un usuario, más recientes primero (FR-022).
@@ -301,7 +388,8 @@ pub async fn list_by_user(
 
     let rows = sqlx::query(
         r"
-        SELECT id, user_id, calc_type, currency, inputs, result, created_at
+        SELECT id, user_id, calc_type, currency, inputs, result,
+               calculator_id, calculator_version, indicators_snapshot, created_at
           FROM simulations
          WHERE user_id = $1
          ORDER BY created_at DESC, id DESC
@@ -320,20 +408,7 @@ pub async fn list_by_user(
         .await
         .map_err(Error::from_sqlx)?;
 
-    let items = rows
-        .into_iter()
-        .map(|row| {
-            Ok(SimulationRow {
-                id: row.try_get("id").map_err(Error::from_sqlx)?,
-                user_id: row.try_get("user_id").map_err(Error::from_sqlx)?,
-                calc_type: row.try_get("calc_type").map_err(Error::from_sqlx)?,
-                currency: row.try_get("currency").map_err(Error::from_sqlx)?,
-                inputs: from_json(row.try_get("inputs").map_err(Error::from_sqlx)?)?,
-                result: from_json(row.try_get("result").map_err(Error::from_sqlx)?)?,
-                created_at: row.try_get("created_at").map_err(Error::from_sqlx)?,
-            })
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let items = rows.into_iter().map(row_from).collect::<Result<Vec<_>>>()?;
 
     // El token siguiente solo existe si QUEDAN filas. Emitirlo siempre haría que el
     // cliente pidiera una página vacía de más en cada recorrido completo.

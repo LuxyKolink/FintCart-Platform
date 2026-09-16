@@ -4,15 +4,19 @@
 //! cálculo en `domain::dispatch` y la escritura en el repositorio. No calcula ni
 //! consulta nada por su cuenta (Principio IX).
 
+use std::collections::{BTreeSet, HashMap};
 use std::time::Instant;
 
+use chrono::{NaiveDate, Utc};
 use tonic::{Request, Response, Status};
 use tracing::{info, warn};
+use uuid::Uuid;
 
 use crate::domain::currency;
 use crate::domain::definition::Definition;
 use crate::domain::dispatch::{self, Kind};
 use crate::domain::error::Error;
+use crate::domain::indicators::Snapshot;
 use crate::grpc::mapping;
 use crate::observability;
 use crate::pb::fintcart::common::v1::{OpResult, PageRequest};
@@ -28,33 +32,51 @@ use crate::pb::fintcart::simulator::v1::{
     ValidateDefinitionResponse,
 };
 use crate::repo::calculators::Calculators;
-use crate::repo::simulations::Simulations;
+use crate::repo::indicators::Indicators;
+use crate::repo::simulations::{NewSimulation, Provenance, Simulations};
+
+/// Fecha con la que se resuelven los indicadores: la de EJECUCIÓN (FR-057).
+///
+/// Está en una función con nombre y no escrita en línea dentro de `Compute` porque la
+/// decisión importa y conviene poder señalarla: se resuelve contra HOY y no contra una
+/// fecha que mande el cliente. Un cliente que pudiera elegir la fecha podría calcular con
+/// los indicadores de otro año, y el resultado —correcto según esos valores— quedaría en su
+/// historial indistinguible de uno de hoy.
+fn execution_date() -> NaiveDate {
+    Utc::now().date_naive()
+}
 
 /// Servicio del Simulador.
 ///
-/// Es genérico sobre SUS DOS repositorios y no guarda un `PgPool`. La diferencia no es
+/// Es genérico sobre SUS TRES repositorios y no guarda un `PgPool`. La diferencia no es
 /// estilística: un pool visible desde el transporte es la puerta por la que acaba
 /// colándose una consulta suelta dentro de un handler, y además obligaría a levantar
 /// PostgreSQL para ejercitar cualquier RPC — con lo que la prueba de contrato de T109
 /// no existiría.
 ///
-/// Son dos parámetros de tipo y no uno que los una porque son dos agregados distintos —el
-/// historial de simulaciones y el constructor de calculadoras— y unirlos obligaría a
-/// cualquier doble de prueba a implementar el que no usa.
-pub struct Service<S: Simulations, C: Calculators> {
+/// Son tres parámetros de tipo y no uno que los una porque son tres agregados distintos —el
+/// historial de simulaciones, el constructor de calculadoras y los indicadores vigentes— y
+/// unirlos obligaría a cualquier doble de prueba a implementar los que no usa.
+pub struct Service<S: Simulations, C: Calculators, I: Indicators> {
     repo: S,
     calculators: C,
+    indicators: I,
 }
 
-impl<S: Simulations, C: Calculators> Service<S, C> {
-    /// Construye el servicio sobre los repositorios del historial y de calculadoras.
+impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
+    /// Construye el servicio sobre los repositorios del historial, de calculadoras y de
+    /// indicadores.
     ///
     /// Recibe repositorios y no un pool: así esta capa no puede lanzar una consulta por su
     /// cuenta, y una prueba de contrato puede ejercitar los RPC sin PostgreSQL
     /// (Principio IX).
     #[must_use]
-    pub fn new(repo: S, calculators: C) -> Self {
-        Self { repo, calculators }
+    pub fn new(repo: S, calculators: C, indicators: I) -> Self {
+        Self {
+            repo,
+            calculators,
+            indicators,
+        }
     }
 
     /// Envuelve el servicio en el servidor generado, listo para `tonic`.
@@ -133,7 +155,7 @@ fn pending(rpc: &str, task: &str, started: Instant) -> Status {
 }
 
 #[tonic::async_trait]
-impl<S: Simulations, C: Calculators> SimulatorService for Service<S, C> {
+impl<S: Simulations, C: Calculators, I: Indicators> SimulatorService for Service<S, C, I> {
     /// Ejecuta una simulación y persiste el historial (FR-019..FR-022).
     ///
     /// El cálculo va ANTES de abrir la transacción. Es deliberado: elevar a la
@@ -344,7 +366,7 @@ impl<S: Simulations, C: Calculators> SimulatorService for Service<S, C> {
     }
 }
 
-impl<S: Simulations, C: Calculators> Service<S, C> {
+impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
     /// Cuerpo de `Compute`, en términos de dominio en lugar de `Status`.
     ///
     /// Separarlo del método del trait es lo que permite usar `?` con
@@ -353,33 +375,36 @@ impl<S: Simulations, C: Calculators> Service<S, C> {
     /// para el mismo error según por dónde saliera.
     async fn compute_inner(&self, req: ComputeRequest) -> Result<ComputeResponse, Error> {
         let user_id = mapping::parse_user_id(&req.user_id)?;
-        // `calc_type` llega como `i32` porque prost representa así los enums abiertos
-        // de proto3. `try_from` rechaza un valor que no corresponda a ninguna variante;
-        // sin él, un entero desconocido se convertiría en `Unspecified` y el error
-        // hablaría de un campo ausente cuando en realidad venía uno inválido.
-        let calc_type = CalcType::try_from(req.calc_type).map_err(|_| {
-            Error::InvalidInput(format!(
-                "calc_type {} no existe en el contrato",
-                req.calc_type
-            ))
-        })?;
+        let currency = currency::normalize(&req.currency)?;
+
         // FR-043: `calculator_id` es el camino PREFERENTE y `calc_type` el de
-        // compatibilidad, pero el primero todavía no se resuelve —T091 resuelve y ejecuta la
-        // definición, y T103 registra su procedencia en el historial—. Se rechaza de forma
-        // EXPLÍCITA en vez de continuar por `calc_type`, que es lo que hacía hasta ahora: un
-        // cliente que pidió una calculadora concreta recibía el resultado de OTRA sin que
-        // nada se lo dijera, y ese silencio es peor que un error.
-        if !req.calculator_id.is_empty() {
-            return Err(Error::NotImplemented(
-                "la ejecución por calculator_id llega con T091; mientras tanto, usa calc_type"
+        // compatibilidad, y el contrato dice que viene EXACTAMENTE uno de los dos. Se
+        // comprueban las dos direcciones: rechazar solo el caso de los dos vacíos dejaría
+        // pasar una petición que trae los dos, y ahí hay que elegir — y elegir en silencio
+        // es cómo se entrega el resultado de una calculadora que nadie pidió.
+        let por_definicion = !req.calculator_id.is_empty();
+        let por_tipo = req.calc_type != CalcType::Unspecified as i32;
+        if !por_definicion && !por_tipo {
+            return Err(Error::InvalidInput(
+                "hay que identificar la calculadora: envía calculator_id, o calc_type para \
+                 las cinco calculadoras nativas"
+                    .to_owned(),
+            ));
+        }
+        if por_definicion && por_tipo {
+            return Err(Error::InvalidInput(
+                "calculator_id y calc_type son excluyentes: envía el identificador de la \
+                 calculadora, o el tipo nativo, pero no los dos"
                     .to_owned(),
             ));
         }
 
-        let kind = Kind::from_proto(calc_type)?;
-        let currency = currency::normalize(&req.currency)?;
-
-        let result = dispatch::compute(kind, &req.inputs)?;
+        let (calc_type, result, provenance) = if por_definicion {
+            let id = mapping::parse_calculator_id(&req.calculator_id)?;
+            self.compute_by_definition(id, user_id, &req.inputs).await?
+        } else {
+            self.compute_by_native(req.calc_type, &req.inputs).await?
+        };
 
         // Los parámetros se guardan TAL COMO LLEGARON, sin normalizar. Es lo que hace
         // reproducible el historial: si se guardara la versión canonicalizada, el
@@ -393,17 +418,118 @@ impl<S: Simulations, C: Calculators> Service<S, C> {
 
         let row = self
             .repo
-            .insert(
+            .insert(&NewSimulation {
                 user_id,
-                kind.as_db(),
-                &currency,
-                &req.inputs,
-                &result,
-                idempotency_key,
-            )
+                calc_type,
+                currency,
+                inputs: req.inputs.clone(),
+                result,
+                provenance,
+                idempotency_key: idempotency_key.map(str::to_owned),
+            })
             .await?;
 
         Ok(mapping::compute_response(&row))
+    }
+
+    /// Ejecuta una calculadora identificada por su DEFINICIÓN (FR-043, camino preferente).
+    ///
+    /// Devuelve el trío que `Compute` necesita para persistir: el `calc_type` con el que
+    /// registrar la fila, el resultado ya serializado y la procedencia.
+    ///
+    /// La visibilidad la impone `Calculators::get` y no se repite aquí (FR-051): una
+    /// calculadora privada solo la ve su autor, y comprobarlo en esta capa obligaría a leer
+    /// la fila antes de decidir, con un cambio de estado posible entre la lectura y la
+    /// decisión.
+    async fn compute_by_definition(
+        &self,
+        id: Uuid,
+        actor_id: Uuid,
+        raw_inputs: &HashMap<String, String>,
+    ) -> Result<(String, HashMap<String, String>, Provenance), Error> {
+        let calculator = self.calculators.get(id, Some(actor_id)).await?;
+
+        let snapshot = self.snapshot_for(&calculator.definition).await?;
+        let outputs = calculator.definition.run(raw_inputs, snapshot.values())?;
+
+        // El `calc_type` NO es `'usuario'` por venir por identificador: las siete semillas
+        // también se ejecutan así, y sobre ellas esa palabra sería falsa. Ver
+        // [`dispatch::stored_calc_type`].
+        let calc_type = dispatch::stored_calc_type(calculator.is_builtin, &calculator.name)?;
+
+        let provenance =
+            Provenance::definition(calculator.id, calculator.version, snapshot.to_stored());
+
+        Ok((
+            calc_type.to_owned(),
+            dispatch::to_contract(outputs),
+            provenance,
+        ))
+    }
+
+    /// Ejecuta una calculadora NATIVA identificada por `calc_type` (FR-043, compatibilidad).
+    ///
+    /// El contrato describe este camino como «se resuelve a la definición semilla
+    /// correspondiente», así que la fila se atribuye a esa semilla — que es exactamente lo
+    /// que la migración de T020 hizo con las 13.493 filas históricas. Sin esa atribución,
+    /// dos simulaciones idénticas quedarían explicadas de dos maneras distintas según
+    /// cuándo se hicieron.
+    ///
+    /// El snapshot va VACÍO y es la verdad, no un hueco: estas calculadoras llevan sus
+    /// constantes en el código y `gmf` recibe la UVT como entrada, así que no leen ninguna
+    /// fila de `financial_indicators`.
+    async fn compute_by_native(
+        &self,
+        raw_calc_type: i32,
+        raw_inputs: &HashMap<String, String>,
+    ) -> Result<(String, HashMap<String, String>, Provenance), Error> {
+        // `calc_type` llega como `i32` porque prost representa así los enums abiertos de
+        // proto3. `try_from` rechaza un valor que no corresponda a ninguna variante; sin él,
+        // un entero desconocido se convertiría en `Unspecified` y el error hablaría de un
+        // campo ausente cuando en realidad venía uno inválido.
+        let calc_type = CalcType::try_from(raw_calc_type).map_err(|_| {
+            Error::InvalidInput(format!(
+                "calc_type {raw_calc_type} no existe en el contrato"
+            ))
+        })?;
+        let kind = Kind::from_proto(calc_type)?;
+
+        // El cálculo va ANTES de resolver la semilla: quien valida `operacion` es la
+        // calculadora nativa, así que una entrada inválida falla con SU mensaje —«las
+        // admitidas son ea_a_mv, mv_a_ea y gmf»— y no con el de una semilla que el usuario
+        // no sabe que existe.
+        let result = dispatch::compute(kind, raw_inputs)?;
+
+        // `seed_name` no puede fallar después de que `compute` haya ido bien: es la misma
+        // `operacion` que la calculadora acaba de validar.
+        let seed = dispatch::seed_name(kind, raw_inputs)?;
+        let version = self.calculators.builtin_version(seed).await?;
+
+        Ok((kind.as_db().to_owned(), result, Provenance::native(version)))
+    }
+
+    /// Resuelve los indicadores que una definición REFERENCIA, a la fecha de ejecución
+    /// (FR-057, FR-058).
+    ///
+    /// Se resuelven los referenciados y no los que la evaluación acabará leyendo —el
+    /// evaluador es perezoso—, y el razonamiento está en la nota de
+    /// [`crate::domain::indicators`]: grabar de más deja en la fila un valor que no
+    /// influyó, grabar de menos rompe la reproducibilidad que FR-058 exige.
+    ///
+    /// Una definición que no referencia ninguno **no llega a consultar**, y eso se decide
+    /// aquí y no en el repositorio: que no haya nada que preguntar es un hecho sobre la
+    /// definición, y este es el sitio que la tiene delante. El repositorio, en cambio, no
+    /// puede distinguir «no hay nada que preguntar» de «el llamador se equivocó», así que
+    /// una guarda allí sería una regla duplicada que ninguna prueba podría ejercitar por
+    /// separado. Es el camino normal de `ahorro`, `credito`, `presupuesto` e `inversion`.
+    async fn snapshot_for(&self, definition: &Definition) -> Result<Snapshot, Error> {
+        let needed: BTreeSet<String> = definition.indicators_used().into_iter().collect();
+        if needed.is_empty() {
+            return Ok(Snapshot::none());
+        }
+
+        let values = self.indicators.resolve(&needed, execution_date()).await?;
+        Ok(Snapshot::new(values))
     }
 
     /// Cuerpo de `ListHistory`.

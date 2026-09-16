@@ -1165,3 +1165,96 @@ fn el_plazo_maximo_de_las_semillas_es_el_del_codigo_nativo() {
         );
     }
 }
+
+/// La tabla de semillas y los tipos nativos dicen lo MISMO en las dos direcciones (D-29).
+///
+/// `dispatch::SEEDS` relaciona los dos vocabularios —el nombre de una definición semilla y el
+/// tipo nativo que reproduce— y lo hace en los dos sentidos: `seed_name` va del tipo a la
+/// semilla (para atribuir una simulación hecha por `calc_type`) y `kind_of_seed` al revés
+/// (para decidir con qué `calc_type` se registra una hecha por `calculator_id`). Si las dos
+/// direcciones discreparan, la misma calculadora quedaría registrada de dos maneras según
+/// cómo la hubieran pedido, y las dos serían «correctas» por separado.
+///
+/// Se comprueba además contra `seeds::drafts()`, que es la lista de verdad: si `SEEDS`
+/// nombrara una semilla que no existe, `builtin_version` no la encontraría nunca y toda
+/// ejecución por `calc_type` quedaría sin procedencia en silencio.
+#[test]
+fn la_tabla_de_semillas_corresponde_a_las_semillas_de_verdad() {
+    use fintcart_simulator::domain::dispatch::{kind_of_seed, seed_name, Kind, SEEDS};
+
+    // Los nombres son EXACTAMENTE los de las siete definiciones, ni uno más ni uno menos.
+    let declarados: Vec<&str> = SEEDS.iter().map(|(name, _)| *name).collect();
+    let reales: Vec<&str> = semillas().iter().map(|seed| seed.name).collect();
+    assert_eq!(
+        declarados, reales,
+        "la tabla de semillas no coincide con `domain::seeds::drafts()`"
+    );
+
+    for (name, kind) in SEEDS {
+        // Ida: un nombre de semilla se resuelve a su tipo sin más contexto.
+        assert_eq!(
+            kind_of_seed(name),
+            Some(kind),
+            "«{name}» no vuelve a su propio tipo"
+        );
+
+        // Vuelta: del tipo a la semilla. Las tres colombianas necesitan el discriminador
+        // —`colombia_especifica` era UNA calculadora que D-16 separó en tres, así que su
+        // tipo no basta para saber cuál— y las otras cuatro no. Escribirlo como parte del
+        // caso es lo que hace que esta prueba afirme la simetría EXACTA y no una aproximada:
+        // si alguien diera por total la vuelta, la primera semilla colombiana lo delataría.
+        let entradas = match kind {
+            Kind::ColombiaEspecifica => HashMap::from([("operacion".to_owned(), name.to_owned())]),
+            _ => HashMap::new(),
+        };
+
+        // `seed_name` devuelve `Result`, y [`Error`] no es `PartialEq` —envuelve un
+        // `sqlx::Error`—, así que se compara el valor ya desenvolvido.
+        assert_eq!(
+            seed_name(kind, &entradas)
+                .unwrap_or_else(|err| panic!("«{name}» no se resuelve por su tipo: {err}")),
+            name,
+            "«{name}» no es el nombre que devuelve su tipo"
+        );
+    }
+
+    // Y un `colombia_especifica` sin discriminador reconocible NO se atribuye a ninguna,
+    // en vez de elegir una de las tres por su orden en la tabla.
+    assert!(
+        seed_name(Kind::ColombiaEspecifica, &HashMap::new()).is_err(),
+        "sin `operacion` no hay forma de saber cuál de las tres fue"
+    );
+    assert!(seed_name(
+        Kind::ColombiaEspecifica,
+        &HashMap::from([("operacion".to_owned(), "inventada".to_owned())])
+    )
+    .is_err());
+}
+
+/// Un nombre que no es de ninguna semilla no se atribuye a ninguna.
+///
+/// Es la mitad defensiva de D-29: una calculadora de un usuario puede llamarse `ahorro`, y sin
+/// este `None` el nombre bastaría para atribuirle un tipo nativo que no le corresponde. Quien
+/// decide es `is_builtin`, y aquí se fija que la tabla no da nada por su cuenta.
+#[test]
+fn un_nombre_desconocido_no_corresponde_a_ningun_tipo() {
+    use fintcart_simulator::domain::dispatch::{kind_of_seed, stored_calc_type, CALC_TYPE_USUARIO};
+
+    assert_eq!(kind_of_seed("mi-calculadora"), None);
+
+    assert!(
+        stored_calc_type(false, "ahorro").is_ok_and(|t| t == CALC_TYPE_USUARIO),
+        "una calculadora de un usuario se llama 'usuario' aunque su nombre coincida \
+         con el de una semilla"
+    );
+    assert!(stored_calc_type(true, "ahorro").is_ok_and(|t| t == "ahorro"));
+    assert!(
+        stored_calc_type(true, "gmf").is_ok_and(|t| t == "colombia_especifica"),
+        "las tres semillas colombianas comparten el tipo nativo del que salieron"
+    );
+
+    // Una fila marcada `is_builtin` con un nombre que no es de las siete no se atribuye a
+    // ningún tipo: el `CHECK` de la columna no tiene un valor que decir de ella, y elegir
+    // uno por defecto sería afirmar algo falso sobre su procedencia.
+    assert!(stored_calc_type(true, "inventada").is_err());
+}

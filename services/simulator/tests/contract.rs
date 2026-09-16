@@ -19,9 +19,10 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
-use fintcart_simulator::domain::definition::Definition;
+use fintcart_simulator::domain::definition::{Definition, Draft, DraftOutput, InputField};
 use fintcart_simulator::domain::dispatch::CALC_TYPE_USUARIO;
 use fintcart_simulator::domain::error::{Error, Result};
+use fintcart_simulator::domain::formula::ast::InputKind;
 use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::pb::fintcart::common::v1::PageRequest;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_client::SimulatorServiceClient;
@@ -29,8 +30,14 @@ use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_server::S
 use fintcart_simulator::pb::fintcart::simulator::v1::{
     CalcType, ComputeRequest, ListHistoryRequest, UserRef,
 };
-use fintcart_simulator::repo::calculators::{CalculatorPage, CalculatorRow, Calculators};
-use fintcart_simulator::repo::simulations::{HistoryPage, SimulationRow, Simulations};
+use fintcart_simulator::repo::calculators::{
+    CalculatorPage, CalculatorRow, Calculators, State, VersionRef,
+};
+use fintcart_simulator::repo::indicators::Indicators;
+use fintcart_simulator::repo::simulations::{
+    HistoryPage, NewSimulation, SimulationRow, Simulations,
+};
+use rust_decimal::Decimal;
 use tonic::transport::{Endpoint, Server, Uri};
 use tonic::Code;
 use uuid::Uuid;
@@ -77,21 +84,13 @@ impl FakeRepo {
 
 #[tonic::async_trait]
 impl Simulations for FakeRepo {
-    async fn insert(
-        &self,
-        user_id: Uuid,
-        calc_type: &str,
-        currency: &str,
-        inputs: &HashMap<String, String>,
-        result: &HashMap<String, String>,
-        idempotency_key: Option<&str>,
-    ) -> Result<SimulationRow> {
+    async fn insert(&self, new: &NewSimulation) -> Result<SimulationRow> {
         self.check()?;
 
         // Espejo en memoria del `ON CONFLICT (idempotency_key) DO NOTHING` real
         // (T176): con clave repetida, devuelve la fila ya guardada en vez de crear
         // una segunda.
-        if let Some(key) = idempotency_key {
+        if let Some(key) = &new.idempotency_key {
             if let Some(existing) = self.keys.lock().unwrap().get(key).and_then(|id| {
                 self.rows
                     .lock()
@@ -106,16 +105,19 @@ impl Simulations for FakeRepo {
 
         let row = SimulationRow {
             id: Uuid::new_v4(),
-            user_id,
-            calc_type: calc_type.to_owned(),
-            currency: currency.to_owned(),
-            inputs: inputs.clone(),
-            result: result.clone(),
+            user_id: new.user_id,
+            calc_type: new.calc_type.clone(),
+            currency: new.currency.clone(),
+            inputs: new.inputs.clone(),
+            result: new.result.clone(),
+            calculator_id: new.provenance.calculator_id,
+            calculator_version: new.provenance.calculator_version,
+            indicators_snapshot: new.provenance.indicators.clone(),
             created_at: Utc::now(),
         };
         self.rows.lock().unwrap().push(row.clone());
-        if let Some(key) = idempotency_key {
-            self.keys.lock().unwrap().insert(key.to_owned(), row.id);
+        if let Some(key) = &new.idempotency_key {
+            self.keys.lock().unwrap().insert(key.clone(), row.id);
         }
         Ok(row)
     }
@@ -212,6 +214,238 @@ impl Calculators for NoCalculators {
             "estas pruebas no usan el constructor de calculadoras".to_owned(),
         ))
     }
+
+    /// Este doble NO tiene semillas, y decirlo es más útil que fallar.
+    ///
+    /// `builtin_version` sí se llama desde `Compute` por el camino de compatibilidad, así
+    /// que devolver un error aquí rompería todas las pruebas de `Compute`. `Ok(None)` es
+    /// además una respuesta REAL —una base migrada y todavía sin sembrar—, y ejercita el
+    /// camino en el que la fila se guarda sin procedencia. Que ese camino exista y esté
+    /// probado importa: es el estado en el que queda una base recién migrada.
+    async fn builtin_version(&self, _name: &str) -> Result<Option<VersionRef>> {
+        Ok(None)
+    }
+}
+
+/// Doble del repositorio de indicadores que NO se puede usar.
+///
+/// Falla en todo a propósito: por el camino de compatibilidad —`calc_type`— no se resuelve
+/// ningún indicador, porque las calculadoras nativas llevan sus constantes en el código. Si
+/// `Compute` consultara indicadores por ahí, esta prueba lo diría en lugar de dejar pasar
+/// una consulta que en producción costaría una ida y vuelta por simulación.
+struct NoIndicators;
+
+#[tonic::async_trait]
+impl Indicators for NoIndicators {
+    async fn resolve(
+        &self,
+        _names: &BTreeSet<String>,
+        _on: chrono::NaiveDate,
+    ) -> Result<HashMap<String, rust_decimal::Decimal>> {
+        Err(Error::NotImplemented(
+            "el camino de compatibilidad no resuelve indicadores".to_owned(),
+        ))
+    }
+}
+
+// ── dobles del constructor y de los indicadores ─────────────────────────────
+//
+// Estos dos SÍ son funcionales, al contrario que los de arriba, porque la ejecución por
+// `calculator_id` los usa de verdad: resuelve la definición en el constructor y los valores
+// vigentes en el de indicadores. Un doble que fallara convertiría el camino que se quiere
+// probar en un error.
+
+/// Constructor en memoria, con las calculadoras que la prueba declare.
+#[derive(Default, Clone)]
+struct FakeCalculators {
+    filas: Arc<Mutex<Vec<CalculatorRow>>>,
+}
+
+impl FakeCalculators {
+    fn con(filas: Vec<CalculatorRow>) -> Self {
+        Self {
+            filas: Arc::new(Mutex::new(filas)),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl Calculators for FakeCalculators {
+    async fn upsert(
+        &self,
+        _existing: Option<Uuid>,
+        _owner_id: Uuid,
+        _name: &str,
+        _description: &str,
+        _definition: &Definition,
+    ) -> Result<CalculatorRow> {
+        Err(Error::NotImplemented(
+            "estas pruebas no editan calculadoras".to_owned(),
+        ))
+    }
+
+    /// Lectura con la visibilidad de FR-051, igual que el repositorio real: una privada
+    /// solo la ve su autor. Es lo que hace que la prueba de «no puedo ejecutar la privada
+    /// de otro» compruebe algo.
+    async fn get(&self, id: Uuid, actor_id: Option<Uuid>) -> Result<CalculatorRow> {
+        self.filas
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|row| row.id == id && (row.state == State::Publicada || row.owner_id == actor_id))
+            .cloned()
+            .ok_or(Error::NotFound)
+    }
+
+    async fn list(
+        &self,
+        _owner_id: Option<Uuid>,
+        _only_published: bool,
+        _page_size: i32,
+        _page_token: &str,
+    ) -> Result<CalculatorPage> {
+        Err(Error::NotImplemented(
+            "estas pruebas no listan calculadoras".to_owned(),
+        ))
+    }
+
+    async fn delete(&self, _id: Uuid, _actor_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no borran calculadoras".to_owned(),
+        ))
+    }
+
+    async fn known_indicators(&self) -> Result<BTreeSet<String>> {
+        Ok(BTreeSet::new())
+    }
+
+    async fn builtin_version(&self, name: &str) -> Result<Option<VersionRef>> {
+        Ok(self
+            .filas
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|row| row.is_builtin && row.name == name)
+            .map(|row| VersionRef {
+                id: row.id,
+                version: row.version,
+            }))
+    }
+}
+
+/// Indicadores vigentes en memoria, con registro de lo que se le pidió.
+///
+/// Guarda las consultas porque hay una afirmación que solo se puede hacer mirándolas: que el
+/// camino de compatibilidad NO consulta indicadores. Un doble que solo devolviera valores
+/// dejaría pasar una consulta de más, y el coste de esa consulta —una ida y vuelta por
+/// simulación— no se notaría hasta producción.
+#[derive(Default, Clone)]
+struct FakeIndicators {
+    vigentes: Arc<HashMap<String, Decimal>>,
+    consultas: Arc<Mutex<Vec<BTreeSet<String>>>>,
+}
+
+impl FakeIndicators {
+    fn con(pares: &[(&str, &str)]) -> Self {
+        Self {
+            vigentes: Arc::new(
+                pares
+                    .iter()
+                    .map(|(name, value)| {
+                        (
+                            (*name).to_owned(),
+                            value.parse::<Decimal>().expect("valor de indicador"),
+                        )
+                    })
+                    .collect(),
+            ),
+            consultas: Arc::default(),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl Indicators for FakeIndicators {
+    async fn resolve(
+        &self,
+        names: &BTreeSet<String>,
+        _on: chrono::NaiveDate,
+    ) -> Result<HashMap<String, Decimal>> {
+        self.consultas.lock().unwrap().push(names.clone());
+
+        // Solo los que tienen valor, como el repositorio real: un nombre sin vigencia
+        // simplemente no aparece, y quien lo use se entera al evaluarlo.
+        Ok(names
+            .iter()
+            .filter_map(|name| self.vigentes.get(name).map(|value| (name.clone(), *value)))
+            .collect())
+    }
+}
+
+/// Construye una definición analizada con una entrada `monto` y una salida `salida`.
+///
+/// Se analiza con [`Draft::parse`] y no se arma el AST a mano para que las pruebas
+/// ejerciten el mismo camino que el constructor: una definición construida a mano podría
+/// tener una forma que `parse` nunca produce, y la prueba estaría midiendo algo que no
+/// existe.
+fn definicion(expression: &str, indicadores: &[&str]) -> Definition {
+    let catalogo: BTreeSet<String> = indicadores.iter().map(|name| (*name).to_owned()).collect();
+
+    Draft {
+        inputs: vec![InputField {
+            key: "monto".to_owned(),
+            label: "Monto".to_owned(),
+            kind: InputKind::Monto,
+            unit: "COP".to_owned(),
+            min: None,
+            max: None,
+            default: None,
+            required: true,
+        }],
+        validations: Vec::new(),
+        outputs: vec![DraftOutput {
+            key: "salida".to_owned(),
+            label: "Salida".to_owned(),
+            expression: expression.to_owned(),
+            scale: 2,
+            when: None,
+        }],
+    }
+    .parse(&catalogo)
+    .expect("la definición de la prueba tiene que analizar")
+}
+
+/// Una fila de calculadora, con los valores que la prueba no fija en su caso.
+fn calculadora(
+    owner_id: Option<Uuid>,
+    name: &str,
+    is_builtin: bool,
+    state: State,
+    version: i32,
+    definition: Definition,
+) -> CalculatorRow {
+    CalculatorRow {
+        id: Uuid::new_v4(),
+        owner_id,
+        name: name.to_owned(),
+        description: String::new(),
+        is_builtin,
+        state,
+        approved_by: None,
+        rejection_reason: None,
+        version,
+        definition,
+    }
+}
+
+/// Última fila persistida, que es la que el RPC acaba de escribir.
+fn ultima(repo: &FakeRepo) -> SimulationRow {
+    repo.rows
+        .lock()
+        .unwrap()
+        .last()
+        .cloned()
+        .expect("Compute tiene que haber persistido una fila")
 }
 
 /// Levanta el servidor sobre un canal en memoria y devuelve el cliente GENERADO.
@@ -220,13 +454,33 @@ impl Calculators for NoCalculators {
 /// ejercita la serialización protobuf: un campo renombrado en el `.proto` rompe aquí,
 /// que es exactamente el fallo que estas pruebas existen para atrapar.
 async fn start(repo: FakeRepo) -> SimulatorServiceClient<tonic::transport::Channel> {
+    start_with(repo, NoCalculators, NoIndicators).await
+}
+
+/// Levanta el servidor con los TRES dobles elegidos por quien llama.
+///
+/// Existe además de [`start`] porque la ejecución por `calculator_id` —el camino
+/// preferente de FR-043— necesita un doble de calculadoras que devuelva definiciones y uno
+/// de indicadores que devuelva valores, mientras que los tres RPC de historial solo
+/// necesitan que el resto FALLE. Un único `start` con dobles funcionales para todo haría
+/// que una consulta de más pasara inadvertida en las pruebas que no van de eso.
+async fn start_with<C, I>(
+    repo: FakeRepo,
+    calculators: C,
+    indicators: I,
+) -> SimulatorServiceClient<tonic::transport::Channel>
+where
+    C: Calculators,
+    I: Indicators,
+{
     let (client_io, server_io) = tokio::io::duplex(64 * 1024);
 
     tokio::spawn(async move {
         let _ = Server::builder()
             .add_service(SimulatorServiceServer::new(Service::new(
                 repo,
-                NoCalculators,
+                calculators,
+                indicators,
             )))
             .serve_with_incoming(tokio_stream::once(Ok::<_, std::io::Error>(server_io)))
             .await;
@@ -528,10 +782,6 @@ async fn list_history_devuelve_lo_que_compute_guardo() {
 /// es NOT NULL, así que una fila de una calculadora de usuario TIENE que llevar algo, y lo que
 /// lleva es la verdad —la definición la escribió un usuario— en vez de un nulo o de un valor
 /// de los cinco tipos nativos, que serían falsos.
-///
-/// La fila se siembra a mano porque todavía no hay ningún camino que la produzca: quien
-/// insertará con este tipo es T091, al ejecutar por `calculator_id`. Lo que se fija aquí es
-/// que el historial ya sabe devolverla, para que T091 no tenga que tocar también esta capa.
 #[tokio::test]
 async fn list_history_lee_una_simulacion_de_calculadora_de_usuario() {
     let repo = FakeRepo::default();
@@ -542,6 +792,10 @@ async fn list_history_lee_una_simulacion_de_calculadora_de_usuario() {
         currency: "COP".to_owned(),
         inputs: HashMap::new(),
         result: HashMap::new(),
+        // La fila cita su definición, que es lo que la hace explicable (FR-050).
+        calculator_id: Some(Uuid::new_v4()),
+        calculator_version: Some(3),
+        indicators_snapshot: HashMap::from([("UVT".to_owned(), "50000".to_owned())]),
         created_at: Utc::now(),
     });
     let mut client = start(repo).await;
@@ -557,6 +811,55 @@ async fn list_history_lee_una_simulacion_de_calculadora_de_usuario() {
 
     assert_eq!(resp.items.len(), 1);
     assert_eq!(resp.items[0].calc_type, CalcType::Usuario as i32);
+}
+
+/// La entrada del historial se explica por sí sola (FR-058, SC-019).
+///
+/// Los tres campos de procedencia salen de la FILA y no de la definición vigente hoy: una
+/// simulación de hace un año sigue diciendo con qué versión y con qué indicadores se
+/// calculó aunque los dos hayan cambiado desde entonces. Es lo que hace auditable el
+/// historial y lo que SC-019 comprueba.
+#[tokio::test]
+async fn el_historial_devuelve_la_procedencia_de_cada_simulacion() {
+    let repo = FakeRepo::default();
+    let calculator_id = Uuid::new_v4();
+    repo.rows.lock().unwrap().push(SimulationRow {
+        id: Uuid::new_v4(),
+        user_id: Uuid::parse_str(USER).unwrap(),
+        calc_type: "credito".to_owned(),
+        currency: "COP".to_owned(),
+        inputs: HashMap::new(),
+        result: HashMap::new(),
+        calculator_id: Some(calculator_id),
+        calculator_version: Some(2),
+        indicators_snapshot: HashMap::from([
+            ("UVT".to_owned(), "50000".to_owned()),
+            ("IPC".to_owned(), "0.05".to_owned()),
+        ]),
+        created_at: Utc::now(),
+    });
+    let mut client = start(repo).await;
+
+    let resp = client
+        .list_history(ListHistoryRequest {
+            user_id: USER.to_owned(),
+            page: None,
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let entry = &resp.items[0];
+    assert_eq!(entry.calculator_id, calculator_id.to_string());
+    assert_eq!(entry.calculator_version, 2);
+    assert_eq!(
+        entry.indicators_used.get("UVT").map(String::as_str),
+        Some("50000")
+    );
+    assert_eq!(
+        entry.indicators_used.get("IPC").map(String::as_str),
+        Some("0.05")
+    );
 }
 
 /// Sin `page` el RPC no falla: el campo es opcional en el contrato y su ausencia
@@ -643,4 +946,339 @@ async fn anonymize_history_es_exitosa_sin_filas() {
         .into_inner();
 
     assert!(resp.success);
+}
+
+// ── Compute por `calculator_id`: el camino preferente (T091) ────────────────
+
+/// Ejecutar por definición calcula CON la definición y guarda su procedencia.
+///
+/// Es la comprobación central de T091: hasta ahora `calculator_id` se rechazaba, y el
+/// cliente que pedía una calculadora concreta no podía obtenerla. Aquí se fija además que
+/// la fila queda explicable (FR-050): con qué versión se calculó y qué indicadores usó.
+#[tokio::test]
+async fn compute_por_calculator_id_ejecuta_la_definicion_y_guarda_la_procedencia() {
+    let repo = FakeRepo::default();
+    let dueno = Uuid::parse_str(USER).unwrap();
+    let calc = calculadora(
+        Some(dueno),
+        "mi-calculadora",
+        false,
+        State::Privada,
+        4,
+        definicion("monto * 2", &[]),
+    );
+    let calc_id = calc.id;
+    let calculators = FakeCalculators::con(vec![calc]);
+    let indicators = FakeIndicators::default();
+
+    let mut client = start_with(repo.clone(), calculators, indicators.clone()).await;
+
+    let resp = client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: CalcType::Unspecified as i32,
+            currency: "COP".to_owned(),
+            inputs: HashMap::from([("monto".to_owned(), "1500.00".to_owned())]),
+            idempotency_key: String::new(),
+            calculator_id: calc_id.to_string(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    // `3000` y no `3000.00`: la escala de la salida decide el REDONDEO, y la
+    // serialización canónica recorta los ceros que no aportan precisión. Es la misma
+    // convención que siguen las calculadoras nativas.
+    assert_eq!(resp.result.get("salida").map(String::as_str), Some("3000"));
+    assert_eq!(
+        resp.calculator_version, 4,
+        "la versión viaja en la respuesta"
+    );
+
+    let fila = ultima(&repo);
+    assert_eq!(fila.calculator_id, Some(calc_id));
+    assert_eq!(fila.calculator_version, Some(4));
+    assert_eq!(
+        fila.calc_type, CALC_TYPE_USUARIO,
+        "una definición de un usuario se registra como 'usuario' (D-26)"
+    );
+    assert!(
+        fila.indicators_snapshot.is_empty(),
+        "una definición que no referencia indicadores no graba ninguno"
+    );
+    assert!(
+        indicators.consultas.lock().unwrap().is_empty(),
+        "sin indicadores que resolver no se consulta la tabla"
+    );
+}
+
+/// Los indicadores se resuelven a la fecha de ejecución y quedan en el snapshot (FR-058).
+///
+/// Es la mitad del backend de SC-019: el resultado se explica por el VALOR que regía, no
+/// por el nombre del indicador. Sin el snapshot, reabrir esta simulación cuando la UVT
+/// cambie mostraría una cifra que ya no se puede reconstruir.
+#[tokio::test]
+async fn compute_por_calculator_id_resuelve_y_guarda_los_indicadores() {
+    let repo = FakeRepo::default();
+    let dueno = Uuid::parse_str(USER).unwrap();
+    let calc = calculadora(
+        Some(dueno),
+        "con-uvt",
+        false,
+        State::Privada,
+        1,
+        definicion("monto * @UVT", &["UVT"]),
+    );
+    let calc_id = calc.id;
+    let calculators = FakeCalculators::con(vec![calc]);
+    let indicators = FakeIndicators::con(&[("UVT", "50000")]);
+
+    let mut client = start_with(repo.clone(), calculators, indicators.clone()).await;
+
+    let resp = client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: CalcType::Unspecified as i32,
+            currency: "COP".to_owned(),
+            inputs: HashMap::from([("monto".to_owned(), "2.00".to_owned())]),
+            idempotency_key: String::new(),
+            calculator_id: calc_id.to_string(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(
+        resp.result.get("salida").map(String::as_str),
+        Some("100000"),
+        "el cálculo usa el valor vigente, no el nombre"
+    );
+    assert_eq!(
+        resp.indicators_used.get("UVT").map(String::as_str),
+        Some("50000"),
+        "y el valor usado vuelve en la respuesta (FR-058)"
+    );
+
+    let fila = ultima(&repo);
+    assert_eq!(
+        fila.indicators_snapshot.get("UVT").map(String::as_str),
+        Some("50000")
+    );
+
+    // Se pide EXACTAMENTE lo que la definición referencia, ni más ni menos: consultar el
+    // catálogo entero traería valores que la fila guardaría sin que hubieran influido.
+    assert_eq!(
+        indicators.consultas.lock().unwrap().as_slice(),
+        [BTreeSet::from(["UVT".to_owned()])]
+    );
+}
+
+/// Una semilla ejecutada por identificador NO se registra como `'usuario'` (D-29).
+///
+/// Es la razón de que D-29 exista: el catálogo público ofrece las siete semillas y el
+/// ejecutor las pide por `calculator_id`, así que este es el camino NORMAL de las
+/// calculadoras por defecto. Escribir `'usuario'` sobre ellas afirmaría que las definió un
+/// usuario cuando las define el repositorio, y dejaría la columna diciendo algo falso sobre
+/// siete calculadoras que existían antes que ella.
+///
+/// `gmf` es el caso interesante de la tabla: es una de las tres semillas que salieron de la
+/// única calculadora nativa `colombia_especifica`, así que su tipo nativo no es su nombre.
+#[tokio::test]
+async fn una_semilla_por_identificador_se_registra_con_su_tipo_nativo() {
+    let repo = FakeRepo::default();
+    let semilla = calculadora(
+        None,
+        "gmf",
+        true,
+        State::Publicada,
+        1,
+        definicion("monto * 0.004", &[]),
+    );
+    let semilla_id = semilla.id;
+    let calculators = FakeCalculators::con(vec![semilla]);
+
+    let mut client = start_with(repo.clone(), calculators, FakeIndicators::default()).await;
+
+    client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: CalcType::Unspecified as i32,
+            currency: "COP".to_owned(),
+            inputs: HashMap::from([("monto".to_owned(), "1000000.00".to_owned())]),
+            idempotency_key: String::new(),
+            calculator_id: semilla_id.to_string(),
+        })
+        .await
+        .unwrap();
+
+    let fila = ultima(&repo);
+    assert_eq!(
+        fila.calc_type, "colombia_especifica",
+        "gmf es una de las tres semillas de la antigua calculadora colombiana"
+    );
+    assert_eq!(fila.calculator_id, Some(semilla_id));
+}
+
+/// Una calculadora privada ajena no se puede ejecutar (FR-051).
+///
+/// La visibilidad la impone el repositorio y no el servicio, y esta prueba fija que la
+/// ejecución la hereda: sin ella, `calculator_id` habría sido una puerta trasera al
+/// contenido privado de otro autor.
+#[tokio::test]
+async fn compute_rechaza_una_calculadora_privada_ajena() {
+    let repo = FakeRepo::default();
+    let otro = Uuid::new_v4();
+    let calc = calculadora(
+        Some(otro),
+        "privada-ajena",
+        false,
+        State::Privada,
+        1,
+        definicion("monto", &[]),
+    );
+    let calc_id = calc.id;
+
+    let mut client = start_with(
+        repo.clone(),
+        FakeCalculators::con(vec![calc]),
+        FakeIndicators::default(),
+    )
+    .await;
+
+    let status = client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: CalcType::Unspecified as i32,
+            currency: "COP".to_owned(),
+            inputs: HashMap::from([("monto".to_owned(), "1.00".to_owned())]),
+            idempotency_key: String::new(),
+            calculator_id: calc_id.to_string(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::NotFound);
+    assert!(
+        repo.rows.lock().unwrap().is_empty(),
+        "una ejecución rechazada no deja rastro en el historial"
+    );
+}
+
+// ── Compute por `calc_type`: el camino de compatibilidad ────────────────────
+
+/// El camino de compatibilidad atribuye la fila a la semilla que reproduce (FR-050).
+///
+/// El contrato lo dice así —«`calc_type` … se resuelve a la definición semilla
+/// correspondiente»— y sin la atribución una simulación nueva por `calc_type` quedaría sin
+/// procedencia mientras las 13.493 históricas sí la tienen: dos filas idénticas explicadas
+/// de dos maneras distintas, y la nueva sería la peor explicada.
+///
+/// El snapshot va VACÍO y es la verdad, no un hueco: `credito` lleva sus constantes en el
+/// código y no lee ninguna fila de `financial_indicators`.
+#[tokio::test]
+async fn compute_por_calc_type_guarda_la_version_de_la_semilla() {
+    let repo = FakeRepo::default();
+    let semilla = calculadora(
+        None,
+        "credito",
+        true,
+        State::Publicada,
+        2,
+        definicion("monto", &[]),
+    );
+    let semilla_id = semilla.id;
+    let indicators = FakeIndicators::con(&[("UVT", "50000")]);
+
+    let mut client = start_with(
+        repo.clone(),
+        FakeCalculators::con(vec![semilla]),
+        indicators.clone(),
+    )
+    .await;
+
+    client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: CalcType::Credito as i32,
+            currency: "COP".to_owned(),
+            inputs: [
+                ("monto", "12000000.00"),
+                ("tasa_anual", "0.24"),
+                ("meses", "24"),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect(),
+            idempotency_key: String::new(),
+            calculator_id: String::new(),
+        })
+        .await
+        .unwrap();
+
+    let fila = ultima(&repo);
+    assert_eq!(fila.calc_type, "credito");
+    assert_eq!(fila.calculator_id, Some(semilla_id));
+    assert_eq!(fila.calculator_version, Some(2));
+    assert!(
+        fila.indicators_snapshot.is_empty(),
+        "el cálculo nativo no lee indicadores persistidos"
+    );
+    assert!(
+        indicators.consultas.lock().unwrap().is_empty(),
+        "y por eso no se consulta la tabla de indicadores por este camino"
+    );
+}
+
+/// Los dos caminos de identificación son EXCLUYENTES, y decirlo no es una formalidad.
+///
+/// El contrato dice «exactamente uno de los dos». Aceptar los dos obligaría a elegir uno, y
+/// elegir en silencio es cómo se entrega el resultado de una calculadora que nadie pidió —
+/// que es exactamente el fallo que T091 vino a corregir.
+#[tokio::test]
+async fn compute_rechaza_los_dos_caminos_a_la_vez() {
+    let mut client = start(FakeRepo::default()).await;
+
+    let status = client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: CalcType::Credito as i32,
+            currency: "COP".to_owned(),
+            inputs: HashMap::new(),
+            idempotency_key: String::new(),
+            calculator_id: Uuid::new_v4().to_string(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(
+        status.message().contains("excluyentes"),
+        "el mensaje debe explicar que hay que elegir uno: {}",
+        status.message()
+    );
+}
+
+/// Y tampoco vale no mandar ninguno.
+#[tokio::test]
+async fn compute_rechaza_una_peticion_sin_calculadora() {
+    let mut client = start(FakeRepo::default()).await;
+
+    let status = client
+        .compute(ComputeRequest {
+            user_id: USER.to_owned(),
+            calc_type: CalcType::Unspecified as i32,
+            currency: "COP".to_owned(),
+            inputs: HashMap::new(),
+            idempotency_key: String::new(),
+            calculator_id: String::new(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(
+        status.message().contains("calculator_id"),
+        "el mensaje debe decir cuál de los dos campos falta: {}",
+        status.message()
+    );
 }
