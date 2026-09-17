@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { waitForVerificationLink } from './support/mailhog';
 import { grantRole } from './support/roles';
+import { deleteArticleByTitle } from './support/articles';
 
 /**
  * Un documento fuera del vocabulario se rechaza al guardar y NO llega al lector (T134,
@@ -25,6 +26,26 @@ import { grantRole } from './support/roles';
  * más fácil se cuela: `{tipo:'parrafo', onload:'…'}` es un párrafo legítimo con una carga
  * encima.
  */
+
+/**
+ * Lo que crea esta prueba, para limpiarlo al terminar (T156/hallazgo 10).
+ *
+ * Un artículo publicado por una prueba se queda en el catálogo público —no hay endpoint que
+ * borre artículos, y no debe haberlo—, así que aparece en las capturas de la siguiente
+ * ejecución y cambia los conteos de las pantallas. Se limpia por SQL, como una operación de
+ * operador.
+ */
+const articulosCreados: string[] = [];
+
+test.afterEach(() => {
+  while (articulosCreados.length > 0) {
+    const titulo = articulosCreados.pop();
+    if (titulo !== undefined) {
+      deleteArticleByTitle(titulo);
+    }
+  }
+});
+
 test('un documento con un nodo no admitido no llega al lector', async ({ page }) => {
   const stamp = Date.now();
   const editorEmail = `e2e-invalido-${stamp}@fintcart.test`;
@@ -54,7 +75,9 @@ test('un documento con un nodo no admitido no llega al lector', async ({ page })
   await expect(page).toHaveURL(/\/catalogo/);
 
   await page.getByRole('link', { name: 'Editorial' }).click();
-  await page.getByLabel('Título').fill(`Artículo con documento inválido ${stamp}`);
+  const title = `Artículo con documento inválido ${stamp}`;
+  articulosCreados.push(title);
+  await page.getByLabel('Título').fill(title);
   await page.getByLabel('Categoría').selectOption({ label: 'Ahorro' });
   await page.getByLabel('Cuerpo', { exact: true }).fill(cuerpoLegitimo);
   // El identificador de la versión se lee de la RESPUESTA de creación, no de la URL: tras

@@ -251,6 +251,33 @@ DELETE FROM article_versions WHERE state IN ('en_revision', 'borrador');
 DELETE FROM articles WHERE title ~ '(Artículo editorial|Artículo E2E|Artículo de barrera)';
 ```
 
+### Actualización (T156, verificada en la instalación desde cero)
+
+El hallazgo describía la situación con **las cinco** pruebas que creaban artículos sin limpiarlos.
+Una de ellas (`calculadora-incrustada.spec.ts`) ya limpiaba; las otras cuatro **también limpian
+ahora**, con el mismo patrón y el mismo helper (`support/articles.ts`), que pasó de un prefijo a una
+lista de prefijos —y la salvaguarda del borrado exige que el título empiece por uno de ellos, de modo
+que añadir una prueba que cree un artículo sin declarar su prefijo **falla en voz alta** en lugar de
+borrar por título cualquier cosa—.
+
+Medido al terminar la suite completa sobre una instalación recién sembrada: **un artículo** de prueba
+(el de `us4-editorial`, protegido por N-13) y **trece simulaciones** (las de `us2-simuladores`,
+también protegida). Antes eran nueve artículos. Las dos fuentes que quedan no se pueden arreglar sin
+tocar las pruebas protegidas, así que siguen necesitando la limpieza de operador que este hallazgo
+documenta:
+
+```sql
+-- Aprendizaje
+DELETE FROM articles WHERE title LIKE 'Artículo E2E%';
+-- Simulador
+DELETE FROM simulations;
+```
+
+Un entorno limpio antes de una demostración es: las cinco categorías y los cinco artículos de la
+siembra, siete calculadoras, cinco indicadores, cero intentos y cero simulaciones.
+
+---
+
 ## Hallazgo 11 — Una barra de navegación que crece desborda en un punto de corte que no puede saberlo
 
 **Qué pasa**: al añadir tres entradas a la navegación (T117–T119) la barra dejó de caber a

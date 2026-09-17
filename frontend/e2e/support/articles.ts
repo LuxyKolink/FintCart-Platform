@@ -22,8 +22,22 @@
  */
 import { execFileSync } from 'node:child_process';
 
-/** Prefijo de los títulos que crean las pruebas. Ningún artículo real lo usa. */
-export const TEST_ARTICLE_PREFIX = 'Artículo con calculadora';
+/**
+ * Prefijos de los títulos que crean las pruebas. Ningún artículo real los usa.
+ *
+ * Son varios porque cada prueba nombra lo suyo —una imagen, un documento inválido, la barrera
+ * de accesibilidad, una captura visual— y la salvaguarda de abajo exige que el título empiece
+ * por uno de ellos. La lista es la única puerta: añadir una prueba que cree un artículo sin
+ * añadir su prefijo aquí hace que su limpieza falle en voz alta, que es como tiene que fallar
+ * —en lugar de borrar por título cualquier cosa que le llegue—.
+ */
+export const TEST_ARTICLE_PREFIXES = [
+  'Artículo con calculadora',
+  'Artículo con imagen',
+  'Artículo con documento inválido',
+  'Artículo de barrera',
+  'Artículo editorial',
+] as const;
 
 const CONTAINER = 'fintcart-postgres-learning-1';
 
@@ -34,10 +48,12 @@ const CONTAINER = 'fintcart-postgres-learning-1';
  * crearlo, y un error aquí taparía el fallo real con un error de limpieza.
  */
 export function deleteArticleByTitle(title: string): void {
-  if (!title.startsWith(TEST_ARTICLE_PREFIX)) {
+  if (!TEST_ARTICLE_PREFIXES.some((prefijo) => title.startsWith(prefijo))) {
     // Salvaguarda: esto corre contra la base de DESARROLLO y un `DELETE` por título con un título
     // que no sea de prueba se llevaría por delante un artículo real.
-    throw new Error(`deleteArticleByTitle solo borra artículos de prueba (${TEST_ARTICLE_PREFIX}*)`);
+    throw new Error(
+      `deleteArticleByTitle solo borra artículos de prueba (${TEST_ARTICLE_PREFIXES.join('*, ')}*)`,
+    );
   }
 
   execFileSync(

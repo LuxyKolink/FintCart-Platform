@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectScreenIsAccessible } from './support/a11y';
 import { waitForVerificationLink } from './support/mailhog';
 import { grantRole } from './support/roles';
+import { deleteArticleByTitle } from './support/articles';
 
 /**
  * Barrera de accesibilidad (T011/T080/T081/T082, FR-093…FR-096, SC-030…SC-032).
@@ -76,6 +77,25 @@ async function registerAndSignIn(page: Page, prefix: string): Promise<string> {
   await signIn(page, email, password);
   return email;
 }
+
+/**
+ * Lo que crea esta prueba, para limpiarlo al terminar (T156/hallazgo 10).
+ *
+ * Un artículo publicado por una prueba se queda en el catálogo público —no hay endpoint que
+ * borre artículos, y no debe haberlo—, así que aparece en las capturas de la siguiente
+ * ejecución y cambia los conteos de las pantallas. Se limpia por SQL, como una operación de
+ * operador.
+ */
+const articulosCreados: string[] = [];
+
+test.afterEach(() => {
+  while (articulosCreados.length > 0) {
+    const titulo = articulosCreados.pop();
+    if (titulo !== undefined) {
+      deleteArticleByTitle(titulo);
+    }
+  }
+});
 
 test.describe('accesibilidad de las pantallas de acceso', () => {
   for (const screen of ACCESS_SCREENS) {
@@ -196,7 +216,9 @@ test('las pantallas editoriales son recorribles por teclado y legibles', { tag: 
 
   await test.step('un borrador para que el listado y la cola tengan contenido', async () => {
     await page.goto('/editorial');
-    await page.getByLabel('Título').fill(`Artículo de barrera ${Date.now().toString()}`);
+    const title = `Artículo de barrera ${Date.now().toString()}`;
+    articulosCreados.push(title);
+    await page.getByLabel('Título').fill(title);
     await page.getByLabel('Categoría').selectOption({ label: 'Ahorro' });
     await page.getByLabel('Cuerpo', { exact: true }).fill('Cuerpo del artículo de la barrera de accesibilidad.');
     await page.getByRole('button', { name: 'Crear borrador' }).click();

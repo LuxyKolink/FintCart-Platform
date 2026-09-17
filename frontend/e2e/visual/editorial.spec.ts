@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectControlsAreLabelled, expectTextMeetsAaContrast } from '../support/a11y';
 import { waitForVerificationLink } from '../support/mailhog';
 import { grantRole } from '../support/roles';
+import { deleteArticleByTitle } from '../support/articles';
 
 /**
  * Captura visual del flujo editorial a cada punto de corte (T073).
@@ -84,11 +85,33 @@ async function signInAsEditorAndCoordinator(page: Page): Promise<string> {
   return title;
 }
 
+/**
+ * Lo que crea esta prueba, para limpiarlo al terminar (T156/hallazgo 10).
+ *
+ * Un artículo publicado por una prueba se queda en el catálogo público —no hay endpoint que
+ * borre artículos, y no debe haberlo—, así que aparece en las capturas de la siguiente
+ * ejecución y cambia los conteos de las pantallas. Se limpia por SQL, como una operación de
+ * operador.
+ */
+const articulosCreados: string[] = [];
+
+test.afterEach(() => {
+  while (articulosCreados.length > 0) {
+    const titulo = articulosCreados.pop();
+    if (titulo !== undefined) {
+      deleteArticleByTitle(titulo);
+    }
+  }
+});
+
 test.describe('captura visual — editorial', () => {
   let screens: readonly Screen[] = [];
 
   test.beforeEach(async ({ page }) => {
-    await signInAsEditorAndCoordinator(page);
+    // El título vuelve para poder borrar el artículo al terminar: la captura lo usa durante
+    // la prueba, pero dejarlo publicado cambiaría el catálogo —y las capturas del catálogo—
+    // de la siguiente ejecución.
+    articulosCreados.push(await signInAsEditorAndCoordinator(page));
 
     screens = [
       // El editor NO se migra en 003 (lo reescribe 002): se captura para dejar constancia

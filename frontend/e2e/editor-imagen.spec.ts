@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { waitForVerificationLink } from './support/mailhog';
 import { grantRole } from './support/roles';
+import { deleteArticleByTitle } from './support/articles';
 
 /**
  * Una imagen entra por el editor y sale en el lector (T132, T129, T130, FR-064…FR-067).
@@ -18,12 +19,33 @@ import { grantRole } from './support/roles';
  * de ningún archivo del repositorio, y el contenido es distinto en cada ejecución (el hash
  * cambia, con lo que también se comprueba que el identificador se calcula y no se copia).
  */
+
+/**
+ * Lo que crea esta prueba, para limpiarlo al terminar (T156/hallazgo 10).
+ *
+ * Un artículo publicado por una prueba se queda en el catálogo público —no hay endpoint que
+ * borre artículos, y no debe haberlo—, así que aparece en las capturas de la siguiente
+ * ejecución y cambia los conteos de las pantallas. Se limpia por SQL, como una operación de
+ * operador.
+ */
+const articulosCreados: string[] = [];
+
+test.afterEach(() => {
+  while (articulosCreados.length > 0) {
+    const titulo = articulosCreados.pop();
+    if (titulo !== undefined) {
+      deleteArticleByTitle(titulo);
+    }
+  }
+});
+
 test('el editor sube una imagen y el lector la muestra', async ({ page }) => {
   const stamp = Date.now();
   const editorEmail = `e2e-img-editor-${stamp}@fintcart.test`;
   const coordEmail = `e2e-img-coord-${stamp}@fintcart.test`;
   const password = 'Dem0stracion!2026';
   const title = `Artículo con imagen ${stamp}`;
+  articulosCreados.push(title);
   const descripcion = `Una alcancía con monedas (${stamp})`;
   // El cuerpo lleva el sello de la ejecución: la bandeja de revisión NO muestra el título
   // —`ArticleVersion` no lo lleva, ver la nota de T167–T169 en `tasks.md`—, así que el ítem
