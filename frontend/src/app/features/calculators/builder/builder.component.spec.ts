@@ -101,6 +101,22 @@ describe('CalculatorBuilderComponent', () => {
     expect(text(fixture)).toContain('Decimales');
   });
 
+  it('explica cuándo usar pot y cuándo potd (T160, D-16)', async () => {
+    // La ayuda tiene que estar en el módulo donde se escriben las fórmulas, y decir las dos cosas
+    // que importan: que `pot` es exacta y que `potd` es aproximada. Fundirlas perdería la
+    // exactitud del Principio VIII en silencio, y quien escribe una fórmula es quien decide cuál
+    // usa.
+    const fixture = await render();
+    const texto = text(fixture);
+
+    expect(texto).toContain('pot(base, n)');
+    expect(texto).toContain('potd(base, x)');
+    expect(texto).toContain('ENTERO');
+    expect(texto).toContain('aproximada');
+    // Y la advertencia de qué hacer, que es lo que evita el error: si puedes usar pot, usa pot.
+    expect(texto).toContain('usa pot');
+  });
+
   it('pregunta al servidor si la definición es válida (FR-046)', async () => {
     const fixture = await render();
     api.validate.calls.reset();

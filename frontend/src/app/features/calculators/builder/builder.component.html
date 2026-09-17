@@ -152,6 +152,22 @@
       </fc-module-box>
 
       <fc-module-box title="Resultados">
+        <!--
+          La ayuda va DENTRO del módulo donde se escriben las fórmulas y no en un desplegable: es
+          el momento exacto en que hace falta, y una ayuda que hay que abrir no se lee.
+        -->
+        <div class="fc-build__ayuda">
+          @for (funcion of formulaHelp; track funcion.name) {
+            <p class="fc-build__funcion">
+              <span class="fc-build__firma">{{ funcion.signature }}</span>
+              — {{ funcion.when }}
+              @if (funcion.caveat; as aviso) {
+                <span class="fc-build__aviso">{{ aviso }}</span>
+              }
+            </p>
+          }
+        </div>
+
         <div class="fc-build__panel" formArrayName="outputs">
           @for (grupo of outputs.controls; track $index; let i = $index) {
             <div class="fc-build__fila" [formGroupName]="i">

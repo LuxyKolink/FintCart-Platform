@@ -6,7 +6,8 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Location } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 import {
@@ -28,6 +29,7 @@ import {
   calculatorStateLabel,
   calculatorStateTone,
 } from '../calculator.types';
+import { FORMULA_HELP } from './formula-help';
 import {
   CalculatorDraft,
   INPUT_TYPE_OPTIONS,
@@ -130,6 +132,28 @@ const LIVE_VALIDATION_MS = 400;
     .fc-build__ubicacion {
       font-family: var(--font-mono);
     }
+    .fc-build__ayuda {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      margin-bottom: var(--space-3);
+      padding: var(--space-3);
+      border-left: 3px solid var(--border-strong);
+      background: var(--surface-sunken);
+      border-radius: var(--radius-md);
+    }
+    .fc-build__funcion {
+      margin: 0;
+      font-size: var(--fs-sm);
+      color: var(--text-body);
+    }
+    .fc-build__firma {
+      font-family: var(--font-mono);
+      font-weight: var(--fw-semibold);
+    }
+    .fc-build__aviso {
+      color: var(--text-faint);
+    }
     .fc-build__acciones {
       display: flex;
       gap: var(--space-2);
@@ -147,7 +171,7 @@ const LIVE_VALIDATION_MS = 400;
 export class CalculatorBuilderComponent implements OnInit {
   private readonly api = inject(CalculatorsApiService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
+  private readonly location = inject(Location);
 
   protected readonly state = signal<LoadState>('ready');
   protected readonly save = signal<SaveState>('idle');
@@ -165,6 +189,16 @@ export class CalculatorBuilderComponent implements OnInit {
     label: option.label,
   }));
   protected readonly unitOptions = UNIT_SUGGESTIONS.map((unit) => ({ value: unit, label: unit }));
+
+  /**
+   * La ayuda del lenguaje, para el módulo de resultados (T160).
+   *
+   * Es la mitad que más se equivoca quien escribe una fórmula: `pot` y `potd` se parecen en el
+   * nombre y no en lo que hacen, y elegir la segunda «por si acaso» cambia una cuenta exacta por
+   * una aproximada sin que nada lo advierta. El texto sale de `formula-help.ts`, y su coherencia
+   * con `Function::help()` del Simulador la comprueba `scripts/formula-help.mjs` en `npm run lint`.
+   */
+  protected readonly formulaHelp = FORMULA_HELP;
   protected readonly canSave = computed(() => this.save() !== 'saving' && this.state() === 'ready');
 
   protected readonly form = new FormGroup({
@@ -308,13 +342,20 @@ export class CalculatorBuilderComponent implements OnInit {
             ? `«${calculator.name}» quedó guardada y es privada: solo la ves tú. Ejecútala abajo y, cuando te convenza, propónla para el catálogo.`
             : `Guardada la versión ${calculator.version} de «${calculator.name}».`,
         );
-        // La ruta cambia a la de edición para que recargar la página no cree OTRA calculadora:
-        // sin esto, un F5 sobre `/calculadoras/nueva` con un borrador ya guardado duplicaría la
-        // calculadora, y el autor tendría dos iguales sin haberlo pedido.
+        // La ruta pasa a la de EDICIÓN sin navegar: `Location.replaceState` cambia la dirección
+        // del navegador y no toca el componente, y esa diferencia importa dos veces.
+        //
+        // Una: recargar con F5 sobre `/calculadoras/nueva` después de haber guardado crearía OTRA
+        // calculadora —el autor acabaría con dos iguales sin haberlo pedido—.
+        //
+        // Y dos, que es lo que se aprendió ejecutándolo: con `router.navigate` la navegación
+        // DESTRUYE y vuelve a crear este componente —`/nueva` y `/:id/editar` son dos rutas
+        // distintas aunque compartan componente—, así que el aviso de «quedó guardada y es
+        // privada» desaparecía en el mismo instante en que se mostraba. El autor guardaba, no
+        // alcanzaba a leer nada y se quedaba mirando un formulario que parecía no haber hecho
+        // nada. `replaceState` deja el estado de la pantalla en su sitio.
         if (existing === null) {
-          void this.router.navigate(['/calculadoras', calculator.calculator_id, 'editar'], {
-            replaceUrl: true,
-          });
+          this.location.replaceState(`/calculadoras/${calculator.calculator_id}/editar`);
         }
       },
       error: (err: unknown) => {
