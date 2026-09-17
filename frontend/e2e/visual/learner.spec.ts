@@ -98,6 +98,16 @@ test.describe('captura visual — portal de aprendizaje', () => {
           page.locator('main').getByText(screen.marker, { exact: false }).first(),
         ).toBeVisible();
 
+        // El lector renderiza el DOCUMENTO DE BLOQUES, no el respaldo en texto (T133,
+        // FR-063). Es la única aserción de esta suite que mira una clase, y se justifica:
+        // los dos caminos pintan párrafos y una captura no los distingue, así que sin
+        // esto un fallo silencioso —el documento deja de llegar y el lector cae al texto—
+        // dejaría el rediseño «verde» con la funcionalidad perdida. Comprueba el efecto
+        // observable: lo que se ve en pantalla viene del documento.
+        if (screen.name === 'articulo') {
+          await expect(page.locator('.fc-blocks').first()).toBeVisible();
+        }
+
         // FR-127: la página NUNCA desplaza en horizontal. Lo que no quepa —las pestañas
         // de una categoría con nombre largo, la tabla del historial— se desplaza dentro
         // de su propio contenedor.

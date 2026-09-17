@@ -1,0 +1,171 @@
+<!--
+  Un solo `<ng-template>` que se invoca a sí mismo. `inline` viaja en el contexto y decide
+  si el nodo se dibuja dentro de un párrafo (contenido en línea) o como bloque suelto.
+
+  NADA de `[innerHTML]` aquí, y la ausencia es la funcionalidad (FR-068): cada nodo tiene
+  su rama y emite elementos de Angular. Lo que no está en este `@switch` no se dibuja,
+  porque no hay ningún analizador de HTML en el camino al que poder colarle algo.
+-->
+<ng-template #nodo let-n let-inline="inline">
+  @switch (n.tipo) {
+    @case ('parrafo') {
+      <p class="fc-blocks__paragraph">
+        @for (hijo of inlineChildren(n); track $index) {
+          <ng-container
+            [ngTemplateOutlet]="nodo"
+            [ngTemplateOutletContext]="{ $implicit: hijo, inline: true }"
+          />
+        }
+      </p>
+    }
+
+    @case ('encabezado') {
+      <!-- El nivel viene del documento (2–4); el `h1` es el título de la pantalla. -->
+      @switch (headingTag(n.nivel)) {
+        @case ('h3') {
+          <h3 class="fc-blocks__heading fc-blocks__heading--3">
+            @for (hijo of inlineChildren(n); track $index) {
+              <ng-container
+                [ngTemplateOutlet]="nodo"
+                [ngTemplateOutletContext]="{ $implicit: hijo, inline: true }"
+              />
+            }
+          </h3>
+        }
+        @case ('h4') {
+          <h4 class="fc-blocks__heading fc-blocks__heading--4">
+            @for (hijo of inlineChildren(n); track $index) {
+              <ng-container
+                [ngTemplateOutlet]="nodo"
+                [ngTemplateOutletContext]="{ $implicit: hijo, inline: true }"
+              />
+            }
+          </h4>
+        }
+        @default {
+          <h2 class="fc-blocks__heading fc-blocks__heading--2">
+            @for (hijo of inlineChildren(n); track $index) {
+              <ng-container
+                [ngTemplateOutlet]="nodo"
+                [ngTemplateOutletContext]="{ $implicit: hijo, inline: true }"
+              />
+            }
+          </h2>
+        }
+      }
+    }
+
+    @case ('lista') {
+      <!--
+        `<ul>`/`<ol>` de verdad, no una lista con viñetas dibujadas: la semántica es lo que
+        anuncia el número de elementos al lector de pantalla.
+      -->
+      @if (n.ordenada === true) {
+        <ol class="fc-blocks__list">
+          @for (hijo of blockChildren(n); track $index) {
+            <ng-container
+              [ngTemplateOutlet]="nodo"
+              [ngTemplateOutletContext]="{ $implicit: hijo, inline: false }"
+            />
+          }
+        </ol>
+      } @else {
+        <ul class="fc-blocks__list">
+          @for (hijo of blockChildren(n); track $index) {
+            <ng-container
+              [ngTemplateOutlet]="nodo"
+              [ngTemplateOutletContext]="{ $implicit: hijo, inline: false }"
+            />
+          }
+        </ul>
+      }
+    }
+
+    @case ('item_lista') {
+      <li class="fc-blocks__item">
+        @for (hijo of blockChildren(n); track $index) {
+          <ng-container
+            [ngTemplateOutlet]="nodo"
+            [ngTemplateOutletContext]="{ $implicit: hijo, inline: false }"
+          />
+        }
+      </li>
+    }
+
+    @case ('texto') {
+      <!--
+        Si hay enlace con esquema admitido, el texto ES el enlace y las demás marcas van
+        como clases sobre el mismo elemento: anidar un `<span>` con negrita dentro de un
+        `<a>` no aporta nada y complica el foco del teclado.
+      -->
+      @if (linkOf(n); as href) {
+        <a
+          class="fc-blocks__link"
+          [class.fc-blocks__strong]="hasMark(n, 'negrita')"
+          [class.fc-blocks__em]="hasMark(n, 'cursiva')"
+          rel="noopener noreferrer"
+          [href]="href"
+          [attr.target]="inline ? null : '_blank'"
+          >{{ n.texto }}</a
+        >
+      } @else {
+        <span
+          class="fc-blocks__text"
+          [class.fc-blocks__strong]="hasMark(n, 'negrita')"
+          [class.fc-blocks__em]="hasMark(n, 'cursiva')"
+          >{{ n.texto }}</span
+        >
+      }
+    }
+
+    @case ('imagen') {
+      <figure class="fc-blocks__figure">
+        @if (isBroken(n)) {
+          <!--
+            La imagen no se pudo cargar. En vez de un hueco, su texto alternativo: es lo que
+            un lector de pantalla diría, y es lo único que se sabe de la imagen que falta.
+            No se inventa un pie ni un nombre de archivo.
+          -->
+          <p class="fc-blocks__image-missing" role="img">{{ imageFallback(n) }}</p>
+        } @else {
+          <img
+            class="fc-blocks__image"
+            [src]="imageSrc(n)"
+            [alt]="imageFallback(n)"
+            [attr.loading]="'lazy'"
+            (error)="onImageError(n)"
+          />
+        }
+        @if (n.pie) {
+          <figcaption class="fc-blocks__caption">{{ n.pie }}</figcaption>
+        }
+      </figure>
+    }
+
+    @case ('calculadora') {
+      <!--
+        Referencia a la calculadora publicada. T153 la convierte en un bloque ejecutable
+        aquí mismo, por la misma ruta de ejecución que el simulador; hasta entonces se
+        enlaza, que es accionable y no promete nada que no pueda cumplir.
+      -->
+      <aside class="fc-blocks__calculator">
+        <p class="fc-blocks__calculator-label">Calculadora incrustada</p>
+        <a class="fc-blocks__calculator-link" [routerLink]="['/simuladores', n.calculator_id]">
+          Abrir la calculadora
+        </a>
+        @if (n.version) {
+          <p class="fc-blocks__calculator-version">Versión {{ n.version }} del artículo</p>
+        }
+      </aside>
+    }
+  }
+</ng-template>
+
+<div class="fc-blocks">
+  @for (hijo of blockChildren(doc()); track $index) {
+    <ng-container
+      [ngTemplateOutlet]="nodo"
+      [ngTemplateOutletContext]="{ $implicit: hijo, inline: false }"
+    />
+  }
+</div>

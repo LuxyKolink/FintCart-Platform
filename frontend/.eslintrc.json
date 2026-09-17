@@ -1,11 +1,20 @@
 {
   "root": true,
-  "ignorePatterns": ["projects/**/*", "dist/", "node_modules/", "src/app/pb/"],
+  "ignorePatterns": [
+    "projects/**/*",
+    "dist/",
+    "node_modules/",
+    "src/app/pb/"
+  ],
   "overrides": [
     {
-      "files": ["*.ts"],
+      "files": [
+        "*.ts"
+      ],
       "parserOptions": {
-        "project": ["tsconfig.json"],
+        "project": [
+          "tsconfig.json"
+        ],
         "createDefaultProgram": true
       },
       "extends": [
@@ -18,11 +27,19 @@
       "rules": {
         "@angular-eslint/directive-selector": [
           "error",
-          { "type": "attribute", "prefix": "fc", "style": "camelCase" }
+          {
+            "type": "attribute",
+            "prefix": "fc",
+            "style": "camelCase"
+          }
         ],
         "@angular-eslint/component-selector": [
           "error",
-          { "type": "element", "prefix": "fc", "style": "kebab-case" }
+          {
+            "type": "element",
+            "prefix": "fc",
+            "style": "kebab-case"
+          }
         ],
         "@typescript-eslint/explicit-function-return-type": "error",
         "@typescript-eslint/no-explicit-any": "error"
@@ -34,7 +51,11 @@
         "src/app/features/learning/progress/**/*.ts",
         "src/app/shared/decimal-str.ts"
       ],
-      "parserOptions": { "project": ["tsconfig.json"] },
+      "parserOptions": {
+        "project": [
+          "tsconfig.json"
+        ]
+      },
       "rules": {
         "@typescript-eslint/no-restricted-types": [
           "error",
@@ -48,8 +69,14 @@
         ],
         "no-restricted-globals": [
           "error",
-          { "name": "parseFloat", "message": "Principio VIII: usar new Big(str), no parseFloat." },
-          { "name": "Number", "message": "Principio VIII: usar new Big(str), no Number()." }
+          {
+            "name": "parseFloat",
+            "message": "Principio VIII: usar new Big(str), no parseFloat."
+          },
+          {
+            "name": "Number",
+            "message": "Principio VIII: usar new Big(str), no Number()."
+          }
         ],
         "no-restricted-properties": [
           "error",
@@ -62,24 +89,144 @@
       }
     },
     {
-      "files": ["*.html"],
-      "extends": ["plugin:@angular-eslint/template/recommended"],
+      "files": [
+        "*.html"
+      ],
+      "extends": [
+        "plugin:@angular-eslint/template/recommended"
+      ],
       "rules": {
         "@angular-eslint/template/no-inline-styles": "error"
       }
     },
     {
-      "files": ["src/app/features/**/*.ts"],
+      "files": [
+        "src/app/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "MemberExpression[property.name='innerHTML']",
+            "message": "FR-068: `innerHTML` interpreta marcado. El cuerpo del artículo se renderiza por componente; el resto del contenido, con interpolación."
+          },
+          {
+            "selector": "MemberExpression[property.name='outerHTML']",
+            "message": "FR-068: `outerHTML` interpreta marcado, igual que `innerHTML`."
+          },
+          {
+            "selector": "MemberExpression[property.name='insertAdjacentHTML']",
+            "message": "FR-068: `insertAdjacentHTML` interpreta marcado en una posición del DOM."
+          },
+          {
+            "selector": "MemberExpression[property.name=/^bypassSecurityTrust/]",
+            "message": "FR-068: `bypassSecurityTrust*` desactiva el saneado de Angular. El vocabulario cerrado existe para no necesitarlo: si hace falta, el problema está en el vocabulario."
+          }
+        ],
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@angular/platform-browser",
+                "importNames": [
+                  "DomSanitizer"
+                ],
+                "message": "FR-068: `DomSanitizer` solo se inyecta para llamar a `bypassSecurityTrust*`. Si de verdad hace falta, que sea una decisión escrita y no un import que se coló."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "**/shared/ui/*/*"
+                ],
+                "message": "Importa los componentes de shared/ui desde el barril ('app/shared/ui'), no desde los internos del componente."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/app/features/calculators/**/*.ts",
+        "src/app/features/admin/indicators/**/*.ts"
+      ],
+      "parserOptions": {
+        "project": [
+          "tsconfig.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/no-restricted-types": [
+          "error",
+          {
+            "types": {
+              "number": {
+                "message": "Principio VIII (NON-NEGOTIABLE): prohibido `number` para montos, tasas o valores de indicador. Usar Big (big.js) para operar y `string` decimal canónica para transportar y renderizar."
+              }
+            }
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "parseFloat",
+            "message": "Principio VIII: usar new Big(str), no parseFloat."
+          },
+          {
+            "name": "Number",
+            "message": "Principio VIII: usar new Big(str), no Number()."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/app/features/**/*.ts"
+      ],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["**/shared/ui/*/*"],
+                "group": [
+                  "**/shared/ui/*/*"
+                ],
                 "message": "Importa los componentes de shared/ui desde el barril ('app/shared/ui'), no desde los internos del componente."
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/app/features/learning/article/blocks/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "parseFloat",
+            "message": "Principio VIII: el dinero llega como cadena decimal canónica; convertirla a `number` pierde precisión. Usar Big (big.js)."
+          },
+          {
+            "name": "Number",
+            "message": "Principio VIII: el dinero llega como cadena decimal canónica; convertirla a `number` pierde precisión."
+          },
+          {
+            "name": "parseInt",
+            "message": "Principio VIII: un valor decimal leído con parseInt se trunca en silencio."
+          }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "Math",
+            "property": "round",
+            "message": "Principio VIII: redondear con Big.round y modo half-even, no con Math.round."
           }
         ]
       }

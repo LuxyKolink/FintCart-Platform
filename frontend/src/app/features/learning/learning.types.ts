@@ -8,6 +8,18 @@ export interface Article {
   /** Referencia al catálogo de categorías (FR-034) — es el filtro preferente. */
   category_id: string;
   body: string;
+  /**
+   * Documento de bloques de la versión publicada (FR-063, research D-14), tal cual lo
+   * entrega el borde: un objeto JSON. **Ausente** en los artículos publicados antes de
+   * que existiera el documento de bloques — y ese caso no es hipotético, hay versiones
+   * publicadas así—, y entonces el lector cae a `body`.
+   *
+   * El tipo es `unknown` a propósito: el cliente NO decide aquí que esto es un
+   * documento. Lo que llega por la red se comprueba antes de usarlo (`body-doc.ts
+   * ::parseBodyDoc`), porque un `as BodyDocNode` sobre una respuesta HTTP es una
+   * promesa que nadie firmó.
+   */
+  body_doc?: unknown;
   current_version_no: number;
   quiz_ids: string[];
 }

@@ -43,7 +43,14 @@
             <p class="fc-reader__meta">Versión {{ a.current_version_no }} · contenido vigente</p>
           </header>
 
-          @if (paragraphs().length > 0) {
+          <!--
+            Documento de bloques si lo hay; texto plano si la versión es anterior a él. Son
+            caminos EXCLUYENTES: renderizar los dos mostraría el cuerpo dos veces, y el
+            lector no tiene forma de saber cuál de los dos está viendo.
+          -->
+          @if (bodyDoc(); as doc) {
+            <fc-body-doc [doc]="doc" />
+          } @else if (paragraphs().length > 0) {
             <div class="fc-reader__body">
               @for (paragraph of paragraphs(); track $index) {
                 <p class="fc-reader__paragraph">{{ paragraph }}</p>

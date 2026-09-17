@@ -1,0 +1,152 @@
+/*
+  Estilos del documento de bloques (FR-063). Todo sale de los tokens del sistema visual:
+  no hay ni un color, un tamaño ni un espacio escrito a mano, porque este componente es
+  la cara visible del vocabulario cerrado y una cifra o un color sueltos aquí serían la
+  primera grieta por la que entra el siguiente.
+*/
+
+.fc-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fc-blocks__paragraph {
+  margin: 0;
+  font: var(--fs-base) / 1.65 var(--font-sans);
+  color: var(--text-body);
+}
+
+.fc-blocks__heading {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  line-height: 1.3;
+}
+
+.fc-blocks__heading--2 {
+  font-size: var(--fs-xl);
+}
+
+.fc-blocks__heading--3 {
+  font-size: var(--fs-lg);
+}
+
+.fc-blocks__heading--4 {
+  font-size: var(--fs-md);
+}
+
+.fc-blocks__list {
+  margin: 0;
+  padding-left: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font: var(--fs-base) / 1.6 var(--font-sans);
+  color: var(--text-body);
+}
+
+.fc-blocks__item > .fc-blocks__paragraph:first-child {
+  margin-top: 0;
+}
+
+/* Las listas anidadas no heredan el espacio de arriba del elemento. */
+.fc-blocks__item .fc-blocks__list {
+  margin-top: var(--space-2);
+}
+
+.fc-blocks__text {
+  white-space: pre-wrap;
+}
+
+.fc-blocks__strong {
+  font-weight: var(--fw-semibold);
+}
+
+.fc-blocks__em {
+  font-style: italic;
+}
+
+.fc-blocks__link {
+  color: var(--brand-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fc-blocks__link:hover {
+  color: var(--brand-primary-hover);
+}
+
+.fc-blocks__figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/*
+  `max-width` sobre la imagen y alto automático: una imagen no puede desbordar la
+  columna de texto, y con `object-fit` no se deforma aunque el espacio reservado no
+  coincida con sus dimensiones reales. Sin esto, una imagen ancha desplazaría la página
+  en horizontal en móvil, que es justo lo que la regla de degradación prohíbe.
+*/
+.fc-blocks__image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+}
+
+/*
+  Cuando la imagen no se puede cargar, su texto alternativo ocupando el sitio: con
+  contraste y borde de aviso, para que se entienda que falta algo y no que el artículo
+  tiene ahí un párrafo suelto.
+*/
+.fc-blocks__image-missing {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font: var(--fs-sm) / 1.5 var(--font-sans);
+}
+
+.fc-blocks__caption {
+  font: var(--fs-sm) / 1.5 var(--font-sans);
+  color: var(--text-muted);
+}
+
+.fc-blocks__calculator {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.fc-blocks__calculator-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fc-blocks__calculator-link {
+  color: var(--brand-primary);
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fc-blocks__calculator-version {
+  margin: 0;
+  font: var(--fs-xs) / 1.4 var(--font-sans);
+  color: var(--text-muted);
+}

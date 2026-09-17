@@ -11,6 +11,8 @@ import {
 } from '../../../shared/ui';
 import { LearningApiService } from '../learning-api.service';
 import { Article } from '../learning.types';
+import { BodyDocComponent } from './blocks/body-doc.component';
+import { parseBodyDoc, type BodyDocNode } from './blocks/body-doc';
 import { nextMilestone, withinMilestone } from '../progress/milestones';
 import { ProgressApiService } from '../progress/progress-api.service';
 import { Progress } from '../progress/progress.types';
@@ -22,13 +24,13 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
  *
  * DOS COSAS QUE NO SE HICIERON, Y POR QUÉ:
  *
- * 1. **El cuerpo se pinta en párrafos, no en bloques con cita destacada.** El kit
- *    dibuja una cita resaltada entre párrafos y el diseño la contempla, pero el
- *    contrato vigente entrega `body` como TEXTO PLANO: `body_doc` —el documento de
- *    bloques con vocabulario cerrado que llevaría un `quote`— es de 002 y todavía no
- *    existe (T016/T131). Inventar la cita a partir del texto, o partir por líneas que
- *    empiecen por «>», sería inventar sintaxis en el cliente. La cita llega cuando
- *    llegue el bloque; queda como hallazgo (FR-122, FR-123).
+ * 1. **El cuerpo se pinta en bloques cuando el documento viene, y en párrafos cuando no.**
+ *    `body_doc` ya existe y el lector lo renderiza por componente (T133), pero el respaldo
+ *    en texto plano NO se retira: hay versiones publicadas antes del documento de bloques
+ *    —las hay de verdad, no es un caso teórico— y su `body` tiene que seguir leyéndose. Se
+ *    elige uno u otro y nunca se mezclan: mezclarlos duplicaría el cuerpo en pantalla.
+ *    El vocabulario cerrado no trae un bloque de cita, así que la cita destacada del kit no
+ *    se dibuja. Sigue siendo un hallazgo (FR-122), pero ya no por falta de `body_doc`.
  * 2. **No se muestra autor ni tiempo de lectura.** `Article` no los lleva: el contrato
  *    tiene título, categoría, cuerpo, versión vigente y cuestionarios asociados.
  *
@@ -48,6 +50,7 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
     ModuleBoxComponent,
     ProgressBarComponent,
     SkeletonComponent,
+    BodyDocComponent,
   ],
   templateUrl: './article.component.html',
   styleUrl: './article.component.css',
@@ -74,6 +77,18 @@ export class ArticleComponent implements OnInit {
       .split(/\n{2,}/u)
       .map((paragraph) => paragraph.trim())
       .filter((paragraph) => paragraph !== ''),
+  );
+
+  /**
+   * El documento de bloques, interpretado y validado en forma.
+   *
+   * `null` significa «esta versión no tiene documento» —o que lo que llegó no tiene forma
+   * de documento— y entonces se lee `body`. Se interpreta con `parseBodyDoc` y no con un
+   * `as` sobre la respuesta HTTP: lo que llega por la red se comprueba antes de usarlo, y
+   * el `@switch` del componente de bloques no debe recibir tipos que no conoce.
+   */
+  protected readonly bodyDoc = computed<BodyDocNode | null>(() =>
+    parseBodyDoc(this.article()?.body_doc),
   );
 
   public ngOnInit(): void {
