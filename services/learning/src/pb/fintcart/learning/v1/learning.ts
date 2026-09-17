@@ -30,6 +30,45 @@ export interface ArticleRef {
   article_id: string;
 }
 
+/**
+ * `article_id` y no solo los bytes: el ámbito de propiedad de una imagen es el artículo
+ * (data-model §1.4), así que una subida sin artículo no tiene dónde pertenecer.
+ */
+export interface UploadArticleImageRequest {
+  article_id: string;
+  /**
+   * Tipos de imagen que el contrato admite; se comprueban contra los BYTES y no contra
+   * lo que declare el cliente (FR-066), porque un nombre de archivo y un `Content-Type`
+   * los elige quien sube.
+   */
+  mime_type: string;
+  bytes: Uint8Array;
+  uploaded_by: string;
+}
+
+/**
+ * El identificador ES el SHA-256 del contenido: quien lo tiene tiene los bytes, y el
+ * mismo contenido subido dos veces es la misma fila.
+ */
+export interface ArticleImageRef {
+  image_id: string;
+}
+
+export interface ArticleImage {
+  image_id: string;
+  article_id: string;
+  mime_type: string;
+  /** string: es un conteo que puede pasar de 2^53 en un contrato futuro */
+  byte_size: string;
+  width: number;
+  height: number;
+}
+
+export interface GetArticleImageResponse {
+  image?: ArticleImage | undefined;
+  bytes: Uint8Array;
+}
+
 export interface VersionRef {
   version_id: string;
   actor_id: string;
@@ -479,6 +518,390 @@ export const ArticleRef: MessageFns<ArticleRef> = {
   fromPartial<I extends Exact<DeepPartial<ArticleRef>, I>>(object: I): ArticleRef {
     const message = createBaseArticleRef();
     message.article_id = object.article_id ?? "";
+    return message;
+  },
+};
+
+function createBaseUploadArticleImageRequest(): UploadArticleImageRequest {
+  return { article_id: "", mime_type: "", bytes: new Uint8Array(0), uploaded_by: "" };
+}
+
+export const UploadArticleImageRequest: MessageFns<UploadArticleImageRequest> = {
+  encode(message: UploadArticleImageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.article_id !== "") {
+      writer.uint32(10).string(message.article_id);
+    }
+    if (message.mime_type !== "") {
+      writer.uint32(18).string(message.mime_type);
+    }
+    if (message.bytes.length !== 0) {
+      writer.uint32(26).bytes(message.bytes);
+    }
+    if (message.uploaded_by !== "") {
+      writer.uint32(34).string(message.uploaded_by);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UploadArticleImageRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUploadArticleImageRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.article_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.mime_type = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.bytes = reader.bytes();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.uploaded_by = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UploadArticleImageRequest {
+    return {
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
+      mime_type: isSet(object.mime_type) ? globalThis.String(object.mime_type) : "",
+      bytes: isSet(object.bytes) ? bytesFromBase64(object.bytes) : new Uint8Array(0),
+      uploaded_by: isSet(object.uploaded_by) ? globalThis.String(object.uploaded_by) : "",
+    };
+  },
+
+  toJSON(message: UploadArticleImageRequest): unknown {
+    const obj: any = {};
+    if (message.article_id !== "") {
+      obj.article_id = message.article_id;
+    }
+    if (message.mime_type !== "") {
+      obj.mime_type = message.mime_type;
+    }
+    if (message.bytes.length !== 0) {
+      obj.bytes = base64FromBytes(message.bytes);
+    }
+    if (message.uploaded_by !== "") {
+      obj.uploaded_by = message.uploaded_by;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UploadArticleImageRequest>, I>>(base?: I): UploadArticleImageRequest {
+    return UploadArticleImageRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UploadArticleImageRequest>, I>>(object: I): UploadArticleImageRequest {
+    const message = createBaseUploadArticleImageRequest();
+    message.article_id = object.article_id ?? "";
+    message.mime_type = object.mime_type ?? "";
+    message.bytes = object.bytes ?? new Uint8Array(0);
+    message.uploaded_by = object.uploaded_by ?? "";
+    return message;
+  },
+};
+
+function createBaseArticleImageRef(): ArticleImageRef {
+  return { image_id: "" };
+}
+
+export const ArticleImageRef: MessageFns<ArticleImageRef> = {
+  encode(message: ArticleImageRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.image_id !== "") {
+      writer.uint32(10).string(message.image_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ArticleImageRef {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseArticleImageRef();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.image_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ArticleImageRef {
+    return { image_id: isSet(object.image_id) ? globalThis.String(object.image_id) : "" };
+  },
+
+  toJSON(message: ArticleImageRef): unknown {
+    const obj: any = {};
+    if (message.image_id !== "") {
+      obj.image_id = message.image_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ArticleImageRef>, I>>(base?: I): ArticleImageRef {
+    return ArticleImageRef.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ArticleImageRef>, I>>(object: I): ArticleImageRef {
+    const message = createBaseArticleImageRef();
+    message.image_id = object.image_id ?? "";
+    return message;
+  },
+};
+
+function createBaseArticleImage(): ArticleImage {
+  return { image_id: "", article_id: "", mime_type: "", byte_size: "", width: 0, height: 0 };
+}
+
+export const ArticleImage: MessageFns<ArticleImage> = {
+  encode(message: ArticleImage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.image_id !== "") {
+      writer.uint32(10).string(message.image_id);
+    }
+    if (message.article_id !== "") {
+      writer.uint32(18).string(message.article_id);
+    }
+    if (message.mime_type !== "") {
+      writer.uint32(26).string(message.mime_type);
+    }
+    if (message.byte_size !== "") {
+      writer.uint32(34).string(message.byte_size);
+    }
+    if (message.width !== 0) {
+      writer.uint32(40).int32(message.width);
+    }
+    if (message.height !== 0) {
+      writer.uint32(48).int32(message.height);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ArticleImage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseArticleImage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.image_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.article_id = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.mime_type = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.byte_size = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.width = reader.int32();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.height = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ArticleImage {
+    return {
+      image_id: isSet(object.image_id) ? globalThis.String(object.image_id) : "",
+      article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
+      mime_type: isSet(object.mime_type) ? globalThis.String(object.mime_type) : "",
+      byte_size: isSet(object.byte_size) ? globalThis.String(object.byte_size) : "",
+      width: isSet(object.width) ? globalThis.Number(object.width) : 0,
+      height: isSet(object.height) ? globalThis.Number(object.height) : 0,
+    };
+  },
+
+  toJSON(message: ArticleImage): unknown {
+    const obj: any = {};
+    if (message.image_id !== "") {
+      obj.image_id = message.image_id;
+    }
+    if (message.article_id !== "") {
+      obj.article_id = message.article_id;
+    }
+    if (message.mime_type !== "") {
+      obj.mime_type = message.mime_type;
+    }
+    if (message.byte_size !== "") {
+      obj.byte_size = message.byte_size;
+    }
+    if (message.width !== 0) {
+      obj.width = Math.round(message.width);
+    }
+    if (message.height !== 0) {
+      obj.height = Math.round(message.height);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ArticleImage>, I>>(base?: I): ArticleImage {
+    return ArticleImage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ArticleImage>, I>>(object: I): ArticleImage {
+    const message = createBaseArticleImage();
+    message.image_id = object.image_id ?? "";
+    message.article_id = object.article_id ?? "";
+    message.mime_type = object.mime_type ?? "";
+    message.byte_size = object.byte_size ?? "";
+    message.width = object.width ?? 0;
+    message.height = object.height ?? 0;
+    return message;
+  },
+};
+
+function createBaseGetArticleImageResponse(): GetArticleImageResponse {
+  return { image: undefined, bytes: new Uint8Array(0) };
+}
+
+export const GetArticleImageResponse: MessageFns<GetArticleImageResponse> = {
+  encode(message: GetArticleImageResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.image !== undefined) {
+      ArticleImage.encode(message.image, writer.uint32(10).fork()).join();
+    }
+    if (message.bytes.length !== 0) {
+      writer.uint32(18).bytes(message.bytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetArticleImageResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetArticleImageResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.image = ArticleImage.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.bytes = reader.bytes();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetArticleImageResponse {
+    return {
+      image: isSet(object.image) ? ArticleImage.fromJSON(object.image) : undefined,
+      bytes: isSet(object.bytes) ? bytesFromBase64(object.bytes) : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: GetArticleImageResponse): unknown {
+    const obj: any = {};
+    if (message.image !== undefined) {
+      obj.image = ArticleImage.toJSON(message.image);
+    }
+    if (message.bytes.length !== 0) {
+      obj.bytes = base64FromBytes(message.bytes);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetArticleImageResponse>, I>>(base?: I): GetArticleImageResponse {
+    return GetArticleImageResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetArticleImageResponse>, I>>(object: I): GetArticleImageResponse {
+    const message = createBaseGetArticleImageResponse();
+    message.image = (object.image !== undefined && object.image !== null)
+      ? ArticleImage.fromPartial(object.image)
+      : undefined;
+    message.bytes = object.bytes ?? new Uint8Array(0);
     return message;
   },
 };
@@ -3928,6 +4351,33 @@ export const LearningServiceService = {
     responseSerialize: (value: Article) => Buffer.from(Article.encode(value).finish()),
     responseDeserialize: (value: Buffer) => Article.decode(value),
   },
+  /**
+   * Imágenes del cuerpo del artículo (FR-064…FR-067, research D-13).
+   *
+   * `GetArticleImage` devuelve los BYTES, no una URL: el borde decide cómo servirlos
+   * (T130 los sirve con `ETag` y caché inmutable). Aprendizaje no construye direcciones
+   * ni conoce el Gateway, que es lo que permite que el lector y el editor usen la misma
+   * ruta sin que el servicio sepa por dónde pasa.
+   */
+  uploadArticleImage: {
+    path: "/fintcart.learning.v1.LearningService/UploadArticleImage",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: UploadArticleImageRequest) =>
+      Buffer.from(UploadArticleImageRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => UploadArticleImageRequest.decode(value),
+    responseSerialize: (value: ArticleImage) => Buffer.from(ArticleImage.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => ArticleImage.decode(value),
+  },
+  getArticleImage: {
+    path: "/fintcart.learning.v1.LearningService/GetArticleImage",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: ArticleImageRef) => Buffer.from(ArticleImageRef.encode(value).finish()),
+    requestDeserialize: (value: Buffer) => ArticleImageRef.decode(value),
+    responseSerialize: (value: GetArticleImageResponse) => Buffer.from(GetArticleImageResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer) => GetArticleImageResponse.decode(value),
+  },
   /** Cuestionarios (FR-009). */
   getQuiz: {
     path: "/fintcart.learning.v1.LearningService/GetQuiz",
@@ -4061,6 +4511,16 @@ export interface LearningServiceServer extends UntypedServiceImplementation {
   /** Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018). */
   listPublished: handleUnaryCall<ListPublishedRequest, ListPublishedResponse>;
   getArticle: handleUnaryCall<ArticleRef, Article>;
+  /**
+   * Imágenes del cuerpo del artículo (FR-064…FR-067, research D-13).
+   *
+   * `GetArticleImage` devuelve los BYTES, no una URL: el borde decide cómo servirlos
+   * (T130 los sirve con `ETag` y caché inmutable). Aprendizaje no construye direcciones
+   * ni conoce el Gateway, que es lo que permite que el lector y el editor usen la misma
+   * ruta sin que el servicio sepa por dónde pasa.
+   */
+  uploadArticleImage: handleUnaryCall<UploadArticleImageRequest, ArticleImage>;
+  getArticleImage: handleUnaryCall<ArticleImageRef, GetArticleImageResponse>;
   /** Cuestionarios (FR-009). */
   getQuiz: handleUnaryCall<QuizRef, Quiz>;
   /**
@@ -4242,6 +4702,44 @@ export interface LearningServiceClient extends Client {
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: Article) => void,
   ): ClientUnaryCall;
+  /**
+   * Imágenes del cuerpo del artículo (FR-064…FR-067, research D-13).
+   *
+   * `GetArticleImage` devuelve los BYTES, no una URL: el borde decide cómo servirlos
+   * (T130 los sirve con `ETag` y caché inmutable). Aprendizaje no construye direcciones
+   * ni conoce el Gateway, que es lo que permite que el lector y el editor usen la misma
+   * ruta sin que el servicio sepa por dónde pasa.
+   */
+  uploadArticleImage(
+    request: UploadArticleImageRequest,
+    callback: (error: ServiceError | null, response: ArticleImage) => void,
+  ): ClientUnaryCall;
+  uploadArticleImage(
+    request: UploadArticleImageRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: ArticleImage) => void,
+  ): ClientUnaryCall;
+  uploadArticleImage(
+    request: UploadArticleImageRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: ArticleImage) => void,
+  ): ClientUnaryCall;
+  getArticleImage(
+    request: ArticleImageRef,
+    callback: (error: ServiceError | null, response: GetArticleImageResponse) => void,
+  ): ClientUnaryCall;
+  getArticleImage(
+    request: ArticleImageRef,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: GetArticleImageResponse) => void,
+  ): ClientUnaryCall;
+  getArticleImage(
+    request: ArticleImageRef,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: GetArticleImageResponse) => void,
+  ): ClientUnaryCall;
   /** Cuestionarios (FR-009). */
   getQuiz(request: QuizRef, callback: (error: ServiceError | null, response: Quiz) => void): ClientUnaryCall;
   getQuiz(
@@ -4409,6 +4907,31 @@ export const LearningServiceClient = makeGenericClientConstructor(
   service: typeof LearningServiceService;
   serviceName: string;
 };
+
+function bytesFromBase64(b64: string): Uint8Array {
+  if ((globalThis as any).Buffer) {
+    return Uint8Array.from(globalThis.Buffer.from(b64, "base64"));
+  } else {
+    const bin = globalThis.atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
+      arr[i] = bin.charCodeAt(i);
+    }
+    return arr;
+  }
+}
+
+function base64FromBytes(arr: Uint8Array): string {
+  if ((globalThis as any).Buffer) {
+    return globalThis.Buffer.from(arr).toString("base64");
+  } else {
+    const bin: string[] = [];
+    arr.forEach((byte) => {
+      bin.push(globalThis.String.fromCharCode(byte));
+    });
+    return globalThis.btoa(bin.join(""));
+  }
+}
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 

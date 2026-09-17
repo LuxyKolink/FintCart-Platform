@@ -110,6 +110,261 @@ func (x *ArticleRef) GetArticleId() string {
 	return ""
 }
 
+// `article_id` y no solo los bytes: el ámbito de propiedad de una imagen es el artículo
+// (data-model §1.4), así que una subida sin artículo no tiene dónde pertenecer.
+type UploadArticleImageRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ArticleId string                 `protobuf:"bytes,1,opt,name=article_id,json=articleId,proto3" json:"article_id,omitempty"`
+	// Tipos de imagen que el contrato admite; se comprueban contra los BYTES y no contra
+	// lo que declare el cliente (FR-066), porque un nombre de archivo y un `Content-Type`
+	// los elige quien sube.
+	MimeType      string `protobuf:"bytes,2,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	Bytes         []byte `protobuf:"bytes,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	UploadedBy    string `protobuf:"bytes,4,opt,name=uploaded_by,json=uploadedBy,proto3" json:"uploaded_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadArticleImageRequest) Reset() {
+	*x = UploadArticleImageRequest{}
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadArticleImageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadArticleImageRequest) ProtoMessage() {}
+
+func (x *UploadArticleImageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadArticleImageRequest.ProtoReflect.Descriptor instead.
+func (*UploadArticleImageRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *UploadArticleImageRequest) GetArticleId() string {
+	if x != nil {
+		return x.ArticleId
+	}
+	return ""
+}
+
+func (x *UploadArticleImageRequest) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *UploadArticleImageRequest) GetBytes() []byte {
+	if x != nil {
+		return x.Bytes
+	}
+	return nil
+}
+
+func (x *UploadArticleImageRequest) GetUploadedBy() string {
+	if x != nil {
+		return x.UploadedBy
+	}
+	return ""
+}
+
+// El identificador ES el SHA-256 del contenido: quien lo tiene tiene los bytes, y el
+// mismo contenido subido dos veces es la misma fila.
+type ArticleImageRef struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ImageId       string                 `protobuf:"bytes,1,opt,name=image_id,json=imageId,proto3" json:"image_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArticleImageRef) Reset() {
+	*x = ArticleImageRef{}
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArticleImageRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArticleImageRef) ProtoMessage() {}
+
+func (x *ArticleImageRef) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArticleImageRef.ProtoReflect.Descriptor instead.
+func (*ArticleImageRef) Descriptor() ([]byte, []int) {
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ArticleImageRef) GetImageId() string {
+	if x != nil {
+		return x.ImageId
+	}
+	return ""
+}
+
+type ArticleImage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ImageId       string                 `protobuf:"bytes,1,opt,name=image_id,json=imageId,proto3" json:"image_id,omitempty"`
+	ArticleId     string                 `protobuf:"bytes,2,opt,name=article_id,json=articleId,proto3" json:"article_id,omitempty"`
+	MimeType      string                 `protobuf:"bytes,3,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	ByteSize      string                 `protobuf:"bytes,4,opt,name=byte_size,json=byteSize,proto3" json:"byte_size,omitempty"` // string: es un conteo que puede pasar de 2^53 en un contrato futuro
+	Width         int32                  `protobuf:"varint,5,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32                  `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArticleImage) Reset() {
+	*x = ArticleImage{}
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArticleImage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArticleImage) ProtoMessage() {}
+
+func (x *ArticleImage) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArticleImage.ProtoReflect.Descriptor instead.
+func (*ArticleImage) Descriptor() ([]byte, []int) {
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ArticleImage) GetImageId() string {
+	if x != nil {
+		return x.ImageId
+	}
+	return ""
+}
+
+func (x *ArticleImage) GetArticleId() string {
+	if x != nil {
+		return x.ArticleId
+	}
+	return ""
+}
+
+func (x *ArticleImage) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *ArticleImage) GetByteSize() string {
+	if x != nil {
+		return x.ByteSize
+	}
+	return ""
+}
+
+func (x *ArticleImage) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *ArticleImage) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+type GetArticleImageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Image         *ArticleImage          `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	Bytes         []byte                 `protobuf:"bytes,2,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetArticleImageResponse) Reset() {
+	*x = GetArticleImageResponse{}
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetArticleImageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetArticleImageResponse) ProtoMessage() {}
+
+func (x *GetArticleImageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetArticleImageResponse.ProtoReflect.Descriptor instead.
+func (*GetArticleImageResponse) Descriptor() ([]byte, []int) {
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetArticleImageResponse) GetImage() *ArticleImage {
+	if x != nil {
+		return x.Image
+	}
+	return nil
+}
+
+func (x *GetArticleImageResponse) GetBytes() []byte {
+	if x != nil {
+		return x.Bytes
+	}
+	return nil
+}
+
 type VersionRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	VersionId     string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
@@ -120,7 +375,7 @@ type VersionRef struct {
 
 func (x *VersionRef) Reset() {
 	*x = VersionRef{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[2]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -132,7 +387,7 @@ func (x *VersionRef) String() string {
 func (*VersionRef) ProtoMessage() {}
 
 func (x *VersionRef) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[2]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -145,7 +400,7 @@ func (x *VersionRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VersionRef.ProtoReflect.Descriptor instead.
 func (*VersionRef) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{2}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *VersionRef) GetVersionId() string {
@@ -171,7 +426,7 @@ type QuizRef struct {
 
 func (x *QuizRef) Reset() {
 	*x = QuizRef{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[3]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -183,7 +438,7 @@ func (x *QuizRef) String() string {
 func (*QuizRef) ProtoMessage() {}
 
 func (x *QuizRef) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[3]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -196,7 +451,7 @@ func (x *QuizRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuizRef.ProtoReflect.Descriptor instead.
 func (*QuizRef) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{3}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *QuizRef) GetQuizId() string {
@@ -218,7 +473,7 @@ type CategoryRef struct {
 
 func (x *CategoryRef) Reset() {
 	*x = CategoryRef{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[4]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -230,7 +485,7 @@ func (x *CategoryRef) String() string {
 func (*CategoryRef) ProtoMessage() {}
 
 func (x *CategoryRef) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[4]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -243,7 +498,7 @@ func (x *CategoryRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CategoryRef.ProtoReflect.Descriptor instead.
 func (*CategoryRef) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{4}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CategoryRef) GetCategoryId() string {
@@ -274,7 +529,7 @@ type Category struct {
 
 func (x *Category) Reset() {
 	*x = Category{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[5]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -286,7 +541,7 @@ func (x *Category) String() string {
 func (*Category) ProtoMessage() {}
 
 func (x *Category) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[5]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -299,7 +554,7 @@ func (x *Category) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Category.ProtoReflect.Descriptor instead.
 func (*Category) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{5}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Category) GetCategoryId() string {
@@ -357,7 +612,7 @@ type CreateCategoryRequest struct {
 
 func (x *CreateCategoryRequest) Reset() {
 	*x = CreateCategoryRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[6]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -369,7 +624,7 @@ func (x *CreateCategoryRequest) String() string {
 func (*CreateCategoryRequest) ProtoMessage() {}
 
 func (x *CreateCategoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[6]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -382,7 +637,7 @@ func (x *CreateCategoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCategoryRequest.ProtoReflect.Descriptor instead.
 func (*CreateCategoryRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{6}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateCategoryRequest) GetName() string {
@@ -433,7 +688,7 @@ type UpdateCategoryRequest struct {
 
 func (x *UpdateCategoryRequest) Reset() {
 	*x = UpdateCategoryRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[7]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +700,7 @@ func (x *UpdateCategoryRequest) String() string {
 func (*UpdateCategoryRequest) ProtoMessage() {}
 
 func (x *UpdateCategoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[7]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +713,7 @@ func (x *UpdateCategoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCategoryRequest.ProtoReflect.Descriptor instead.
 func (*UpdateCategoryRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{7}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateCategoryRequest) GetCategoryId() string {
@@ -505,7 +760,7 @@ type ListCategoriesRequest struct {
 
 func (x *ListCategoriesRequest) Reset() {
 	*x = ListCategoriesRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[8]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -517,7 +772,7 @@ func (x *ListCategoriesRequest) String() string {
 func (*ListCategoriesRequest) ProtoMessage() {}
 
 func (x *ListCategoriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[8]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -530,7 +785,7 @@ func (x *ListCategoriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCategoriesRequest.ProtoReflect.Descriptor instead.
 func (*ListCategoriesRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{8}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListCategoriesRequest) GetIncludeInactive() bool {
@@ -549,7 +804,7 @@ type ListCategoriesResponse struct {
 
 func (x *ListCategoriesResponse) Reset() {
 	*x = ListCategoriesResponse{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[9]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -561,7 +816,7 @@ func (x *ListCategoriesResponse) String() string {
 func (*ListCategoriesResponse) ProtoMessage() {}
 
 func (x *ListCategoriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[9]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -574,7 +829,7 @@ func (x *ListCategoriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCategoriesResponse.ProtoReflect.Descriptor instead.
 func (*ListCategoriesResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{9}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListCategoriesResponse) GetItems() []*Category {
@@ -622,7 +877,7 @@ type ArticleVersion struct {
 
 func (x *ArticleVersion) Reset() {
 	*x = ArticleVersion{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[10]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +889,7 @@ func (x *ArticleVersion) String() string {
 func (*ArticleVersion) ProtoMessage() {}
 
 func (x *ArticleVersion) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[10]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +902,7 @@ func (x *ArticleVersion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleVersion.ProtoReflect.Descriptor instead.
 func (*ArticleVersion) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{10}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ArticleVersion) GetVersionId() string {
@@ -746,7 +1001,7 @@ type CreateDraftRequest struct {
 
 func (x *CreateDraftRequest) Reset() {
 	*x = CreateDraftRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[11]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +1013,7 @@ func (x *CreateDraftRequest) String() string {
 func (*CreateDraftRequest) ProtoMessage() {}
 
 func (x *CreateDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[11]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +1026,7 @@ func (x *CreateDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDraftRequest.ProtoReflect.Descriptor instead.
 func (*CreateDraftRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{11}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateDraftRequest) GetTitle() string {
@@ -837,7 +1092,7 @@ type UpdateDraftRequest struct {
 
 func (x *UpdateDraftRequest) Reset() {
 	*x = UpdateDraftRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[12]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -849,7 +1104,7 @@ func (x *UpdateDraftRequest) String() string {
 func (*UpdateDraftRequest) ProtoMessage() {}
 
 func (x *UpdateDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[12]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -862,7 +1117,7 @@ func (x *UpdateDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateDraftRequest.ProtoReflect.Descriptor instead.
 func (*UpdateDraftRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{12}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateDraftRequest) GetVersionId() string {
@@ -903,7 +1158,7 @@ type ApprovePublishRequest struct {
 
 func (x *ApprovePublishRequest) Reset() {
 	*x = ApprovePublishRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[13]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -915,7 +1170,7 @@ func (x *ApprovePublishRequest) String() string {
 func (*ApprovePublishRequest) ProtoMessage() {}
 
 func (x *ApprovePublishRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[13]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -928,7 +1183,7 @@ func (x *ApprovePublishRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovePublishRequest.ProtoReflect.Descriptor instead.
 func (*ApprovePublishRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{13}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ApprovePublishRequest) GetVersionId() string {
@@ -958,7 +1213,7 @@ type ListPublishedRequest struct {
 
 func (x *ListPublishedRequest) Reset() {
 	*x = ListPublishedRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[14]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -970,7 +1225,7 @@ func (x *ListPublishedRequest) String() string {
 func (*ListPublishedRequest) ProtoMessage() {}
 
 func (x *ListPublishedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[14]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -983,7 +1238,7 @@ func (x *ListPublishedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPublishedRequest.ProtoReflect.Descriptor instead.
 func (*ListPublishedRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{14}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListPublishedRequest) GetCategory() string {
@@ -1017,7 +1272,7 @@ type ListPublishedResponse struct {
 
 func (x *ListPublishedResponse) Reset() {
 	*x = ListPublishedResponse{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[15]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1029,7 +1284,7 @@ func (x *ListPublishedResponse) String() string {
 func (*ListPublishedResponse) ProtoMessage() {}
 
 func (x *ListPublishedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[15]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1042,7 +1297,7 @@ func (x *ListPublishedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPublishedResponse.ProtoReflect.Descriptor instead.
 func (*ListPublishedResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{15}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListPublishedResponse) GetItems() []*Article {
@@ -1080,7 +1335,7 @@ type Article struct {
 
 func (x *Article) Reset() {
 	*x = Article{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[16]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1092,7 +1347,7 @@ func (x *Article) String() string {
 func (*Article) ProtoMessage() {}
 
 func (x *Article) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[16]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1105,7 +1360,7 @@ func (x *Article) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Article.ProtoReflect.Descriptor instead.
 func (*Article) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{16}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Article) GetArticleId() string {
@@ -1179,7 +1434,7 @@ type Quiz struct {
 
 func (x *Quiz) Reset() {
 	*x = Quiz{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[17]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1191,7 +1446,7 @@ func (x *Quiz) String() string {
 func (*Quiz) ProtoMessage() {}
 
 func (x *Quiz) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[17]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1204,7 +1459,7 @@ func (x *Quiz) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Quiz.ProtoReflect.Descriptor instead.
 func (*Quiz) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{17}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Quiz) GetQuizId() string {
@@ -1261,7 +1516,7 @@ type Question struct {
 
 func (x *Question) Reset() {
 	*x = Question{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[18]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1273,7 +1528,7 @@ func (x *Question) String() string {
 func (*Question) ProtoMessage() {}
 
 func (x *Question) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[18]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1286,7 +1541,7 @@ func (x *Question) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Question.ProtoReflect.Descriptor instead.
 func (*Question) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{18}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *Question) GetQuestionId() string {
@@ -1334,7 +1589,7 @@ type Option struct {
 
 func (x *Option) Reset() {
 	*x = Option{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[19]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1346,7 +1601,7 @@ func (x *Option) String() string {
 func (*Option) ProtoMessage() {}
 
 func (x *Option) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[19]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1359,7 +1614,7 @@ func (x *Option) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Option.ProtoReflect.Descriptor instead.
 func (*Option) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{19}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Option) GetKey() string {
@@ -1388,7 +1643,7 @@ type StartQuizSessionRequest struct {
 
 func (x *StartQuizSessionRequest) Reset() {
 	*x = StartQuizSessionRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[20]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1400,7 +1655,7 @@ func (x *StartQuizSessionRequest) String() string {
 func (*StartQuizSessionRequest) ProtoMessage() {}
 
 func (x *StartQuizSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[20]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1413,7 +1668,7 @@ func (x *StartQuizSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartQuizSessionRequest.ProtoReflect.Descriptor instead.
 func (*StartQuizSessionRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{20}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *StartQuizSessionRequest) GetUserId() string {
@@ -1448,7 +1703,7 @@ type QuizSession struct {
 
 func (x *QuizSession) Reset() {
 	*x = QuizSession{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[21]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1460,7 +1715,7 @@ func (x *QuizSession) String() string {
 func (*QuizSession) ProtoMessage() {}
 
 func (x *QuizSession) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[21]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1473,7 +1728,7 @@ func (x *QuizSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuizSession.ProtoReflect.Descriptor instead.
 func (*QuizSession) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{21}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *QuizSession) GetSessionId() string {
@@ -1540,7 +1795,7 @@ type GradeRequest struct {
 
 func (x *GradeRequest) Reset() {
 	*x = GradeRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[22]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1552,7 +1807,7 @@ func (x *GradeRequest) String() string {
 func (*GradeRequest) ProtoMessage() {}
 
 func (x *GradeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[22]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1565,7 +1820,7 @@ func (x *GradeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GradeRequest.ProtoReflect.Descriptor instead.
 func (*GradeRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{22}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GradeRequest) GetUserId() string {
@@ -1616,7 +1871,7 @@ type GradeResponse struct {
 
 func (x *GradeResponse) Reset() {
 	*x = GradeResponse{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[23]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1628,7 +1883,7 @@ func (x *GradeResponse) String() string {
 func (*GradeResponse) ProtoMessage() {}
 
 func (x *GradeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[23]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1641,7 +1896,7 @@ func (x *GradeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GradeResponse.ProtoReflect.Descriptor instead.
 func (*GradeResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{23}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GradeResponse) GetAttemptId() string {
@@ -1691,7 +1946,7 @@ type ListVersionsRequest struct {
 
 func (x *ListVersionsRequest) Reset() {
 	*x = ListVersionsRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[24]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1703,7 +1958,7 @@ func (x *ListVersionsRequest) String() string {
 func (*ListVersionsRequest) ProtoMessage() {}
 
 func (x *ListVersionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[24]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1716,7 +1971,7 @@ func (x *ListVersionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVersionsRequest.ProtoReflect.Descriptor instead.
 func (*ListVersionsRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{24}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListVersionsRequest) GetArticleId() string {
@@ -1757,7 +2012,7 @@ type ListVersionsResponse struct {
 
 func (x *ListVersionsResponse) Reset() {
 	*x = ListVersionsResponse{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[25]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1769,7 +2024,7 @@ func (x *ListVersionsResponse) String() string {
 func (*ListVersionsResponse) ProtoMessage() {}
 
 func (x *ListVersionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[25]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1782,7 +2037,7 @@ func (x *ListVersionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVersionsResponse.ProtoReflect.Descriptor instead.
 func (*ListVersionsResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{25}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListVersionsResponse) GetItems() []*ArticleVersion {
@@ -1811,7 +2066,7 @@ type QuestionInput struct {
 
 func (x *QuestionInput) Reset() {
 	*x = QuestionInput{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[26]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1823,7 +2078,7 @@ func (x *QuestionInput) String() string {
 func (*QuestionInput) ProtoMessage() {}
 
 func (x *QuestionInput) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[26]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1836,7 +2091,7 @@ func (x *QuestionInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuestionInput.ProtoReflect.Descriptor instead.
 func (*QuestionInput) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{26}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *QuestionInput) GetPrompt() string {
@@ -1882,7 +2137,7 @@ type UpsertQuizRequest struct {
 
 func (x *UpsertQuizRequest) Reset() {
 	*x = UpsertQuizRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[27]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1894,7 +2149,7 @@ func (x *UpsertQuizRequest) String() string {
 func (*UpsertQuizRequest) ProtoMessage() {}
 
 func (x *UpsertQuizRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[27]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1907,7 +2162,7 @@ func (x *UpsertQuizRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertQuizRequest.ProtoReflect.Descriptor instead.
 func (*UpsertQuizRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{27}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *UpsertQuizRequest) GetQuizId() string {
@@ -1965,7 +2220,7 @@ type ListAttemptsRequest struct {
 
 func (x *ListAttemptsRequest) Reset() {
 	*x = ListAttemptsRequest{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[28]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1977,7 +2232,7 @@ func (x *ListAttemptsRequest) String() string {
 func (*ListAttemptsRequest) ProtoMessage() {}
 
 func (x *ListAttemptsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[28]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1990,7 +2245,7 @@ func (x *ListAttemptsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAttemptsRequest.ProtoReflect.Descriptor instead.
 func (*ListAttemptsRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{28}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListAttemptsRequest) GetUserId() string {
@@ -2024,7 +2279,7 @@ type ListAttemptsResponse struct {
 
 func (x *ListAttemptsResponse) Reset() {
 	*x = ListAttemptsResponse{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[29]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2036,7 +2291,7 @@ func (x *ListAttemptsResponse) String() string {
 func (*ListAttemptsResponse) ProtoMessage() {}
 
 func (x *ListAttemptsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[29]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2049,7 +2304,7 @@ func (x *ListAttemptsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAttemptsResponse.ProtoReflect.Descriptor instead.
 func (*ListAttemptsResponse) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{29}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListAttemptsResponse) GetItems() []*ListAttemptsResponse_Attempt {
@@ -2080,7 +2335,7 @@ type ListAttemptsResponse_Attempt struct {
 
 func (x *ListAttemptsResponse_Attempt) Reset() {
 	*x = ListAttemptsResponse_Attempt{}
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[32]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2092,7 +2347,7 @@ func (x *ListAttemptsResponse_Attempt) String() string {
 func (*ListAttemptsResponse_Attempt) ProtoMessage() {}
 
 func (x *ListAttemptsResponse_Attempt) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[32]
+	mi := &file_fintcart_learning_v1_learning_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2105,7 +2360,7 @@ func (x *ListAttemptsResponse_Attempt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAttemptsResponse_Attempt.ProtoReflect.Descriptor instead.
 func (*ListAttemptsResponse_Attempt) Descriptor() ([]byte, []int) {
-	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{29, 0}
+	return file_fintcart_learning_v1_learning_proto_rawDescGZIP(), []int{33, 0}
 }
 
 func (x *ListAttemptsResponse_Attempt) GetAttemptId() string {
@@ -2153,7 +2408,27 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"\n" +
 	"ArticleRef\x12\x1d\n" +
 	"\n" +
-	"article_id\x18\x01 \x01(\tR\tarticleId\"F\n" +
+	"article_id\x18\x01 \x01(\tR\tarticleId\"\x8e\x01\n" +
+	"\x19UploadArticleImageRequest\x12\x1d\n" +
+	"\n" +
+	"article_id\x18\x01 \x01(\tR\tarticleId\x12\x1b\n" +
+	"\tmime_type\x18\x02 \x01(\tR\bmimeType\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\fR\x05bytes\x12\x1f\n" +
+	"\vuploaded_by\x18\x04 \x01(\tR\n" +
+	"uploadedBy\",\n" +
+	"\x0fArticleImageRef\x12\x19\n" +
+	"\bimage_id\x18\x01 \x01(\tR\aimageId\"\xb0\x01\n" +
+	"\fArticleImage\x12\x19\n" +
+	"\bimage_id\x18\x01 \x01(\tR\aimageId\x12\x1d\n" +
+	"\n" +
+	"article_id\x18\x02 \x01(\tR\tarticleId\x12\x1b\n" +
+	"\tmime_type\x18\x03 \x01(\tR\bmimeType\x12\x1b\n" +
+	"\tbyte_size\x18\x04 \x01(\tR\bbyteSize\x12\x14\n" +
+	"\x05width\x18\x05 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x06 \x01(\x05R\x06height\"i\n" +
+	"\x17GetArticleImageResponse\x128\n" +
+	"\x05image\x18\x01 \x01(\v2\".fintcart.learning.v1.ArticleImageR\x05image\x12\x14\n" +
+	"\x05bytes\x18\x02 \x01(\fR\x05bytes\"F\n" +
 	"\n" +
 	"VersionRef\x12\x1d\n" +
 	"\n" +
@@ -2336,7 +2611,7 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"\x05score\x18\x03 \x01(\tR\x05score\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12.\n" +
-	"\x13served_question_ids\x18\x05 \x03(\tR\x11servedQuestionIds2\x88\r\n" +
+	"\x13served_question_ids\x18\x05 \x03(\tR\x11servedQuestionIds2\xdc\x0e\n" +
 	"\x0fLearningService\x12]\n" +
 	"\vCreateDraft\x12(.fintcart.learning.v1.CreateDraftRequest\x1a$.fintcart.learning.v1.ArticleVersion\x12]\n" +
 	"\vUpdateDraft\x12(.fintcart.learning.v1.UpdateDraftRequest\x1a$.fintcart.learning.v1.ArticleVersion\x12Q\n" +
@@ -2348,7 +2623,9 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"UpsertQuiz\x12'.fintcart.learning.v1.UpsertQuizRequest\x1a\x1a.fintcart.learning.v1.Quiz\x12h\n" +
 	"\rListPublished\x12*.fintcart.learning.v1.ListPublishedRequest\x1a+.fintcart.learning.v1.ListPublishedResponse\x12M\n" +
 	"\n" +
-	"GetArticle\x12 .fintcart.learning.v1.ArticleRef\x1a\x1d.fintcart.learning.v1.Article\x12D\n" +
+	"GetArticle\x12 .fintcart.learning.v1.ArticleRef\x1a\x1d.fintcart.learning.v1.Article\x12i\n" +
+	"\x12UploadArticleImage\x12/.fintcart.learning.v1.UploadArticleImageRequest\x1a\".fintcart.learning.v1.ArticleImage\x12g\n" +
+	"\x0fGetArticleImage\x12%.fintcart.learning.v1.ArticleImageRef\x1a-.fintcart.learning.v1.GetArticleImageResponse\x12D\n" +
 	"\aGetQuiz\x12\x1d.fintcart.learning.v1.QuizRef\x1a\x1a.fintcart.learning.v1.Quiz\x12d\n" +
 	"\x10StartQuizSession\x12-.fintcart.learning.v1.StartQuizSessionRequest\x1a!.fintcart.learning.v1.QuizSession\x12_\n" +
 	"\x14GradeAndStoreAttempt\x12\".fintcart.learning.v1.GradeRequest\x1a#.fintcart.learning.v1.GradeResponse\x12e\n" +
@@ -2372,103 +2649,112 @@ func file_fintcart_learning_v1_learning_proto_rawDescGZIP() []byte {
 	return file_fintcart_learning_v1_learning_proto_rawDescData
 }
 
-var file_fintcart_learning_v1_learning_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_fintcart_learning_v1_learning_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_fintcart_learning_v1_learning_proto_goTypes = []any{
 	(*UserRef)(nil),                      // 0: fintcart.learning.v1.UserRef
 	(*ArticleRef)(nil),                   // 1: fintcart.learning.v1.ArticleRef
-	(*VersionRef)(nil),                   // 2: fintcart.learning.v1.VersionRef
-	(*QuizRef)(nil),                      // 3: fintcart.learning.v1.QuizRef
-	(*CategoryRef)(nil),                  // 4: fintcart.learning.v1.CategoryRef
-	(*Category)(nil),                     // 5: fintcart.learning.v1.Category
-	(*CreateCategoryRequest)(nil),        // 6: fintcart.learning.v1.CreateCategoryRequest
-	(*UpdateCategoryRequest)(nil),        // 7: fintcart.learning.v1.UpdateCategoryRequest
-	(*ListCategoriesRequest)(nil),        // 8: fintcart.learning.v1.ListCategoriesRequest
-	(*ListCategoriesResponse)(nil),       // 9: fintcart.learning.v1.ListCategoriesResponse
-	(*ArticleVersion)(nil),               // 10: fintcart.learning.v1.ArticleVersion
-	(*CreateDraftRequest)(nil),           // 11: fintcart.learning.v1.CreateDraftRequest
-	(*UpdateDraftRequest)(nil),           // 12: fintcart.learning.v1.UpdateDraftRequest
-	(*ApprovePublishRequest)(nil),        // 13: fintcart.learning.v1.ApprovePublishRequest
-	(*ListPublishedRequest)(nil),         // 14: fintcart.learning.v1.ListPublishedRequest
-	(*ListPublishedResponse)(nil),        // 15: fintcart.learning.v1.ListPublishedResponse
-	(*Article)(nil),                      // 16: fintcart.learning.v1.Article
-	(*Quiz)(nil),                         // 17: fintcart.learning.v1.Quiz
-	(*Question)(nil),                     // 18: fintcart.learning.v1.Question
-	(*Option)(nil),                       // 19: fintcart.learning.v1.Option
-	(*StartQuizSessionRequest)(nil),      // 20: fintcart.learning.v1.StartQuizSessionRequest
-	(*QuizSession)(nil),                  // 21: fintcart.learning.v1.QuizSession
-	(*GradeRequest)(nil),                 // 22: fintcart.learning.v1.GradeRequest
-	(*GradeResponse)(nil),                // 23: fintcart.learning.v1.GradeResponse
-	(*ListVersionsRequest)(nil),          // 24: fintcart.learning.v1.ListVersionsRequest
-	(*ListVersionsResponse)(nil),         // 25: fintcart.learning.v1.ListVersionsResponse
-	(*QuestionInput)(nil),                // 26: fintcart.learning.v1.QuestionInput
-	(*UpsertQuizRequest)(nil),            // 27: fintcart.learning.v1.UpsertQuizRequest
-	(*ListAttemptsRequest)(nil),          // 28: fintcart.learning.v1.ListAttemptsRequest
-	(*ListAttemptsResponse)(nil),         // 29: fintcart.learning.v1.ListAttemptsResponse
-	nil,                                  // 30: fintcart.learning.v1.GradeRequest.AnswersEntry
-	nil,                                  // 31: fintcart.learning.v1.QuestionInput.OptionsEntry
-	(*ListAttemptsResponse_Attempt)(nil), // 32: fintcart.learning.v1.ListAttemptsResponse.Attempt
-	(*v1.PageRequest)(nil),               // 33: fintcart.common.v1.PageRequest
-	(*v1.PageResponse)(nil),              // 34: fintcart.common.v1.PageResponse
-	(*v1.OpResult)(nil),                  // 35: fintcart.common.v1.OpResult
+	(*UploadArticleImageRequest)(nil),    // 2: fintcart.learning.v1.UploadArticleImageRequest
+	(*ArticleImageRef)(nil),              // 3: fintcart.learning.v1.ArticleImageRef
+	(*ArticleImage)(nil),                 // 4: fintcart.learning.v1.ArticleImage
+	(*GetArticleImageResponse)(nil),      // 5: fintcart.learning.v1.GetArticleImageResponse
+	(*VersionRef)(nil),                   // 6: fintcart.learning.v1.VersionRef
+	(*QuizRef)(nil),                      // 7: fintcart.learning.v1.QuizRef
+	(*CategoryRef)(nil),                  // 8: fintcart.learning.v1.CategoryRef
+	(*Category)(nil),                     // 9: fintcart.learning.v1.Category
+	(*CreateCategoryRequest)(nil),        // 10: fintcart.learning.v1.CreateCategoryRequest
+	(*UpdateCategoryRequest)(nil),        // 11: fintcart.learning.v1.UpdateCategoryRequest
+	(*ListCategoriesRequest)(nil),        // 12: fintcart.learning.v1.ListCategoriesRequest
+	(*ListCategoriesResponse)(nil),       // 13: fintcart.learning.v1.ListCategoriesResponse
+	(*ArticleVersion)(nil),               // 14: fintcart.learning.v1.ArticleVersion
+	(*CreateDraftRequest)(nil),           // 15: fintcart.learning.v1.CreateDraftRequest
+	(*UpdateDraftRequest)(nil),           // 16: fintcart.learning.v1.UpdateDraftRequest
+	(*ApprovePublishRequest)(nil),        // 17: fintcart.learning.v1.ApprovePublishRequest
+	(*ListPublishedRequest)(nil),         // 18: fintcart.learning.v1.ListPublishedRequest
+	(*ListPublishedResponse)(nil),        // 19: fintcart.learning.v1.ListPublishedResponse
+	(*Article)(nil),                      // 20: fintcart.learning.v1.Article
+	(*Quiz)(nil),                         // 21: fintcart.learning.v1.Quiz
+	(*Question)(nil),                     // 22: fintcart.learning.v1.Question
+	(*Option)(nil),                       // 23: fintcart.learning.v1.Option
+	(*StartQuizSessionRequest)(nil),      // 24: fintcart.learning.v1.StartQuizSessionRequest
+	(*QuizSession)(nil),                  // 25: fintcart.learning.v1.QuizSession
+	(*GradeRequest)(nil),                 // 26: fintcart.learning.v1.GradeRequest
+	(*GradeResponse)(nil),                // 27: fintcart.learning.v1.GradeResponse
+	(*ListVersionsRequest)(nil),          // 28: fintcart.learning.v1.ListVersionsRequest
+	(*ListVersionsResponse)(nil),         // 29: fintcart.learning.v1.ListVersionsResponse
+	(*QuestionInput)(nil),                // 30: fintcart.learning.v1.QuestionInput
+	(*UpsertQuizRequest)(nil),            // 31: fintcart.learning.v1.UpsertQuizRequest
+	(*ListAttemptsRequest)(nil),          // 32: fintcart.learning.v1.ListAttemptsRequest
+	(*ListAttemptsResponse)(nil),         // 33: fintcart.learning.v1.ListAttemptsResponse
+	nil,                                  // 34: fintcart.learning.v1.GradeRequest.AnswersEntry
+	nil,                                  // 35: fintcart.learning.v1.QuestionInput.OptionsEntry
+	(*ListAttemptsResponse_Attempt)(nil), // 36: fintcart.learning.v1.ListAttemptsResponse.Attempt
+	(*v1.PageRequest)(nil),               // 37: fintcart.common.v1.PageRequest
+	(*v1.PageResponse)(nil),              // 38: fintcart.common.v1.PageResponse
+	(*v1.OpResult)(nil),                  // 39: fintcart.common.v1.OpResult
 }
 var file_fintcart_learning_v1_learning_proto_depIdxs = []int32{
-	5,  // 0: fintcart.learning.v1.ListCategoriesResponse.items:type_name -> fintcart.learning.v1.Category
-	33, // 1: fintcart.learning.v1.ListPublishedRequest.page:type_name -> fintcart.common.v1.PageRequest
-	16, // 2: fintcart.learning.v1.ListPublishedResponse.items:type_name -> fintcart.learning.v1.Article
-	34, // 3: fintcart.learning.v1.ListPublishedResponse.page:type_name -> fintcart.common.v1.PageResponse
-	18, // 4: fintcart.learning.v1.Quiz.questions:type_name -> fintcart.learning.v1.Question
-	19, // 5: fintcart.learning.v1.Question.options:type_name -> fintcart.learning.v1.Option
-	18, // 6: fintcart.learning.v1.QuizSession.questions:type_name -> fintcart.learning.v1.Question
-	30, // 7: fintcart.learning.v1.GradeRequest.answers:type_name -> fintcart.learning.v1.GradeRequest.AnswersEntry
-	33, // 8: fintcart.learning.v1.ListVersionsRequest.page:type_name -> fintcart.common.v1.PageRequest
-	10, // 9: fintcart.learning.v1.ListVersionsResponse.items:type_name -> fintcart.learning.v1.ArticleVersion
-	34, // 10: fintcart.learning.v1.ListVersionsResponse.page:type_name -> fintcart.common.v1.PageResponse
-	31, // 11: fintcart.learning.v1.QuestionInput.options:type_name -> fintcart.learning.v1.QuestionInput.OptionsEntry
-	26, // 12: fintcart.learning.v1.UpsertQuizRequest.questions:type_name -> fintcart.learning.v1.QuestionInput
-	33, // 13: fintcart.learning.v1.ListAttemptsRequest.page:type_name -> fintcart.common.v1.PageRequest
-	32, // 14: fintcart.learning.v1.ListAttemptsResponse.items:type_name -> fintcart.learning.v1.ListAttemptsResponse.Attempt
-	34, // 15: fintcart.learning.v1.ListAttemptsResponse.page:type_name -> fintcart.common.v1.PageResponse
-	11, // 16: fintcart.learning.v1.LearningService.CreateDraft:input_type -> fintcart.learning.v1.CreateDraftRequest
-	12, // 17: fintcart.learning.v1.LearningService.UpdateDraft:input_type -> fintcart.learning.v1.UpdateDraftRequest
-	2,  // 18: fintcart.learning.v1.LearningService.SubmitForReview:input_type -> fintcart.learning.v1.VersionRef
-	13, // 19: fintcart.learning.v1.LearningService.ApproveAndPublish:input_type -> fintcart.learning.v1.ApprovePublishRequest
-	2,  // 20: fintcart.learning.v1.LearningService.Archive:input_type -> fintcart.learning.v1.VersionRef
-	24, // 21: fintcart.learning.v1.LearningService.ListVersions:input_type -> fintcart.learning.v1.ListVersionsRequest
-	27, // 22: fintcart.learning.v1.LearningService.UpsertQuiz:input_type -> fintcart.learning.v1.UpsertQuizRequest
-	14, // 23: fintcart.learning.v1.LearningService.ListPublished:input_type -> fintcart.learning.v1.ListPublishedRequest
-	1,  // 24: fintcart.learning.v1.LearningService.GetArticle:input_type -> fintcart.learning.v1.ArticleRef
-	3,  // 25: fintcart.learning.v1.LearningService.GetQuiz:input_type -> fintcart.learning.v1.QuizRef
-	20, // 26: fintcart.learning.v1.LearningService.StartQuizSession:input_type -> fintcart.learning.v1.StartQuizSessionRequest
-	22, // 27: fintcart.learning.v1.LearningService.GradeAndStoreAttempt:input_type -> fintcart.learning.v1.GradeRequest
-	28, // 28: fintcart.learning.v1.LearningService.ListAttempts:input_type -> fintcart.learning.v1.ListAttemptsRequest
-	0,  // 29: fintcart.learning.v1.LearningService.AnonymizeAttempts:input_type -> fintcart.learning.v1.UserRef
-	6,  // 30: fintcart.learning.v1.LearningService.CreateCategory:input_type -> fintcart.learning.v1.CreateCategoryRequest
-	7,  // 31: fintcart.learning.v1.LearningService.UpdateCategory:input_type -> fintcart.learning.v1.UpdateCategoryRequest
-	4,  // 32: fintcart.learning.v1.LearningService.DeactivateCategory:input_type -> fintcart.learning.v1.CategoryRef
-	8,  // 33: fintcart.learning.v1.LearningService.ListCategories:input_type -> fintcart.learning.v1.ListCategoriesRequest
-	10, // 34: fintcart.learning.v1.LearningService.CreateDraft:output_type -> fintcart.learning.v1.ArticleVersion
-	10, // 35: fintcart.learning.v1.LearningService.UpdateDraft:output_type -> fintcart.learning.v1.ArticleVersion
-	35, // 36: fintcart.learning.v1.LearningService.SubmitForReview:output_type -> fintcart.common.v1.OpResult
-	35, // 37: fintcart.learning.v1.LearningService.ApproveAndPublish:output_type -> fintcart.common.v1.OpResult
-	35, // 38: fintcart.learning.v1.LearningService.Archive:output_type -> fintcart.common.v1.OpResult
-	25, // 39: fintcart.learning.v1.LearningService.ListVersions:output_type -> fintcart.learning.v1.ListVersionsResponse
-	17, // 40: fintcart.learning.v1.LearningService.UpsertQuiz:output_type -> fintcart.learning.v1.Quiz
-	15, // 41: fintcart.learning.v1.LearningService.ListPublished:output_type -> fintcart.learning.v1.ListPublishedResponse
-	16, // 42: fintcart.learning.v1.LearningService.GetArticle:output_type -> fintcart.learning.v1.Article
-	17, // 43: fintcart.learning.v1.LearningService.GetQuiz:output_type -> fintcart.learning.v1.Quiz
-	21, // 44: fintcart.learning.v1.LearningService.StartQuizSession:output_type -> fintcart.learning.v1.QuizSession
-	23, // 45: fintcart.learning.v1.LearningService.GradeAndStoreAttempt:output_type -> fintcart.learning.v1.GradeResponse
-	29, // 46: fintcart.learning.v1.LearningService.ListAttempts:output_type -> fintcart.learning.v1.ListAttemptsResponse
-	35, // 47: fintcart.learning.v1.LearningService.AnonymizeAttempts:output_type -> fintcart.common.v1.OpResult
-	5,  // 48: fintcart.learning.v1.LearningService.CreateCategory:output_type -> fintcart.learning.v1.Category
-	5,  // 49: fintcart.learning.v1.LearningService.UpdateCategory:output_type -> fintcart.learning.v1.Category
-	35, // 50: fintcart.learning.v1.LearningService.DeactivateCategory:output_type -> fintcart.common.v1.OpResult
-	9,  // 51: fintcart.learning.v1.LearningService.ListCategories:output_type -> fintcart.learning.v1.ListCategoriesResponse
-	34, // [34:52] is the sub-list for method output_type
-	16, // [16:34] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	4,  // 0: fintcart.learning.v1.GetArticleImageResponse.image:type_name -> fintcart.learning.v1.ArticleImage
+	9,  // 1: fintcart.learning.v1.ListCategoriesResponse.items:type_name -> fintcart.learning.v1.Category
+	37, // 2: fintcart.learning.v1.ListPublishedRequest.page:type_name -> fintcart.common.v1.PageRequest
+	20, // 3: fintcart.learning.v1.ListPublishedResponse.items:type_name -> fintcart.learning.v1.Article
+	38, // 4: fintcart.learning.v1.ListPublishedResponse.page:type_name -> fintcart.common.v1.PageResponse
+	22, // 5: fintcart.learning.v1.Quiz.questions:type_name -> fintcart.learning.v1.Question
+	23, // 6: fintcart.learning.v1.Question.options:type_name -> fintcart.learning.v1.Option
+	22, // 7: fintcart.learning.v1.QuizSession.questions:type_name -> fintcart.learning.v1.Question
+	34, // 8: fintcart.learning.v1.GradeRequest.answers:type_name -> fintcart.learning.v1.GradeRequest.AnswersEntry
+	37, // 9: fintcart.learning.v1.ListVersionsRequest.page:type_name -> fintcart.common.v1.PageRequest
+	14, // 10: fintcart.learning.v1.ListVersionsResponse.items:type_name -> fintcart.learning.v1.ArticleVersion
+	38, // 11: fintcart.learning.v1.ListVersionsResponse.page:type_name -> fintcart.common.v1.PageResponse
+	35, // 12: fintcart.learning.v1.QuestionInput.options:type_name -> fintcart.learning.v1.QuestionInput.OptionsEntry
+	30, // 13: fintcart.learning.v1.UpsertQuizRequest.questions:type_name -> fintcart.learning.v1.QuestionInput
+	37, // 14: fintcart.learning.v1.ListAttemptsRequest.page:type_name -> fintcart.common.v1.PageRequest
+	36, // 15: fintcart.learning.v1.ListAttemptsResponse.items:type_name -> fintcart.learning.v1.ListAttemptsResponse.Attempt
+	38, // 16: fintcart.learning.v1.ListAttemptsResponse.page:type_name -> fintcart.common.v1.PageResponse
+	15, // 17: fintcart.learning.v1.LearningService.CreateDraft:input_type -> fintcart.learning.v1.CreateDraftRequest
+	16, // 18: fintcart.learning.v1.LearningService.UpdateDraft:input_type -> fintcart.learning.v1.UpdateDraftRequest
+	6,  // 19: fintcart.learning.v1.LearningService.SubmitForReview:input_type -> fintcart.learning.v1.VersionRef
+	17, // 20: fintcart.learning.v1.LearningService.ApproveAndPublish:input_type -> fintcart.learning.v1.ApprovePublishRequest
+	6,  // 21: fintcart.learning.v1.LearningService.Archive:input_type -> fintcart.learning.v1.VersionRef
+	28, // 22: fintcart.learning.v1.LearningService.ListVersions:input_type -> fintcart.learning.v1.ListVersionsRequest
+	31, // 23: fintcart.learning.v1.LearningService.UpsertQuiz:input_type -> fintcart.learning.v1.UpsertQuizRequest
+	18, // 24: fintcart.learning.v1.LearningService.ListPublished:input_type -> fintcart.learning.v1.ListPublishedRequest
+	1,  // 25: fintcart.learning.v1.LearningService.GetArticle:input_type -> fintcart.learning.v1.ArticleRef
+	2,  // 26: fintcart.learning.v1.LearningService.UploadArticleImage:input_type -> fintcart.learning.v1.UploadArticleImageRequest
+	3,  // 27: fintcart.learning.v1.LearningService.GetArticleImage:input_type -> fintcart.learning.v1.ArticleImageRef
+	7,  // 28: fintcart.learning.v1.LearningService.GetQuiz:input_type -> fintcart.learning.v1.QuizRef
+	24, // 29: fintcart.learning.v1.LearningService.StartQuizSession:input_type -> fintcart.learning.v1.StartQuizSessionRequest
+	26, // 30: fintcart.learning.v1.LearningService.GradeAndStoreAttempt:input_type -> fintcart.learning.v1.GradeRequest
+	32, // 31: fintcart.learning.v1.LearningService.ListAttempts:input_type -> fintcart.learning.v1.ListAttemptsRequest
+	0,  // 32: fintcart.learning.v1.LearningService.AnonymizeAttempts:input_type -> fintcart.learning.v1.UserRef
+	10, // 33: fintcart.learning.v1.LearningService.CreateCategory:input_type -> fintcart.learning.v1.CreateCategoryRequest
+	11, // 34: fintcart.learning.v1.LearningService.UpdateCategory:input_type -> fintcart.learning.v1.UpdateCategoryRequest
+	8,  // 35: fintcart.learning.v1.LearningService.DeactivateCategory:input_type -> fintcart.learning.v1.CategoryRef
+	12, // 36: fintcart.learning.v1.LearningService.ListCategories:input_type -> fintcart.learning.v1.ListCategoriesRequest
+	14, // 37: fintcart.learning.v1.LearningService.CreateDraft:output_type -> fintcart.learning.v1.ArticleVersion
+	14, // 38: fintcart.learning.v1.LearningService.UpdateDraft:output_type -> fintcart.learning.v1.ArticleVersion
+	39, // 39: fintcart.learning.v1.LearningService.SubmitForReview:output_type -> fintcart.common.v1.OpResult
+	39, // 40: fintcart.learning.v1.LearningService.ApproveAndPublish:output_type -> fintcart.common.v1.OpResult
+	39, // 41: fintcart.learning.v1.LearningService.Archive:output_type -> fintcart.common.v1.OpResult
+	29, // 42: fintcart.learning.v1.LearningService.ListVersions:output_type -> fintcart.learning.v1.ListVersionsResponse
+	21, // 43: fintcart.learning.v1.LearningService.UpsertQuiz:output_type -> fintcart.learning.v1.Quiz
+	19, // 44: fintcart.learning.v1.LearningService.ListPublished:output_type -> fintcart.learning.v1.ListPublishedResponse
+	20, // 45: fintcart.learning.v1.LearningService.GetArticle:output_type -> fintcart.learning.v1.Article
+	4,  // 46: fintcart.learning.v1.LearningService.UploadArticleImage:output_type -> fintcart.learning.v1.ArticleImage
+	5,  // 47: fintcart.learning.v1.LearningService.GetArticleImage:output_type -> fintcart.learning.v1.GetArticleImageResponse
+	21, // 48: fintcart.learning.v1.LearningService.GetQuiz:output_type -> fintcart.learning.v1.Quiz
+	25, // 49: fintcart.learning.v1.LearningService.StartQuizSession:output_type -> fintcart.learning.v1.QuizSession
+	27, // 50: fintcart.learning.v1.LearningService.GradeAndStoreAttempt:output_type -> fintcart.learning.v1.GradeResponse
+	33, // 51: fintcart.learning.v1.LearningService.ListAttempts:output_type -> fintcart.learning.v1.ListAttemptsResponse
+	39, // 52: fintcart.learning.v1.LearningService.AnonymizeAttempts:output_type -> fintcart.common.v1.OpResult
+	9,  // 53: fintcart.learning.v1.LearningService.CreateCategory:output_type -> fintcart.learning.v1.Category
+	9,  // 54: fintcart.learning.v1.LearningService.UpdateCategory:output_type -> fintcart.learning.v1.Category
+	39, // 55: fintcart.learning.v1.LearningService.DeactivateCategory:output_type -> fintcart.common.v1.OpResult
+	13, // 56: fintcart.learning.v1.LearningService.ListCategories:output_type -> fintcart.learning.v1.ListCategoriesResponse
+	37, // [37:57] is the sub-list for method output_type
+	17, // [17:37] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_fintcart_learning_v1_learning_proto_init() }
@@ -2482,7 +2768,7 @@ func file_fintcart_learning_v1_learning_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fintcart_learning_v1_learning_proto_rawDesc), len(file_fintcart_learning_v1_learning_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

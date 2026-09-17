@@ -33,6 +33,15 @@ service LearningService {
   rpc ListPublished(ListPublishedRequest) returns (ListPublishedResponse);
   rpc GetArticle(ArticleRef) returns (Article);
 
+  // Imágenes del cuerpo del artículo (FR-064…FR-067, research D-13).
+  //
+  // `GetArticleImage` devuelve los BYTES, no una URL: el borde decide cómo servirlos
+  // (T130 los sirve con `ETag` y caché inmutable). Aprendizaje no construye direcciones
+  // ni conoce el Gateway, que es lo que permite que el lector y el editor usen la misma
+  // ruta sin que el servicio sepa por dónde pasa.
+  rpc UploadArticleImage(UploadArticleImageRequest) returns (ArticleImage);
+  rpc GetArticleImage(ArticleImageRef) returns (GetArticleImageResponse);
+
   // Cuestionarios (FR-009).
   rpc GetQuiz(QuizRef) returns (Quiz);
 
@@ -65,6 +74,36 @@ service LearningService {
 
 message UserRef { string user_id = 1; }
 message ArticleRef { string article_id = 1; }
+
+// `article_id` y no solo los bytes: el ámbito de propiedad de una imagen es el artículo
+// (data-model §1.4), así que una subida sin artículo no tiene dónde pertenecer.
+message UploadArticleImageRequest {
+  string article_id = 1;
+  // Tipos de imagen que el contrato admite; se comprueban contra los BYTES y no contra
+  // lo que declare el cliente (FR-066), porque un nombre de archivo y un `Content-Type`
+  // los elige quien sube.
+  string mime_type = 2;
+  bytes bytes = 3;
+  string uploaded_by = 4;
+}
+
+// El identificador ES el SHA-256 del contenido: quien lo tiene tiene los bytes, y el
+// mismo contenido subido dos veces es la misma fila.
+message ArticleImageRef { string image_id = 1; }
+
+message ArticleImage {
+  string image_id = 1;
+  string article_id = 2;
+  string mime_type = 3;
+  string byte_size = 4; // string: es un conteo que puede pasar de 2^53 en un contrato futuro
+  int32 width = 5;
+  int32 height = 6;
+}
+
+message GetArticleImageResponse {
+  ArticleImage image = 1;
+  bytes bytes = 2;
+}
 message VersionRef { string version_id = 1; string actor_id = 2; }
 message QuizRef { string quiz_id = 1; }
 

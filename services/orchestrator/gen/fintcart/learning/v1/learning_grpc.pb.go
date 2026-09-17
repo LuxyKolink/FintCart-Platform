@@ -29,6 +29,8 @@ const (
 	LearningService_UpsertQuiz_FullMethodName           = "/fintcart.learning.v1.LearningService/UpsertQuiz"
 	LearningService_ListPublished_FullMethodName        = "/fintcart.learning.v1.LearningService/ListPublished"
 	LearningService_GetArticle_FullMethodName           = "/fintcart.learning.v1.LearningService/GetArticle"
+	LearningService_UploadArticleImage_FullMethodName   = "/fintcart.learning.v1.LearningService/UploadArticleImage"
+	LearningService_GetArticleImage_FullMethodName      = "/fintcart.learning.v1.LearningService/GetArticleImage"
 	LearningService_GetQuiz_FullMethodName              = "/fintcart.learning.v1.LearningService/GetQuiz"
 	LearningService_StartQuizSession_FullMethodName     = "/fintcart.learning.v1.LearningService/StartQuizSession"
 	LearningService_GradeAndStoreAttempt_FullMethodName = "/fintcart.learning.v1.LearningService/GradeAndStoreAttempt"
@@ -68,6 +70,14 @@ type LearningServiceClient interface {
 	// Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018).
 	ListPublished(ctx context.Context, in *ListPublishedRequest, opts ...grpc.CallOption) (*ListPublishedResponse, error)
 	GetArticle(ctx context.Context, in *ArticleRef, opts ...grpc.CallOption) (*Article, error)
+	// Imágenes del cuerpo del artículo (FR-064…FR-067, research D-13).
+	//
+	// `GetArticleImage` devuelve los BYTES, no una URL: el borde decide cómo servirlos
+	// (T130 los sirve con `ETag` y caché inmutable). Aprendizaje no construye direcciones
+	// ni conoce el Gateway, que es lo que permite que el lector y el editor usen la misma
+	// ruta sin que el servicio sepa por dónde pasa.
+	UploadArticleImage(ctx context.Context, in *UploadArticleImageRequest, opts ...grpc.CallOption) (*ArticleImage, error)
+	GetArticleImage(ctx context.Context, in *ArticleImageRef, opts ...grpc.CallOption) (*GetArticleImageResponse, error)
 	// Cuestionarios (FR-009).
 	GetQuiz(ctx context.Context, in *QuizRef, opts ...grpc.CallOption) (*Quiz, error)
 	// Sesión de intento (FR-038…FR-042): SUSTITUYE a `GetQuiz` como camino de
@@ -192,6 +202,26 @@ func (c *learningServiceClient) GetArticle(ctx context.Context, in *ArticleRef, 
 	return out, nil
 }
 
+func (c *learningServiceClient) UploadArticleImage(ctx context.Context, in *UploadArticleImageRequest, opts ...grpc.CallOption) (*ArticleImage, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArticleImage)
+	err := c.cc.Invoke(ctx, LearningService_UploadArticleImage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *learningServiceClient) GetArticleImage(ctx context.Context, in *ArticleImageRef, opts ...grpc.CallOption) (*GetArticleImageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetArticleImageResponse)
+	err := c.cc.Invoke(ctx, LearningService_GetArticleImage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *learningServiceClient) GetQuiz(ctx context.Context, in *QuizRef, opts ...grpc.CallOption) (*Quiz, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Quiz)
@@ -310,6 +340,14 @@ type LearningServiceServer interface {
 	// Catálogo y lectura (FR-010, FR-011). Incrementa estadística de vista (FR-018).
 	ListPublished(context.Context, *ListPublishedRequest) (*ListPublishedResponse, error)
 	GetArticle(context.Context, *ArticleRef) (*Article, error)
+	// Imágenes del cuerpo del artículo (FR-064…FR-067, research D-13).
+	//
+	// `GetArticleImage` devuelve los BYTES, no una URL: el borde decide cómo servirlos
+	// (T130 los sirve con `ETag` y caché inmutable). Aprendizaje no construye direcciones
+	// ni conoce el Gateway, que es lo que permite que el lector y el editor usen la misma
+	// ruta sin que el servicio sepa por dónde pasa.
+	UploadArticleImage(context.Context, *UploadArticleImageRequest) (*ArticleImage, error)
+	GetArticleImage(context.Context, *ArticleImageRef) (*GetArticleImageResponse, error)
 	// Cuestionarios (FR-009).
 	GetQuiz(context.Context, *QuizRef) (*Quiz, error)
 	// Sesión de intento (FR-038…FR-042): SUSTITUYE a `GetQuiz` como camino de
@@ -369,6 +407,12 @@ func (UnimplementedLearningServiceServer) ListPublished(context.Context, *ListPu
 }
 func (UnimplementedLearningServiceServer) GetArticle(context.Context, *ArticleRef) (*Article, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetArticle not implemented")
+}
+func (UnimplementedLearningServiceServer) UploadArticleImage(context.Context, *UploadArticleImageRequest) (*ArticleImage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UploadArticleImage not implemented")
+}
+func (UnimplementedLearningServiceServer) GetArticleImage(context.Context, *ArticleImageRef) (*GetArticleImageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetArticleImage not implemented")
 }
 func (UnimplementedLearningServiceServer) GetQuiz(context.Context, *QuizRef) (*Quiz, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetQuiz not implemented")
@@ -579,6 +623,42 @@ func _LearningService_GetArticle_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LearningService_UploadArticleImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadArticleImageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).UploadArticleImage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_UploadArticleImage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).UploadArticleImage(ctx, req.(*UploadArticleImageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LearningService_GetArticleImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArticleImageRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LearningServiceServer).GetArticleImage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LearningService_GetArticleImage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LearningServiceServer).GetArticleImage(ctx, req.(*ArticleImageRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _LearningService_GetQuiz_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QuizRef)
 	if err := dec(in); err != nil {
@@ -783,6 +863,14 @@ var LearningService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetArticle",
 			Handler:    _LearningService_GetArticle_Handler,
+		},
+		{
+			MethodName: "UploadArticleImage",
+			Handler:    _LearningService_UploadArticleImage_Handler,
+		},
+		{
+			MethodName: "GetArticleImage",
+			Handler:    _LearningService_GetArticleImage_Handler,
 		},
 		{
 			MethodName: "GetQuiz",

@@ -55,6 +55,21 @@ CREATE TABLE article_versions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     published_at TIMESTAMPTZ
 );
+-- Imágenes del artículo (T017). El doble de pruebas reproduce la FORMA, no los CHECK: las
+-- restricciones (SHA-256, mime admitido, tope de 2 MB y coherencia con los bytes) se
+-- probaron con filas que tenían que ser rechazadas contra PostgreSQL 16 real, que es donde
+-- pueden fallar de verdad. Aquí solo hace falta que las columnas existan.
+CREATE TABLE article_images (
+    id TEXT PRIMARY KEY,
+    article_id UUID NOT NULL REFERENCES articles (id),
+    mime_type TEXT NOT NULL,
+    byte_size INTEGER NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    bytes BYTEA NOT NULL,
+    uploaded_by UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE quizzes (
     id UUID PRIMARY KEY,
     article_id UUID NOT NULL REFERENCES articles (id),

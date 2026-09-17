@@ -15,6 +15,9 @@ import { CategoriesRepository } from '../categories/categories.repository';
 import { CategoriesService } from '../categories/categories.service';
 import { EventsModule } from '../events/events.module';
 import { GradingService } from '../grading/grading.service';
+import { ImagesController } from '../images/images.controller';
+import { ImagesRepository } from '../images/images.repository';
+import { ImagesService } from '../images/images.service';
 import { PublishingRepository } from '../publishing/publishing.repository';
 import { PublishingService } from '../publishing/publishing.service';
 import { VersioningService } from '../publishing/versioning.service';
@@ -34,9 +37,11 @@ import { LearningController } from './learning.controller';
   // falta. `EventsModule` entra por la misma razón: `EventsPublisher` lo necesita
   // `PublishingService` (T163).
   imports: [DatabaseModule, EventsModule],
-  controllers: [LearningController, CategoriesController],
+  controllers: [LearningController, CategoriesController, ImagesController],
   providers: [
     ArticlesRepository,
+    ImagesRepository,
+    ImagesService,
     ArticlesService,
     CategoriesRepository,
     CategoriesService,
