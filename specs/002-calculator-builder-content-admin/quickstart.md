@@ -129,6 +129,21 @@ curl -si -X POST localhost:8080/admin/indicators -H "Authorization: Bearer $ADMI
 curl -s localhost:8080/admin/indicators/status -H "Authorization: Bearer $ADMIN_TOKEN" | jq
 ```
 
+**El aviso por correo del procedimiento anual (FR-061)** lo emite el barrido del Orquestador, que
+pregunta al Simulador por gRPC y publica `indicator.calendar_alert` (el Simulador no es productor,
+Principio V). El buzón que lo recibe es configuración del despliegue:
+
+```bash
+# En desarrollo el barrido corre cada 5 minutos y el aviso llega a MailHog.
+# Para verlo sin esperar, se acorta el intervalo al levantar el Orquestador:
+INDICATOR_SWEEP_INTERVAL=5s docker compose -f dev/docker-compose.yaml up -d --force-recreate orchestrator
+# El correo aparece en http://localhost:8025 con el asunto «Acción requerida: el indicador …»
+```
+
+El aviso se publica **una sola vez al día** por indicador aunque el barrido pase varias veces: el
+identificador del evento es determinista —`(tipo, clase, indicador, fecha)`— y el `ON CONFLICT` del
+outbox descarta las repeticiones.
+
 **Criterio SC-019**: una simulación guardada conserva los indicadores con que se calculó.
 
 ```bash
