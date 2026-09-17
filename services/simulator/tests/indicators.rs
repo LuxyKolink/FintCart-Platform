@@ -267,6 +267,12 @@ impl Calculators for NoConstructor {
             "estas pruebas no usan el constructor".to_owned(),
         ))
     }
+
+    async fn builtin_by_name(&self, _name: &str) -> Result<Option<CalculatorRow>> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan el constructor".to_owned(),
+        ))
+    }
 }
 
 async fn start(indicators: FakeIndicators) -> SimulatorServiceClient<tonic::transport::Channel> {

@@ -1,9 +1,23 @@
-//! Las cinco calculadoras financieras del alcance (FR-019).
+//! Lo que queda del código nativo (FR-019) después de T098.
 //!
-//! Cada módulo expone una función `compute(&Inputs) -> Result<Outcome>` y nada más.
-//! No conocen gRPC, ni la base de datos, ni el enum del contrato: reciben parámetros
-//! ya leídos y devuelven un resultado, que es lo que permite probarlas con una tabla
-//! de casos y sin levantar nada (Principio IX).
+//! ## Aquí solo vive `colombia`
+//!
+//! Las otras cuatro —`ahorro`, `credito`, `inversion` y `presupuesto`— se retiraron con T098: el
+//! camino de compatibilidad por `calc_type` ya no las ejecuta, resuelve la definición semilla
+//! (FR-043), y con eso el servicio pasó a tener UNA sola implementación de cada cálculo en lugar
+//! de dos. Habían quedado en `tests/nativo/`, donde la suite que autorizó su retirada las usa
+//! como oráculo.
+//!
+//! `colombia` NO se retiró, y la razón está en D-30: es la única cuyas entradas difieren de las de
+//! sus tres semillas —el nativo recibe `valor_uvt` como parámetro y `exento` como el texto
+//! `"si"`/`"no"`, mientras que `gmf` lee `@UVT` de `financial_indicators` y toma `exento` como
+//! entero—, así que redirigirla hoy significaría que un cliente que manda `valor_uvt` lo viera
+//! **ignorado en silencio**. Espera a que el camino por `calc_type` se retire del contrato.
+//!
+//! Este módulo expone una función `compute(&Inputs) -> Result<Outcome>` y nada más. No conoce
+//! gRPC, ni la base de datos, ni el enum del contrato: recibe parámetros ya leídos y devuelve un
+//! resultado, que es lo que permite probarla con una tabla de casos y sin levantar nada
+//! (Principio IX).
 //!
 //! ## La regla que gobierna todo este árbol
 //!
@@ -22,12 +36,7 @@
 
 use rust_decimal::Decimal;
 
-pub mod ahorro;
-
 pub mod colombia;
-pub mod credito;
-pub mod inversion;
-pub mod presupuesto;
 
 /// Resultado de una calculadora: pares `clave → valor decimal`.
 ///

@@ -32,7 +32,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use chrono::NaiveDate;
-use fintcart_simulator::repo::calculators::{Calculators, PgCalculators};
+use fintcart_simulator::repo::calculators::{Calculators, PgCalculators, State};
 use fintcart_simulator::repo::indicators::{Indicators, PgIndicators};
 use fintcart_simulator::repo::simulations::{
     NewSimulation, PgSimulations, Provenance, Simulations,
@@ -474,14 +474,58 @@ async fn las_siete_semillas_se_encuentran_por_su_nombre() {
             encontrada.version >= 1,
             "«{name}» tiene una versión inválida"
         );
+
+        // Y la fila ENTERA, que es lo que el camino de compatibilidad ejecuta desde T098: no solo
+        // atribuye la simulación a la semilla, corre su definición. `builtin_by_name` trae las
+        // tres columnas JSONB por el mismo `SELECT` que `get`, y esto comprueba justo eso — que la
+        // definición vuelve analizable, con sus fórmulas y su escala, y no a medias.
+        let completa = repo
+            .builtin_by_name(name)
+            .await
+            .expect("la consulta debe funcionar")
+            .unwrap_or_else(|| panic!("la semilla «{name}» no está: ¿falta `dev/seed`?"));
+        assert!(completa.is_builtin, "«{name}» tendría que ser una semilla");
+        assert_eq!(
+            completa.state,
+            State::Publicada,
+            "las semillas nacen publicadas y ninguna transición de curaduría las alcanza"
+        );
+        assert_eq!(
+            completa.id, encontrada.id,
+            "las dos consultas tienen que devolver la MISMA fila: comparten el `SELECT`"
+        );
+        assert_eq!(
+            completa.version, encontrada.version,
+            "y la misma versión vigente"
+        );
+        // Una definición vacía analizaría igual: lo que se comprueba es que tiene las piezas, es
+        // decir que las tres columnas JSONB llegaron al motor.
+        assert!(
+            !completa.definition.inputs.is_empty(),
+            "«{name}» llegó sin campos de entrada"
+        );
+        assert!(
+            !completa.definition.outputs.is_empty(),
+            "«{name}» llegó sin resultados: no habría nada que calcular"
+        );
     }
 
     // Un nombre que no es de ninguna semilla devuelve `None`, y NO el de una calculadora de
     // usuario que se llame igual: la consulta filtra por `is_builtin`.
-    assert_eq!(
-        repo.builtin_version("mi-calculadora")
-            .await
-            .expect("la consulta debe funcionar"),
-        None
-    );
+    for consulta in ["mi-calculadora", ""] {
+        assert_eq!(
+            repo.builtin_version(consulta)
+                .await
+                .expect("la consulta debe funcionar"),
+            None,
+            "«{consulta}» no es una semilla y no puede encontrarse por esta vía"
+        );
+        assert!(
+            repo.builtin_by_name(consulta)
+                .await
+                .expect("la consulta debe funcionar")
+                .is_none(),
+            "«{consulta}» no es una semilla: sin fila no hay definición que ejecutar"
+        );
+    }
 }

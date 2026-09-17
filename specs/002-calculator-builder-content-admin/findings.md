@@ -277,3 +277,29 @@ entran a la bandeja—. N-13 dice exactamente esto: **un nombre, un enlace**.
 **Arreglo**: la etiqueta nueva pasa a ser «Curaduría». Se cambia la etiqueta, **no la aserción**:
 las pruebas de US1–US4 son la garantía dura y ajustarlas para que quepan destruiría lo único que
 protege la accesibilidad y los recorridos.
+
+## Hallazgo 13 — La imagen de desarrollo del Simulador prometía `clippy` y `fmt` y no los traía
+
+**Qué pasa**: `services/simulator/Dockerfile.dev` documenta en su punto 2 que la imagen «CONSERVA
+el toolchain, para poder entrar con `docker compose exec` y ejecutar `cargo test` o `cargo clippy`»,
+y la advertencia del propio Dockerfile invita a correr ahí el `--all-targets -- -D warnings` que
+exige la Constitución §Calidad y Pruebas. **Los dos componentes no estaban instalados**:
+`rust:1.97-slim-bookworm` trae `cargo` y `rustc`, no `rustfmt` ni `clippy`.
+
+**Cómo apareció**: al retirar el código nativo (T098) había que correr el análisis estático completo
+sobre el árbol tocado, y el contenedor contestó `'cargo-clippy' is not installed`. La comprobación
+llevaba haciéndose fuera del contenedor, con un toolchain distinto del que compila el servicio —con
+el riesgo de que un lint pase en uno y falle en el otro—.
+
+**Arreglo**: `RUN rustup component add clippy rustfmt` en `Dockerfile.dev`, **antes** de copiar el
+código, para que la capa no se invalide al tocar `src/`. Verificado reconstruyendo la imagen: los dos
+binarios existen dentro y el análisis corre en el mismo toolchain que compila.
+
+**Lo que deja dicho**: el verificador tiene que vivir donde vive el código. Una promesa en un
+comentario no la comprueba nadie hasta que alguien la necesita, y entonces cuesta más.
+
+**Aparte, y sin arreglar porque es del arnés de pruebas y no del código**: `cargo test -- --ignored`
+ejecuta también los ejemplos de documentación marcados como `ignore` —el de
+`src/repo/tx.rs` es un fragmento con `pool` sin definir—, así que esa invocación informa un fallo que
+no existe. Las pruebas de base se corren con `cargo test --tests -- --ignored` (28 en verde), que es
+lo que ejecuta el CI.

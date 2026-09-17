@@ -28,7 +28,9 @@ use fintcart_simulator::domain::annuity;
 use fintcart_simulator::domain::currency::{self, round_money};
 use fintcart_simulator::domain::decimal_str;
 use fintcart_simulator::domain::dispatch::{self, Kind};
+use fintcart_simulator::domain::error::Error;
 use fintcart_simulator::domain::inputs::MAX_PERIODS;
+use fintcart_simulator::domain::seeds;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
@@ -41,8 +43,50 @@ fn inputs(pairs: &[(&str, &str)]) -> HashMap<String, String> {
 }
 
 /// Ejecuta una calculadora y devuelve el resultado ya en cadenas canónicas.
+///
+/// Es la ayuda que usan las pruebas que esperan un CÁLCULO: si la ejecución falla, la prueba
+/// entra en pánico con el error, que es lo que se quiere saber.
 fn compute(kind: Kind, pairs: &[(&str, &str)]) -> HashMap<String, String> {
-    dispatch::compute(kind, &inputs(pairs)).expect("la simulación debía calcularse")
+    computa(kind, &inputs(pairs)).expect("la simulación debía calcularse")
+}
+
+/// Ejecuta una calculadora y devuelve su desenlace, sin exigir que calcule.
+///
+/// La usan las pruebas que comprueban un RECHAZO: el resultado no les interesa y pasar por
+/// [`compute`] convertiría el rechazo esperado en el pánico de la ayuda.
+///
+/// ## Qué se ejecuta aquí desde T098
+///
+/// Antes llamaba a `dispatch::compute`, que elegía una de las cinco funciones nativas. Desde T098
+/// el servicio ya no tiene esas cinco: cuatro se retiraron —su camino resuelve la definición
+/// semilla— y solo `colombia_especifica` sigue siendo nativa (D-30). Esta ayuda hace exactamente
+/// lo mismo que el servicio, y no una aproximación suya: para `colombia_especifica` llama al
+/// camino nativo tal cual, y para las otras cuatro **analiza la semilla y la ejecuta**.
+///
+/// Que la prueba ejecute la definición y no una copia de los números es lo que la mantiene
+/// diciendo algo sobre el servicio: un borde numérico comprobado contra una implementación
+/// retirada habría pasado a comprobar historia.
+fn computa(kind: Kind, raw: &HashMap<String, String>) -> Result<HashMap<String, String>, Error> {
+    if kind == Kind::ColombiaEspecifica {
+        return dispatch::compute_colombia(raw);
+    }
+
+    // El nombre se pide al MISMO traductor que usa el servicio (`seed_name`), no a una tabla
+    // paralela: si una semilla se renombrara, esta prueba tiene que romperse igual que el
+    // servicio, y con el mismo mensaje.
+    let name = dispatch::seed_name(kind, raw).expect("un tipo nativo sin semilla que lo explique");
+    let seed = seeds::compile()
+        .expect("las semillas deben analizar")
+        .into_iter()
+        .find(|seed| seed.name == name)
+        .unwrap_or_else(|| panic!("no hay ninguna semilla llamada {name}"));
+
+    seed.definition.run(raw, &HashMap::new()).map(|salidas| {
+        salidas
+            .into_iter()
+            .map(|(key, value)| (key, decimal_str::format(value)))
+            .collect()
+    })
 }
 
 /// Lee un valor del resultado como [`Decimal`].
@@ -347,7 +391,7 @@ fn el_plazo_maximo_es_calculable() {
 /// escrito un número grande (Edge Cases: rangos irrazonables).
 #[test]
 fn un_plazo_irrazonable_se_rechaza_con_su_causa() {
-    let err = dispatch::compute(
+    let err = computa(
         Kind::Ahorro,
         &inputs(&[
             ("deposito_inicial", "1000.00"),
@@ -369,7 +413,7 @@ fn un_plazo_irrazonable_se_rechaza_con_su_causa() {
 /// El tope de `NUMERIC(19,2)` se acepta; un peso más se rechaza en la frontera.
 #[test]
 fn el_tope_de_la_columna_de_montos_se_respeta() {
-    let al_limite = dispatch::compute(
+    let al_limite = computa(
         Kind::Presupuesto,
         &inputs(&[("ingreso_mensual", "99999999999999999.99")]),
     );
@@ -378,7 +422,7 @@ fn el_tope_de_la_columna_de_montos_se_respeta() {
         "el máximo de NUMERIC(19,2) debe admitirse"
     );
 
-    let pasado = dispatch::compute(
+    let pasado = computa(
         Kind::Presupuesto,
         &inputs(&[("ingreso_mensual", "100000000000000000.00")]),
     );
@@ -394,7 +438,7 @@ fn el_tope_de_la_columna_de_montos_se_respeta() {
 /// distinto guardado en la base, y nadie sabría en qué punto se perdió el centavo.
 #[test]
 fn un_monto_con_escala_excesiva_se_rechaza() {
-    let err = dispatch::compute(
+    let err = computa(
         Kind::Presupuesto,
         &inputs(&[("ingreso_mensual", "1000.005")]),
     );
@@ -407,7 +451,7 @@ fn un_monto_con_escala_excesiva_se_rechaza() {
 fn las_formas_no_canonicas_se_rechazan() {
     for valor in ["1.5e3", "1,000.00", "+1000.00", ".5", "1000.", " 1000.00"] {
         assert!(
-            dispatch::compute(Kind::Presupuesto, &inputs(&[("ingreso_mensual", valor)])).is_err(),
+            computa(Kind::Presupuesto, &inputs(&[("ingreso_mensual", valor)])).is_err(),
             "{valor:?} no es una decimal canónica y debía rechazarse"
         );
     }
@@ -518,7 +562,7 @@ fn el_gmf_aplica_la_exencion_solo_si_se_pide() {
 /// Un modo inexistente se rechaza enumerando los que sí existen.
 #[test]
 fn una_operacion_colombiana_desconocida_se_rechaza() {
-    let err = dispatch::compute(
+    let err = computa(
         Kind::ColombiaEspecifica,
         &inputs(&[("operacion", "retencion_en_la_fuente")]),
     )

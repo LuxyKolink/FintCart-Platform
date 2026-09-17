@@ -22,6 +22,20 @@
 ARG RUST_VERSION=1.97
 
 FROM rust:${RUST_VERSION}-slim-bookworm
+
+# Los dos componentes que el punto 2 promete y que la imagen NO traía.
+#
+# Se comprobó al retirar el código nativo (T098): `cargo clippy` y `cargo fmt` no existían dentro
+# del contenedor, así que el `--all-targets -- -D warnings` que exige la Constitución §Calidad y
+# Pruebas solo podía correrse con el toolchain de la máquina —y el de la máquina no está, o no es
+# el mismo—. Una imagen de desarrollo que no puede correr la comprobación que la propia imagen
+# documenta es una promesa incumplida, y de las caras: el fallo aparece cuando alguien quiere
+# verificar algo, no cuando se construye.
+#
+# Van ANTES de copiar el código para que su capa no se invalide al tocar un archivo de `src/`: si
+# estuvieran después, cada cambio de código volvería a descargar los dos componentes.
+RUN rustup component add clippy rustfmt
+
 WORKDIR /src
 
 COPY services/simulator/Cargo.toml services/simulator/Cargo.lock ./

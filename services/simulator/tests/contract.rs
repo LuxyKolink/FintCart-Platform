@@ -23,6 +23,7 @@ use fintcart_simulator::domain::definition::{Definition, Draft, DraftOutput, Inp
 use fintcart_simulator::domain::dispatch::CALC_TYPE_USUARIO;
 use fintcart_simulator::domain::error::{Error, Result};
 use fintcart_simulator::domain::formula::ast::InputKind;
+use fintcart_simulator::domain::seeds;
 use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::pb::fintcart::common::v1::PageRequest;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_client::SimulatorServiceClient;
@@ -244,6 +245,17 @@ impl Calculators for NoCalculators {
     async fn builtin_version(&self, _name: &str) -> Result<Option<VersionRef>> {
         Ok(None)
     }
+
+    /// Y por eso mismo tampoco hay definición que ejecutar (T098).
+    ///
+    /// Es la misma respuesta y por la misma razón; lo que cambia es la consecuencia: sin
+    /// definición, una ejecución por `calc_type` de las cuatro redirigidas **no puede
+    /// calcular**, y el servicio responde que le falta la semilla. Es el escenario que D-30
+    /// exige que exista y duela —antes de T098 calculaba por el código nativo y nadie se
+    /// enteraba de que la base no estaba sembrada—.
+    async fn builtin_by_name(&self, _name: &str) -> Result<Option<CalculatorRow>> {
+        Ok(None)
+    }
 }
 
 /// Doble del repositorio de indicadores que NO se puede usar.
@@ -322,6 +334,11 @@ impl FakeCalculators {
             filas: Arc::new(Mutex::new(filas)),
         }
     }
+
+    /// Un doble con las siete semillas reales dentro (T098).
+    fn sembradas() -> Self {
+        Self::con(semillas_sembradas())
+    }
 }
 
 #[tonic::async_trait]
@@ -394,16 +411,27 @@ impl Calculators for FakeCalculators {
     }
 
     async fn builtin_version(&self, name: &str) -> Result<Option<VersionRef>> {
-        Ok(self
-            .filas
+        Ok(self.builtin(name).map(|row| VersionRef {
+            id: row.id,
+            version: row.version,
+        }))
+    }
+
+    /// La semilla entera, que es lo que el camino de compatibilidad ejecuta desde T098.
+    async fn builtin_by_name(&self, name: &str) -> Result<Option<CalculatorRow>> {
+        Ok(self.builtin(name))
+    }
+}
+
+impl FakeCalculators {
+    /// La fila de una semilla, por nombre.
+    fn builtin(&self, name: &str) -> Option<CalculatorRow> {
+        self.filas
             .lock()
             .unwrap()
             .iter()
             .find(|row| row.is_builtin && row.name == name)
-            .map(|row| VersionRef {
-                id: row.id,
-                version: row.version,
-            }))
+            .cloned()
     }
 }
 
@@ -596,8 +624,33 @@ fn ultima(repo: &FakeRepo) -> SimulationRow {
 /// Se usa el cliente generado y no una llamada directa al servicio porque solo así se
 /// ejercita la serialización protobuf: un campo renombrado en el `.proto` rompe aquí,
 /// que es exactamente el fallo que estas pruebas existen para atrapar.
+///
+/// ## Por qué este `start` siembra desde T098
+///
+/// Antes servía un doble que fallaba en todo (`NoCalculators`), y bastaba: el camino de
+/// compatibilidad por `calc_type` calculaba con el código nativo y de la base solo pedía una
+/// versión para atribuir la fila. Desde T098 ese camino **ejecuta la definición semilla**, así
+/// que un doble sin semillas no puede calcular —devuelve que le falta, que es lo correcto y lo
+/// prueba [`compute_por_calc_type_sin_sembrar_dice_que_falta_la_semilla`]—.
+///
+/// Estas pruebas necesitan por tanto el estado NORMAL de un despliegue: las siete semillas
+/// sembradas. Y son las de verdad —`seeds::compile()`, el mismo analizador que usa `dev/seed`—,
+/// no una imitación con dos campos: una semilla que dejara de analizar tiene que romper aquí
+/// igual que rompería en producción.
 async fn start(repo: FakeRepo) -> SimulatorServiceClient<tonic::transport::Channel> {
-    start_with(repo, NoCalculators, NoIndicators).await
+    start_with(repo, FakeCalculators::sembradas(), NoIndicators).await
+}
+
+/// Las siete semillas, en la forma en que el repositorio las devuelve.
+///
+/// La versión es 1 y está publicada porque es lo que hace `dev/seed`: una semilla nace con su
+/// primera versión y `calculators_published_has_version` exige que una fila publicada tenga una.
+fn semillas_sembradas() -> Vec<CalculatorRow> {
+    seeds::compile()
+        .expect("las siete semillas tienen que analizar")
+        .into_iter()
+        .map(|seed| calculadora(None, seed.name, true, State::Publicada, 1, seed.definition))
+        .collect()
 }
 
 /// Levanta el servidor con los TRES dobles elegidos por quien llama.
@@ -1369,6 +1422,40 @@ async fn compute_por_calc_type_guarda_la_version_de_la_semilla() {
     assert!(
         indicators.consultas.lock().unwrap().is_empty(),
         "y por eso no se consulta la tabla de indicadores por este camino"
+    );
+}
+
+/// Sobre una base SIN sembrar, una ejecución por `calc_type` dice que le falta la semilla.
+///
+/// Es el escenario que D-30 exigió que exista y duela. Antes de T098, en una base migrada y
+/// todavía sin sembrar el Simulador calculaba igual —con el código nativo— y **nadie se
+/// enteraba** de que el sembrado no había corrido; la primera señal era un catálogo vacío. Desde
+/// T098 no hay respaldo: el servicio dice qué semilla le falta, y el nombre va en el mensaje
+/// porque es lo único accionable (`deploy/vps/seed` siembra las siete).
+///
+/// Se comprueba el CÓDIGO y el NOMBRE: un 500 genérico obligaría a abrir el log para saber si el
+/// problema es la semilla, la conexión o el driver, y los tres tienen arreglos distintos.
+#[tokio::test]
+async fn compute_por_calc_type_sin_sembrar_dice_que_falta_la_semilla() {
+    let repo = FakeRepo::default();
+    let mut client = start_with(repo.clone(), NoCalculators, NoIndicators).await;
+
+    let status = client
+        .compute(credit_request())
+        .await
+        .expect_err("sin la semilla sembrada no hay nada que ejecutar");
+
+    assert_eq!(status.code(), Code::Internal);
+    assert!(
+        status.message().contains("credito"),
+        "el mensaje tiene que nombrar la semilla que falta: {:?}",
+        status.message()
+    );
+    // Y no se guarda NADA: una fila con el resultado de una ejecución que no ocurrió sería
+    // historial inventado.
+    assert!(
+        repo.rows.lock().unwrap().is_empty(),
+        "un cálculo que no ocurrió no puede dejar fila en el historial"
     );
 }
 

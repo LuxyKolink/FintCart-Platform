@@ -253,12 +253,13 @@ pub trait Calculators: Send + Sync + 'static {
 
     /// Versión vigente de una definición SEMILLA, por nombre.
     ///
-    /// La necesita el camino de compatibilidad por `calc_type`: el contrato dice que
+    /// La necesita el camino de compatibilidad por `calc_type` cuando la semilla todavía NO se
+    /// ejecuta —`colombia_especifica`, que sigue siendo nativa (D-30)—: el contrato dice que
     /// `calc_type` «se resuelve a la definición semilla correspondiente» (FR-043), y
-    /// `simulations` cita la versión EXACTA con la que calculó (FR-050). Sin esta consulta,
-    /// una simulación nueva por `calc_type` quedaría sin procedencia mientras las 13.493
-    /// históricas sí la tienen — dos filas idénticas explicadas de dos maneras distintas, y
-    /// la nueva sería la peor explicada.
+    /// `simulations` cita la versión EXACTA con la que calculó (FR-050). Sin esta consulta, una
+    /// simulación nueva por `calc_type` quedaría sin procedencia mientras las 13.493 históricas
+    /// sí la tienen — dos filas idénticas explicadas de dos maneras distintas, y la nueva sería
+    /// la peor explicada.
     ///
     /// Que la atribución sea legítima lo sostiene T092: las semillas reproducen el código
     /// nativo, así que citar la semilla es una cuenta exacta de lo que el nativo calculó.
@@ -272,6 +273,26 @@ pub trait Calculators: Send + Sync + 'static {
     ///
     /// [`Error::Storage`] si falla la consulta.
     async fn builtin_version(&self, name: &str) -> Result<Option<VersionRef>>;
+
+    /// Lee una definición SEMILLA entera, por nombre (T098).
+    ///
+    /// La necesita el camino de compatibilidad por `calc_type` desde T098: una ejecución por
+    /// `calc_type` ya no corre código nativo, **ejecuta la definición semilla** que la explica, y
+    /// para eso hace falta la definición y no solo su versión. Es la misma fila que sirve el
+    /// catálogo público, así que el resultado de un cliente que pide `ahorro` por `calc_type` y
+    /// el de otro que la pide por `calculator_id` salen del MISMO motor y de la MISMA fórmula:
+    /// con dos implementaciones eran dos números que se esperaba que coincidieran.
+    ///
+    /// Devuelve `None` si no hay ninguna semilla con ese nombre. **Y a diferencia de
+    /// [`Calculators::builtin_version`], aquí eso NO se puede tratar como «sin procedencia»**: sin
+    /// definición no hay cálculo, así que quien llama tiene que fallar con un error que nombre la
+    /// semilla ausente. Sobre una base sin sembrar, esta consulta es la que convierte un
+    /// resultado equivocado en un servicio que dice lo que le falta (D-28, `deploy/vps/seed`).
+    ///
+    /// # Errores
+    ///
+    /// [`Error::Storage`] si falla la consulta.
+    async fn builtin_by_name(&self, name: &str) -> Result<Option<CalculatorRow>>;
 }
 
 /// Implementación sobre PostgreSQL.
@@ -635,6 +656,31 @@ impl Calculators for PgCalculators {
             })
         })
         .transpose()
+    }
+
+    async fn builtin_by_name(&self, name: &str) -> Result<Option<CalculatorRow>> {
+        // Reutiliza el mismo `SELECT` que `get` y que las transiciones de curaduría: una consulta
+        // para una calculadora, la escriba quien la escriba. Copiarla aquí —aunque fuera
+        // idéntica— haría que una columna nueva se añadiera en un sitio y no en el otro, y el
+        // síntoma sería una semilla cuya definición llegara a medias al motor.
+        //
+        // No se filtra por estado ni por visibilidad, y no es un descuido: FR-051 restringe lo
+        // que un USUARIO puede ver, y por aquí no viene ningún usuario — la ejecución es la de la
+        // semilla que el contrato manda, y las semillas nacen `publicada` y ninguna transición de
+        // curaduría las alcanza. Mirar aquí el estado sería una condición que nunca se evalúa.
+        let sql = format!(
+            "{}
+              WHERE c.is_builtin AND c.name = $1",
+            select_calculator(VERSION_VIGENTE)
+        );
+
+        let row = sqlx::query(&sql)
+            .bind(name)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(Error::from_sqlx)?;
+
+        row.as_ref().map(row_from).transpose()
     }
 }
 

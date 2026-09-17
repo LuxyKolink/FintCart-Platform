@@ -21,6 +21,7 @@ use fintcart_simulator::domain::curation::{self, Situacion};
 use fintcart_simulator::domain::definition::{Definition, Draft, DraftOutput, InputField};
 use fintcart_simulator::domain::error::{Error, Result};
 use fintcart_simulator::domain::formula::ast::InputKind;
+use fintcart_simulator::domain::seeds;
 use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_client::SimulatorServiceClient;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_server::SimulatorServiceServer;
@@ -255,6 +256,37 @@ impl FakeCalculators {
             ..Self::default()
         }
     }
+
+    /// Un doble con las siete semillas DE VERDAD sembradas (T098).
+    ///
+    /// Solo lo necesita el camino de compatibilidad por `calc_type`: desde T098 no ejecuta código
+    /// nativo, **ejecuta la definición semilla**, así que un doble sin semillas no calcula. Son
+    /// las de verdad —`seeds::compile()`, el mismo analizador que usa `dev/seed`— y no una
+    /// imitación, para que una semilla que dejara de analizar rompa aquí como en producción.
+    fn con_semillas() -> Self {
+        let rows = seeds::compile()
+            .expect("las siete semillas tienen que analizar")
+            .into_iter()
+            .map(|seed| CalculatorRow {
+                id: seed.id,
+                owner_id: None,
+                name: seed.name.to_owned(),
+                description: seed.description.to_owned(),
+                is_builtin: true,
+                state: State::Publicada,
+                approved_by: None,
+                rejection_reason: None,
+                published_version: Some(1),
+                version: 1,
+                definition: seed.definition,
+            })
+            .collect();
+
+        Self {
+            rows: Arc::new(Mutex::new(rows)),
+            ..Self::default()
+        }
+    }
 }
 
 /// La situación que el dominio necesita para decidir una transición, desde la fila del doble.
@@ -411,16 +443,32 @@ impl Calculators for FakeCalculators {
     /// `Compute` por el camino de compatibilidad— y un doble que la rechazara convertiría
     /// un uso correcto en un fallo que no dice nada sobre lo que se está probando.
     async fn builtin_version(&self, name: &str) -> Result<Option<VersionRef>> {
-        Ok(self
-            .rows
+        Ok(self.builtin(name).map(|row| VersionRef {
+            id: row.id,
+            version: row.version,
+        }))
+    }
+
+    /// La misma búsqueda que [`Self::builtin_version`], devolviendo la fila entera.
+    ///
+    /// Hace falta desde T098: una ejecución por `calc_type` de las cuatro calculadoras
+    /// redirigidas no solo ATRIBUYE la fila a la semilla, **ejecuta su definición**, así que
+    /// necesita la definición y no solo la versión. Es el mismo `find` en las dos, y por eso
+    /// `builtin_version` se apoya en `builtin` y no al revés.
+    async fn builtin_by_name(&self, name: &str) -> Result<Option<CalculatorRow>> {
+        Ok(self.builtin(name))
+    }
+}
+
+impl FakeCalculators {
+    /// La fila de una semilla, por nombre.
+    fn builtin(&self, name: &str) -> Option<CalculatorRow> {
+        self.rows
             .lock()
             .unwrap()
             .iter()
             .find(|row| row.is_builtin && row.name == name)
-            .map(|row| VersionRef {
-                id: row.id,
-                version: row.version,
-            }))
+            .cloned()
     }
 }
 
@@ -1033,15 +1081,16 @@ async fn delete_no_toca_una_calculadora_ajena() {
 /// convierte esta prueba en algo más que «devuelve un error»: el `calc_type` es válido, la
 /// petición llega hasta la persistencia del historial, y los indicadores no se tocan.
 ///
-/// Que no se toquen es una afirmación con consecuencia: las cinco calculadoras nativas
-/// llevan sus constantes cableadas —`gmf` recibe la UVT como ENTRADA— y resolver el
-/// catálogo entero por simulación sería una ida y vuelta a PostgreSQL que no cambia ningún
-/// resultado. El doble de calculadoras SÍ se consulta, y debe hacerlo: es donde el contrato
-/// dice que «`calc_type` se resuelve a la definición semilla correspondiente», y esa
-/// consulta es la que deja la fila explicable (FR-050).
+/// Que no se toquen es una afirmación con consecuencia: `credito` no referencia ningún indicador
+/// —sus constantes están en su fórmula— y resolver el catálogo entero por simulación sería una
+/// ida y vuelta a PostgreSQL que no cambia ningún resultado. El doble de calculadoras SÍ se
+/// consulta, y debe hacerlo: es donde el contrato dice que «`calc_type` se resuelve a la
+/// definición semilla correspondiente», y esa consulta es la que deja la fila explicable
+/// (FR-050). Desde T098 además se ejecuta su definición, así que la semilla tiene que estar en el
+/// doble: por eso se levanta con [`FakeCalculators::con_semillas`] y no vacío.
 #[tokio::test]
 async fn compute_por_calc_type_no_resuelve_indicadores() {
-    let mut client = start(FakeCalculators::default()).await;
+    let mut client = start(FakeCalculators::con_semillas()).await;
 
     let status = client
         .compute(ComputeRequest {

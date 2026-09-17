@@ -7,18 +7,20 @@
 //! **reproduciendo su resultado**. Esta es la prueba de esa palabra: para cada semilla, ejecuta
 //! el MOTOR y el CÓDIGO NATIVO con las mismas entradas y exige el mismo mapa de salidas.
 //!
-//! Es la puerta de la fase: `services/simulator/src/calculators/` **no se elimina** (T098)
-//! hasta que esta suite pase en verde. Mientras las dos implementaciones convivan, cualquier
-//! divergencia que introduzca el motor aparece aquí y no tres semanas después en una cifra que
-//! un usuario compara con la de su banco.
+//! Es la puerta de la fase: los cuatro módulos nativos **no se retiraron** (T098) hasta que esta
+//! suite pasó en verde. Ya pasó, y con eso el servicio dejó de compilarlos: desde T098 viven en
+//! `tests/nativo/`, donde esta suite los sigue usando como ORÁCULO. La comparación no se
+//! sustituyó por valores congelados a propósito —ver el comentario de ese módulo—: un oráculo
+//! sigue calculando, una tabla congelada solo recuerda.
 //!
 //! ## Por qué se compara contra las funciones y no contra el despacho
 //!
 //! `domain::dispatch::compute` devuelve `map<string, string>` ya formateado, que es la forma
 //! del contrato. Comparar ahí mediría a la vez el cálculo y el formateo, y un fallo de formato
 //! se leería como un fallo de fórmula. Aquí se llaman `ahorro::compute`, `credito::compute`, …
-//! y se comparan los [`Decimal`] del [`Outcome`] contra los del motor: si los dos coinciden,
-//! cualquier diferencia de texto viene del formateo, que ya tiene sus propias pruebas.
+//! —los cuatro de [`nativo`] y el de `colombia`, que sigue en el servicio— y se comparan los
+//! [`Decimal`] del [`Outcome`] contra los del motor: si los dos coinciden, cualquier diferencia
+//! de texto viene del formateo, que ya tiene sus propias pruebas.
 //!
 //! ## Por qué las tablas se GENERAN y no se escriben a mano
 //!
@@ -58,9 +60,9 @@
 //!   devuelven un error de dominio.
 //!
 //! Las cifras de la tabla, para que un cambio futuro en ellas se lea como lo que es: `ahorro`
-//! conserva 3 casos en los que solo aborta el NATIVO —su `ahorro.rs` sigue multiplicando con
-//! `*`, y ese archivo lo retira T098— y **cero** en los que abortan los dos. Los otros seis no
-//! tienen ninguno.
+//! conserva 3 casos en los que solo aborta el NATIVO —el `ahorro.rs` congelado en `tests/nativo/`
+//! sigue multiplicando con `*`, porque se conserva tal como servía tráfico— y **cero** en los que
+//! abortan los dos. Los otros seis no tienen ninguno.
 
 use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
@@ -70,11 +72,46 @@ use std::str::FromStr;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-use fintcart_simulator::calculators::{ahorro, colombia, credito, inversion, presupuesto, Outcome};
+use fintcart_simulator::calculators::colombia;
 use fintcart_simulator::domain::decimal_str;
 use fintcart_simulator::domain::error::Error;
 use fintcart_simulator::domain::inputs::{Inputs, MAX_PERIODS};
 use fintcart_simulator::domain::seeds::{self, Compiled};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// El oráculo: las cuatro calculadoras nativas que el servicio retiró (T098)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Las cuatro calculadoras retiradas dicen `use crate::calculators::Outcome` y `use
+// crate::domain::{…}`. En una prueba de integración, `crate::` es la raíz de ESTE crate, así que
+// esos caminos los resuelven las reexportaciones de abajo —todas apuntando al tipo REAL de la
+// biblioteca, para que el oráculo use el mismo `Inputs`, el mismo redondeo y el mismo tipo de
+// error que usaba dentro del servicio—. No hay ninguna copia: si `Inputs` cambiara, cambiarían
+// los dos lados de la comparación a la vez, que es lo que hace que comparar tenga sentido.
+mod calculators {
+    pub use fintcart_simulator::calculators::Outcome;
+}
+
+mod domain {
+    pub use fintcart_simulator::domain::{annuity, decimal_str};
+
+    pub mod currency {
+        pub use fintcart_simulator::domain::currency::round_money;
+    }
+
+    pub mod error {
+        pub use fintcart_simulator::domain::error::{Error, Result};
+    }
+
+    pub mod inputs {
+        pub use fintcart_simulator::domain::inputs::Inputs;
+    }
+}
+
+mod nativo;
+
+use fintcart_simulator::calculators::Outcome;
+use nativo::{ahorro, credito, inversion, presupuesto};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Andamiaje

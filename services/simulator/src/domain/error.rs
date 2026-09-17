@@ -59,6 +59,23 @@ pub enum Error {
     #[error("simulador: permiso denegado: {0}")]
     PermissionDenied(String),
 
+    /// La definición semilla que explica una ejecución por `calc_type` no está en la base.
+    ///
+    /// No es [`Error::NotFound`] —el cliente no pidió ningún recurso: pidió calcular— ni
+    /// [`Error::InvalidInput`] —la petición está bien formada—. Es una **precondición del
+    /// servicio que no se cumple**, y por eso lleva su propia variante: desde T098 el camino de
+    /// compatibilidad ejecuta la definición semilla, así que sobre una base migrada y todavía sin
+    /// sembrar el Simulador no tiene con qué calcular. Antes de T098, en ese mismo escenario
+    /// calculaba con el código nativo y no lo notaba nadie.
+    ///
+    /// Lleva el NOMBRE de la semilla que falta porque es lo único accionable: quien lea el log
+    /// tiene que saber que le falta `ahorro`, y no que el servicio «tuvo un problema». El
+    /// arreglo está en una línea (`deploy/vps/seed`), y un mensaje genérico lo escondería.
+    #[error(
+        "simulador: falta la definición semilla {0:?} — la base no está sembrada (ver deploy/vps/seed)"
+    )]
+    MissingSeed(&'static str),
+
     /// Fallo de la capa de persistencia.
     ///
     /// `#[source]` y no `#[from]`: la conversión automática desde `sqlx::Error` sería

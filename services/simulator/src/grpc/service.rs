@@ -105,6 +105,12 @@ fn to_status(err: &Error) -> Status {
         // borde traduce los dos códigos por separado, así que la distinción llega al cliente.
         Error::PermissionDenied(msg) => Status::permission_denied(msg.clone()),
         Error::AlreadyExists(msg) => Status::already_exists(msg.clone()),
+        // 500 y no 4xx: la petición es correcta y el problema lo tiene el servicio —le falta el
+        // sembrado—. El mensaje NO nombra la tabla ni el SQL, pero sí la semilla, que es lo que
+        // hace el fallo accionable sin abrir el log.
+        Error::MissingSeed(name) => {
+            Status::internal(format!("falta la definición semilla {name:?}"))
+        }
         Error::Storage(_) => Status::internal("error interno"),
         Error::NotImplemented(what) => Status::unimplemented(what.clone()),
     }
@@ -587,7 +593,7 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
         if !por_definicion && !por_tipo {
             return Err(Error::InvalidInput(
                 "hay que identificar la calculadora: envía calculator_id, o calc_type para \
-                 las cinco calculadoras nativas"
+                 las calculadoras por defecto que el contrato ya conocía"
                     .to_owned(),
             ));
         }
@@ -603,7 +609,8 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
             let id = mapping::parse_calculator_id(&req.calculator_id)?;
             self.compute_by_definition(id, user_id, &req.inputs).await?
         } else {
-            self.compute_by_native(req.calc_type, &req.inputs).await?
+            self.compute_by_calc_type(req.calc_type, &req.inputs)
+                .await?
         };
 
         // Los parámetros se guardan TAL COMO LLEGARON, sin normalizar. Es lo que hace
@@ -667,7 +674,7 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
         ))
     }
 
-    /// Ejecuta una calculadora NATIVA identificada por `calc_type` (FR-043, compatibilidad).
+    /// Ejecuta la calculadora que `calc_type` identifica (FR-043, compatibilidad).
     ///
     /// El contrato describe este camino como «se resuelve a la definición semilla
     /// correspondiente», así que la fila se atribuye a esa semilla — que es exactamente lo
@@ -675,10 +682,21 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
     /// dos simulaciones idénticas quedarían explicadas de dos maneras distintas según
     /// cuándo se hicieron.
     ///
-    /// El snapshot va VACÍO y es la verdad, no un hueco: estas calculadoras llevan sus
-    /// constantes en el código y `gmf` recibe la UVT como entrada, así que no leen ninguna
-    /// fila de `financial_indicators`.
-    async fn compute_by_native(
+    /// ## Las cuatro semillas se EJECUTAN; `colombia_especifica` todavía no (T098, D-30)
+    ///
+    /// Hasta T098, este método llamaba a una de las cinco funciones **nativas** y atribuía la
+    /// fila a la semilla. El cálculo salía del código y la procedencia apuntaba a una fórmula:
+    /// dos implementaciones que se esperaba que coincidieran, y la coincidencia la sostenía una
+    /// prueba. Desde T098, las cuatro que tienen las mismas entradas que su semilla —`ahorro`,
+    /// `credito`, `presupuesto`, `inversion`— **ejecutan la definición**, así que hay una sola
+    /// implementación y la coincidencia dejó de ser una esperanza: es la misma fórmula. El
+    /// servicio dejó de compilar esas cuatro.
+    ///
+    /// `colombia_especifica` sigue nativa y la razón no es el orden del trabajo: sus entradas
+    /// NO son las de sus tres semillas —el nativo recibe `valor_uvt` y `exento` como texto, las
+    /// semillas leen `@UVT` de la base y toman `exento` entero—, así que redirigirla haría que
+    /// `valor_uvt` se ignorara **en silencio**. Ver D-30.
+    async fn compute_by_calc_type(
         &self,
         raw_calc_type: i32,
         raw_inputs: &HashMap<String, String>,
@@ -694,18 +712,44 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
         })?;
         let kind = Kind::from_proto(calc_type)?;
 
-        // El cálculo va ANTES de resolver la semilla: quien valida `operacion` es la
-        // calculadora nativa, así que una entrada inválida falla con SU mensaje —«las
-        // admitidas son ea_a_mv, mv_a_ea y gmf»— y no con el de una semilla que el usuario
-        // no sabe que existe.
-        let result = dispatch::compute(kind, raw_inputs)?;
-
-        // `seed_name` no puede fallar después de que `compute` haya ido bien: es la misma
-        // `operacion` que la calculadora acaba de validar.
+        // `seed_name` traduce un tipo a la semilla que lo explica, y en `colombia_especifica`
+        // necesita las entradas: es el discriminador `operacion` el que separa sus tres
+        // semillas, el mismo dato con el que la migración de T020 desambiguó el historial.
         let seed = dispatch::seed_name(kind, raw_inputs)?;
-        let version = self.calculators.builtin_version(seed).await?;
 
-        Ok((kind.as_db().to_owned(), result, Provenance::native(version)))
+        if kind == Kind::ColombiaEspecifica {
+            // El cálculo va ANTES de resolver la versión: quien valida `operacion` es la
+            // calculadora nativa, así que una entrada inválida falla con SU mensaje —«las
+            // admitidas son ea_a_mv, mv_a_ea y gmf»— y no con el de una semilla que el usuario
+            // no sabe que existe. La fila lleva versión y no identificador porque esto es lo
+            // único que queda del camino nativo, y `Provenance::native` es exactamente eso:
+            // «esto lo calculó el código, y la semilla que lo reproduce es aquella».
+            let result = dispatch::compute_colombia(raw_inputs)?;
+            let version = self.calculators.builtin_version(seed).await?;
+            return Ok((kind.as_db().to_owned(), result, Provenance::native(version)));
+        }
+
+        let calculator = self
+            .calculators
+            .builtin_by_name(seed)
+            .await?
+            .ok_or(Error::MissingSeed(seed))?;
+
+        // Mismo camino que la ejecución por `calculator_id`, y esa es la mitad del valor del
+        // cambio: el snapshot se resuelve por la definición que se va a ejecutar, así que una
+        // semilla que leyera un indicador —ninguna de las cuatro hoy— quedaría registrada con
+        // su valor igual que una de usuario.
+        let snapshot = self.snapshot_for(&calculator.definition).await?;
+        let outputs = calculator.definition.run(raw_inputs, snapshot.values())?;
+
+        let provenance =
+            Provenance::definition(calculator.id, calculator.version, snapshot.to_stored());
+
+        Ok((
+            kind.as_db().to_owned(),
+            dispatch::to_contract(outputs),
+            provenance,
+        ))
     }
 
     /// Resuelve los indicadores que una definición REFERENCIA, a la fecha de ejecución

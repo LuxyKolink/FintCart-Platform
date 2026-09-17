@@ -1,16 +1,27 @@
-//! Despacho por tipo de cálculo (FR-019) y traducción del resultado a la forma del
-//! contrato.
+//! Vocabulario de tipos de cálculo (FR-019) y traducción del resultado a la forma del contrato.
 //!
-//! Es la frontera entre el enum del `.proto` y las cinco funciones de
-//! [`crate::calculators`]. Vive en `domain` y no en `grpc` a propósito: el despacho es
-//! una regla del servicio —qué calculadoras existen— y no un detalle de transporte.
-//! Con él aquí, una prueba puede ejercitar las cinco rutas sin levantar un servidor.
+//! Es la frontera entre el enum del `.proto` y los nombres con los que una simulación se
+//! registra. Vive en `domain` y no en `grpc` a propósito: qué calculadoras existen es una regla
+//! del servicio y no un detalle de transporte.
+//!
+//! ## Ya no despacha a código nativo
+//!
+//! Hasta T098 había aquí un `compute(kind, inputs)` que elegía una de las **cinco** funciones
+//! nativas. De esas cinco, cuatro se retiraron —el camino de compatibilidad resuelve ahora la
+//! definición semilla, y por eso la ejecución de este módulo se llama
+//! [`compute_colombia`]— y queda una sola, que se nombra en lugar de despacharse para que se vea
+//! que es la EXCEPCIÓN y no una de cinco.
+//!
+//! Lo que sostiene a [`Kind`] ya no es la ejecución nativa sino el VOCABULARIO: es el tipo que
+//! valida `calc_type` en la petición (rechazando `unspecified` y `usuario`), el que traduce la
+//! columna del historial, y con [`SEEDS`] el que atribuye una ejecución a la definición que la
+//! explica (FR-050).
 
 use std::collections::HashMap;
 
 use rust_decimal::Decimal;
 
-use crate::calculators::{ahorro, colombia, credito, inversion, presupuesto, Outcome};
+use crate::calculators::{colombia, Outcome};
 use crate::domain::decimal_str;
 use crate::domain::error::{Error, Result};
 use crate::domain::inputs::Inputs;
@@ -21,8 +32,9 @@ use crate::pb::fintcart::simulator::v1::CalcType;
 /// Coincide con el `CHECK` ampliado por la migración de D-26 y con
 /// [`crate::pb::fintcart::simulator::v1::CalcType::Usuario`].
 ///
-/// NO es una variante de [`Kind`], y la distinción importa: `Kind` es la lista de calculadoras
-/// **nativas**, y su razón de ser es que [`compute`] elige con él una función del código nativo.
+/// NO es una variante de [`Kind`], y la distinción importa: `Kind` es la lista de tipos de
+/// cálculo **nativos reconocidos**, y mientras existió `compute` su razón de ser era elegir con
+/// él una función del código nativo.
 /// Una calculadora de usuario no tiene función nativa que elegir —lo que tiene es un AST—, así
 /// que meterla en `Kind` obligaría a `compute` a contemplar un caso que no puede ejecutar, y un
 /// brazo inalcanzable en un `match` es una invitación a que alguien lo rellene con lo que
@@ -270,23 +282,29 @@ pub fn to_contract<K: Into<String>>(
         .collect()
 }
 
-/// Ejecuta la calculadora NATIVA que corresponda (FR-019).
+/// Ejecuta la ÚNICA calculadora nativa que queda (FR-019, D-30).
+///
+/// Se llama por su nombre —`colombia`— y no `compute`, y recibe las entradas sin el `Kind`: no
+/// hay nada que despachar. Que la firma no admita un tipo de cálculo es lo que impide que
+/// alguien añada aquí una segunda calculadora nativa por costumbre; para las otras cuatro, el
+/// camino es la definición semilla.
+///
+/// ## Por qué esta no se redirigió (D-30)
+///
+/// Porque sus ENTRADAS no son las de sus semillas. El nativo recibe `valor_uvt` como parámetro y
+/// `exento` como el texto `"si"`/`"no"`; las semillas leen `@UVT` de `financial_indicators` y
+/// toman `exento` como entero. Redirigirla hoy significaría que un cliente que manda `valor_uvt`
+/// lo viera **ignorado en silencio** mientras el cálculo usa el valor de la base —la divergencia
+/// callada que este servicio evita en cada frontera—. Se retira cuando el camino por `calc_type`
+/// salga del contrato.
 ///
 /// # Errores
 ///
-/// Los de la calculadora elegida.
-pub fn compute(
-    kind: Kind,
-    raw_inputs: &HashMap<String, String>,
-) -> Result<HashMap<String, String>> {
+/// [`Error::InvalidInput`] si `operacion` no es una de las tres admitidas o si falta algún
+/// parámetro; los de [`to_contract`] si un resultado no cabe en su columna.
+pub fn compute_colombia(raw_inputs: &HashMap<String, String>) -> Result<HashMap<String, String>> {
     let inputs = Inputs::new(raw_inputs);
-    let outcome: Outcome = match kind {
-        Kind::Ahorro => ahorro::compute(&inputs)?,
-        Kind::Credito => credito::compute(&inputs)?,
-        Kind::Presupuesto => presupuesto::compute(&inputs)?,
-        Kind::Inversion => inversion::compute(&inputs)?,
-        Kind::ColombiaEspecifica => colombia::compute(&inputs)?,
-    };
+    let outcome: Outcome = colombia::compute(&inputs)?;
 
     Ok(to_contract(outcome))
 }
