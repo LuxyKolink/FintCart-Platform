@@ -32,7 +32,28 @@ type ErrorBody struct {
 var (
 	errBadRequest   = errors.New("handler: petición inválida")
 	errUnauthorized = errors.New("handler: no autenticado")
+	// Centinelas de las subidas de archivos (T129). Existen para poder responder 413 y 415,
+	// que son los estados que HTTP define para «el cuerpo no cabe» y «el tipo no lo atiendo»;
+	// devolver 400 para los dos dejaría al cliente sin saber cuál de las dos cosas arreglar.
+	errImageTooLarge    = errors.New("handler: archivo demasiado grande")
+	errUnsupportedMedia = errors.New("handler: tipo de archivo no admitido")
 )
+
+// ArticleImage ≡ respuesta de `POST /editorial/articles/{articleId}/images` (FR-064).
+//
+// `ByteSize` viaja como número y no como cadena —al contrario que en el proto, donde es
+// `string`— porque aquí es el tamaño de un archivo que acaba de pasar por el tope de 2 MB:
+// cabe de sobra en un entero de JavaScript y convertirlo a cadena solo obligaría al cliente a
+// analizarlo. La regla de «decimales como cadena» (Principio VIII) es para cifras con escala,
+// no para un conteo de bytes acotado.
+type ArticleImage struct {
+	ImageID   string `json:"image_id"`
+	ArticleID string `json:"article_id"`
+	MimeType  string `json:"mime_type"`
+	ByteSize  int64  `json:"byte_size"`
+	Width     int32  `json:"width"`
+	Height    int32  `json:"height"`
+}
 
 // ── DTO de identidad ────────────────────────────────────────────────────────
 

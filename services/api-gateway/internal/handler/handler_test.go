@@ -137,6 +137,9 @@ type fakeLearning struct {
 	lastCreateCat    *learningv1.CreateCategoryRequest
 	lastUpdateCat    *learningv1.UpdateCategoryRequest
 	lastDeactivate   *learningv1.CategoryRef
+	lastUpload       *learningv1.UploadArticleImageRequest
+	uploadImage      *learningv1.ArticleImage
+	image            *learningv1.GetArticleImageResponse
 	articles         *learningv1.ListPublishedResponse
 	attempts         *learningv1.ListAttemptsResponse
 	versions         *learningv1.ListVersionsResponse
@@ -364,6 +367,8 @@ func (f *fakeLimiter) Allow(_ context.Context, key string) (handler.Decision, er
 
 // ── andamiaje ───────────────────────────────────────────────────────────────
 
+const testArticleID = "11111111-1111-4111-8111-111111111111"
+
 const testUserID = "11111111-1111-4111-8111-111111111111"
 
 type harness struct {
@@ -462,6 +467,12 @@ func TestPublicRoutesNeedNoToken(t *testing.T) {
 		// devuelven nombre/identificador/orden y alimentan el desplegable del editor
 		// incluso antes del login.
 		{http.MethodGet, "/catalog/categories"},
+		// Las imágenes del cuerpo de un artículo (FR-067, T130). Estar aquí es la
+		// constancia escrita de una DECISIÓN: el `<img src>` del lector no puede mandar
+		// cabecera `Authorization`, así que una ruta autenticada haría que ninguna imagen
+		// se viera. El identificador es el SHA-256 del contenido y solo lo conoce quien
+		// tiene el documento: saber el hash ES el permiso.
+		{http.MethodGet, "/media/images/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 	} {
 		rec := h.do(t, route.method, route.target, `{}`, false)
 		require.NotEqual(t, http.StatusUnauthorized, rec.Code,
@@ -1105,4 +1116,25 @@ func TestUnknownFieldsAreRejected(t *testing.T) {
 	// que se descubre en producción («guardé mis preferencias y no se guardaron»).
 	rec := h.do(t, http.MethodPatch, "/me/profile", `{"preferencias":{"idioma":"es"}}`, true)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+// UploadArticleImage / GetArticleImage: el doble de Aprendizaje cubre las dos RPC de
+// imágenes (T127/T129/T130). Un método nuevo en la interfaz generada hace que el doble
+// paniquee, y ese fallo obliga a decidir qué debe hacer el borde con él — que es justo lo
+// que se quiere cuando cambia la superficie del contrato.
+func (f *fakeLearning) UploadArticleImage(
+	_ context.Context,
+	in *learningv1.UploadArticleImageRequest,
+	_ ...grpc.CallOption,
+) (*learningv1.ArticleImage, error) {
+	f.lastUpload = in
+	return f.uploadImage, nil
+}
+
+func (f *fakeLearning) GetArticleImage(
+	_ context.Context,
+	_ *learningv1.ArticleImageRef,
+	_ ...grpc.CallOption,
+) (*learningv1.GetArticleImageResponse, error) {
+	return f.image, nil
 }

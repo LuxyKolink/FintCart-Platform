@@ -141,6 +141,14 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 	// iniciar sesión. El resto del catálogo sí vive dentro del grupo autenticado.
 	r.Get("/catalog/categories", h.ListActiveCategories)
 
+	// Imágenes del cuerpo de un artículo (FR-067, T130). PÚBLICA, y es una decisión
+	// razonada: el `<img src>` del lector no puede mandar cabecera `Authorization`, así
+	// que una ruta autenticada haría que ninguna imagen se viera. El identificador es el
+	// SHA-256 del contenido —256 bits que no se adivinan— y solo lo conoce quien tiene el
+	// documento que lo referencia: saber el hash ES el permiso. La alternativa canónica
+	// son URLs firmadas, que exigen infraestructura que esta enmienda no añade (D-13).
+	r.Get("/media/images/{imageId}", h.GetArticleImage)
+
 	// Catálogo público de calculadoras (FR-052). Pública por la misma razón que el de
 	// categorías: la ve quien todavía no ha entrado, y solo devuelve publicadas.
 	r.Get("/calculators", h.ListCalculators)
@@ -203,6 +211,10 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 			r.Patch("/editorial/versions/{versionId}", h.UpdateDraft)
 			r.Post("/editorial/versions/{versionId}/submit", h.SubmitForReview)
 			r.Post("/editorial/versions/{versionId}/archive", h.ArchiveVersion)
+			// Subida de una imagen del cuerpo (FR-064, T129). Va con el rol de editor
+			// porque es él quien escribe los artículos; el ámbito de propiedad lo
+			// impone Aprendizaje contra `article_images.article_id`.
+			r.Post("/editorial/articles/{articleId}/images", h.UploadArticleImage)
 			// Bandeja de revisión, historial de versiones y borradores propios
 			// (FR-013): las tres vistas comparten ruta y se distinguen por los
 			// parámetros de consulta (`state`, `article_id`, `editor_id`). No exige

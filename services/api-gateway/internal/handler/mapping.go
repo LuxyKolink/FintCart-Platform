@@ -403,6 +403,17 @@ func (h *Handler) writeGRPCError(w http.ResponseWriter, r *http.Request, err err
 	case errors.Is(err, errUnauthorized):
 		writeError(w, http.StatusUnauthorized, "unauthenticated", "no autenticado")
 		return
+	case errors.Is(err, errImageTooLarge):
+		// El detalle sale igual que en `errBadRequest` y por el mismo motivo: lo redacta el
+		// borde a partir de la entrada del cliente, así que no lleva nombres de host ni
+		// detalle del driver. Quien sube una foto de 4 MB necesita saber el tope.
+		h.logEdgeError(r, err)
+		writeError(w, http.StatusRequestEntityTooLarge, "payload_too_large", edgeMessage(err))
+		return
+	case errors.Is(err, errUnsupportedMedia):
+		h.logEdgeError(r, err)
+		writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", edgeMessage(err))
+		return
 	}
 
 	code := status.Code(err)
