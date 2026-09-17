@@ -88,6 +88,20 @@ func (h *Handler) StartSimulation(ctx context.Context, req *orchestratorv1.Simul
 	return simulationToProto(out), nil
 }
 
+// ApproveCalculator publica una calculadora al catálogo y emite el evento de auditoría.
+//
+// El rol `coordinador_editorial` lo exige el borde del Gateway, que es el único sitio de la
+// plataforma que conoce los roles (Principio VII). Aquí no se comprueba: este servicio no sabe
+// quién es coordinador, y volver a comprobarlo sería una segunda lista de permisos que podría
+// discrepar de la primera.
+func (h *Handler) ApproveCalculator(ctx context.Context, req *orchestratorv1.CalculatorApprovalRequest) (*orchestratorv1.CalculatorApprovalResult, error) {
+	out, err := h.svc.ApproveCalculator(ctx, req.GetCalculatorId(), req.GetCoordinatorId())
+	if err != nil {
+		return nil, grpcError(err)
+	}
+	return calculatorApprovalToProto(out), nil
+}
+
 // ── consulta de estado ─────────────────────────────────────────────────────
 
 func (h *Handler) GetSagaStatus(ctx context.Context, req *orchestratorv1.SagaHandle) (*orchestratorv1.SagaStatus, error) {

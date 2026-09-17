@@ -275,6 +275,55 @@ func simulationFromPayload(final map[string]any) (Simulation, error) {
 	return Simulation{SimulationID: id, Result: result}, nil
 }
 
+// CalculatorApproval es el resultado de aprobar una calculadora.
+//
+// Solo lleva la versión publicada. El autor y el aprobador NO viajan aquí: son el contenido del
+// evento de auditoría, y quien los necesita es Auditoría, no el borde — devolverlos al cliente
+// pondría dos identificadores que la interfaz no usa en un DTO que acabaría teniéndolos «por si
+// acaso». Se leen en el paso que compone el evento.
+type CalculatorApproval struct {
+	CalculatorID string
+	Version      int32
+}
+
+// ApproveCalculator aprueba una calculadora y deja constancia en Auditoría (FR-053, T115).
+//
+// SÍNCRONA, como `StartSimulation`: el coordinador está esperando el resultado de un clic, y un
+// identificador de saga al que después preguntar añadiría una consulta para una operación que
+// dura una llamada.
+//
+// El rol lo exige el borde y la separación de autoría la impone el Simulador —aquí no se
+// comprueba ninguna de las dos cosas, por la misma razón que en el resto del servicio: este
+// servicio no conoce roles ni decide reglas de dominio (Principios VI y VII).
+func (s *Server) ApproveCalculator(ctx context.Context, calculatorID, coordinatorID string) (CalculatorApproval, error) {
+	if calculatorID == "" || coordinatorID == "" {
+		return CalculatorApproval{}, fmt.Errorf("%w: calculator_id y coordinator_id son obligatorios",
+			ErrInvalidArgument)
+	}
+
+	_, final, err := s.engine.Execute(ctx, storer.SagaCuraduria, map[string]any{
+		"calculator_id":  calculatorID,
+		"coordinator_id": coordinatorID,
+	}, nil)
+	if err != nil {
+		// Igual que en la simulación: un `InvalidArgument` del Simulador es un error del
+		// LLAMANTE —una versión que no está en revisión, una propuesta que ya no existe— y
+		// salir como 500 haría que el coordinador reintentara una operación que no va a
+		// funcionar. Un `PermissionDenied` viaja con su código por el mismo camino (es el caso
+		// de FR-053: nadie aprueba su propia calculadora).
+		if status.Code(err) == codes.InvalidArgument || status.Code(err) == codes.PermissionDenied {
+			return CalculatorApproval{}, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
+		}
+		return CalculatorApproval{}, fmt.Errorf("ejecutar saga de curaduría: %w", err)
+	}
+
+	version, err := payloadInt32(final, "calculator_version")
+	if err != nil {
+		return CalculatorApproval{}, err
+	}
+	return CalculatorApproval{CalculatorID: calculatorID, Version: version}, nil
+}
+
 // StartActivity arranca la saga de actividad (FR-023, plan.md N-03).
 //
 // HUECO DE CONTRATO: `orchestrator.proto` no tiene un RPC que llegue aquí, así que

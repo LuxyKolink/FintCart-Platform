@@ -87,6 +87,13 @@ const (
 	// (Principio V): lo pregunta el Orquestador y publica él, igual que D-03 resolvió la
 	// auditoría de simulaciones.
 	EventIndicatorCalendarAlert = "indicator.calendar_alert"
+
+	// Producido por el Orquestador al aprobar una calculadora (FR-053, T115).
+	//
+	// Misma razón que el aviso de indicadores: quien aprueba es el Simulador, pero quien
+	// publica es el Orquestador, porque el Simulador no es productor (Principio V). Va SOLO a
+	// Auditoría — el autor no recibe correo por una aprobación.
+	EventCalculatorPublished = "calculator.published"
 )
 
 // Bindings de cada cola, según la columna «Consumidores» del catálogo.
@@ -156,6 +163,9 @@ var (
 		// supervisó: si nadie lo atendió, la auditoría es donde se puede ver que la
 		// plataforma avisó y cuándo.
 		EventIndicatorCalendarAlert,
+		// La aprobación de una calculadora es un acto de curaduría con autor: el evento dice
+		// quién aprobó, qué versión y de quién, que es lo que FR-053 exige poder acreditar.
+		EventCalculatorPublished,
 	}
 )
 

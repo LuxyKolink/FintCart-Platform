@@ -50,6 +50,13 @@ func simulationToProto(s server.Simulation) *orchestratorv1.SimulationResult {
 	}
 }
 
+func calculatorApprovalToProto(a server.CalculatorApproval) *orchestratorv1.CalculatorApprovalResult {
+	return &orchestratorv1.CalculatorApprovalResult{
+		CalculatorId: a.CalculatorID,
+		Version:      a.Version,
+	}
+}
+
 // ── error de dominio → código gRPC ──────────────────────────────────────────
 
 // grpcError traduce los centinelas internos al código de estado correspondiente.

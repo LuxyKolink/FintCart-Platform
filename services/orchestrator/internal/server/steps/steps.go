@@ -79,6 +79,26 @@ const (
 	payloadSimulationID = "simulation_id"
 	payloadResult       = "result"
 	payloadComputedAt   = "computed_at"
+
+	// Curaduría (T115). `payloadCalculatorID` se reutiliza de arriba: en la saga es el
+	// identificador que se va a aprobar, y nombrarlo distinto solo porque la saga es otra haría
+	// que dos pasos del mismo flujo usaran dos claves para el mismo dato.
+	payloadCoordinatorID     = "coordinator_id"
+	payloadCalculatorVersion = "calculator_version"
+	payloadOwnerRef          = "owner_ref"
+	payloadApproverRef       = "approver_ref"
+)
+
+// Claves del payload del evento `calculator.published` (T115, FR-053).
+//
+// Son las que fija `events-catalog-delta.md`, y son DISTINTAS de las claves de la saga a
+// propósito: el payload de la saga es interno y puede tener los nombres que le convengan, pero
+// el del evento es contrato y Auditoría lo lee por su nombre. Confundirlos haría que un cambio
+// de nombre interno cambiara —en silencio— lo que queda en el log inmutable.
+const (
+	eventKeyVersion     = "version"
+	eventKeyOwnerRef    = "owner_ref"
+	eventKeyApproverRef = "approver_ref"
 )
 
 // SecretPassword es la clave de la contraseña en [State.Secrets].

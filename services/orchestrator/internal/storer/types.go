@@ -26,6 +26,8 @@ const (
 	SagaSimulacion        = "simulacion"
 	SagaActividad         = "actividad"
 	SagaAnonimizacion     = "anonimizacion"
+	// Saga de curaduría (T115): aprobar una calculadora y publicar su evento de auditoría.
+	SagaCuraduria = "curaduria"
 )
 
 // Estados de saga, replicados del CHECK `saga_state_status_valid`.

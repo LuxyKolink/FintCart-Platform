@@ -89,8 +89,14 @@ func (f *fakeChannel) keysOf(queue string) []string {
 	return keys
 }
 
-// allCatalogEvents son los eventos de `contracts/events/events-catalog.md`, más el aviso
-// del calendario que añade la enmienda 002 (`indicator.calendar_alert`, FR-061).
+// allCatalogEvents son los eventos de `contracts/events/events-catalog.md`, más los tres que
+// añade la enmienda 002 y que hoy existen: el aviso del calendario
+// (`indicator.calendar_alert`, FR-061) y la aprobación de una calculadora
+// (`calculator.published`, FR-053). La enmienda declara seis; los otros cuatro acompañan a
+// historias que aún no tienen productor —`indicator.updated` no tiene ninguno posible, y los de
+// purga y desactivación de categoría llegan con US7 y US6—, y el catálogo se completa con
+// ellas. Añadir un evento a esta lista sin añadirlo a los bindings hace fallar esta prueba, y
+// es lo que se busca: un evento sin binding se descarta en silencio.
 //
 // El catálogo se escribe a mano aquí a propósito, y por eso hay que ampliarlo al añadir un
 // evento: es la lista contra la que se comprueba que todo lo declarado tiene binding. Si se
@@ -113,6 +119,7 @@ var allCatalogEvents = []string{
 	EventSimulationExecuted,
 	EventAccountAnonymized,
 	EventIndicatorCalendarAlert,
+	EventCalculatorPublished,
 }
 
 // ── pruebas ────────────────────────────────────────────────────────────────

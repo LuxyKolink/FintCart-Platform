@@ -23,5 +23,6 @@ type Service interface {
 	StartAccountAnonymization(ctx context.Context, userID string) (string, error)
 	StartQuizGrading(ctx context.Context, userID, quizID, sessionID string, answers map[string]string) (server.QuizGrading, error)
 	StartSimulation(ctx context.Context, userID string, calcType int32, calculatorID string, currency string, inputs map[string]string) (server.Simulation, error)
+	ApproveCalculator(ctx context.Context, calculatorID, coordinatorID string) (server.CalculatorApproval, error)
 	GetSagaStatus(ctx context.Context, sagaID string) (server.SagaStatus, error)
 }

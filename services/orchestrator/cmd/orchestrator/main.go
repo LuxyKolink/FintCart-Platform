@@ -121,6 +121,7 @@ func run() error {
 		steps.EmailVerificationDefinition(participants),
 		steps.GradingDefinition(participants),
 		steps.SimulationDefinition(participants),
+		steps.CurationDefinition(participants),
 		steps.AnonymizationDefinition(participants),
 		steps.ActivityDefinition(participants),
 	)
