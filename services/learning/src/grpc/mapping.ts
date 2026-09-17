@@ -16,6 +16,7 @@ import { invalidArgument } from '../common/errors';
 import type { Category } from '../categories/category.types';
 import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type { ArticleDetail, ArticleSummary } from '../articles/articles.repository';
+import { bodyDocToPlainText } from '../articles/plain-text';
 import type { CatalogPage } from '../articles/articles.service';
 import type { AttemptsPage, GradeResult } from '../grading/grading.service';
 import type { VersionsPage } from '../publishing/publishing.service';
@@ -92,7 +93,13 @@ export function categoryToPb(category: Category): CategoryPb {
 export function articleToPb(article: ArticleDetail): ArticlePb {
   return {
     ...summaryToPb(article),
-    body: article.body,
+    // `body` es una PROYECCIÓN de solo lectura del documento, no una segunda copia: desde
+    // T135 (D-14) no existe en la base, y se deriva aquí, en la frontera, para el contrato
+    // de 001 que solo entiende texto. Es deliberadamente pobre —no representa negritas,
+    // ni imágenes, ni calculadoras incrustadas—, y por eso `body_doc` viaja al lado: quien
+    // quiera el artículo, lo quiere; quien siga leyendo `body` obtiene el texto que el
+    // documento dice, ni más ni menos.
+    body: bodyDocToPlainText(article.bodyDoc),
     body_doc: serializeBodyDoc(article.bodyDoc),
     quiz_ids: [...article.quizIds],
   };
@@ -221,7 +228,7 @@ export function versionToPb(version: VersionRow): ArticleVersionPb {
     approved_by: version.approvedBy,
     created_at: version.createdAt,
     published_at: version.publishedAt,
-    body: version.body,
+    body: bodyDocToPlainText(version.bodyDoc),
     body_doc: serializeBodyDoc(version.bodyDoc),
   };
 }

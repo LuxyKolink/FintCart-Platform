@@ -22,7 +22,7 @@ import {
   PublishedCalculators,
   unpublishedCalculatorsError,
 } from '../articles/published-calculators';
-import { bodyDocToPlainText, plainTextToBodyDoc } from '../articles/plain-text';
+import { plainTextToBodyDoc } from '../articles/plain-text';
 import { CategoriesService } from '../categories/categories.service';
 import { EventsPublisher } from '../events/publisher';
 import { ImagesService } from '../images/images.service';
@@ -72,8 +72,8 @@ export class PublishingService {
     bodyDoc: unknown = null,
   ): Promise<VersionRow> {
     requireUuid('editor_id', editorId);
-    const resuelto = await this.resolveBody(body, bodyDoc);
-    if (resuelto.doc.contenido === undefined || resuelto.doc.contenido.length === 0) {
+    const doc = await this.resolveBody(body, bodyDoc);
+    if (doc.contenido === undefined || doc.contenido.length === 0) {
       throw invalidArgument(
         'el cuerpo no puede estar vacío: una versión sin ningún bloque no tiene nada que publicar',
       );
@@ -81,14 +81,14 @@ export class PublishingService {
 
     if (articleId !== '') {
       requireUuid('article_id', articleId);
-      return this.versioning.newVersionOf(articleId, editorId, resuelto.body, resuelto.doc);
+      return this.versioning.newVersionOf(articleId, editorId, doc);
     }
 
     if (title.trim() === '') {
       throw invalidArgument('title no puede estar vacío');
     }
     await this.categories.assertActiveCategory(categoryId);
-    return this.repository.createArticle(title, categoryId, resuelto.body, resuelto.doc, editorId);
+    return this.repository.createArticle(title, categoryId, doc, editorId);
   }
 
   /** Edita el cuerpo de un borrador propio (FR-007). */
@@ -100,36 +100,34 @@ export class PublishingService {
   ): Promise<VersionRow> {
     requireUuid('version_id', versionId);
     requireUuid('editor_id', editorId);
-    const resuelto = await this.resolveBody(body, bodyDoc);
-    if (resuelto.doc.contenido === undefined || resuelto.doc.contenido.length === 0) {
+    const doc = await this.resolveBody(body, bodyDoc);
+    if (doc.contenido === undefined || doc.contenido.length === 0) {
       throw invalidArgument(
         'el cuerpo no puede estar vacío: una versión sin ningún bloque no tiene nada que publicar',
       );
     }
-    return this.repository.updateDraftBody(versionId, editorId, resuelto.body, resuelto.doc);
+    return this.repository.updateDraftBody(versionId, editorId, doc);
   }
 
   /**
-   * Resuelve el par (texto, documento) que se persiste cuando llega un cuerpo (T131).
+   * Resuelve el DOCUMENTO que se persiste cuando llega un cuerpo (T131, T135).
    *
-   * **El documento es la fuente de verdad cuando llega**: el texto se DERIVA de él con
-   * `bodyDocToPlainText`. Guardar los dos tal como vengan —el texto por un lado, el
-   * documento por otro— dejaría dos versiones del mismo cuerpo que pueden contradecirse,
-   * y a partir de ahí cada lector tendría que decidir cuál gana. El texto sigue
-   * guardándose porque `article_versions.body` es `NOT NULL` y porque el lector de 001
-   * solo entiende texto.
-   *
-   * Cuando NO llega documento, el cuerpo es heredado —un cliente anterior al editor, o
-   * una prueba— y se convierte con la MISMA regla que usó la migración `20260902111500`:
-   * un párrafo por bloque separado por una línea en blanco.
+   * El cuerpo que se guarda es el documento, y solo el documento. Cuando el cliente manda
+   * texto plano —un cliente anterior al editor, o una prueba— se convierte con la MISMA
+   * regla que usaron la migración `20260902111500` y T145: un párrafo por bloque separado
+   * por una línea en blanco. Cuando manda un documento, el documento es la fuente de
+   * verdad. En ninguno de los dos casos se guarda además el texto: `article_versions.body`
+   * dejó de existir, y una segunda copia del cuerpo es una copia que puede contradecir a la
+   * primera. El texto que el contrato de 001 pide se deriva al vuelo en la frontera
+   * (`grpc/mapping.ts`), que es el único sitio donde tiene sentido.
    *
    * El orden de las comprobaciones no es casual: primero la forma del documento (no toca
    * la base), después que no esté vacío, y solo al final las referencias, que sí son una
    * consulta. Un documento malformado no debe costar una ida a la base.
    */
-  private async resolveBody(body: string, bodyDoc: unknown): Promise<{ body: string; doc: BodyDocNode }> {
+  private async resolveBody(body: string, bodyDoc: unknown): Promise<BodyDocNode> {
     if (bodyDoc === null || bodyDoc === undefined) {
-      return { body, doc: plainTextToBodyDoc(body) };
+      return plainTextToBodyDoc(body);
     }
 
     const doc = validateBodyDoc(bodyDoc);
@@ -157,7 +155,7 @@ export class PublishingService {
       }
     }
 
-    return { body: bodyDocToPlainText(doc), doc };
+    return doc;
   }
 
   /** `borrador → en_revision` (FR-008). */

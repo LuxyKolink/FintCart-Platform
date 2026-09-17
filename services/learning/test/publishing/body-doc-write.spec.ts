@@ -24,6 +24,7 @@ import { EventsPublisher } from '../../src/events/publisher';
 import { ImagesRepository } from '../../src/images/images.repository';
 import { ImagesService } from '../../src/images/images.service';
 import { parseBodyDoc } from '../../src/grpc/mapping';
+import { bodyDocToPlainText } from '../../src/articles/plain-text';
 import { PublishingRepository } from '../../src/publishing/publishing.repository';
 import { PublishingService } from '../../src/publishing/publishing.service';
 import { VersioningService } from '../../src/publishing/versioning.service';
@@ -116,23 +117,26 @@ describe('el documento que llega manda (T131)', () => {
     const version = await service.updateDraft(IDS.draftVersion, IDS.editor, '', DOCUMENTO);
 
     expect(version.bodyDoc).toEqual(DOCUMENTO);
-    // El contraste que importa: el TEXTO pierde la estructura —no tiene forma de
-    // guardarla— y por eso no puede ser la fuente de verdad. Si estas dos afirmaciones
-    // se parecieran, el documento no estaría aportando nada.
-    expect(version.body).toContain('Cuánto ahorrar');
-    expect(version.body).not.toContain('"negrita"');
+    // El contraste que importa: el TEXTO que se deriva del documento pierde la estructura
+    // —no tiene forma de representarla— y por eso no puede ser la fuente de verdad. Si
+    // estas dos afirmaciones se parecieran, el documento no estaría aportando nada.
+    const textoQueVeráUnLectorDe001 = bodyDocToPlainText(version.bodyDoc);
+    expect(textoQueVeráUnLectorDe001).toContain('Cuánto ahorrar');
+    expect(textoQueVeráUnLectorDe001).not.toContain('negrita');
   });
 
   it('el texto se DERIVA del documento cuando hay documento', async () => {
     const { pool, service } = newFixture();
     await insertarImagen(pool, IMAGEN);
 
-    // El texto que llega dice una cosa y el documento otra: gana el documento.
+    // El texto que llega dice una cosa y el documento otra: gana el documento, que es lo
+    // único que se guarda. El texto que llega no se persiste en ningún sitio.
     const version = await service.updateDraft(IDS.draftVersion, IDS.editor, 'texto viejo', DOCUMENTO);
 
-    expect(version.body).not.toContain('texto viejo');
-    expect(version.body).toContain('Cuánto ahorrar');
-    expect(version.body).toContain('Fijos');
+    const textoDerivado = bodyDocToPlainText(version.bodyDoc);
+    expect(textoDerivado).not.toContain('texto viejo');
+    expect(textoDerivado).toContain('Cuánto ahorrar');
+    expect(textoDerivado).toContain('Fijos');
   });
 
   it('`createDraft` también acepta documento y lo guarda', async () => {
@@ -157,8 +161,10 @@ describe('el documento que llega manda (T131)', () => {
 describe('un documento fuera del vocabulario se rechaza con 400, no con 500 (T131, T134)', () => {
   it('un nodo no admitido se rechaza y el borrador queda intacto', async () => {
     const { pool, service } = newFixture();
-    const antes = await pool.query<{ body_doc: unknown; body: string }>(
-      'SELECT body_doc, body FROM article_versions WHERE id = $1',
+    // Se lee el documento y NO un texto plano: desde T135 la columna `body` no existe, y
+    // el estado del borrador es exactamente su documento.
+    const antes = await pool.query<{ body_doc: unknown }>(
+      'SELECT body_doc FROM article_versions WHERE id = $1',
       [IDS.draftVersion],
     );
 
@@ -169,8 +175,8 @@ describe('un documento fuera del vocabulario se rechaza con 400, no con 500 (T13
       }),
     ).rejects.toMatchObject({ code: 'invalid_argument' });
 
-    const despues = await pool.query<{ body_doc: unknown; body: string }>(
-      'SELECT body_doc, body FROM article_versions WHERE id = $1',
+    const despues = await pool.query<{ body_doc: unknown }>(
+      'SELECT body_doc FROM article_versions WHERE id = $1',
       [IDS.draftVersion],
     );
     // Lo importante no es que lance, sino que NO dejó a medias: el borrador sigue como
@@ -277,7 +283,7 @@ describe('el camino heredado sigue funcionando (T124)', () => {
         { tipo: 'parrafo', contenido: [{ tipo: 'texto', texto: 'Segundo.' }] },
       ],
     });
-    expect(version.body).toBe('Primero.\n\nSegundo.');
+    expect(bodyDocToPlainText(version.bodyDoc)).toBe('Primero.\n\nSegundo.');
   });
 });
 

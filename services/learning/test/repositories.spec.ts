@@ -20,6 +20,7 @@ import Decimal from 'decimal.js';
 import type { Pool } from 'pg';
 
 import { ArticlesRepository } from '../src/articles/articles.repository';
+import { bodyDocToPlainText } from '../src/articles/plain-text';
 import { QuizzesRepository } from '../src/quizzes/quizzes.repository';
 
 import { IDS, newMemoryFixture } from './support/memdb';
@@ -77,7 +78,8 @@ describe('ArticlesRepository', () => {
 
     const article = await articles.findPublishedAndRecordView(IDS.article);
 
-    expect(article?.body).toBe('Cuerpo publicado');
+    // El texto que ve el lector sale del DOCUMENTO de la versión publicada (T135):
+    expect(bodyDocToPlainText(article?.bodyDoc ?? { tipo: 'doc', contenido: [] })).toBe('Cuerpo publicado');
     expect(article?.currentVersionNo).toBe(3);
     expect(article?.quizIds).toEqual([IDS.quiz]);
 

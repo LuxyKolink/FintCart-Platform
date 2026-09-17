@@ -49,10 +49,12 @@ export function plainTextToBodyDoc(text: string): BodyDocNode {
 /**
  * Documento de bloques → texto plano: la dirección de VUELTA (T131).
  *
- * Existe porque `article_versions.body` sigue siendo `NOT NULL` y porque el lector de la
- * fase 001 —y cualquier consumidor anterior a D-14— solo entiende texto. Cuando el editor
- * manda un documento, **el documento es la fuente de verdad** y el texto se DERIVA de él:
- * guardar los dos tal como lleguen dejaría dos versiones del mismo cuerpo que pueden
+ * Existe porque el lector de la fase 001 —y cualquier consumidor anterior a D-14— solo
+ * entiende texto, y **el texto ya no se guarda en ningún sitio**: `article_versions.body`
+ * dejó de existir en T135, así que la única forma de darle texto a ese lector es derivarlo
+ * aquí. Mientras hubo columna, este archivo servía para rellenarla; ahora sirve para lo
+ * mismo que la dirección de ida —que el cuerpo se pueda leer—, y el motivo no cambió:
+ * guardar el texto junto al documento dejaría dos versiones del mismo cuerpo que pueden
  * contradecirse, y entonces habría que decidir cuál gana cada vez que se lean.
  *
  * Las reglas de qué es una línea son las de un lector de texto, no las del formato:

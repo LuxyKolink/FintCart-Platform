@@ -731,3 +731,75 @@ propiedad de clase, miembro de tipo, `Number()`, `Math.round` y cuatro en camelC
 `passThreshold`, `tasaInteres`, `valorUvt`— y **tres usos legítimos** que deben seguir pasando. Sin
 esa auto-prueba, este cambio habría sido un ajuste de configuración que nadie vuelve a mirar: la
 forma de degradar una barrera no es quitarla, es hacerla más laxa sin dejar constancia.
+
+---
+
+## Hallazgo 25 — La siembra nunca escribió el documento: las cinco versiones del catálogo no tenían cuerpo
+
+**Qué pasaba**: `dev/seed` inserta los artículos del catálogo con SQL directo, y su `INSERT`
+nombraba cinco columnas de `article_versions`, entre ellas `body` — el texto plano de 001—
+pero **no `body_doc`**. Como el lector tenía una caída al texto (`bodyDoc: row.body_doc ??
+null`, y `body` viajando al lado en el contrato), nada fallaba: la plataforma entera leía el
+cuerpo de los artículos sembrados por el camino viejo y nadie se enteraba de que el documento
+no estaba.
+
+**Cómo apareció**: no lo encontró una prueba, lo encontró **la guarda de la migración de
+T135**, que se niega a borrar `body` cuando alguna versión no tiene documento. Al aplicarla
+sobre la base de desarrollo:
+
+```
+article_versions: 5 de 5 versión(es) sin documento; borrar `body` las dejaría sin cuerpo
+```
+
+Es el hallazgo 17 otra vez, con el signo cambiado. Aquel era «una siembra que se salta el
+`INSERT` oculta el `INSERT`»; este es «una siembra que escribe una columna y no la otra
+oculta que la columna que falta no la lee nadie… hasta que deja de existir». Y la lección de
+fondo es la misma: **una siembra que escribe SQL directo se salta TODOS los invariantes que
+el camino de escritura sostiene**, así que sus filas solo están tan bien formadas como el
+cuidado de quien la escribió, y el único momento en que se nota es cuando alguien aprieta el
+invariante con una migración.
+
+**Arreglo**: la siembra escribe el documento (derivado del texto literal, con la misma regla
+que la migración) y repara las versiones que sembró antes sin él, desde su propio texto y sin
+tocar las que ya lo tienen. Además el `INSERT` elige su forma en tiempo de ejecución —con
+`body` si la columna sigue existiendo, sin ella después de T135— para que el mismo script
+sirva en una base a medio migrar y en una ya migrada: un script de desarrollo que solo
+funciona en el punto exacto de la cadena de migraciones es un script que alguien va a ejecutar
+en el punto equivocado.
+
+---
+
+## Hallazgo 26 — `jsonb_path_query(doc, '$.**.texto')` devuelve cada nodo DOS veces
+
+**Qué pasaba**: la guarda de la migración de T135 comprueba que el texto de `body` es el que
+el documento dice. La primera versión extraía los textos con
+`jsonb_path_query(body_doc, '$.**.texto')` —la forma que uno escribe primero para «todos los
+textos a cualquier profundidad»— y la migración **se negaba a borrar datos correctos**:
+
+```
+article_versions: 1 de 1 versión(es) tienen texto en `body` que el documento NO dice
+```
+
+El descenso recursivo devuelve cada nodo tantas veces como caminos lo alcanzan: el texto de un
+párrafo aparece como descendiente del documento y otra vez como descendiente del párrafo, así
+que el texto derivado salía duplicado y la comparación no cuadraba nunca.
+
+**Cómo se encontró**: la propia prueba de la migración, en su caso más simple —«borra la
+columna y deja el documento como única fuente»—, fallando sobre un dato que estaba bien. Sin
+esa prueba, el camino habría sido el peor: alguien ve el error, revisa los datos, no encuentra
+nada, y **afloja la guarda** para que pase. Una guarda aflojada por un falso positivo no
+vuelve a proteger nada.
+
+**Arreglo**: un CTE recursivo explícito que recorre el árbol llevando su ruta de índices. La
+ruta sirve para dos cosas a la vez: recorrer sin repetirse y **ordenar** los textos como los
+ordena el documento, que es justo lo que necesitaba la comparación. Se aplica también a la
+reversión, donde la duplicación se habría visto como un cuerpo que dice cada párrafo dos
+veces —un defecto que nadie habría notado hasta leer el texto entero con atención—.
+
+**Y una tercera trampa, de las pruebas**: las consultas al catálogo del sistema
+(`information_schema.columns`, `pg_constraint`) sin filtrar por `table_schema` devuelven las
+columnas y restricciones de **todas** las tablas con ese nombre, empezando por la de `public`.
+Dos pruebas del esquema de la migración medían así la base entera en lugar del esquema que
+acababan de migrar —y una de ellas «veía» la columna eliminada como si siguiera—. Es la misma
+clase de error que el `search_path` sin `public` que el arnés ya usaba para no resolverse
+contra el esquema real: aquí el filtro que falta es el que impide leer el esquema ajeno.

@@ -25,15 +25,15 @@ export interface VersionRow {
   readonly versionId: string;
   readonly articleId: string;
   readonly versionNo: Count;
-  readonly body: string;
   /**
-   * Documento de bloques (FR-063). Anulable SOLO porque la columna lo es mientras
-   * `body` siga siendo la fuente de verdad: las versiones anteriores a T016 y las
-   * que cree un camino que aún no pase por aquí pueden no tenerlo. El camino de
-   * escritura de este archivo siempre lo rellena, así que en la práctica llega
-   * documento para toda versión nueva (T124).
+   * Documento de bloques (FR-063). **No anulable**: es la única representación del
+   * cuerpo desde T135, cuando `body` dejó de existir (D-14). Un texto plano sigue
+   * saliendo de aquí, pero DERIVADO de este documento en la frontera —el contrato de
+   * 001 sigue entendiendo texto y `bodyDocToPlainText` se lo da—, nunca guardado al
+   * lado: dos copias del mismo cuerpo pueden contradecirse y entonces cada lector
+   * tendría que decidir cuál gana.
    */
-  readonly bodyDoc: BodyDocNode | null;
+  readonly bodyDoc: BodyDocNode;
   readonly state: string;
   readonly createdBy: string;
   readonly approvedBy: string;
@@ -68,9 +68,8 @@ interface RawRow {
   readonly id: string;
   readonly article_id: string;
   readonly version_no: Count;
-  readonly body: string;
-  /** `pg` entrega `jsonb` ya convertido a objeto; `null` si la columna está nula. */
-  readonly body_doc: BodyDocNode | null;
+  /** `pg` entrega `jsonb` ya convertido a objeto. */
+  readonly body_doc: BodyDocNode;
   readonly state: string;
   readonly created_by: string;
   readonly approved_by: string | null;
@@ -78,7 +77,7 @@ interface RawRow {
   readonly published_at: Date | null;
 }
 
-const COLUMNS = `id, article_id, version_no, body, body_doc, state, created_by, approved_by, created_at, published_at`;
+const COLUMNS = `id, article_id, version_no, body_doc, state, created_by, approved_by, created_at, published_at`;
 
 // `id` sale de `gen_random_uuid()` EXPLÍCITO en el `VALUES` y no del `DEFAULT` de la
 // columna: el `DEFAULT` es correcto en PostgreSQL real, pero pg-mem (usado en las
@@ -89,8 +88,8 @@ const INSERT_ARTICLE_SQL = `
 INSERT INTO articles (id, title, category_id, author_id) VALUES (gen_random_uuid(), $1, $2, $3) RETURNING id`;
 
 const INSERT_FIRST_VERSION_SQL = `
-INSERT INTO article_versions (id, article_id, version_no, body, body_doc, created_by)
-VALUES (gen_random_uuid(), $1, 1, $2, $3, $4)
+INSERT INTO article_versions (id, article_id, version_no, body_doc, created_by)
+VALUES (gen_random_uuid(), $1, 1, $2, $3)
 RETURNING ${COLUMNS}`;
 
 /**
@@ -105,15 +104,15 @@ const NEXT_VERSION_NO_SQL = `
 SELECT COALESCE(MAX(version_no), 0) + 1 AS next_no FROM article_versions WHERE article_id = $1`;
 
 const INSERT_NEW_VERSION_SQL = `
-INSERT INTO article_versions (id, article_id, version_no, body, body_doc, created_by)
-VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+INSERT INTO article_versions (id, article_id, version_no, body_doc, created_by)
+VALUES (gen_random_uuid(), $1, $2, $3, $4)
 RETURNING ${COLUMNS}`;
 
 const FIND_VERSION_FOR_UPDATE_SQL = `SELECT ${COLUMNS} FROM article_versions WHERE id = $1 FOR UPDATE`;
 
 const UPDATE_DRAFT_BODY_SQL = `
 UPDATE article_versions
-   SET body = $3, body_doc = $4
+   SET body_doc = $3
  WHERE id = $1 AND created_by = $2 AND state = 'borrador'
 RETURNING ${COLUMNS}`;
 
@@ -178,7 +177,6 @@ export class PublishingRepository {
   public async createArticle(
     title: string,
     categoryId: string,
-    body: string,
     bodyDoc: BodyDocNode,
     editorId: string,
   ): Promise<VersionRow> {
@@ -191,7 +189,6 @@ export class PublishingRepository {
         }
         const version = await client.query<RawRow>(INSERT_FIRST_VERSION_SQL, [
           articleId,
-          body,
           bodyDoc,
           editorId,
         ]);
@@ -216,7 +213,6 @@ export class PublishingRepository {
   public async createNewVersion(
     articleId: string,
     editorId: string,
-    body: string,
     bodyDoc: BodyDocNode,
   ): Promise<VersionRow> {
     try {
@@ -230,7 +226,6 @@ export class PublishingRepository {
         const inserted = await client.query<RawRow>(INSERT_NEW_VERSION_SQL, [
           articleId,
           next.rows[0]?.next_no ?? 1,
-          body,
           bodyDoc,
           editorId,
         ]);
@@ -256,14 +251,12 @@ export class PublishingRepository {
   public async updateDraftBody(
     versionId: string,
     editorId: string,
-    body: string,
     bodyDoc: BodyDocNode,
   ): Promise<VersionRow> {
     try {
       const result = await this.pool.query<RawRow>(UPDATE_DRAFT_BODY_SQL, [
         versionId,
         editorId,
-        body,
         bodyDoc,
       ]);
       const row = result.rows[0];
@@ -411,7 +404,6 @@ function toVersion(row: RawRow): VersionRow {
     versionId: row.id,
     articleId: row.article_id,
     versionNo: row.version_no,
-    body: row.body,
     bodyDoc: row.body_doc,
     state: row.state,
     createdBy: row.created_by,

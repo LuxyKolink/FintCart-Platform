@@ -34,13 +34,14 @@ export interface ArticleSummary {
 
 /** Artículo completo, con el cuerpo de su versión publicada vigente. */
 export interface ArticleDetail extends ArticleSummary {
-  readonly body: string;
   /**
-   * Documento de bloques de la versión publicada (FR-063). `null` solo en artículos
-   * publicados antes de que existiera la columna: el lector cae entonces a `body`, que
-   * sigue estando. No es un caso hipotético — hay versiones publicadas así.
+   * Documento de bloques de la versión publicada (FR-063). **No anulable**: desde T135 es
+   * la única representación del cuerpo que existe en la base — `article_versions.body`
+   * dejó de existir (D-14)—, así que no hay caída al texto plano ni caso heredado que
+   * atender. Lo que queda por decidir cuando se lee es qué se HACE con el documento, y eso
+   * es del lector.
    */
-  readonly bodyDoc: BodyDocNode | null;
+  readonly bodyDoc: BodyDocNode;
   readonly quizIds: readonly string[];
 }
 
@@ -57,9 +58,7 @@ interface CatalogRow {
   readonly category: string;
   readonly category_id: string;
   readonly version_no: Count;
-  readonly body: string;
-  /** Opcional porque no todas las consultas de esta interfaz seleccionan la columna. */
-  readonly body_doc?: BodyDocNode | null;
+  readonly body_doc: BodyDocNode;
 }
 
 /**
@@ -70,7 +69,7 @@ interface CatalogRow {
  * porque una cadena vacía no es un UUID válido para el cast `::uuid`.
  */
 const LIST_PUBLISHED_SQL = `
-SELECT a.id AS article_id, a.title, c.name AS category, a.category_id, v.version_no, v.body, v.body_doc
+SELECT a.id AS article_id, a.title, c.name AS category, a.category_id, v.version_no, v.body_doc
   FROM articles a
   JOIN article_versions v ON v.id = a.current_version_id
   JOIN categories c ON c.id = a.category_id
@@ -90,7 +89,7 @@ SELECT count(*) AS total
    AND ($2 = '' OR c.name = $2)`;
 
 const FIND_PUBLISHED_SQL = `
-SELECT a.id AS article_id, a.title, c.name AS category, a.category_id, v.version_no, v.body, v.body_doc
+SELECT a.id AS article_id, a.title, c.name AS category, a.category_id, v.version_no, v.body_doc
   FROM articles a
   JOIN article_versions v ON v.id = a.current_version_id
   JOIN categories c ON c.id = a.category_id
@@ -167,8 +166,7 @@ export class ArticlesRepository {
 
         return {
           ...toSummary(row),
-          body: row.body,
-          bodyDoc: row.body_doc ?? null,
+          bodyDoc: row.body_doc,
           quizIds: quizzes.rows.map((q) => q.id),
         };
       } catch (err) {

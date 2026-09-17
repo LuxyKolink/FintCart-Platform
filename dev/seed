@@ -175,9 +175,42 @@ CROSS JOIN (VALUES
 JOIN categories c ON c.slug = v.category_slug
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO article_versions (id, article_id, version_no, body, state, created_by, approved_by, published_at)
-SELECT v.id, v.article_id, 1, v.body, 'publicado', s.editor, s.coordinador, now()
-FROM seed_ids s, (VALUES
+-- La siembra escribe el DOCUMENTO de bloques de cada artículo, y **no** el texto plano.
+--
+-- Escribir solo `body` —una columna de texto— funcionó mientras el lector tenía una caída
+-- al texto plano: la siembra podía saltarse el invariante y nada se notaba, porque quien
+-- leía el artículo completaba el hueco por detrás. Con T135 (`body` eliminado) una siembra
+-- que no escriba `body_doc` **deja los artículos sin cuerpo**, y el lector ya no tiene de
+-- dónde sacarlo. Se descubrió aplicando esa migración: su guarda se negó a borrar el texto
+-- de las cinco versiones sembradas, que no tenían documento.
+--
+-- El texto viaja como LITERAL del `VALUES` y no como columna: así esta siembra es la misma
+-- antes y después de que la columna desaparezca, y la conversión —un párrafo por bloque
+-- separado por una línea en blanco— es la misma regla que la de `plain-text.ts` y la de la
+-- migración `20260902111500`.
+CREATE TEMP TABLE pg_temp.siembra_articulos AS
+SELECT v.id,
+       v.article_id,
+       v.body,
+       jsonb_build_object(
+           'tipo', 'doc',
+           'contenido', coalesce(
+               (
+                   SELECT jsonb_agg(
+                              jsonb_build_object(
+                                  'tipo', 'parrafo',
+                                  'contenido', jsonb_build_array(
+                                      jsonb_build_object('tipo', 'texto', 'texto', btrim(part))
+                                  )
+                              ) ORDER BY ord
+                          )
+                     FROM unnest(regexp_split_to_array(v.body, E'\n\n')) WITH ORDINALITY AS t(part, ord)
+                    WHERE btrim(part) <> ''
+               ),
+               '[]'::jsonb
+           )
+       ) AS body_doc
+  FROM (VALUES
   ('00000000-0000-4000-8000-000000000b01'::UUID, '00000000-0000-4000-8000-000000000a01'::UUID,
    E'Un presupuesto no es una lista de prohibiciones: es una fotografía de a dónde va tu dinero.\n\nEmpieza por registrar un mes completo de gastos reales, sin corregir nada. La mayoría de la gente descubre que entre el 15 % y el 25 % de sus egresos no encaja en ninguna categoría que hubiera anticipado.\n\nCon esa base, agrupa en tres bloques: fijos, variables y ahorro. La regla que mejor aguanta el paso del tiempo no es un porcentaje concreto, sino que el ahorro salga PRIMERO y no de lo que sobra.'),
   ('00000000-0000-4000-8000-000000000b02'::UUID, '00000000-0000-4000-8000-000000000a02'::UUID,
@@ -188,8 +221,84 @@ FROM seed_ids s, (VALUES
    E'El interés compuesto es interés que gana interés, y su efecto no es lineal sino acelerado.\n\nDe ahí la conclusión que sorprende: empezar temprano con montos pequeños suele superar a empezar tarde con montos grandes. El tiempo entra como exponente; el monto, apenas como factor.\n\nEl mismo mecanismo opera en tu contra en una deuda de tarjeta de crédito. Es la misma fórmula, con el signo cambiado.'),
   ('00000000-0000-4000-8000-000000000b05'::UUID, '00000000-0000-4000-8000-000000000a05'::UUID,
    E'En Colombia, el Gravamen a los Movimientos Financieros —el 4x1000— cobra cuatro pesos por cada mil que salen de tu cuenta.\n\nParece poco hasta que mueves dinero con frecuencia: veinte traslados de un millón cuestan ochenta mil pesos al año en un impuesto que nadie te cobra de forma visible.\n\nExiste una exención por cuenta marcada, hasta un tope mensual en UVT. Marcar la cuenta correcta es de las decisiones de mayor rendimiento por minuto invertido que existen.')
-) AS v(id, article_id, body)
-ON CONFLICT (id) DO NOTHING;
+) AS v(id, article_id, body);
+
+-- Dos `INSERT` y no uno, porque la columna puede estar o no: el `NOT NULL` de `body` impide
+-- insertar sin ella antes de T135, y después de T135 nombrarla es un error. Elegir rama en
+-- tiempo de ejecución es lo que hace que el mismo script sirva en una base a medio migrar y
+-- en una ya migrada —y que nadie tenga que acordarse de en qué punto está la suya—.
+DO $$
+DECLARE
+    hay_body boolean;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'article_versions' AND column_name = 'body'
+    ) INTO hay_body;
+
+    IF hay_body THEN
+        EXECUTE $insertar$
+            INSERT INTO article_versions
+                (id, article_id, version_no, body, body_doc, state, created_by, approved_by, published_at)
+            SELECT a.id, a.article_id, 1, a.body, a.body_doc, 'publicado', s.editor, s.coordinador, now()
+              FROM pg_temp.siembra_articulos a, seed_ids s
+            ON CONFLICT (id) DO NOTHING
+        $insertar$;
+    ELSE
+        EXECUTE $insertar$
+            INSERT INTO article_versions
+                (id, article_id, version_no, body_doc, state, created_by, approved_by, published_at)
+            SELECT a.id, a.article_id, 1, a.body_doc, 'publicado', s.editor, s.coordinador, now()
+              FROM pg_temp.siembra_articulos a, seed_ids s
+            ON CONFLICT (id) DO NOTHING
+        $insertar$;
+    END IF;
+END
+$$;
+
+DROP TABLE pg_temp.siembra_articulos;
+
+-- Reparación de lo que una siembra ANTERIOR dejó a medias: las versiones sembradas sin
+-- documento tienen su texto en `body`, y la migración que elimina esa columna se niega —con
+-- razón— a borrarla cuando no hay documento que la sustituya. Se rellena desde su propio
+-- texto y no se toca ninguna que ya lo tenga, así que se puede ejecutar cuantas veces haga
+-- falta. Va ANTES del `INSERT` porque el caso que repara es justo el de una base que ya
+-- tenía estos artículos.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'article_versions' AND column_name = 'body'
+    ) THEN
+        EXECUTE $reparar$
+            UPDATE article_versions v
+               SET body_doc = jsonb_build_object(
+                       'tipo', 'doc',
+                       'contenido', coalesce(
+                           (
+                               SELECT jsonb_agg(
+                                          jsonb_build_object(
+                                              'tipo', 'parrafo',
+                                              'contenido', jsonb_build_array(
+                                                  jsonb_build_object('tipo', 'texto', 'texto', btrim(part))
+                                              )
+                                          ) ORDER BY ord
+                                      )
+                                 FROM unnest(regexp_split_to_array(v.body, E'\n\n'))
+                                      WITH ORDINALITY AS t(part, ord)
+                                WHERE btrim(part) <> ''
+                           ),
+                           '[]'::jsonb
+                       )
+                   )
+             WHERE v.body_doc IS NULL
+        $reparar$;
+        RAISE NOTICE 'siembra: documentos de bloques reparados para las versiones que no los tenían';
+    END IF;
+END
+$$;
 
 UPDATE articles a
    SET current_version_id = av.id

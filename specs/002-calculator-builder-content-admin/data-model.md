@@ -64,8 +64,8 @@ Invertir el orden dejaría artículos sin categoría y haría fallar la migraci�
 
 | Cambio | Detalle |
 |--------|---------|
-| + `body_doc JSONB NOT NULL` | documento de bloques de D-14 |
-| ‑ `body TEXT` | se elimina en una **segunda** migración, ya verificada la primera |
+| + `body_doc JSONB NOT NULL` | documento de bloques de D-14 · `20260902111500`, `20260902150000` |
+| ‑ `body TEXT` | eliminada en `20260902150000_drop_article_versions_body` (T135), con la conversión ya verificada |
 
 Restricción: `article_versions_body_doc_is_doc CHECK (body_doc->>'tipo' = 'doc')`.
 

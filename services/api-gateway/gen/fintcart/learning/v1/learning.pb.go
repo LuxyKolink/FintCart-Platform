@@ -853,9 +853,13 @@ type ArticleVersion struct {
 	// vía OpResult no aplica; `ListVersions` sí): reabrir un borrador propio para seguir
 	// editándolo exige poder leer su cuerpo actual, y no hay otro RPC que lo devuelva.
 	Body string `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
-	// Documento de bloques (FR-063, research D-14), serializado como JSON. Convive con
-	// `body` mientras `body` siga siendo la fuente de verdad: `body_doc` se rellena en
-	// toda versión nueva y `body` se elimina en una migración aparte ya verificada.
+	// Documento de bloques (FR-063, research D-14), serializado como JSON. Es la ÚNICA
+	// representación del cuerpo que se guarda: la columna `body` de `article_versions`
+	// se eliminó en la migración `20260902150000` (T135), y el campo `body` de arriba
+	// es una proyección de solo lectura que el servidor DERIVA de este documento para
+	// los clientes anteriores a D-14. Esa proyección es deliberadamente pobre —no
+	// representa negritas, ni imágenes, ni calculadoras incrustadas— y por eso va al
+	// lado del documento: quien quiera el artículo, lo quiere a él.
 	//
 	// POR QUÉ TEXTO JSON Y NO UN `message BodyDoc` ANIDADO, aunque lo segundo parezca
 	// más tipado: el vocabulario es CERRADO y se valida en el servidor (FR-068), y un
@@ -992,8 +996,9 @@ type CreateDraftRequest struct {
 	CategoryId string `protobuf:"bytes,6,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"`
 	// Documento de bloques serializado como JSON (FR-063). Vacío ⇒ el servidor deriva
 	// el documento del texto de `body`, que es lo que hace un cliente que todavía no
-	// sabe enviar bloques (el editor llega con T131). No vacío ⇒ manda el documento y
-	// `body` pasa a ser la proyección de solo lectura que el lector antiguo espera.
+	// sabe enviar bloques. No vacío ⇒ manda el documento y `body` se ignora: desde T135
+	// lo único que se persiste es el documento, y el texto que el cliente manda por
+	// separado no se guarda en ningún sitio (dos copias del cuerpo pueden contradecirse).
 	BodyDoc       string `protobuf:"bytes,7,opt,name=body_doc,json=bodyDoc,proto3" json:"body_doc,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

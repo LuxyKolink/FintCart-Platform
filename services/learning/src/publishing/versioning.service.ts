@@ -27,9 +27,8 @@ export class VersioningService {
   public async newVersionOf(
     articleId: string,
     editorId: string,
-    body: string,
     bodyDoc: BodyDocNode,
   ): Promise<VersionRow> {
-    return this.repository.createNewVersion(articleId, editorId, body, bodyDoc);
+    return this.repository.createNewVersion(articleId, editorId, bodyDoc);
   }
 }

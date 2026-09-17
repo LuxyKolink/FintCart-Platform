@@ -41,7 +41,7 @@ describe('el camino de escritura guarda el documento (T124)', () => {
   it('`createArticle` guarda el documento de la versión 1', async () => {
     const { pool, repo } = newRepo();
 
-    const version = await repo.createArticle('Título', IDS.categoryAhorro, 'Primero.\n\nSegundo.', DOS_PARRAFOS, IDS.editor);
+    const version = await repo.createArticle('Título', IDS.categoryAhorro, DOS_PARRAFOS, IDS.editor);
 
     expect(version.bodyDoc).toEqual(DOS_PARRAFOS);
     const fila = await pool.query<{ body_doc: unknown }>(
@@ -54,7 +54,7 @@ describe('el camino de escritura guarda el documento (T124)', () => {
   it('`createNewVersion` guarda el documento de la versión nueva', async () => {
     const { repo } = newRepo();
 
-    const version = await repo.createNewVersion(IDS.article, IDS.editor, 'Primero.\n\nSegundo.', DOS_PARRAFOS);
+    const version = await repo.createNewVersion(IDS.article, IDS.editor, DOS_PARRAFOS);
 
     expect(version.bodyDoc).toEqual(DOS_PARRAFOS);
   });
@@ -62,28 +62,34 @@ describe('el camino de escritura guarda el documento (T124)', () => {
   it('`updateDraftBody` REESCRIBE el documento, no lo deja con el anterior', async () => {
     const { repo } = newRepo();
 
-    const creado = await repo.createArticle('Título', IDS.categoryAhorro, 'Cuerpo inicial', plainTextToBodyDoc('Cuerpo inicial'), IDS.editor);
+    const creado = await repo.createArticle('Título', IDS.categoryAhorro, plainTextToBodyDoc('Cuerpo inicial'), IDS.editor);
     expect(creado.bodyDoc).toEqual(plainTextToBodyDoc('Cuerpo inicial'));
 
-    const editado = await repo.updateDraftBody(creado.versionId, IDS.editor, 'Uno.\n\nDos.\n\nTres.', plainTextToBodyDoc('Uno.\n\nDos.\n\nTres.'));
+    const editado = await repo.updateDraftBody(creado.versionId, IDS.editor, plainTextToBodyDoc('Uno.\n\nDos.\n\nTres.'));
 
     expect(editado.bodyDoc).toEqual(plainTextToBodyDoc('Uno.\n\nDos.\n\nTres.'));
   });
 
-  it('el documento y el texto cuentan lo mismo: los dos se guardan juntos', async () => {
-    const { repo } = newRepo();
+  it('el texto plano NO se guarda: la columna dejó de existir (T135)', async () => {
+    const { pool, repo } = newRepo();
     const cuerpo = 'El interés compuesto es interés que gana interés.\n\nY su efecto crece con el tiempo.';
 
-    const version = await repo.createArticle('Título', IDS.categoryAhorro, cuerpo, plainTextToBodyDoc(cuerpo), IDS.editor);
+    const version = await repo.createArticle('Título', IDS.categoryAhorro, plainTextToBodyDoc(cuerpo), IDS.editor);
 
-    expect(version.body).toBe(cuerpo);
     expect(version.bodyDoc).toEqual(plainTextToBodyDoc(cuerpo));
+
+    // No basta con que el repositorio no la escriba: la columna no está, así que
+    // cualquier camino presente o futuro que intente escribir un texto plano al lado del
+    // documento falla aquí y no en producción cuando los dos digan cosas distintas.
+    await expect(pool.query('SELECT body FROM article_versions WHERE id = $1', [version.versionId])).rejects.toThrow(
+      /body/u,
+    );
   });
 
   it('un cuerpo en blanco guarda un documento vacío, no un nulo', async () => {
     const { repo } = newRepo();
 
-    const version = await repo.createArticle('Título', IDS.categoryAhorro, '   \n  ', plainTextToBodyDoc('   \n  '), IDS.editor);
+    const version = await repo.createArticle('Título', IDS.categoryAhorro, plainTextToBodyDoc('   \n  '), IDS.editor);
 
     // El servicio rechaza el cuerpo vacío antes de llegar aquí (`PublishingService`),
     // así que este caso fija QUÉ guardaría el repositorio si alguien lo llamara
