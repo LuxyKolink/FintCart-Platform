@@ -17,6 +17,14 @@
 // VU lo reutilizan — igual que en la vida real muchas pestañas/dispositivos
 // concurrentes pertenecen a una fracción mucho menor de cuentas.
 //
+// OJO, y es un defecto del guion tal como está (hallazgo 18 de 002): 40 cuentas para 1.000 VUs
+// NO puede pasar los umbrales de abajo. El borde limita por IP **y por usuario** (600 rpm cada
+// uno), así que 25 VUs compartiendo una cuenta piden ~2.250 rpm y reciben 429 —que cuentan como
+// `http_req_failed`, porque cualquier respuesta que no sea 2xx lo hace—. Una corrida de 1.000 VUs
+// con el fondo por defecto mediría el limitador de tasa creyendo medir la plataforma. Antes de
+// usarlo para SC-003/SC-005 hay que igualar `LOADTEST_USER_POOL` al número de VUs (o subir
+// `RATE_LIMIT_RPM` a sabiendas, y decirlo en el informe). Ver `deploy/loadtest/README.md`.
+//
 // Cada VU manda un `X-Forwarded-For` propio y estable (derivado de `__VU`). El
 // Gateway limita por IP (`internal/ratelimit`, clave `ip:` + `X-Forwarded-For` —
 // confía en la cabecera porque corre siempre detrás de un proxy, Principio X) y en

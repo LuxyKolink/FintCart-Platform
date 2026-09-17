@@ -435,3 +435,37 @@ calculadora no se puede: la calculadora cita su versión aprobada), que también
 **Lección para el resto del proyecto**: una idempotencia que evita el `INSERT` esconde el `INSERT`.
 Toda siembra de arranque necesita una prueba que corra sobre el estado vacío, no solo sobre el
 estado ya sembrado.
+
+---
+
+## Hallazgo 18 — La prueba de carga de la plataforma no puede pasar sus propios umbrales con el fondo de cuentas que trae
+
+**Qué pasa**: `deploy/loadtest/k6-scenarios.js` —la que verifica SC-003 y SC-005— trae un fondo de
+**40 cuentas** para **1.000 VUs** y las reutiliza (`data.tokens[__VU % data.tokens.length]`). El
+comentario que lo justifica dice que «en la vida real muchas pestañas concurrentes pertenecen a una
+fracción mucho menor de cuentas», y para el límite por IP es cierto: el guion manda un
+`X-Forwarded-For` sintético por VU precisamente para eso. Lo que el comentario no tuvo en cuenta es
+que el borde limita **dos veces** (`internal/handler`: `RateLimitByIP` y `RateLimitByUser`, 600 rpm
+cada uno), y que 25 VUs compartiendo una cuenta suman sus peticiones al mismo contador de usuario:
+~1,5 peticiones por segundo y por VU son ~2.250 rpm contra un tope de 600. El resultado serían 429
+en masa, y un 429 cuenta como `http_req_failed` —cualquier respuesta que no sea 2xx—, así que el
+umbral `http_req_failed: rate<0.01` del propio guion **no puede cumplirse** con esa configuración.
+Peor: los 429 son rapidísimos, así que las latencias de SC-003/SC-005 saldrían bonitas midiendo lo
+único que no se quería medir.
+
+**Cómo apareció**: montando la prueba de T162 para el endpoint de ejecución
+(`deploy/loadtest/k6-calculadora.js`). La primera corrida dio **100 % de fallos a 2 ms** con 30 VUs
+sobre 10 cuentas: el limitador por usuario. Al arreglarlo —una cuenta por VU— y volver a leer el
+guion de la plataforma se vio que el mismo problema estaba ahí, latente, esperando a que alguien
+lanzara la corrida de 1.000 VUs para creerse un número falso.
+
+**Arreglo y lo que queda**: la prueba de T162 exige `LOADTEST_ACCOUNTS ≥ LOADTEST_VUS` y aborta si
+no se cumple, para que no pueda arrancar con una configuración que no puede dar un número válido. El
+guion de la plataforma **no se ha modificado** (es de 001 y su arreglo —fondo igual al número de
+VUs, o subir `RATE_LIMIT_RPM` a sabiendas para el entorno desplegado— es una decisión de
+despliegue): lo que se ha hecho es dejar el aviso en su cabecera, donde lo va a leer quien lo
+ejecute, y documentarlo en `deploy/loadtest/README.md`.
+
+**La lección**: un límite de tasa por identidad convierte «un fondo de cuentas» en «un fondo de
+cuotas». Un guion con umbrales de error se autodenuncia si se corre; uno sin ellos habría dado un
+número creíble y falso.
