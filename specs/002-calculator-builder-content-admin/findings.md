@@ -597,3 +597,41 @@ comprueba no se rompe cuando alguien la incumple, sino cuando alguien la mira. Y
 mirarla es **comparar la documentación con el sistema en ejecución** (`rabbitmqctl list_bindings`),
 no con el diseño. T005 era una tarea de documentación y encontró un fallo de integración; eso es
 exactamente lo que una tarea de contrato debe hacer.
+
+---
+
+## Hallazgo 21 — «Regenerar los stubs» no es reproducible sin `cargo` en el host, y la imagen del servicio no sirve para hacerlo
+
+**Qué se intentó**: cerrar T006 regenerando los cinco stacks con `contracts/generate.sh`. El
+script tiene un pre-check que se planta si falta alguna herramienta, y en esta máquina no hay
+`cargo` —solo dentro de la imagen del Simulador—, así que el camino natural es hacer el paso de
+Rust en el contenedor. **No funciona**, por dos motivos que no están escritos en ninguna parte:
+
+1. `build.rs` afirma que `CARGO_MANIFEST_DIR` está en `services/<svc>` y sube dos niveles para
+   encontrar `contracts/proto`. Dentro de la imagen de desarrollo el crate vive en `/src`, que no
+   cumple esa forma, así que el script de construcción **panica**:
+   `CARGO_MANIFEST_DIR debería estar en services/<svc>`. La ruta del contenedor es exactamente lo
+   que la aserción rechaza.
+2. `protoc` tampoco está en la imagen final —a propósito: los stubs están versionados y exigir el
+   compilador en cada `cargo build` obligaría a tener la versión correcta en cada máquina—, así que
+   `tonic-build` falla con «Could not find `protoc`».
+
+Y un detalle que costó un intento: la imagen tiene ENTRYPOINT al binario del servicio, así que
+`docker run … fintcart-simulator cargo build` **ejecuta el servidor** con `cargo build` como
+argumentos, y el error que devuelve («faltan variables de entorno obligatorias: DB_ADDR,
+GRPC_PORT») no tiene nada que ver con lo que se estaba intentando. Hay que pasar
+`--entrypoint cargo`.
+
+**Cómo se resolvió**: montando el árbol en una ruta que respete la forma que `build.rs` espera
+(`-w /repo/services/simulator`), montando el `protoc` del host —está enlazado estáticamente, así
+que corre dentro de la imagen— y apuntando `PROTOC`. Se hizo **sobre una copia** del crate en
+`/tmp`, no sobre el repositorio, para no dejar ficheros generados con otro propietario.
+
+**Resultado de T006**: los cinco stacks regeneran **byte a byte idénticos** a lo que está
+versionado —cinco servicios Go, tres destinos de TypeScript, el Simulador en Rust—, así que los
+stubs están al día. La prueba de que el script es un no-op es más fuerte que cualquier commit de
+stubs: significa que el contrato que consume el código es el que está en `contracts/`.
+
+**Lo que se dejó escrito**: el procedimiento que funciona, con sus dos condiciones, va en la
+cabecera de `contracts/generate.sh`. Era un conocimiento de una hora que no estaba en ningún
+sitio, y sin él el siguiente intento empieza por el mismo panic.

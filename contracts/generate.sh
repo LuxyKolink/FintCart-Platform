@@ -7,6 +7,34 @@
 # commit separado del cambio de lógica de negocio.
 #
 # Uso:  contracts/generate.sh
+#
+# ## Regenerar en un entorno sin `cargo` en el host (hallazgo 21)
+#
+# El pre-check de abajo exige `cargo`, así que en una máquina que solo tenga el
+# toolchain dentro de la imagen del Simulador el script se planta antes de
+# empezar. El paso de Rust SÍ se puede ejecutar en un contenedor, pero con dos
+# condiciones que no son obvias:
+#
+#   1. `build.rs` afirma que `CARGO_MANIFEST_DIR` está en `services/<svc>` y sube
+#      dos niveles para encontrar `contracts/proto`. La ruta de la imagen de
+#      desarrollo (`/src`) NO cumple esa forma: falla con «CARGO_MANIFEST_DIR
+#      debería estar en services/<svc>». Hay que montar el árbol en una ruta que
+#      la cumpla (`-v $PWD:/repo -w /repo/services/simulator`).
+#   2. `protoc` no está en la imagen final (a propósito: tarda y los stubs están
+#      versionados). Se monta el del host y se apunta `PROTOC` a él.
+#
+# Ejemplo, regenerando hacia una COPIA del crate para no tocar el repositorio:
+#
+#   cp -a services/simulator /tmp/regen/services/ && cp -a contracts/proto /tmp/regen/contracts/
+#   docker run --rm --entrypoint cargo -v /tmp/regen:/repo \
+#     -v "$HOME/.local/bin/protoc:/protoc:ro" -w /repo/services/simulator \
+#     -e FINTCART_REGEN_PROTO=$(date +%s) -e PROTOC=/protoc -e CARGO_TARGET_DIR=/tmp/target \
+#     fintcart-simulator build
+#
+# Los otros cuatro stacks (Go y TypeScript) sí se generan en el host con `buf` y los
+# plugins: `go install` para los dos de Go y el `node_modules` de este directorio
+# para `protoc-gen-ts_proto`. Ejecutado así, el script entero es un no-op si los
+# stubs versionados están al día, que es lo que se comprobó en T006.
 set -euo pipefail
 
 cd "$(dirname "$0")"
