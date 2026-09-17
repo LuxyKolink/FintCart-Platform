@@ -494,6 +494,31 @@ type Calculator struct {
 	IndicatorsUsed  []string      `json:"indicators_used"`
 }
 
+// CalculatorApproval ≡ `POST /editorial/calculators/{id}/approve` (FR-053).
+//
+// Lleva la VERSIÓN publicada y no solo un «ok»: el autor puede haber escrito versiones nuevas
+// mientras la propuesta esperaba, y la interfaz tiene que poder decir cuál de ellas quedó en el
+// catálogo. Es el dato que distingue «se aprobó lo que revisé» de «se aprobó otra cosa».
+type CalculatorApproval struct {
+	CalculatorID string `json:"calculator_id"`
+	Version      int32  `json:"version"`
+}
+
+// CalculatorRejection ≡ cuerpo de `POST /editorial/calculators/{id}/reject` (FR-054).
+//
+// Solo el motivo, y es obligatorio: el motivo es lo que el autor necesita para corregir, y un
+// rechazo sin él lo deja sin saber qué cambiar.
+type CalculatorRejection struct {
+	Reason string `json:"reason"`
+}
+
+// stateEnRevision es el estado que filtra la bandeja de curaduría.
+//
+// Es una constante y no el literal «en_revision» repetido porque el valor es del CHECK de la
+// columna del Simulador: escribirlo dos veces es como se llega a una bandeja que filtra por un
+// estado que ya no existe y devuelve vacío sin decir nada.
+const stateEnRevision = "en_revision"
+
 // CalculatorDef ≡ la definición tal como la edita el constructor.
 type CalculatorDef struct {
 	Inputs      []CalculatorInput  `json:"inputs"`

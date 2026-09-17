@@ -244,6 +244,22 @@ type fakeOrchestrator struct {
 	lastSimulation *orchestratorv1.SimulationRequest
 	grading        *orchestratorv1.QuizGradingResult
 	simulation     *orchestratorv1.SimulationResult
+
+	// Aprobación de una calculadora (T116, FR-053).
+	lastApproval *orchestratorv1.CalculatorApprovalRequest
+	approval     *orchestratorv1.CalculatorApprovalResult
+	approvalErr  error
+}
+
+func (f *fakeOrchestrator) ApproveCalculator(_ context.Context, in *orchestratorv1.CalculatorApprovalRequest, _ ...grpc.CallOption) (*orchestratorv1.CalculatorApprovalResult, error) {
+	f.lastApproval = in
+	if f.approvalErr != nil {
+		return nil, f.approvalErr
+	}
+	if f.approval == nil {
+		return &orchestratorv1.CalculatorApprovalResult{CalculatorId: in.GetCalculatorId(), Version: 1}, nil
+	}
+	return f.approval, nil
 }
 
 func (f *fakeOrchestrator) StartQuizGrading(_ context.Context, in *orchestratorv1.QuizGradingRequest, _ ...grpc.CallOption) (*orchestratorv1.QuizGradingResult, error) {
@@ -286,6 +302,10 @@ type fakeSimulator struct {
 	lastUpsert   *simulatorv1.UpsertCalculatorRequest
 	lastValidate *simulatorv1.ValidateDefinitionRequest
 	upsertCalls  int
+
+	// Curaduría (T116). `lastRef` se comparte con `GetCalculator` y `DeleteCalculator`: lo que
+	// las pruebas comprueban es de dónde salió el actor, y ese dato es el mismo en las tres.
+	lastRejection *simulatorv1.RejectCalculatorRequest
 
 	// Indicadores financieros (T107). Igual que los del constructor: lo que casi todas
 	// las afirmaciones comprueban es lo que el borde ENVIÓ —de dónde salió el
@@ -376,6 +396,16 @@ func (f *fakeSimulator) GetIndicatorCalendarStatus(_ context.Context, _ *commonv
 
 func (f *fakeSimulator) DeleteCalculator(_ context.Context, in *simulatorv1.CalculatorRef, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
 	f.lastRef = in
+	return &commonv1.OpResult{Success: true}, nil
+}
+
+func (f *fakeSimulator) SubmitCalculatorForReview(_ context.Context, in *simulatorv1.CalculatorRef, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
+	f.lastRef = in
+	return &commonv1.OpResult{Success: true}, nil
+}
+
+func (f *fakeSimulator) RejectCalculator(_ context.Context, in *simulatorv1.RejectCalculatorRequest, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
+	f.lastRejection = in
 	return &commonv1.OpResult{Success: true}, nil
 }
 
@@ -561,6 +591,12 @@ func TestProtectedRoutesRejectAnonymousRequests(t *testing.T) {
 		{http.MethodPost, "/editorial/quizzes"},
 		{http.MethodPut, "/editorial/quizzes/q-1"},
 		// Administración: exige token Y rol, pero la comprobación de token va primero.
+		// Curaduría de calculadoras (T116): las cuatro exigen token, y las tres de
+		// `/editorial/**` exigen además rol.
+		{http.MethodPost, "/calculators/c-1/submit"},
+		{http.MethodGet, "/editorial/calculators"},
+		{http.MethodPost, "/editorial/calculators/c-1/approve"},
+		{http.MethodPost, "/editorial/calculators/c-1/reject"},
 		{http.MethodGet, "/admin/categories"},
 		{http.MethodPost, "/admin/categories"},
 		{http.MethodPatch, "/admin/categories/cat-1"},

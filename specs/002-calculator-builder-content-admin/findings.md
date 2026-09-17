@@ -197,3 +197,32 @@ prueba falla igual, un minuto más tarde.
 **Lo que NO se ha tocado**: los plazos de las aserciones de `us1`–`us4`. Son la garantía dura (N-13) y
 ajustarlos para que pasen en una máquina cargada convertiría el fallo del anfitrión en un fallo del producto
 que nadie vería. Si la batería completa no pasa, se documenta; no se afloja.
+
+## Hallazgo 8 — El delta de proto no preveía cómo llega la aprobación al Orquestador
+
+**Qué pasa**: `contracts/events/events-catalog-delta.md` asigna `calculator.published` al
+Orquestador —el Simulador no es productor, Principio V—, pero los tres deltas de proto
+(aprendizaje, simulador, usuarios) no añaden ningún RPC al contrato del ORQUESTADOR. El borde
+solo podía llamar al Simulador, que no publica: la aprobación habría quedado sin evento y T115
+sin forma de existir.
+
+**Arreglo**: `OrchestratorService.ApproveCalculator` —síncrona, con resultado propio y no un
+`SagaHandle`— más la saga de dos pasos (aprobar, leer la versión publicada, emitir). Se
+documenta aquí porque el hueco no está en el código sino en el plan: quien lea los deltas para
+implementar US7 (purga) o US8 (calculadora incrustada) tiene que saber que **un evento asignado
+al Orquestador implica un RPC nuevo en su contrato**, y que eso no lo dice ningún delta.
+
+## Hallazgo 9 — El delta REST sigue sin aplicarse a `contracts/openapi/gateway.yaml`
+
+**Qué pasa**: el documento OpenAPI versionado tiene 27 rutas y ninguna de la enmienda 002: no
+está el constructor de calculadoras, ni los indicadores, ni las categorías administrables, ni la
+curaduría que se acaba de implementar (T116). El delta con las ~20 rutas existe
+(`contracts/openapi/gateway-delta.yaml`) y los manejadores del borde existen, pero el documento
+no.
+
+**Consecuencia**: `contracts/` es la superficie compartida y el documento REST es el contrato
+del borde, así que hoy la única descripción fiable de esas rutas es el código del Gateway. No
+bloquea a nadie —nada genera código desde ese archivo y Swagger UI documenta lo que hay en el
+`.yaml`— y por eso no se arregla a medias aquí: aplicar el delta entero es T004, y hacerlo ruta
+a ruta dejaría un documento que describe parte de una familia y no el resto, que es peor que uno
+desactualizado de forma homogénea.

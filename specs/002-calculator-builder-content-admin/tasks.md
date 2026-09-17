@@ -359,8 +359,8 @@ verificar que aparece en el catálogo público.
 
 - [X] T113 [US5] Transiciones `privada → en_revision → publicada` y el retorno por rechazo con motivo, en `services/simulator/src/domain/`
 - [X] T114 [US5] `SubmitCalculatorForReview`, `ApproveCalculator` y `RejectCalculator` en `services/simulator/src/grpc/service.rs`
-- [ ] T115 [US5] Publicar `calculator.published` desde `services/orchestrator/internal/server/` al aprobarse (Auditoría)
-- [ ] T116 [US5] Rutas `/calculators/{id}/submit` y `/editorial/calculators[/{id}/{approve,reject}]` en `services/api-gateway/internal/handler/routes.go`, exigiendo `coordinador_editorial` y **no** `administrador` (FR-082)
+- [X] T115 [US5] Publicar `calculator.published` desde `services/orchestrator/internal/server/` al aprobarse (Auditoría)
+- [X] T116 [US5] Rutas `/calculators/{id}/submit` y `/editorial/calculators[/{id}/{approve,reject}]` en `services/api-gateway/internal/handler/routes.go`, exigiendo `coordinador_editorial` y **no** `administrador` (FR-082)
 - [ ] T117 [P] [US5] Bandeja de revisión de calculadoras para el coordinador en `frontend/src/app/features/editorial/review/`
 - [ ] T118 [P] [US5] Acción "proponer para publicación" y visualización del motivo de rechazo en `frontend/src/app/features/calculators/builder/`
 - [ ] T119 [P] [US5] Catálogo público de calculadoras en `frontend/src/app/features/calculators/catalog/`

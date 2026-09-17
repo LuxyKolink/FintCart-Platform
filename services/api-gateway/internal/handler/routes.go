@@ -199,6 +199,10 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.Put("/calculators/{calculatorId}", h.UpdateCalculator)
 		r.Delete("/calculators/{calculatorId}", h.DeleteCalculator)
 		r.Post("/calculators/{calculatorId}/run", h.RunCalculator)
+		// Proponer la calculadora propia para el catálogo público (FR-052, T116). Va con el
+		// autor y no con un rol: cualquier usuario puede proponer LA SUYA, y el Simulador
+		// comprueba la autoría sobre la fila.
+		r.Post("/calculators/{calculatorId}/submit", h.SubmitCalculatorForReview)
 
 		// Perfil propio. No llevan `{userId}` a propósito: el usuario sale del token y
 		// no de la URL, de modo que no existe la posibilidad de pedir el perfil de otro
@@ -244,6 +248,17 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(RequireRole(RoleCoordinadorEditoria))
 			r.Post("/editorial/versions/{versionId}/publish", h.ApproveAndPublish)
+
+			// Curaduría de calculadoras (FR-053, FR-054, T116). El rol es
+			// `coordinador_editorial` y **no** `administrador` (FR-082): aprobar el catálogo de
+			// contenido y administrar la plataforma son dos atribuciones distintas, y un
+			// administrador no hereda la primera.
+			//
+			// La bandeja va en este grupo y no en el de editores pese a ser una LECTURA: lo que
+			// devuelve son propuestas sin aprobar, y leerlas es parte de revisarlas.
+			r.Get("/editorial/calculators", h.ListCalculatorsForReview)
+			r.Post("/editorial/calculators/{calculatorId}/approve", h.ApproveCalculator)
+			r.Post("/editorial/calculators/{calculatorId}/reject", h.RejectCalculator)
 		})
 
 		// ── Administración: exige rol `administrador` (FR-080, FR-081) ──────

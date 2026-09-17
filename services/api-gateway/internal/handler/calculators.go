@@ -265,3 +265,112 @@ func (h *Handler) DeleteCalculator(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, opToDTO(resp))
 }
+
+// ── Curaduría (T116, FR-052…FR-054) ─────────────────────────────────────────
+
+// SubmitCalculatorForReview ≡ `POST /calculators/{calculatorId}/submit` (FR-052).
+//
+// Va DIRECTO al Simulador, igual que crear, editar y borrar, y no por el Orquestador: proponer
+// no produce ningún evento. La regla que decide el camino es esa y no el tipo de operación —
+// `run` y `approve` sí pasan por el Orquestador porque tienen que quedar auditados, y esto no.
+//
+// El autor sale del TOKEN y no del cuerpo: quien propone es quien tiene la sesión, y aceptarlo
+// del cuerpo dejaría proponer la calculadora de otro.
+func (h *Handler) SubmitCalculatorForReview(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	resp, err := h.clients.Simulator.SubmitCalculatorForReview(r.Context(), &simulatorv1.CalculatorRef{
+		CalculatorId: chi.URLParam(r, "calculatorId"),
+		ActorId:      claims.UserID,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, opToDTO(resp))
+}
+
+// ListCalculatorsForReview ≡ `GET /editorial/calculators` (FR-052, T117).
+//
+// La bandeja de curaduría: lo que espera revisión. El filtro es el ESTADO, y es lo único que
+// hace falta — el `owner_id` sigue significando «las mías», así que esta ruta no da acceso a las
+// calculadoras privadas de nadie. Ver la nota de `Calculators::list` en el Simulador: el filtro
+// ACOTA, no abre.
+func (h *Handler) ListCalculatorsForReview(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.clients.Simulator.ListCalculators(r.Context(), &simulatorv1.ListCalculatorsRequest{
+		State: stateEnRevision,
+		Page:  pageRequestFrom(r),
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, pageOf(calculatorsToDTO(resp.GetItems()), resp.GetPage()))
+}
+
+// ApproveCalculator ≡ `POST /editorial/calculators/{calculatorId}/approve` (FR-053).
+//
+// Pasa por el ORQUESTADOR y no directo al Simulador por el mismo motivo que ejecutar una
+// calculadora: el Simulador no publica eventos (Principio V) y la aprobación tiene que quedar
+// auditada. La llamada directa sería más corta y dejaría el acto de curaduría sin rastro.
+//
+// El coordinador sale del TOKEN. Es lo que permite que la separación de autoría de FR-053 se
+// imponga sobre un dato que el solicitante no eligió: si viniera del cuerpo, bastaría con
+// escribir el identificador de otra persona para aprobar la calculadora propia.
+func (h *Handler) ApproveCalculator(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	resp, err := h.clients.Orchestrator.ApproveCalculator(r.Context(), &orchestratorv1.CalculatorApprovalRequest{
+		CalculatorId:  chi.URLParam(r, "calculatorId"),
+		CoordinatorId: claims.UserID,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, CalculatorApproval{
+		CalculatorID: resp.GetCalculatorId(),
+		Version:      resp.GetVersion(),
+	})
+}
+
+// RejectCalculator ≡ `POST /editorial/calculators/{calculatorId}/reject` (FR-054).
+//
+// Va DIRECTO al Simulador, al contrario que la aprobación: un rechazo no se audita —no entra en
+// el catálogo— y el motivo queda en la ficha de la calculadora, que es donde su autor lo lee.
+func (h *Handler) RejectCalculator(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFrom(r.Context())
+	if !ok {
+		h.writeGRPCError(w, r, errUnauthorized)
+		return
+	}
+
+	var body CalculatorRejection
+	if err := decodeJSON(w, r, &body); err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	resp, err := h.clients.Simulator.RejectCalculator(r.Context(), &simulatorv1.RejectCalculatorRequest{
+		CalculatorId:  chi.URLParam(r, "calculatorId"),
+		CoordinatorId: claims.UserID,
+		Reason:        body.Reason,
+	})
+	if err != nil {
+		h.writeGRPCError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, opToDTO(resp))
+}
