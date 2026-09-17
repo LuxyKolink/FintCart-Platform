@@ -107,8 +107,12 @@ describe('plantilla del aviso de indicadores', () => {
     expect(subject).toContain('Acción requerida');
     expect(subject).toContain('UVT');
     expect(body).toContain('no tiene un valor vigente para hoy');
-    // La consecuencia concreta, que es lo que hace que alguien actúe.
-    expect(body).toContain('resultados con el valor anterior');
+    // Las DOS consecuencias, que es lo que hace que alguien actúe —y lo que se comprobó que
+    // pasa de verdad (hallazgo 19 de 002). El camino por definición NO da un resultado
+    // desactualizado: falla. El texto anterior afirmaba lo contrario para las dos, y un aviso
+    // que diagnostica mal es el que enseña a no creerle.
+    expect(body).toContain('no pueden calcular hasta que se cargue');
+    expect(body).toContain('con el valor que se les dé');
   });
 
   it('un vencimiento próximo dice la fecha y cuántos días quedan', () => {

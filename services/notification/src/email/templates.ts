@@ -121,10 +121,22 @@ export function render(
  *
  * ## Las dos clases de aviso, con textos distintos
  *
- * `sin_vigencia` —el indicador se quedó sin valor para hoy— es un problema ACTIVO: las
- * calculadoras que lo referencian están calculando con el dato del año anterior. `por_vencer`
- * es un aviso ANTICIPADO de treinta días. El mismo texto para los dos haría parecer
- * urgente lo que no lo es, y dejaría sin urgencia lo que sí lo es.
+ * `sin_vigencia` —el indicador se quedó sin valor para hoy— es un problema ACTIVO: hay
+ * calculadoras que lo referencian y no pueden calcular, o que calculan con una cifra que la
+ * plataforma ya no puede confirmar. `por_vencer` es un aviso ANTICIPADO de treinta días. El
+ * mismo texto para los dos haría parecer urgente lo que no lo es, y dejaría sin urgencia lo
+ * que sí lo es.
+ *
+ * ## El aviso `sin_vigencia` nombra las DOS consecuencias, y eso se midió
+ *
+ * La versión anterior decía que «las calculadoras que lo referencian están dando resultados
+ * con el valor anterior». Es verdad en el camino NATIVO —donde el valor llega escrito por el
+ * usuario (`valor_uvt`)— y es FALSO en el camino por definición: `Indicators::resolve`
+ * devuelve solo la vigencia que cubre HOY y no tiene respaldo al valor anterior, así que una
+ * calculadora que lee `@UVT` del catálogo **falla** con «no hay valor vigente» (comprobado en
+ * vivo, hallazgo 19 de 002). Un aviso que diagnostica mal es el que enseña a no creerle: si el
+ * administrador comprueba que la calculadora no falla «por el valor viejo» sino que
+ * directamente no calcula, deja de fiarse del siguiente.
  *
  * El asunto lo distingue también, porque es lo único que se ve en la bandeja de entrada.
  */
@@ -138,8 +150,10 @@ function indicatorAlert(payload: NotificationPayload): RenderedEmail {
       body: [
         `El indicador ${name} no tiene un valor vigente para hoy.`,
         '',
-        'Las calculadoras que lo referencian están dando resultados con el valor anterior, ' +
-          'así que pueden estar desactualizadas sin que nadie lo note.',
+        'Las calculadoras que lo referencian están afectadas: las que toman el valor del ' +
+          'catálogo no pueden calcular hasta que se cargue, y las que lo reciben escrito ' +
+          'siguen calculando con el valor que se les dé, que la plataforma ya no puede ' +
+          'confirmar.',
         '',
         'Carga el valor del período en curso en la pantalla de indicadores.',
       ].join('\n'),

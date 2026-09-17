@@ -469,3 +469,49 @@ ejecute, y documentarlo en `deploy/loadtest/README.md`.
 **La lección**: un límite de tasa por identidad convierte «un fondo de cuentas» en «un fondo de
 cuotas». Un guion con umbrales de error se autodenuncia si se corre; uno sin ellos habría dado un
 número creíble y falso.
+
+---
+
+## Hallazgo 19 — El aviso de indicador sin vigencia diagnosticaba mal, en dos de los tres sitios donde aparece
+
+**Qué pasaba**: tres textos afirman la misma consecuencia cuando un indicador se queda sin vigencia
+para el año en curso:
+
+| Dónde | Qué decía |
+|---|---|
+| `services/notification/src/email/templates.ts` (cuerpo del correo de FR-061) | «Las calculadoras que lo referencian están dando resultados con el valor anterior, así que pueden estar desactualizadas sin que nadie lo note.» |
+| `frontend/.../admin/indicators/indicators.component.html` (intro de la pantalla) | «sin vigencia, una calculadora que usa `@UVT` sigue calculando con el valor anterior.» |
+| `frontend/.../simulators/forms/simulator-form.component.html` (aviso de FR-062) | «Los resultados pueden estar desactualizados.» |
+
+**Y no siempre es verdad.** Hay DOS caminos de ejecución y se comportan distinto —medido en vivo
+para T161, moviendo la vigencia de la UVT fuera del año:
+
+```
+GET /indicators/current                  → sin vigencia: [UVT]
+POST /calculators/gmf/run                → 400 «no hay valor vigente para el indicador @UVT»
+POST /simulators/colombia_especifica/run → 200 (el valor llega escrito por el usuario, valor_uvt)
+```
+
+`Indicators::resolve` (Simulador) devuelve **solo** la vigencia que cubre el día de hoy y **no tiene
+respaldo al valor anterior**: `validity @> $2::date`, sin `ORDER BY` ni `LIMIT`, porque el `EXCLUDE`
+de FR-059 garantiza que a lo sumo una fila responda. Así que una calculadora **por definición** no
+da un resultado desactualizado: **falla**. Y una del camino **nativo** sí sigue calculando, con el
+valor que el usuario escriba, que es para lo que el aviso sirve.
+
+**Por qué importa un texto equivocado**: el correo del procedimiento anual es lo único que el
+administrador lee sobre una operación de negocio, y su valor entero es que se le crea. Un aviso que
+diagnostica mal —«están dando resultados con el valor anterior»— enseña a comprobar en el sitio
+equivocado, y cuando el administrador ve que la calculadora no calcula, la conclusión razonable es
+que el aviso exagera. El siguiente correo se archiva sin leer.
+
+**Arreglo**: el correo y la pantalla de administración nombran **las dos** consecuencias —las que
+toman el valor del catálogo no pueden calcular; las que lo reciben escrito siguen con el que se les
+dé— y el aviso del ejecutor de simuladores se queda como está, porque dice lo que pasa en el camino
+que usa (el nativo), con el comentario de `calculators.config.ts` ya explicándolo. La aserción del
+correo en `services/notification/test/templates.spec.ts` se cambió junto con el texto: una prueba
+que siguiera exigiendo la frase vieja habría inmovilizado el defecto.
+
+**Cómo se encontró**: verificando SC-020 para T161. Los dos caminos devolvieron cosas distintas y la
+diferencia estaba en el texto del aviso, no en el motor. Ninguna prueba podía verlo: el mensaje
+afirmaba un comportamiento del sistema en un archivo de plantillas y el comportamiento real vivía en
+otro servicio.

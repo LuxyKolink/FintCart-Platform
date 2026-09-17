@@ -188,7 +188,10 @@ test.describe('calculadora incrustada en un artículo', () => {
     articulos.push(titulo);
     calculadoras.push(nombreCalculadora);
 
-    const { id: calculadoraId, coordinador } = await publicarCalculadora(browser, nombreCalculadora);
+    // El `id` de la calculadora no se usa aquí: la incrusta el editor desde el catálogo
+    // (por su nombre), que es justamente lo que la prueba quiere comprobar —que el
+    // constructor la ofrece por lo que el autor ve y no por un identificador tecleado—.
+    const { coordinador } = await publicarCalculadora(browser, nombreCalculadora);
 
     // ── 1. El editor escribe el artículo e INCRUSTA la calculadora ─────────
     const contextoEditor = await browser.newContext();
