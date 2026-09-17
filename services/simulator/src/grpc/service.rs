@@ -12,6 +12,7 @@ use tonic::{Request, Response, Status};
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::domain::curation;
 use crate::domain::currency;
 use crate::domain::decimal_str;
 use crate::domain::definition::Definition;
@@ -120,41 +121,20 @@ fn record<T>(operation: &str, started: Instant, result: &Result<Response<T>, Sta
     observability::observe(operation, &code, started.elapsed());
 }
 
-/// Respuesta uniforme de un RPC todavía sin implementar.
+/// NOTA HISTÓRICA — aquí vivía `pending(rpc, tarea)`, la ayuda que devolvía
+/// `Status::unimplemented` desde los RPC que todavía no tenían cuerpo (T104, T114).
 ///
-/// ## Por qué existen estos cuerpos si no implementan nada
+/// Existió porque el delta de contrato (T002) añadió once RPC al `SimulatorService` en un
+/// commit separado del cambio de lógica, como exige la Constitución §Definición de Contratos:
+/// un trait con métodos sin implementar **no compila**, así que sin esos cuerpos el crate
+/// entero quedaba inutilizable, incluidas las pruebas del motor de fórmulas. Cada uno nombraba
+/// la TAREA que lo implementaría, de modo que quien recibiera el error supiera a qué esperar.
 ///
-/// El delta de contrato (T002) añadió once RPC al `SimulatorService` en un commit
-/// separado del cambio de lógica, como exige la Constitución §Definición de Contratos. Un
-/// trait con métodos sin implementar **no compila**, así que sin estos cuerpos el crate
-/// entero queda inutilizable: no se pueden ni ejecutar las pruebas del motor de fórmulas,
-/// que no dependen de ninguno de los once. Devolver `unimplemented` es lo que mantiene el
-/// árbol compilable y las pruebas corribles mientras llegan sus tareas.
-///
-/// ## Lo que estos cuerpos NO son
-///
-/// No son una implementación parcial ni un valor por defecto silencioso:
-/// `Status::unimplemented` es un error explícito que un cliente ve como tal. Cada uno
-/// nombra la TAREA que lo implementa, así que quien reciba el error en una prueba de
-/// integración sabe a qué esperar en vez de averiguar por qué el RPC «no hace nada».
-///
-/// Van escritos uno a uno y no generados con una macro: `#[tonic::async_trait]` es un
-/// atributo, y los atributos se expanden **antes** que las macros declarativas, así que
-/// los métodos que produjera una macro llegarían al transformador de `async_trait` ya
-/// tarde y sin la lifetime de la firma del trait.
-///
-/// Devuelve el [`Status`] en lugar del `Result` ya construido por un motivo que el
-/// compilador señala: `Status` ocupa 176 bytes, y una función SÍNCRONA que lo devuelva como
-/// variante de error dispara `clippy::result_large_err`. Los métodos del trait no lo
-/// disparan porque `async_trait` los envuelve en un futuro, pero esta ayuda no. Envolver
-/// aquí y devolver el valor se lleva la decisión al sitio que sí puede tomarla.
-fn pending(rpc: &str, task: &str, started: Instant) -> Status {
-    let status = Status::unimplemented(format!("pendiente de {task}"));
-    // `Response<()>` porque `record` solo mira el CÓDIGO de estado; el tipo del cuerpo le
-    // da igual y nombrarlo obligaría a esta ayuda a ser genérica otra vez.
-    record(rpc, started, &Err::<Response<()>, Status>(status.clone()));
-    status
-}
+/// **Ya no queda ninguno**: los once RPC tienen cuerpo. La ayuda se borra en lugar de quedarse
+/// como utilidad disponible porque su única razón de ser era no tener implementaciones, y una
+/// función que devuelve «pendiente» en un servicio completo es una puerta abierta a que el
+/// siguiente RPC nazca así —y un RPC que responde `unimplemented` se descubre en producción,
+/// no al compilar—.
 
 #[tonic::async_trait]
 impl<S: Simulations, C: Calculators, I: Indicators> SimulatorService for Service<S, C, I> {
@@ -307,37 +287,60 @@ impl<S: Simulations, C: Calculators, I: Indicators> SimulatorService for Service
 
     // ── Curaduría (T114) ──────────────────────────────────────────────────────
 
+    /// Propone la calculadora propia para publicación (FR-052).
+    ///
+    /// Quien decide si el actor PUEDE proponer es el dominio, sobre la fila bloqueada, y no esta
+    /// capa: el estado de una calculadora puede cambiar entre que el borde autoriza y esta llamada
+    /// llega.
     async fn submit_calculator_for_review(
         &self,
-        _request: Request<CalculatorRef>,
+        request: Request<CalculatorRef>,
     ) -> Result<Response<OpResult>, Status> {
-        Err(pending(
-            "simulator.SubmitCalculatorForReview",
-            "T114",
-            Instant::now(),
-        ))
+        let started = Instant::now();
+        let result = self
+            .submit_for_review_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.SubmitCalculatorForReview falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.SubmitCalculatorForReview", started, &result);
+        result
     }
 
     async fn approve_calculator(
         &self,
-        _request: Request<ApproveCalculatorRequest>,
+        request: Request<ApproveCalculatorRequest>,
     ) -> Result<Response<OpResult>, Status> {
-        Err(pending(
-            "simulator.ApproveCalculator",
-            "T114",
-            Instant::now(),
-        ))
+        let started = Instant::now();
+        let result = self
+            .approve_calculator_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.ApproveCalculator falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.ApproveCalculator", started, &result);
+        result
     }
 
     async fn reject_calculator(
         &self,
-        _request: Request<RejectCalculatorRequest>,
+        request: Request<RejectCalculatorRequest>,
     ) -> Result<Response<OpResult>, Status> {
-        Err(pending(
-            "simulator.RejectCalculator",
-            "T114",
-            Instant::now(),
-        ))
+        let started = Instant::now();
+        let result = self
+            .reject_calculator_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.RejectCalculator falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.RejectCalculator", started, &result);
+        result
     }
 
     // ── Indicadores financieros (T104) ────────────────────────────────────────
@@ -381,13 +384,10 @@ impl<S: Simulations, C: Calculators, I: Indicators> SimulatorService for Service
         _request: Request<PageRequest>,
     ) -> Result<Response<IndicatorCalendarStatus>, Status> {
         let started = Instant::now();
-        let result = self
-            .indicator_calendar_status_inner()
-            .await
-            .map_err(|err| {
-                warn!(error = %err, "simulator.GetIndicatorCalendarStatus falló");
-                to_status(&err)
-            });
+        let result = self.indicator_calendar_status_inner().await.map_err(|err| {
+            warn!(error = %err, "simulator.GetIndicatorCalendarStatus falló");
+            to_status(&err)
+        });
         let result = result.map(Response::new);
         record("simulator.GetIndicatorCalendarStatus", started, &result);
         result
@@ -395,6 +395,70 @@ impl<S: Simulations, C: Calculators, I: Indicators> SimulatorService for Service
 }
 
 impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
+    // ── Cuerpos de la curaduría (T114) ────────────────────────────────────────
+
+    /// Cuerpo de `SubmitCalculatorForReview`.
+    ///
+    /// No comprueba el rol: quién puede proponer es el AUTOR de la calculadora, y eso lo decide
+    /// el dominio sobre la fila. El rol del borde aquí no aporta nada —cualquier usuario puede
+    /// proponer su propia calculadora—, y exigir uno haría que la plataforma no dejara crear
+    /// calculadoras a quien no lo tuviera.
+    async fn submit_for_review_inner(&self, req: CalculatorRef) -> Result<OpResult, Error> {
+        let id = mapping::parse_uuid(&req.calculator_id, "calculator_id")?;
+        let owner_id = mapping::parse_user_id(&req.actor_id)?;
+
+        self.calculators.submit(id, owner_id).await?;
+        Ok(OpResult {
+            success: true,
+            code: String::new(),
+            message: String::new(),
+        })
+    }
+
+    /// Cuerpo de `ApproveCalculator` (FR-053).
+    ///
+    /// El rol `coordinador_editorial` lo exige el borde, que es el único sitio de la plataforma
+    /// que conoce los roles (§Definición de Contratos) — y no hereda del administrador (FR-082).
+    /// Lo que esta capa sí comprueba, porque no es un rol sino una relación entre dos personas, es
+    /// que quien aprueba no sea el autor: una comprobación que la base también impone, y tenerla
+    /// en los dos sitios es lo que hace que ni un defecto aquí ni una escritura por fuera puedan
+    /// saltársela.
+    async fn approve_calculator_inner(
+        &self,
+        req: ApproveCalculatorRequest,
+    ) -> Result<OpResult, Error> {
+        let id = mapping::parse_uuid(&req.calculator_id, "calculator_id")?;
+        let coordinator_id = mapping::parse_user_id(&req.coordinator_id)?;
+
+        self.calculators.approve(id, coordinator_id).await?;
+        Ok(OpResult {
+            success: true,
+            code: String::new(),
+            message: String::new(),
+        })
+    }
+
+    /// Cuerpo de `RejectCalculator` (FR-054).
+    ///
+    /// El motivo se normaliza AQUÍ y no en el repositorio porque es esta capa la que tiene que
+    /// poder decirle al usuario qué le falta: el repositorio recibe un motivo ya recortado y con
+    /// longitud comprobada, y el `CHECK` de la columna queda como la red por debajo.
+    async fn reject_calculator_inner(
+        &self,
+        req: RejectCalculatorRequest,
+    ) -> Result<OpResult, Error> {
+        let id = mapping::parse_uuid(&req.calculator_id, "calculator_id")?;
+        let coordinator_id = mapping::parse_user_id(&req.coordinator_id)?;
+        let reason = curation::normalize_reason(&req.reason)?;
+
+        self.calculators.reject(id, coordinator_id, &reason).await?;
+        Ok(OpResult {
+            success: true,
+            code: String::new(),
+            message: String::new(),
+        })
+    }
+
     /// Cuerpo de `UpsertIndicator` (FR-055..FR-060).
     ///
     /// Todo lo que valida aquí lo valida también la base —formato del nombre, valor no
@@ -495,10 +559,7 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
         // en orden mientras una calculadora no encuentra su valor.
         let status = self
             .indicators
-            .calendar_status(
-                execution_date(),
-                indicators::CALENDAR_ALERT_WINDOW_DAYS,
-            )
+            .calendar_status(execution_date(), indicators::CALENDAR_ALERT_WINDOW_DAYS)
             .await?;
         Ok(mapping::calendar_status(status))
     }

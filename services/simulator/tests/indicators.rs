@@ -26,19 +26,19 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
 use chrono::NaiveDate;
-use fintcart_simulator::domain::indicators::CALENDAR_ALERT_WINDOW_DAYS;
 use fintcart_simulator::domain::error::{Error, Result};
+use fintcart_simulator::domain::indicators::CALENDAR_ALERT_WINDOW_DAYS;
 use fintcart_simulator::grpc::service::Service;
+use fintcart_simulator::pb::fintcart::common::v1::PageRequest;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_client::SimulatorServiceClient;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_server::SimulatorServiceServer;
-use fintcart_simulator::pb::fintcart::common::v1::PageRequest;
 use fintcart_simulator::pb::fintcart::simulator::v1::{
     ListIndicatorsRequest, UpsertIndicatorRequest,
 };
-use fintcart_simulator::repo::calculators::{CalculatorPage, CalculatorRow, Calculators, VersionRef};
-use fintcart_simulator::repo::indicators::{
-    CalendarStatus, Expiring, IndicatorRow, Indicators,
+use fintcart_simulator::repo::calculators::{
+    CalculatorPage, CalculatorRow, Calculators, VersionRef,
 };
+use fintcart_simulator::repo::indicators::{CalendarStatus, Expiring, IndicatorRow, Indicators};
 use fintcart_simulator::repo::simulations::{
     HistoryPage, NewSimulation, SimulationRow, Simulations,
 };
@@ -237,6 +237,24 @@ impl Calculators for NoConstructor {
         ))
     }
 
+    async fn submit(&self, _id: Uuid, _owner_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan la curaduría".to_owned(),
+        ))
+    }
+
+    async fn approve(&self, _id: Uuid, _coordinator_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan la curaduría".to_owned(),
+        ))
+    }
+
+    async fn reject(&self, _id: Uuid, _coordinator_id: Uuid, _reason: &str) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan la curaduría".to_owned(),
+        ))
+    }
+
     async fn known_indicators(&self) -> Result<BTreeSet<String>> {
         Err(Error::NotImplemented(
             "estas pruebas no analizan fórmulas".to_owned(),
@@ -334,7 +352,10 @@ async fn el_alta_devuelve_la_vigencia_registrada() {
     let llamada = fake.llamadas().pop().expect("el alta tenía que llegar");
     let alta = llamada.alta.expect("la llamada era un alta");
     assert_eq!(alta.value, Decimal::new(50000, 0));
-    assert_eq!(alta.valid_from, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap());
+    assert_eq!(
+        alta.valid_from,
+        NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
+    );
     assert_eq!(
         alta.registered_by,
         Uuid::parse_str(ADMIN).unwrap(),

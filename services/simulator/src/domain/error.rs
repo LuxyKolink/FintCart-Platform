@@ -113,9 +113,12 @@ impl Error {
             //
             // SI APARECE OTRA RESTRICCIÓN DE EXCLUSIÓN, ESTE MAPEO HAY QUE REVISARLO:
             // atribuiría a un solapamiento de vigencias un choque que es de otra cosa.
-            sqlx::Error::Database(ref db) if db.code().as_deref() == Some("23P01") => Self::AlreadyExists(
-                "esa vigencia se solapa con otra ya registrada para el mismo indicador".to_owned(),
-            ),
+            sqlx::Error::Database(ref db) if db.code().as_deref() == Some("23P01") => {
+                Self::AlreadyExists(
+                    "esa vigencia se solapa con otra ya registrada para el mismo indicador"
+                        .to_owned(),
+                )
+            }
             other => Self::Storage(other),
         }
     }

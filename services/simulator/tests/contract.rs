@@ -209,6 +209,24 @@ impl Calculators for NoCalculators {
         ))
     }
 
+    async fn submit(&self, _id: Uuid, _owner_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan la curaduría".to_owned(),
+        ))
+    }
+
+    async fn approve(&self, _id: Uuid, _coordinator_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan la curaduría".to_owned(),
+        ))
+    }
+
+    async fn reject(&self, _id: Uuid, _coordinator_id: Uuid, _reason: &str) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no usan la curaduría".to_owned(),
+        ))
+    }
+
     async fn known_indicators(&self) -> Result<BTreeSet<String>> {
         Err(Error::NotImplemented(
             "estas pruebas no usan el constructor de calculadoras".to_owned(),
@@ -348,6 +366,24 @@ impl Calculators for FakeCalculators {
     async fn delete(&self, _id: Uuid, _actor_id: Uuid) -> Result<()> {
         Err(Error::NotImplemented(
             "estas pruebas no borran calculadoras".to_owned(),
+        ))
+    }
+
+    async fn submit(&self, _id: Uuid, _owner_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no proponen calculadoras".to_owned(),
+        ))
+    }
+
+    async fn approve(&self, _id: Uuid, _coordinator_id: Uuid) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no aprueban calculadoras".to_owned(),
+        ))
+    }
+
+    async fn reject(&self, _id: Uuid, _coordinator_id: Uuid, _reason: &str) -> Result<()> {
+        Err(Error::NotImplemented(
+            "estas pruebas no rechazan calculadoras".to_owned(),
         ))
     }
 
@@ -533,6 +569,11 @@ fn calculadora(
         state,
         approved_by: None,
         rejection_reason: None,
+        // La versión publicada acompaña al estado: una fila `publicada` de verdad tiene una
+        // (lo impone `calculators_published_has_version`), y una privada no. Dejar el campo en
+        // `None` para una publicada sería un doble que no se parece a la base, y la prueba de
+        // visibilidad pasaría por el motivo equivocado.
+        published_version: (state == State::Publicada).then_some(version),
         version,
         definition,
     }

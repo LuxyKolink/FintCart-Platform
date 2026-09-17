@@ -447,9 +447,16 @@ async fn el_listado_filtra_por_nombre_y_por_fecha() {
         ("ZZTESTLISTA", "200", "2026-01-01", "2027-01-01"),
         ("ZZTESTOTRO", "300", "2026-01-01", "2027-01-01"),
     ] {
-        repo.upsert(None, name, value.parse().unwrap(), fecha(desde), fecha(hasta), admin())
-            .await
-            .expect("la vigencia de prueba tiene que entrar");
+        repo.upsert(
+            None,
+            name,
+            value.parse().unwrap(),
+            fecha(desde),
+            fecha(hasta),
+            admin(),
+        )
+        .await
+        .expect("la vigencia de prueba tiene que entrar");
     }
 
     let solo_uno = repo
@@ -470,7 +477,10 @@ async fn el_listado_filtra_por_nombre_y_por_fecha() {
     assert_eq!(vigente_en_2026.len(), 1);
     assert_eq!(vigente_en_2026[0].value, Decimal::new(200, 0));
 
-    let todos = repo.list(None, None).await.expect("la consulta debe funcionar");
+    let todos = repo
+        .list(None, None)
+        .await
+        .expect("la consulta debe funcionar");
     assert!(
         todos.iter().any(|row| row.name == "ZZTESTOTRO"),
         "sin filtro de nombre tienen que aparecer los de otros indicadores"
@@ -487,18 +497,23 @@ async fn el_listado_filtra_por_nombre_y_por_fecha() {
 async fn el_calendario_reporta_los_nombres_que_quedaron_sin_vigencia() {
     let pool = pool().await;
     let mut limpieza = Limpieza::new(pool.clone());
-    limpieza
-        .con("ZZTESTVENCIDO")
-        .con("ZZTESTALDIACONVIGENCIA");
+    limpieza.con("ZZTESTVENCIDO").con("ZZTESTALDIACONVIGENCIA");
 
     let repo = PgIndicators::new(pool.clone());
     for (name, desde, hasta) in [
         ("ZZTESTVENCIDO", "2025-01-01", "2026-01-01"),
         ("ZZTESTALDIACONVIGENCIA", "2026-01-01", "2027-01-01"),
     ] {
-        repo.upsert(None, name, Decimal::new(1, 0), fecha(desde), fecha(hasta), admin())
-            .await
-            .expect("la vigencia de prueba tiene que entrar");
+        repo.upsert(
+            None,
+            name,
+            Decimal::new(1, 0),
+            fecha(desde),
+            fecha(hasta),
+            admin(),
+        )
+        .await
+        .expect("la vigencia de prueba tiene que entrar");
     }
 
     let estado = repo
@@ -511,7 +526,9 @@ async fn el_calendario_reporta_los_nombres_que_quedaron_sin_vigencia() {
         "el que quedó sin vigencia tiene que aparecer"
     );
     assert!(
-        !estado.missing.contains(&"ZZTESTALDIACONVIGENCIA".to_owned()),
+        !estado
+            .missing
+            .contains(&"ZZTESTALDIACONVIGENCIA".to_owned()),
         "el que cubre el día de hoy no"
     );
 

@@ -178,6 +178,7 @@ afectados.
 | `approved_by` | `UUID` | coordinador editorial; nulo hasta aprobar |
 | `rejection_reason` | `TEXT` | FR-054 |
 | `version` | `INTEGER NOT NULL DEFAULT 1` | se incrementa en cada cambio de definición |
+| `published_version` | `INTEGER` | última versión APROBADA; nulo mientras no pase curaduría |
 | `created_at`, `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 
 Restricciones:
@@ -191,8 +192,24 @@ Restricciones:
   semilla implica no tener autor, pero **no** al revés: una calculadora publicada cuyo autor
   se anonimizó también queda con `owner_id` nulo sin volverse semilla (Edge Cases). Una
   equivalencia estricta (`is_builtin = (owner_id IS NULL)`) haría fallar la anonimización.
+- `calculators_published_has_version CHECK (state <> 'publicada' OR published_version IS NOT NULL)`
+  — publicada implica versión aprobada: es SC-018 en el esquema.
+- `calculators_published_version_range CHECK (published_version IS NULL OR published_version BETWEEN 1 AND version)`
+- `calculators_rejection_reason_bounded CHECK (rejection_reason IS NULL OR length(btrim(rejection_reason)) BETWEEN 1 AND 1000)`
+  — FR-054: un motivo vacío no es un motivo, y el tope es porque el motivo se lee en pantalla.
+- `calculators_published_version_exists FOREIGN KEY (id, published_version) REFERENCES calculator_definitions (calculator_id, version) DEFERRABLE INITIALLY DEFERRED`
+  — la definición apuntada tiene que existir. **Diferible** porque la relación con
+  `calculator_definitions` es circular (`ON DELETE CASCADE` va en el otro sentido) y, sin diferirla,
+  borrar una calculadora haría saltar la comprobación contra la fila que se está borrando.
 - `INDEX calculators_owner_idx ON (owner_id) WHERE owner_id IS NOT NULL`
 - `INDEX calculators_published_idx ON (name) WHERE state = 'publicada'`
+
+**Dos versiones vivas a la vez** (T113, FR-052): `version` es la última que escribió el autor —su
+borrador— y `published_version` la última que un coordinador aprobó. Coinciden hasta que el autor
+edita algo publicado, y esa diferencia es la que permite que el catálogo siga sirviendo la versión
+aprobada mientras la siguiente espera curaduría (SC-018). Las consultas de lectura eligen una u otra
+según quién pregunte: el autor ve su borrador, el mundo ve la aprobada. `published_version` no viaja
+en el contrato (ver `findings.md`).
 
 ### 2.2 `calculator_definitions` *(nueva — FR-043…FR-047, D-15)*
 

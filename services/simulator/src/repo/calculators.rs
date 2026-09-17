@@ -23,9 +23,12 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use sqlx::postgres::PgArguments;
+use sqlx::query::Query;
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
+use crate::domain::curation::{self, Situacion};
 use crate::domain::decimal_str::serde_decimal;
 use crate::domain::definition::{Definition, InputField, OutputField, ValidationRule};
 use crate::domain::error::{Error, Result};
@@ -33,59 +36,15 @@ use crate::domain::formula::ast::{Expr, InputKind};
 use crate::repo::tx::exec_tx;
 use crate::repo::{clamp_page_size, parse_page_token};
 
-/// Estado de curaduría de una calculadora.
+/// Estado de curaduría, reexportado desde el dominio (T113).
 ///
-/// Vive aquí y no en `domain` porque no cruza ninguna frontera como enum: el contrato lo
-/// lleva como `string` libre y la base lo restringe con un `CHECK`. Sus valores son, por
-/// tanto, el vocabulario de una COLUMNA, y tenerlos en un enum cerrado al lado de la tabla
-/// es lo que impide escribir una variante que PostgreSQL rechazaría recién al insertar.
-///
-/// Es el mismo razonamiento que llevó `Kind` a `domain::dispatch`, con una diferencia que
-/// justifica el sitio distinto: `Kind` sí cruza, porque `ListHistory` devuelve el enum del
-/// contrato. Este no.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum State {
-    /// Visible y ejecutable solo por su autor (FR-051).
-    Privada,
-    /// Propuesta al catálogo, esperando curaduría (FR-052).
-    EnRevision,
-    /// Aprobada y visible para todos.
-    Publicada,
-}
-
-impl State {
-    /// Nombre con el que el estado se persiste.
-    ///
-    /// Coincide exactamente con el `CHECK calculators_state_valid`. Que salga de aquí y no
-    /// de un literal en la consulta es lo que impide que un `INSERT` escriba una variante
-    /// que la base rechaza.
-    #[must_use]
-    pub const fn as_db(self) -> &'static str {
-        match self {
-            Self::Privada => "privada",
-            Self::EnRevision => "en_revision",
-            Self::Publicada => "publicada",
-        }
-    }
-
-    /// Traduce el estado almacenado.
-    ///
-    /// # Errores
-    ///
-    /// [`Error::InvalidInput`] si la fila trae un estado que ya no existe. Es improbable
-    /// —el `CHECK` lo impide— pero no imposible tras una migración, y tratarlo como
-    /// `Privada` escondería una calculadora publicada.
-    pub fn from_db(value: &str) -> Result<Self> {
-        match value {
-            "privada" => Ok(Self::Privada),
-            "en_revision" => Ok(Self::EnRevision),
-            "publicada" => Ok(Self::Publicada),
-            other => Err(Error::InvalidInput(format!(
-                "estado {other:?} almacenado no corresponde a ninguna calculadora"
-            ))),
-        }
-    }
-}
+/// Vivía en este módulo con el argumento de que «sus valores son el vocabulario de una
+/// COLUMNA». Sigue siéndolo, pero las TRANSICIONES entre estados son reglas de negocio —quién
+/// puede proponer, quién aprobar, qué pasa al rechazar— y una regla de negocio no puede vivir en
+/// la capa de persistencia: la prueba de que ninguna combinación publica una calculadora sin
+/// aprobación tiene que poder correr sin PostgreSQL. La reexportación deja a los lectores
+/// antiguos compilando y deja claro que el tipo es el mismo.
+pub use crate::domain::curation::State;
 
 /// Una calculadora con la definición de su versión vigente.
 ///
@@ -111,8 +70,21 @@ pub struct CalculatorRow {
     pub approved_by: Option<Uuid>,
     /// Motivo del último rechazo (FR-054).
     pub rejection_reason: Option<String>,
-    /// Versión vigente, que es la que `simulations.calculator_version` cita.
+    /// Versión de la definición que se sirvió con esta lectura.
+    ///
+    /// **No es `calculators.version`**: una calculadora publicada con un borrador encima tiene
+    /// dos versiones vivas, y lo que `simulations` cita es la que se EJECUTÓ (FR-050). En la
+    /// vista del autor coincide con la vigente; en la pública es la aprobada.
     pub version: i32,
+    /// Última versión aprobada, si alguna vez hubo una.
+    ///
+    /// ## No viaja en el contrato, y es una carencia conocida
+    ///
+    /// El mensaje `Calculator` del proto no tiene dónde llevarla, así que la interfaz no puede
+    /// distinguir «publicada y al día» de «publicada con cambios sin publicar» sin intentar
+    /// proponerla y leer el error. Queda anotado en `findings.md` en lugar de añadir un campo al
+    /// contrato desde aquí: el contrato se cambia en su tarea, con sus stubs regenerados.
+    pub published_version: Option<i32>,
     /// Definición vigente.
     pub definition: Definition,
 }
@@ -218,6 +190,44 @@ pub trait Calculators: Send + Sync + 'static {
     /// una violación de integridad del driver.
     async fn delete(&self, id: Uuid, actor_id: Uuid) -> Result<()>;
 
+    /// Propone una calculadora propia para publicación (FR-052).
+    ///
+    /// Pasa el estado a `en_revision` y **retira el motivo del rechazo anterior**, si lo había:
+    /// el autor acaba de corregir lo que se le dijo, y dejar el motivo viejo en la ficha haría
+    /// que el coordinador leyera, al abrirla, la queja de una versión que ya no existe.
+    ///
+    /// # Errores
+    ///
+    /// [`Error::NotFound`] si no existe o no es de `owner_id` —lo mismo que devuelve `get`, para
+    /// no confirmar la existencia de calculadoras ajenas—. [`Error::InvalidInput`] si ya está en
+    /// revisión, si es una semilla o si no hay nada que proponer porque lo vigente es lo
+    /// aprobado.
+    async fn submit(&self, id: Uuid, owner_id: Uuid) -> Result<()>;
+
+    /// Aprueba una calculadora propuesta y publica **su versión vigente** (FR-053).
+    ///
+    /// # Errores
+    ///
+    /// [`Error::InvalidInput`] si no está en revisión, si es una semilla o si `coordinator_id`
+    /// es su autor. La base impone la separación de autoría por su cuenta
+    /// (`calculators_approver_differs_from_owner`), así que un defecto aquí no basta para
+    /// publicar algo propio.
+    /// [`Error::NotFound`] si no existe.
+    async fn approve(&self, id: Uuid, coordinator_id: Uuid) -> Result<()>;
+
+    /// Rechaza una calculadora propuesta, con un motivo (FR-054).
+    ///
+    /// El motivo llega **ya normalizado** ([`crate::domain::curation::normalize_reason`]): quien
+    /// tiene que poder decírselo al usuario es la capa de transporte, y normalizarlo aquí también
+    /// daría dos mensajes distintos para el mismo error.
+    ///
+    /// # Errores
+    ///
+    /// Los mismos que [`Calculators::approve`], más [`Error::Storage`] si el `CHECK` de la
+    /// columna rechaza el motivo —que no puede pasar si viene normalizado, y que es la red por
+    /// debajo—.
+    async fn reject(&self, id: Uuid, coordinator_id: Uuid, reason: &str) -> Result<()>;
+
     /// Nombres de indicador que existen hoy en el catálogo.
     ///
     /// Vive en este puerto, y no en uno propio, porque su ÚNICO consumidor es el
@@ -265,6 +275,82 @@ impl PgCalculators {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+
+    /// Ejecuta una transición de curaduría: bloquea la fila, decide en el dominio, escribe.
+    ///
+    /// Las tres transiciones —proponer, aprobar, rechazar— comparten esta forma, y compartirla es
+    /// el punto: la DECISIÓN se toma siempre sobre la fila bloqueada y con las mismas cinco
+    /// columnas, así que ninguna de las tres puede quedarse mirando un dato de menos.
+    ///
+    /// `decide` recibe el identificador y la situación y devuelve la consulta ya construida —con
+    /// sus parámetros— en lugar de una lista de valores: una lista obligaría a convertir todo a
+    /// `String` para poder guardarla, y `approved_by` es un `uuid` que la base rechazaría como
+    /// texto.
+    ///
+    /// ## El identificador se enlaza DENTRO de `decide`, y el primero
+    ///
+    /// `sqlx` numera los parámetros por ORDEN DE ENLACE, no por el `$n` que lleven en el SQL. Si
+    /// esta ayuda enlazara el identificador por su cuenta después de que `decide` hubiera enlazado
+    /// `$2`, el `$1` recibiría el valor del `$2` y la consulta fallaría con un
+    /// `operator does not exist: uuid = text` que no señala al sitio que se equivocó. Por eso el
+    /// identificador entra por parámetro: quien escribe el `UPDATE` ve el `$1` que está enlazando.
+    ///
+    /// # Errores
+    ///
+    /// [`Error::NotFound`] si la calculadora no existe. Los que devuelva la decisión y
+    /// [`Error::Storage`] si falla la escritura.
+    async fn transicion<F>(&self, id: Uuid, decide: F) -> Result<()>
+    where
+        F: FnOnce(Uuid, &Situacion) -> Result<Query<'static, Postgres, PgArguments>>
+            + Send
+            + 'static,
+    {
+        exec_tx(&self.pool, move |tx| {
+            Box::pin(async move {
+                let situacion = lock_situacion(tx, id).await?;
+                decide(id, &situacion)?
+                    .execute(&mut **tx)
+                    .await
+                    .map_err(Error::from_sqlx)?;
+                Ok(())
+            })
+        })
+        .await
+    }
+}
+
+/// Lee la situación de una calculadora con la fila bloqueada.
+///
+/// `FOR UPDATE` es lo que convierte «leer el estado y decidir» en una operación atómica: sin él,
+/// dos coordinadores podrían aprobar y rechazar a la vez partiendo del mismo estado, y el
+/// segundo escribiría sobre el resultado del primero.
+///
+/// # Errores
+///
+/// [`Error::NotFound`] si no existe. [`Error::Storage`] si falla la lectura.
+async fn lock_situacion(tx: &mut Transaction<'static, Postgres>, id: Uuid) -> Result<Situacion> {
+    let row = sqlx::query(
+        "SELECT state, is_builtin, owner_id, version, published_version
+           FROM calculators
+          WHERE id = $1
+            FOR UPDATE",
+    )
+    .bind(id)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(Error::from_sqlx)?;
+
+    let row = row.as_ref().ok_or(Error::NotFound)?;
+    Ok(Situacion {
+        state: State::from_db(
+            &row.try_get::<String, _>("state")
+                .map_err(Error::from_sqlx)?,
+        )?,
+        is_builtin: row.try_get("is_builtin").map_err(Error::from_sqlx)?,
+        owner_id: row.try_get("owner_id").map_err(Error::from_sqlx)?,
+        version: row.try_get("version").map_err(Error::from_sqlx)?,
+        published_version: row.try_get("published_version").map_err(Error::from_sqlx)?,
+    })
 }
 
 #[tonic::async_trait]
@@ -293,7 +379,12 @@ impl Calculators for PgCalculators {
                 insert_definition(tx, id, version, &definition).await?;
                 // `&mut **tx` y no `tx`: una `Transaction` no es un ejecutor, su
                 // conexión sí.
-                read_one(&mut **tx, id, None).await
+                //
+                // El actor que se pasa es el AUTOR y no `None`: la lectura de vuelta tiene que
+                // ver lo que se acaba de escribir, y la vista pública de una calculadora privada
+                // no devuelve nada —`published_version` es nulo—. Devolver `NotFound` desde un
+                // `upsert` que acaba de insertar la fila sería el peor de los dos mundos.
+                read_one(&mut **tx, id, Some(owner_id)).await
             })
         })
         .await
@@ -304,7 +395,6 @@ impl Calculators for PgCalculators {
         // sin ganar ninguna garantía.
         read_one(&self.pool, id, actor_id).await
     }
-
     async fn list(
         &self,
         owner_id: Option<Uuid>,
@@ -315,11 +405,24 @@ impl Calculators for PgCalculators {
         let limit = clamp_page_size(page_size);
         let offset = parse_page_token(page_token)?;
 
+        // La vista se elige UNA vez y la usan la página y el total.
+        let version = if owner_id.is_some() && !only_published {
+            // Listar las propias es listar el taller: el autor ve sus borradores, que es lo que
+            // necesita para seguir trabajando.
+            VERSION_VIGENTE
+        } else {
+            // El catálogo enseña lo aprobado aunque quien pregunte sea el autor: una lista
+            // rotulada «publicadas» con un borrador dentro pondría en circulación una definición
+            // que nadie aprobó (SC-018).
+            VERSION_APROBADA
+        };
+
         let page_sql = format!(
-            "{SELECT_CALCULATOR}
+            "{}
               WHERE (c.owner_id = $1) OR ($2 AND c.state = 'publicada')
               ORDER BY c.name, c.id
-              LIMIT $3 OFFSET $4"
+              LIMIT $3 OFFSET $4",
+            select_calculator(version)
         );
 
         let rows = sqlx::query(&page_sql)
@@ -331,18 +434,24 @@ impl Calculators for PgCalculators {
             .await
             .map_err(Error::from_sqlx)?;
 
-        let total: i64 = sqlx::query_scalar(
+        // El total usa la MISMA proyección que la página: contar filas que el `JOIN` de la
+        // vista descarta daría un total que no corresponde a lo que se está listando —el
+        // cliente pediría una página más y la recibiría vacía—.
+        let total_sql = format!(
             "SELECT count(*)
                FROM calculators c
                JOIN calculator_definitions d
-                 ON d.calculator_id = c.id AND d.version = c.version
-              WHERE (c.owner_id = $1) OR ($2 AND c.state = 'publicada')",
-        )
-        .bind(owner_id)
-        .bind(only_published)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(Error::from_sqlx)?;
+                 ON d.calculator_id = c.id
+                AND d.version = {version}
+              WHERE (c.owner_id = $1) OR ($2 AND c.state = 'publicada')"
+        );
+
+        let total: i64 = sqlx::query_scalar(&total_sql)
+            .bind(owner_id)
+            .bind(only_published)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(Error::from_sqlx)?;
 
         let items = rows.iter().map(row_from).collect::<Result<Vec<_>>>()?;
 
@@ -414,6 +523,56 @@ impl Calculators for PgCalculators {
         .await
     }
 
+    async fn submit(&self, id: Uuid, owner_id: Uuid) -> Result<()> {
+        self.transicion(id, move |id, situacion| {
+            curation::submit(situacion, owner_id)?;
+            Ok(sqlx::query(
+                "UPDATE calculators
+                    SET state = $2, rejection_reason = NULL, updated_at = now()
+                  WHERE id = $1",
+            )
+            .bind(id)
+            .bind(State::EnRevision.as_db()))
+        })
+        .await
+    }
+
+    async fn approve(&self, id: Uuid, coordinator_id: Uuid) -> Result<()> {
+        self.transicion(id, move |id, situacion| {
+            curation::approve(situacion, coordinator_id)?;
+            // `published_version = version` publica la versión que se revisó. No se pasa como
+            // parámetro aunque se conozca: leerla en el `UPDATE` la ata a la MISMA fila que el
+            // `FOR UPDATE` bloqueó, y un parámetro abriría la puerta a publicar una versión
+            // distinta de la que se leyó.
+            Ok(sqlx::query(
+                "UPDATE calculators
+                    SET state = $2, published_version = version, approved_by = $3,
+                        rejection_reason = NULL, updated_at = now()
+                  WHERE id = $1",
+            )
+            .bind(id)
+            .bind(State::Publicada.as_db())
+            .bind(coordinator_id))
+        })
+        .await
+    }
+
+    async fn reject(&self, id: Uuid, coordinator_id: Uuid, reason: &str) -> Result<()> {
+        let reason = reason.to_owned();
+        self.transicion(id, move |id, situacion| {
+            let siguiente = curation::reject(situacion, coordinator_id)?;
+            Ok(sqlx::query(
+                "UPDATE calculators
+                    SET state = $2, rejection_reason = $3, updated_at = now()
+                  WHERE id = $1",
+            )
+            .bind(id)
+            .bind(siguiente.as_db())
+            .bind(reason.clone()))
+        })
+        .await
+    }
+
     async fn known_indicators(&self) -> Result<BTreeSet<String>> {
         let names: Vec<String> =
             sqlx::query_scalar("SELECT DISTINCT name FROM financial_indicators")
@@ -448,15 +607,33 @@ impl Calculators for PgCalculators {
 
 /// Proyección común de lectura, para que `get` y `list` no puedan divergir en columnas.
 ///
-/// Se escribe una vez y se parametriza con el `WHERE`: dos listas de columnas copiadas es
-/// como se llega a que `GetCalculator` devuelva un campo que `ListCalculators` deja vacío.
-const SELECT_CALCULATOR: &str = "
-    SELECT c.id, c.owner_id, c.name, c.description, c.is_builtin, c.state,
-           c.approved_by, c.rejection_reason, c.version,
-           d.inputs, d.validations, d.outputs
-      FROM calculators c
-      JOIN calculator_definitions d
-        ON d.calculator_id = c.id AND d.version = c.version";
+/// Se escribe una vez y se parametriza con el `WHERE` y con la VERSIÓN: dos listas de columnas
+/// copiadas es como se llega a que `GetCalculator` devuelva un campo que `ListCalculators` deja
+/// vacío.
+///
+/// `version_expr` es la condición que une cada calculadora con la definición que se sirve, y
+/// `d.version` es lo que se devuelve como versión de la fila: la versión que se sirvió, no la que
+/// la identidad tenga apuntada. Ver la nota de [`CalculatorRow::version`].
+fn select_calculator(version_expr: &str) -> String {
+    format!(
+        "SELECT c.id, c.owner_id, c.name, c.description, c.is_builtin, c.state,
+                c.approved_by, c.rejection_reason, c.published_version,
+                d.version, d.inputs, d.validations, d.outputs
+           FROM calculators c
+           JOIN calculator_definitions d
+             ON d.calculator_id = c.id AND d.version = {version_expr}"
+    )
+}
+
+/// La definición vigente: la última que escribió el autor, aprobada o no.
+const VERSION_VIGENTE: &str = "c.version";
+
+/// La última definición aprobada: la que ve el mundo (FR-052).
+///
+/// Si la calculadora nunca se aprobó, `c.published_version` es nulo y la igualdad no se cumple
+/// para ninguna fila: la calculadora simplemente no aparece en esta vista, que es lo que tiene
+/// que pasar — sin necesidad de un `CASE` ni de una comprobación aparte.
+const VERSION_APROBADA: &str = "c.published_version";
 
 /// Crea la identidad de una calculadora y devuelve su identificador y su primera versión.
 ///
@@ -498,6 +675,17 @@ async fn create(
 /// segunda ve —y usa— la versión que dejó la primera. La clave primaria compuesta
 /// `(calculator_id, version)` es la red que lo garantiza aunque el bloqueo fallara.
 ///
+/// ## El estado se lee y se reescribe en la MISMA transacción (T113)
+///
+/// Editar una calculadora en revisión **retira la propuesta**, y esa transición no puede ser un
+/// `CASE` dentro del `UPDATE`: quién puede pasar de `en_revision` a `privada` es una regla de
+/// negocio y vive en [`crate::domain::curation::after_edit`]. Por eso se lee el estado con
+/// `FOR UPDATE` —lo que impide que un coordinador apruebe entre la lectura y la escritura— y se
+/// escribe el estado que devuelve el dominio.
+///
+/// `approved_by` y `published_version` NO se tocan: la versión aprobada sigue viva en el catálogo
+/// mientras esta edición espera su turno (FR-052).
+///
 /// # Errores
 ///
 /// [`Error::NotFound`] si la fila no existe, no es del actor o es una semilla.
@@ -508,9 +696,28 @@ async fn bump(
     name: &str,
     description: &str,
 ) -> Result<(Uuid, i32)> {
+    let actual = sqlx::query(
+        "SELECT state FROM calculators
+          WHERE id = $1 AND owner_id = $2 AND NOT is_builtin
+            FOR UPDATE",
+    )
+    .bind(id)
+    .bind(owner_id)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(Error::from_sqlx)?;
+
+    let state = actual
+        .as_ref()
+        .ok_or(Error::NotFound)?
+        .try_get::<String, _>("state")
+        .map_err(Error::from_sqlx)?;
+    let siguiente_estado = curation::after_edit(State::from_db(&state)?);
+
     let row = sqlx::query(
         "UPDATE calculators
-            SET name = $3, description = $4, version = version + 1, updated_at = now()
+            SET name = $3, description = $4, state = $5, version = version + 1,
+                updated_at = now()
           WHERE id = $1 AND owner_id = $2 AND NOT is_builtin
           RETURNING version",
     )
@@ -518,6 +725,7 @@ async fn bump(
     .bind(owner_id)
     .bind(name)
     .bind(description)
+    .bind(siguiente_estado.as_db())
     .fetch_optional(&mut **tx)
     .await
     .map_err(Error::from_sqlx)?;
@@ -576,9 +784,18 @@ async fn read_one<'e, E>(executor: E, id: Uuid, actor_id: Option<Uuid>) -> Resul
 where
     E: sqlx::Executor<'e, Database = Postgres>,
 {
+    // La vista se decide DENTRO de la consulta, con una condición sobre la propia fila, y no
+    // leyendo antes quién es el autor: entre esa lectura y esta consulta cabría un cambio de
+    // autor, y además costaría dos viajes a la base para una sola pregunta.
+    //
+    // `$2` aparece dos veces y se enlaza una sola vez: PostgreSQL permite repetir un parámetro, y
+    // hacerlo es lo que evita tener que pasar el actor por duplicado a `sqlx`.
     let sql = format!(
-        "{SELECT_CALCULATOR}
-          WHERE c.id = $1 AND (c.state = 'publicada' OR c.owner_id = $2)"
+        "{}
+          WHERE c.id = $1 AND (c.state = 'publicada' OR c.owner_id = $2)",
+        select_calculator(
+            "CASE WHEN c.owner_id IS NOT NULL AND c.owner_id = $2\n                      THEN c.version ELSE c.published_version END"
+        )
     );
 
     let row = sqlx::query(&sql)
@@ -608,6 +825,7 @@ fn row_from(row: &sqlx::postgres::PgRow) -> Result<CalculatorRow> {
         )?,
         approved_by: row.try_get("approved_by").map_err(Error::from_sqlx)?,
         rejection_reason: row.try_get("rejection_reason").map_err(Error::from_sqlx)?,
+        published_version: row.try_get("published_version").map_err(Error::from_sqlx)?,
         version: row.try_get("version").map_err(Error::from_sqlx)?,
         definition: from_stored(
             row.try_get("inputs").map_err(Error::from_sqlx)?,

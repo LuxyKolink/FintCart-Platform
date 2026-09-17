@@ -2,6 +2,7 @@
 //! transporte ni de persistencia (Principio IX).
 
 pub mod annuity;
+pub mod curation;
 pub mod currency;
 pub mod decimal_str;
 pub mod definition;

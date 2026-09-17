@@ -17,6 +17,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
+use fintcart_simulator::domain::curation::{self, Situacion};
 use fintcart_simulator::domain::definition::{Definition, Draft, DraftOutput, InputField};
 use fintcart_simulator::domain::error::{Error, Result};
 use fintcart_simulator::domain::formula::ast::InputKind;
@@ -24,9 +25,9 @@ use fintcart_simulator::grpc::service::Service;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_client::SimulatorServiceClient;
 use fintcart_simulator::pb::fintcart::simulator::v1::simulator_service_server::SimulatorServiceServer;
 use fintcart_simulator::pb::fintcart::simulator::v1::{
-    CalcType, Calculator, CalculatorDefinition, CalculatorInput, CalculatorOutput, CalculatorRef,
-    ComputeRequest, InputType, ListCalculatorsRequest, UpsertCalculatorRequest,
-    ValidateDefinitionRequest,
+    ApproveCalculatorRequest, CalcType, Calculator, CalculatorDefinition, CalculatorInput,
+    CalculatorOutput, CalculatorRef, ComputeRequest, InputType, ListCalculatorsRequest,
+    RejectCalculatorRequest, UpsertCalculatorRequest, ValidateDefinitionRequest,
 };
 use fintcart_simulator::repo::calculators::{
     CalculatorPage, CalculatorRow, Calculators, State, VersionRef,
@@ -256,6 +257,17 @@ impl FakeCalculators {
     }
 }
 
+/// La situación que el dominio necesita para decidir una transición, desde la fila del doble.
+fn situacion(row: &CalculatorRow) -> Situacion {
+    Situacion {
+        state: row.state,
+        is_builtin: row.is_builtin,
+        owner_id: row.owner_id,
+        version: row.version,
+        published_version: row.published_version,
+    }
+}
+
 #[tonic::async_trait]
 impl Calculators for FakeCalculators {
     async fn upsert(
@@ -279,6 +291,7 @@ impl Calculators for FakeCalculators {
                 state: State::Privada,
                 approved_by: None,
                 rejection_reason: None,
+                published_version: None,
                 version: 1,
                 definition: definition.clone(),
             },
@@ -293,6 +306,9 @@ impl Calculators for FakeCalculators {
                 // sube la versión. El doble imita el efecto observable.
                 row.definition = definition.clone();
                 row.version += 1;
+                // Y editar durante la revisión retira la propuesta (T113): el doble imita esa
+                // transición porque el RPC de proponer la comprueba sobre el estado.
+                row.state = curation::after_edit(row.state);
                 row.clone()
             }
         };
@@ -336,6 +352,41 @@ impl Calculators for FakeCalculators {
             items,
             next_page_token: String::new(),
         })
+    }
+
+    async fn submit(&self, id: Uuid, owner_id: Uuid) -> Result<()> {
+        let mut rows = self.rows.lock().unwrap();
+        let row = rows
+            .iter_mut()
+            .find(|row| row.id == id)
+            .ok_or(Error::NotFound)?;
+        row.state = curation::submit(&situacion(row), owner_id)?;
+        row.rejection_reason = None;
+        Ok(())
+    }
+
+    async fn approve(&self, id: Uuid, coordinator_id: Uuid) -> Result<()> {
+        let mut rows = self.rows.lock().unwrap();
+        let row = rows
+            .iter_mut()
+            .find(|row| row.id == id)
+            .ok_or(Error::NotFound)?;
+        row.state = curation::approve(&situacion(row), coordinator_id)?;
+        row.published_version = Some(row.version);
+        row.approved_by = Some(coordinator_id);
+        row.rejection_reason = None;
+        Ok(())
+    }
+
+    async fn reject(&self, id: Uuid, coordinator_id: Uuid, reason: &str) -> Result<()> {
+        let mut rows = self.rows.lock().unwrap();
+        let row = rows
+            .iter_mut()
+            .find(|row| row.id == id)
+            .ok_or(Error::NotFound)?;
+        row.state = curation::reject(&situacion(row), coordinator_id)?;
+        row.rejection_reason = Some(reason.to_owned());
+        Ok(())
     }
 
     async fn delete(&self, id: Uuid, actor_id: Uuid) -> Result<()> {
@@ -1040,5 +1091,202 @@ async fn compute_rechaza_un_calc_type_desconocido() {
         status.message().contains("999"),
         "el mensaje debe nombrar el valor recibido: {}",
         status.message()
+    );
+}
+
+// ── Curaduría (T114) ────────────────────────────────────────────────────────
+
+/// Proponer, aprobar y rechazar por el contrato, con el doble que imita las transiciones.
+///
+/// Lo que comprueba esta sección y no las pruebas del dominio es el viaje de ida y vuelta: que
+/// los tres RPC existen, que reciben y devuelven lo que dice el contrato, y que un fallo llega al
+/// cliente con el CÓDIGO que le corresponde. Un `NotFound` que llegara como `Internal` o un
+/// `InvalidInput` como `Unknown` rompería al cliente igual que un RPC que no existiera.
+async fn en_revision(
+    repo: FakeCalculators,
+) -> (SimulatorServiceClient<tonic::transport::Channel>, String) {
+    let mut client = start(repo).await;
+    let creada = client
+        .upsert_calculator(peticion(definicion_de_cuota()))
+        .await
+        .expect("la calculadora se tiene que crear")
+        .into_inner();
+
+    client
+        .submit_calculator_for_review(ref_de(&creada.calculator_id))
+        .await
+        .expect("la propuesta del autor tiene que aceptarse");
+
+    (client, creada.calculator_id)
+}
+
+#[tokio::test]
+async fn el_autor_propone_su_calculadora_y_queda_en_revision() {
+    let repo = FakeCalculators::default();
+    let mut client = start(repo.clone()).await;
+
+    let creada = client
+        .upsert_calculator(peticion(definicion_de_cuota()))
+        .await
+        .unwrap()
+        .into_inner();
+
+    let resultado = client
+        .submit_calculator_for_review(ref_de(&creada.calculator_id))
+        .await
+        .expect("proponer la propia tiene que funcionar")
+        .into_inner();
+
+    assert!(resultado.success);
+    let filas = repo.rows.lock().unwrap();
+    assert_eq!(filas[0].state, State::EnRevision);
+}
+
+#[tokio::test]
+async fn proponer_lo_ajeno_no_confirma_que_exista() {
+    let repo = FakeCalculators::default();
+    let mut client = start(repo).await;
+
+    let creada = client
+        .upsert_calculator(peticion(definicion_de_cuota()))
+        .await
+        .unwrap()
+        .into_inner();
+
+    let status = client
+        .submit_calculator_for_review(CalculatorRef {
+            calculator_id: creada.calculator_id,
+            actor_id: OTHER.to_owned(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        status.code(),
+        Code::NotFound,
+        "el mismo código que una que no existe: distinguirlos sería un oráculo"
+    );
+}
+
+#[tokio::test]
+async fn el_autor_no_aprueba_su_propia_calculadora() {
+    let repo = FakeCalculators::default();
+    let (mut client, id) = en_revision(repo).await;
+
+    let status = client
+        .approve_calculator(ApproveCalculatorRequest {
+            calculator_id: id,
+            coordinator_id: USER.to_owned(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(
+        status.message().contains("su propia calculadora"),
+        "el mensaje tiene que explicar por qué no puede: {}",
+        status.message()
+    );
+}
+
+#[tokio::test]
+async fn un_coordinador_distinto_la_aprueba_y_publica_la_version_vigente() {
+    let repo = FakeCalculators::default();
+    let (mut client, id) = en_revision(repo.clone()).await;
+
+    let resultado = client
+        .approve_calculator(ApproveCalculatorRequest {
+            calculator_id: id,
+            coordinator_id: OTHER.to_owned(),
+        })
+        .await
+        .expect("aprobar una propuesta ajena tiene que funcionar")
+        .into_inner();
+
+    assert!(resultado.success);
+    let filas = repo.rows.lock().unwrap();
+    assert_eq!(filas[0].state, State::Publicada);
+    assert_eq!(filas[0].published_version, Some(filas[0].version));
+    assert_eq!(
+        filas[0].approved_by.map(|id| id.to_string()),
+        Some(OTHER.to_owned())
+    );
+}
+
+#[tokio::test]
+async fn aprobar_lo_que_no_esta_en_revision_falla_con_un_motivo() {
+    let repo = FakeCalculators::default();
+    let mut client = start(repo).await;
+
+    let creada = client
+        .upsert_calculator(peticion(definicion_de_cuota()))
+        .await
+        .unwrap()
+        .into_inner();
+
+    let status = client
+        .approve_calculator(ApproveCalculatorRequest {
+            calculator_id: creada.calculator_id,
+            coordinator_id: OTHER.to_owned(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(
+        status.message().contains("propuesta"),
+        "{}",
+        status.message()
+    );
+}
+
+#[tokio::test]
+async fn el_rechazo_necesita_un_motivo_que_explique_que_corregir() {
+    let repo = FakeCalculators::default();
+    let (mut client, id) = en_revision(repo).await;
+
+    let status = client
+        .reject_calculator(RejectCalculatorRequest {
+            calculator_id: id,
+            coordinator_id: OTHER.to_owned(),
+            reason: "   ".to_owned(),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(
+        status.message().contains("motivo"),
+        "el mensaje tiene que decir qué falta: {}",
+        status.message()
+    );
+}
+
+#[tokio::test]
+async fn el_rechazo_guarda_el_motivo_recortado() {
+    let repo = FakeCalculators::default();
+    let (mut client, id) = en_revision(repo.clone()).await;
+
+    let resultado = client
+        .reject_calculator(RejectCalculatorRequest {
+            calculator_id: id,
+            coordinator_id: OTHER.to_owned(),
+            reason: "  falta explicar la tasa  ".to_owned(),
+        })
+        .await
+        .expect("rechazar con motivo tiene que funcionar")
+        .into_inner();
+
+    assert!(resultado.success);
+    let filas = repo.rows.lock().unwrap();
+    assert_eq!(
+        filas[0].rejection_reason.as_deref(),
+        Some("falta explicar la tasa"),
+        "el motivo se guarda recortado: se lee tal cual se enseña"
+    );
+    assert_eq!(
+        filas[0].state,
+        State::Privada,
+        "una primera propuesta rechazada vuelve a privada"
     );
 }

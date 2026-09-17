@@ -352,13 +352,13 @@ verificar que aparece en el catálogo público.
 
 ### Pruebas
 
-- [ ] T111 [P] [US5] Prueba de que el propio autor no puede aprobar su calculadora, verificada **tanto en la capa de aplicación como por la restricción de la base** (FR-053), en `services/simulator/tests/curation.rs`
-- [ ] T112 [P] [US5] Prueba de que editar una calculadora publicada no altera la versión publicada hasta pasar de nuevo por revisión, en `services/simulator/tests/curation.rs`
+- [X] T111 [P] [US5] Prueba de que el propio autor no puede aprobar su calculadora, verificada **tanto en la capa de aplicación como por la restricción de la base** (FR-053), en `services/simulator/tests/curation.rs`
+- [X] T112 [P] [US5] Prueba de que editar una calculadora publicada no altera la versión publicada hasta pasar de nuevo por revisión, en `services/simulator/tests/curation.rs`
 
 ### Implementación
 
-- [ ] T113 [US5] Transiciones `privada → en_revision → publicada` y el retorno por rechazo con motivo, en `services/simulator/src/domain/`
-- [ ] T114 [US5] `SubmitCalculatorForReview`, `ApproveCalculator` y `RejectCalculator` en `services/simulator/src/grpc/service.rs`
+- [X] T113 [US5] Transiciones `privada → en_revision → publicada` y el retorno por rechazo con motivo, en `services/simulator/src/domain/`
+- [X] T114 [US5] `SubmitCalculatorForReview`, `ApproveCalculator` y `RejectCalculator` en `services/simulator/src/grpc/service.rs`
 - [ ] T115 [US5] Publicar `calculator.published` desde `services/orchestrator/internal/server/` al aprobarse (Auditoría)
 - [ ] T116 [US5] Rutas `/calculators/{id}/submit` y `/editorial/calculators[/{id}/{approve,reject}]` en `services/api-gateway/internal/handler/routes.go`, exigiendo `coordinador_editorial` y **no** `administrador` (FR-082)
 - [ ] T117 [P] [US5] Bandeja de revisión de calculadoras para el coordinador en `frontend/src/app/features/editorial/review/`
