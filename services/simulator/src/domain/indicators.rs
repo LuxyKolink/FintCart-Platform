@@ -109,6 +109,46 @@ impl Snapshot {
     }
 }
 
+/// Días de antelación con que se avisa del vencimiento de un indicador (FR-061).
+///
+/// Treinta, y no configurable en esta versión: `spec.md` §Aclaraciones lo fija «alineado con
+/// el período de gracia por coherencia operativa». Se elige en el servidor y no en el cliente
+/// a propósito — si lo eligiera quien pregunta, la alerta que recibe el administrador
+/// dependería de quién la pidiera, y el mismo indicador estaría a la vez por vencer y no.
+///
+/// El barrido del Orquestador (T105) no decide nada: pregunta el estado y publica lo que
+/// recibe, así que la ventana vive de un solo lado.
+pub const CALENDAR_ALERT_WINDOW_DAYS: i64 = 30;
+
+/// ¿Es `name` un nombre de indicador admisible?
+///
+/// La regla es `^[A-Z][A-Z0-9_]*$`, y se escribe aquí una sola vez porque tiene un consumidor
+/// que no puede compartirla y otro que no debe:
+///
+/// · El **`CHECK financial_indicators_name_format`** la impone en la base y está escrito en SQL.
+///   Es el que manda: si esta función dijera otra cosa, el `INSERT` fallaría con una violación
+///   de restricción en vez de con un mensaje.
+/// · El **lexer** ([`crate::domain::formula::lexer`]) aplica la misma regla mientras escanea
+///   `@NOMBRE`, pero además necesita saber dónde termina el nombre, así que no puede ser una
+///   llamada a un `bool`. Una prueba ata las dos (`los_nombres_admisibles_son_los_que_el_lexer_reconoce`).
+/// · El **alta de indicadores** (T104) la comprueba para dar un mensaje que se entienda antes
+///   de tocar la base.
+///
+/// El nombre no es cosmético: es el identificador con el que una fórmula referencia el valor
+/// ([`crate::domain::formula::lexer::Token::Indicator`]), así que un nombre que no case con
+/// esta forma sería un indicador **invisible** —existiría en la tabla y ninguna fórmula podría
+/// leerlo—. Por eso se rechaza `@uvt` en minúsculas con un mensaje propio en lugar de dejar
+/// que falle al resolver: el problema es cómo se escribió, no un dato que falte.
+#[must_use]
+pub fn is_valid_name(name: &str) -> bool {
+    let mut bytes = name.bytes();
+    match bytes.next() {
+        Some(primera) if primera.is_ascii_uppercase() => {}
+        _ => return false,
+    }
+    bytes.all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -161,5 +201,36 @@ mod tests {
 
         let vuelto = decimal_str::parse_numeric(leido, 20, 6).expect("decimal canónico");
         assert_eq!(vuelto, Decimal::new(15, 1));
+    }
+
+    #[test]
+    fn los_nombres_admisibles_son_los_que_el_lexer_reconoce() {
+        // El lexer NO delega en `is_valid_name` porque tiene que averiguar además dónde
+        // termina el nombre (`@UVT-2` son dos tokens), pero la regla que aplica es la
+        // misma y estos casos lo fijan: si una de las dos se quedara atrás, la fórmula
+        // aceptaría un `@nombre` que después no se puede registrar, o al revés.
+        for (nombre, admisible) in [
+            ("UVT", true),
+            ("TASA_USURA", true),
+            ("IPC_1", true),
+            ("SMMLV2026", true),
+            ("uvt", false),
+            ("Uvt", false),
+            ("_UVT", false),
+            ("1UVT", false),
+            ("UVT ", false),
+            ("", false),
+        ] {
+            let tokens = crate::domain::formula::lexer::tokenize(&format!("@{nombre}"));
+            let unico = matches!(
+                tokens.as_deref(),
+                Ok([una]) if matches!(&una.token, crate::domain::formula::lexer::Token::Indicator(n) if n == nombre)
+            );
+            assert_eq!(
+                unico, admisible,
+                "el lexer y `is_valid_name` discrepan sobre {nombre:?}"
+            );
+            assert_eq!(is_valid_name(nombre), admisible, "regla sobre {nombre:?}");
+        }
     }
 }

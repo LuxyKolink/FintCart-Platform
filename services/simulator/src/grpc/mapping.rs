@@ -31,10 +31,12 @@ use crate::domain::formula::ErrorCode;
 use crate::pb::fintcart::common::v1::PageResponse;
 use crate::pb::fintcart::simulator::v1::{
     list_history_response::Entry, Calculator, CalculatorDefinition, CalculatorInput,
-    CalculatorOutput, CalculatorValidation, ComputeResponse, DefinitionError, InputType,
-    ListCalculatorsResponse, ListHistoryResponse,
+    CalculatorOutput, CalculatorValidation, ComputeResponse, DefinitionError, ExpiringIndicator,
+    Indicator, IndicatorCalendarStatus, InputType, ListCalculatorsResponse, ListHistoryResponse,
+    ListIndicatorsResponse,
 };
 use crate::repo::calculators::{CalculatorPage, CalculatorRow};
+use crate::repo::indicators::{CalendarStatus, IndicatorRow};
 use crate::repo::simulations::{HistoryPage, SimulationRow};
 
 /// Formato en el que viajan los instantes: RFC-3339 en UTC, como declara el contrato.
@@ -44,6 +46,62 @@ use crate::repo::simulations::{HistoryPage, SimulationRow};
 /// espera un `Timestamp` del contrato.
 fn rfc3339(instant: chrono::DateTime<chrono::Utc>) -> String {
     instant.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
+/// Formato en el que viajan las fechas: ISO-8601 (`YYYY-MM-DD`), como declara el contrato.
+///
+/// Se formatea explícitamente en vez de usar el `Display` de `NaiveDate`, que también da
+/// `YYYY-MM-DD`: si la representación por defecto de la biblioteca cambiara, el contrato
+/// cambiaría sin que nadie lo decidiera.
+fn iso_date(date: chrono::NaiveDate) -> String {
+    date.format("%Y-%m-%d").to_string()
+}
+
+/// Convierte una vigencia almacenada en el mensaje del contrato.
+///
+/// ## La fecha de fin vacía significa SIN FIN
+///
+/// El contrato declara `valid_to` como una fecha ISO-8601 y no puede expresar «sin fecha de
+/// fin», que es un caso que el esquema admite (`upper_inf`). Se manda la cadena vacía, que es
+/// la misma convención que ya usan `owner_id` o `calculator_id` en este contrato para un campo
+/// ausente, y una lectura de la pantalla de administración lo presenta como «sin fecha de
+/// fin». La alternativa —una fecha centinela como `9999-12-31`— sería un valor que
+/// `UpsertIndicator` aceptaría y devolvería como una vigencia normal de tres mil años.
+#[must_use]
+pub fn indicator_from_row(row: IndicatorRow) -> Indicator {
+    Indicator {
+        indicator_id: row.id.to_string(),
+        name: row.name,
+        value: decimal_str::format(row.value),
+        valid_from: iso_date(row.valid_from),
+        valid_to: row.valid_to.map(iso_date).unwrap_or_default(),
+        registered_by: row.registered_by.to_string(),
+    }
+}
+
+/// Lista de vigencias, en el mismo orden en que salió de la base.
+#[must_use]
+pub fn indicators_response(rows: Vec<IndicatorRow>) -> ListIndicatorsResponse {
+    ListIndicatorsResponse {
+        items: rows.into_iter().map(indicator_from_row).collect(),
+    }
+}
+
+/// Estado del calendario, traducido al contrato.
+#[must_use]
+pub fn calendar_status(status: CalendarStatus) -> IndicatorCalendarStatus {
+    IndicatorCalendarStatus {
+        missing_names: status.missing,
+        expiring: status
+            .expiring
+            .into_iter()
+            .map(|expiring| ExpiringIndicator {
+                name: expiring.name,
+                valid_to: iso_date(expiring.valid_to),
+                days_remaining: i32::try_from(expiring.days_remaining).unwrap_or(i32::MAX),
+            })
+            .collect(),
+    }
 }
 
 /// Convierte la fila recién insertada en la respuesta de `Compute`.
@@ -425,4 +483,36 @@ pub fn parse_user_id(raw: &str) -> Result<uuid::Uuid> {
 /// [`Error::InvalidInput`] si no es un UUID, con la misma razón que [`parse_user_id`].
 pub fn parse_calculator_id(raw: &str) -> Result<uuid::Uuid> {
     parse_uuid(raw, "calculator_id")
+}
+
+/// Interpreta una fecha ISO-8601 (`YYYY-MM-DD`) del contrato.
+///
+/// # Errores
+///
+/// [`Error::InvalidInput`] si no es una fecha en ese formato. `NaiveDate` y no un
+/// `DateTime<Utc>`: lo que viaja es una vigencia —de un indicador o de un período—, que es una
+/// convención de calendario y no un instante. Aceptar una hora obligaría a decidir en qué zona
+/// se interpreta, y esa decisión no la necesita ninguna de las dos partes.
+///
+/// ## Por qué se comprueba la ida y vuelta
+///
+/// `chrono` es PERMISIVO con este formato: `NaiveDate::parse_from_str("2026-1-1", "%Y-%m-%d")`
+/// no falla, acepta el uno sin rellenar. Dejar pasar eso significaría que `2026-1-1` y
+/// `2026-01-01` son la misma vigencia escrita de dos maneras, y que lo que entra por el
+/// contrato no es exactamente lo que el contrato declara. Formatear el resultado y compararlo
+/// con lo recibido cierra esa puerta: solo pasa la forma canónica, y la comparación es
+/// suficiente porque el formato no admite ambigüedades de zona ni de calendario.
+pub fn parse_date(raw: &str, field: &str) -> Result<chrono::NaiveDate> {
+    let explicacion = || {
+        Error::InvalidInput(format!(
+            "{field} debe ser una fecha ISO-8601 con el mes y el día a dos dígitos \
+             (AAAA-MM-DD), y llegó «{raw}»"
+        ))
+    };
+
+    let date = chrono::NaiveDate::parse_from_str(raw, "%Y-%m-%d").map_err(|_| explicacion())?;
+    if iso_date(date) != raw {
+        return Err(explicacion());
+    }
+    Ok(date)
 }

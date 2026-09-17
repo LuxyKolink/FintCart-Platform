@@ -264,30 +264,10 @@ pub fn parse_value(kind: InputKind, raw: &str) -> Result<Decimal, FormulaError> 
 
 /// Traduce un fallo de formato decimal a algo que el autor pueda accionar.
 ///
-/// El `Display` de [`DecimalStrError`] empieza por `decimal_str:` porque está escrito para
-/// el log de quien opera el servicio. Este mensaje lo lee quien redacta una fórmula.
+/// Delega en [`decimal_str::describe`]: el mensaje es el mismo para el autor de una fórmula y
+/// para quien carga un indicador, porque describe el VALOR y no a quien lo escribió.
 fn describe_decimal_error(err: &DecimalStrError) -> String {
-    match err {
-        DecimalStrError::Empty => "falta un valor".to_owned(),
-        DecimalStrError::Syntax(value) => format!(
-            "«{value}» no es una cifra decimal: se escriben solo dígitos y un punto, sin \
-             separador de miles, sin notación científica y sin espacios"
-        ),
-        DecimalStrError::Scale {
-            value, got, max, ..
-        } => format!("«{value}» tiene {got} decimales y su tipo admite {max} como máximo"),
-        DecimalStrError::Range {
-            value,
-            precision,
-            scale,
-        } => format!(
-            "«{value}» no cabe en su tipo (admite hasta {} dígitos, {scale} decimales)",
-            precision - scale
-        ),
-        DecimalStrError::Unrepresentable(value) => {
-            format!("«{value}» excede la precisión decimal que admite la plataforma")
-        }
-    }
+    decimal_str::describe(err)
 }
 
 impl Draft {

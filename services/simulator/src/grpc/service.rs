@@ -13,10 +13,11 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::domain::currency;
+use crate::domain::decimal_str;
 use crate::domain::definition::Definition;
 use crate::domain::dispatch::{self, Kind};
 use crate::domain::error::Error;
-use crate::domain::indicators::Snapshot;
+use crate::domain::indicators::{self, Snapshot};
 use crate::grpc::mapping;
 use crate::observability;
 use crate::pb::fintcart::common::v1::{OpResult, PageRequest};
@@ -97,8 +98,9 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
 fn to_status(err: &Error) -> Status {
     match err {
         Error::InvalidInput(msg) => Status::invalid_argument(msg.clone()),
-        Error::Decimal(_) => Status::invalid_argument("valor decimal no válido"),
+        Error::Decimal(err) => Status::invalid_argument(decimal_str::describe(err)),
         Error::NotFound => Status::not_found("no encontrado"),
+        Error::AlreadyExists(msg) => Status::already_exists(msg.clone()),
         Error::Storage(_) => Status::internal("error interno"),
         Error::NotImplemented(what) => Status::unimplemented(what.clone()),
     }
@@ -342,31 +344,165 @@ impl<S: Simulations, C: Calculators, I: Indicators> SimulatorService for Service
 
     async fn upsert_indicator(
         &self,
-        _request: Request<UpsertIndicatorRequest>,
+        request: Request<UpsertIndicatorRequest>,
     ) -> Result<Response<Indicator>, Status> {
-        Err(pending("simulator.UpsertIndicator", "T104", Instant::now()))
+        let started = Instant::now();
+        let result = self
+            .upsert_indicator_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.UpsertIndicator falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.UpsertIndicator", started, &result);
+        result
     }
 
     async fn list_indicators(
         &self,
-        _request: Request<ListIndicatorsRequest>,
+        request: Request<ListIndicatorsRequest>,
     ) -> Result<Response<ListIndicatorsResponse>, Status> {
-        Err(pending("simulator.ListIndicators", "T104", Instant::now()))
+        let started = Instant::now();
+        let result = self
+            .list_indicators_inner(request.into_inner())
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.ListIndicators falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.ListIndicators", started, &result);
+        result
     }
 
     async fn get_indicator_calendar_status(
         &self,
         _request: Request<PageRequest>,
     ) -> Result<Response<IndicatorCalendarStatus>, Status> {
-        Err(pending(
-            "simulator.GetIndicatorCalendarStatus",
-            "T104",
-            Instant::now(),
-        ))
+        let started = Instant::now();
+        let result = self
+            .indicator_calendar_status_inner()
+            .await
+            .map_err(|err| {
+                warn!(error = %err, "simulator.GetIndicatorCalendarStatus falló");
+                to_status(&err)
+            });
+        let result = result.map(Response::new);
+        record("simulator.GetIndicatorCalendarStatus", started, &result);
+        result
     }
 }
 
 impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
+    /// Cuerpo de `UpsertIndicator` (FR-055..FR-060).
+    ///
+    /// Todo lo que valida aquí lo valida también la base —formato del nombre, valor no
+    /// negativo, precisión, rango no vacío, no solapamiento—, y no es duplicación inútil: el
+    /// `CHECK` garantiza la integridad, y esta capa es la que produce un mensaje que se pueda
+    /// leer. Un valor de catorce decimales se rechaza con «la columna admite 6» en lugar de
+    /// con un `numeric field overflow` del driver.
+    ///
+    /// El actor NO se comprueba aquí: el rol lo exige el borde (§Definición de Contratos), que
+    /// es el único sitio de la plataforma que conoce los roles. Lo que sí se hace es tomarlo de
+    /// la petición para que quede registrado quién cargó la cifra (FR-060) — y el borde lo saca
+    /// de las marcas del token, no de lo que diga el cuerpo.
+    async fn upsert_indicator_inner(
+        &self,
+        req: UpsertIndicatorRequest,
+    ) -> Result<Indicator, Error> {
+        let actor_id = mapping::parse_user_id(&req.actor_id)?;
+        let existing = mapping::parse_optional_uuid(&req.indicator_id, "indicator_id")?;
+
+        let name = req.name.trim();
+        if !indicators::is_valid_name(name) {
+            return Err(Error::InvalidInput(format!(
+                "«{name}» no es un nombre de indicador válido: se espera una palabra en \
+                 mayúsculas que empiece por letra, con dígitos o guion bajo —por ejemplo UVT—, \
+                 porque las fórmulas lo referencian como @{name}"
+            )));
+        }
+
+        // El mismo rango y la misma escala que la columna `NUMERIC(20, 6)`: si el valor cupiera
+        // aquí y no en la columna, el error sería una violación de restricción en el `INSERT`.
+        let value = decimal_str::parse_numeric(&req.value, 20, 6)?;
+        if value.is_sign_negative() {
+            return Err(Error::InvalidInput(
+                "un indicador no puede ser negativo".to_owned(),
+            ));
+        }
+
+        let from = mapping::parse_date(&req.valid_from, "valid_from")?;
+        let to = mapping::parse_date(&req.valid_to, "valid_to")?;
+        if from >= to {
+            return Err(Error::InvalidInput(format!(
+                "la vigencia no cubre ningún día: empieza el {from} y termina el {to}, y el fin \
+                 es EXCLUSIVO — una vigencia que termina el mismo día que empieza no vale para \
+                 ninguna fecha"
+            )));
+        }
+
+        let row = self
+            .indicators
+            .upsert(existing, name, value, from, to, actor_id)
+            .await?;
+        Ok(mapping::indicator_from_row(row))
+    }
+
+    /// Cuerpo de `ListIndicators`.
+    ///
+    /// `on_date` vacío significa todas las vigencias, y traducir esa ausencia es tarea de esta
+    /// capa: el repositorio recibe ya un `Option<NaiveDate>` y no tiene que saber que el
+    /// contrato expresa «todas» con una cadena vacía.
+    async fn list_indicators_inner(
+        &self,
+        req: ListIndicatorsRequest,
+    ) -> Result<ListIndicatorsResponse, Error> {
+        let name = req.name.trim();
+        let name = (!name.is_empty()).then_some(name);
+
+        if let Some(name) = name {
+            if !indicators::is_valid_name(name) {
+                return Err(Error::InvalidInput(format!(
+                    "«{name}» no es un nombre de indicador válido"
+                )));
+            }
+        }
+
+        let on = match req.on_date.trim() {
+            "" => None,
+            raw => Some(mapping::parse_date(raw, "on_date")?),
+        };
+
+        let rows = self.indicators.list(name, on).await?;
+        Ok(mapping::indicators_response(rows))
+    }
+
+    /// Cuerpo de `GetIndicatorCalendarStatus` (FR-061, FR-062).
+    ///
+    /// ## Por qué NO se usa el `PageRequest` de la petición
+    ///
+    /// La respuesta es un ESTADO —qué nombres no tienen vigencia y cuáles están por vencer—, no
+    /// una página: no hay nada que paginar, y el `PageRequest` del contrato es el precio de
+    /// haberlo declarado con el mismo envoltorio que los listados. Tampoco se usa para elegir la
+    /// ventana de aviso, que es lo que sí habría hecho falta: la ventana es una decisión de la
+    /// plataforma ([`indicators::CALENDAR_ALERT_WINDOW_DAYS`]) y no un parámetro del cliente,
+    /// porque el aviso que recibe el administrador no puede depender de quién pregunte. Queda
+    /// documentado aquí para que nadie lea el hueco como un olvido.
+    async fn indicator_calendar_status_inner(&self) -> Result<IndicatorCalendarStatus, Error> {
+        // El barrido pregunta por el calendario con la fecha de EJECUCIÓN, la misma con la que
+        // se resuelven los indicadores: si se mirara otra, el aviso podría decir que todo está
+        // en orden mientras una calculadora no encuentra su valor.
+        let status = self
+            .indicators
+            .calendar_status(
+                execution_date(),
+                indicators::CALENDAR_ALERT_WINDOW_DAYS,
+            )
+            .await?;
+        Ok(mapping::calendar_status(status))
+    }
+
     /// Cuerpo de `Compute`, en términos de dominio en lugar de `Status`.
     ///
     /// Separarlo del método del trait es lo que permite usar `?` con

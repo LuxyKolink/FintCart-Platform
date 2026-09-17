@@ -33,7 +33,7 @@ use fintcart_simulator::pb::fintcart::simulator::v1::{
 use fintcart_simulator::repo::calculators::{
     CalculatorPage, CalculatorRow, Calculators, State, VersionRef,
 };
-use fintcart_simulator::repo::indicators::Indicators;
+use fintcart_simulator::repo::indicators::{CalendarStatus, IndicatorRow, Indicators};
 use fintcart_simulator::repo::simulations::{
     HistoryPage, NewSimulation, SimulationRow, Simulations,
 };
@@ -246,6 +246,42 @@ impl Indicators for NoIndicators {
             "el camino de compatibilidad no resuelve indicadores".to_owned(),
         ))
     }
+
+    // Mismo criterio con las tres operaciones de T104: estas pruebas no tocan indicadores, y
+    // fallar hace que una llamada colada se note en vez de pasar desapercibida.
+    async fn upsert(
+        &self,
+        _existing: Option<Uuid>,
+        _name: &str,
+        _value: Decimal,
+        _from: chrono::NaiveDate,
+        _to: chrono::NaiveDate,
+        _actor_id: Uuid,
+    ) -> Result<IndicatorRow> {
+        Err(Error::NotImplemented(
+            "el camino de compatibilidad no carga indicadores".to_owned(),
+        ))
+    }
+
+    async fn list(
+        &self,
+        _name: Option<&str>,
+        _on: Option<chrono::NaiveDate>,
+    ) -> Result<Vec<IndicatorRow>> {
+        Err(Error::NotImplemented(
+            "el camino de compatibilidad no lista indicadores".to_owned(),
+        ))
+    }
+
+    async fn calendar_status(
+        &self,
+        _today: chrono::NaiveDate,
+        _window_days: i64,
+    ) -> Result<CalendarStatus> {
+        Err(Error::NotImplemented(
+            "el camino de compatibilidad no consulta el calendario".to_owned(),
+        ))
+    }
 }
 
 // ── dobles del constructor y de los indicadores ─────────────────────────────
@@ -343,6 +379,17 @@ impl Calculators for FakeCalculators {
 struct FakeIndicators {
     vigentes: Arc<HashMap<String, Decimal>>,
     consultas: Arc<Mutex<Vec<BTreeSet<String>>>>,
+    /// Filas que devuelve `list`, y donde `upsert` apunta lo que le llegó.
+    filas: Arc<Mutex<Vec<IndicatorRow>>>,
+    /// Estado que devuelve `calendar_status`.
+    ///
+    /// Es un valor DECLARADO por la prueba y no algo que el doble calcule a partir de las
+    /// filas: el cálculo —qué está sin vigencia y qué está por vencer, con la consulta de
+    /// sucesor y el upper infinito— es SQL, y vive en `tests/indicators_db.rs` contra
+    /// PostgreSQL. Reimplementarlo aquí probaría el doble, no el sistema.
+    calendario: Arc<Mutex<CalendarStatus>>,
+    /// Fuerza que `upsert` falle como si hubiera solapamiento (FR-059).
+    solapa: Arc<Mutex<bool>>,
 }
 
 impl FakeIndicators {
@@ -360,6 +407,9 @@ impl FakeIndicators {
                     .collect(),
             ),
             consultas: Arc::default(),
+            filas: Arc::default(),
+            calendario: Arc::default(),
+            solapa: Arc::default(),
         }
     }
 }
@@ -379,6 +429,56 @@ impl Indicators for FakeIndicators {
             .iter()
             .filter_map(|name| self.vigentes.get(name).map(|value| (name.clone(), *value)))
             .collect())
+    }
+
+    async fn upsert(
+        &self,
+        existing: Option<Uuid>,
+        name: &str,
+        value: Decimal,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+        actor_id: Uuid,
+    ) -> Result<IndicatorRow> {
+        if *self.solapa.lock().unwrap() {
+            return Err(Error::AlreadyExists(format!(
+                "{name} ya tiene una vigencia que se solapa"
+            )));
+        }
+
+        let row = IndicatorRow {
+            // Una fila nueva recibe identificador, como en la base (`DEFAULT
+            // gen_random_uuid()`); una edición conserva el que tenía.
+            id: existing.unwrap_or_else(Uuid::new_v4),
+            name: name.to_owned(),
+            value,
+            valid_from: from,
+            valid_to: Some(to),
+            registered_by: actor_id,
+        };
+        self.filas.lock().unwrap().push(row.clone());
+        Ok(row)
+    }
+
+    async fn list(
+        &self,
+        name: Option<&str>,
+        _on: Option<chrono::NaiveDate>,
+    ) -> Result<Vec<IndicatorRow>> {
+        let filas = self.filas.lock().unwrap();
+        Ok(filas
+            .iter()
+            .filter(|row| name.is_none_or(|name| row.name == name))
+            .cloned()
+            .collect())
+    }
+
+    async fn calendar_status(
+        &self,
+        _today: chrono::NaiveDate,
+        _window_days: i64,
+    ) -> Result<CalendarStatus> {
+        Ok(self.calendario.lock().unwrap().clone())
     }
 }
 

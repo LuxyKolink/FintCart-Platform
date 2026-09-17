@@ -390,6 +390,44 @@ impl Indicators for NoIndicators {
             "estas pruebas no ejecutan definiciones".to_owned(),
         ))
     }
+
+    // Las tres operaciones de escritura y consulta de indicadores (T104) van con el mismo
+    // criterio que `resolve`: estas pruebas no cargan indicadores, así que un `UPSERT` colado
+    // aquí tiene que notarse. Devolver una fila vacía lo dejaría pasar, y el síntoma sería un
+    // indicador que la prueba cree haber creado y que nadie creó.
+    async fn upsert(
+        &self,
+        _existing: Option<uuid::Uuid>,
+        _name: &str,
+        _value: rust_decimal::Decimal,
+        _from: chrono::NaiveDate,
+        _to: chrono::NaiveDate,
+        _actor_id: uuid::Uuid,
+    ) -> Result<fintcart_simulator::repo::indicators::IndicatorRow> {
+        Err(Error::NotImplemented(
+            "estas pruebas no cargan indicadores".to_owned(),
+        ))
+    }
+
+    async fn list(
+        &self,
+        _name: Option<&str>,
+        _on: Option<chrono::NaiveDate>,
+    ) -> Result<Vec<fintcart_simulator::repo::indicators::IndicatorRow>> {
+        Err(Error::NotImplemented(
+            "estas pruebas no listan indicadores".to_owned(),
+        ))
+    }
+
+    async fn calendar_status(
+        &self,
+        _today: chrono::NaiveDate,
+        _window_days: i64,
+    ) -> Result<fintcart_simulator::repo::indicators::CalendarStatus> {
+        Err(Error::NotImplemented(
+            "estas pruebas no consultan el calendario".to_owned(),
+        ))
+    }
 }
 
 /// Doble del historial que NO se puede usar: estas pruebas no simulan nada, y fallar en vez

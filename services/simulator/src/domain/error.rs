@@ -35,7 +35,12 @@ pub enum Error {
     /// Se envuelve con `#[from]` para que `?` convierta automáticamente: el helper
     /// `decimal_str` se usa en cada frontera, y tener que mapear el error a mano en
     /// cada llamada invitaría a escribir un `.unwrap()` (Principio VIII).
-    #[error("simulador: valor decimal no válido")]
+    ///
+    /// El `Display` incluye la causa porque es el que acaba en el LOG (`%err`). Al cliente le
+    /// llega [`decimal_str::describe`], que no nombra el módulo; al log le conviene el detalle
+    /// completo, y sin él una entrada mal formada dejaría dos líneas idénticas para dos motivos
+    /// distintos —«siete decimales» y «separador de miles»—.
+    #[error("simulador: valor decimal no válido: {0}")]
     Decimal(#[from] DecimalStrError),
 
     /// La simulación pedida no existe.
@@ -53,7 +58,6 @@ pub enum Error {
     Storage(#[source] sqlx::Error),
 
     /// Marca lo que todavía no tiene cuerpo.
-    ///
     /// Explícito a propósito: un `Default` silencioso devolvería un resultado con
     /// todos los montos en cero, indistinguible de un cálculo legítimo.
     ///
@@ -63,6 +67,21 @@ pub enum Error {
     /// frente a `calculator_id` (FR-043)— esa diferencia es justo la que necesita.
     #[error("simulador: no implementado: {0}")]
     NotImplemented(String),
+
+    /// La operación choca con algo que ya existe.
+    ///
+    /// Hoy tiene un solo productor: dos vigencias del mismo indicador que se pisan
+    /// (FR-059). Está separado de [`Error::InvalidInput`] porque el cliente tiene que
+    /// reaccionar distinto: una entrada inválida se corrige y se reintenta con los mismos
+    /// datos, un solapamiento se resuelve mirando lo que ya hay. Con un solo código, la
+    /// pantalla de administración no podría ofrecer «ver las vigencias de este indicador»
+    /// en el caso en que eso es exactamente lo que hace falta.
+    ///
+    /// El mensaje lleva dentro QUÉ choca cuando se sabe —el rango ya registrado—, porque
+    /// quien lo lee está cargando el UVT del año siguiente y lo que necesita saber es cuál
+    /// de las dos cifras sobra.
+    #[error("simulador: ya existe: {0}")]
+    AlreadyExists(String),
 }
 
 /// Alias del `Result` del servicio.
@@ -79,6 +98,24 @@ impl Error {
     pub fn from_sqlx(err: sqlx::Error) -> Self {
         match err {
             sqlx::Error::RowNotFound => Self::NotFound,
+            // `23P01` es `exclusion_violation`, y hoy la única restricción de exclusión
+            // del esquema es `financial_indicators_no_overlap` (FR-059): dos vigencias
+            // del mismo indicador que se pisan. Se traduce aquí y no en el repositorio
+            // porque es el MISMO embudo por el que entra cualquier otro error del
+            // driver, y una segunda puerta para el mismo tipo de error es donde acaba
+            // escribiéndose la traducción que falta.
+            //
+            // Se traduce aunque el repositorio ya compruebe el solapamiento ANTES de
+            // insertar: esa comprobación da el mensaje bueno —nombra el rango que ya
+            // está—, pero no es una garantía, porque entre la lectura y la escritura
+            // cabe otro administrador. El que manda es el `EXCLUDE`, y su error tiene
+            // que llegar al cliente como «ya existe» y no como un 500.
+            //
+            // SI APARECE OTRA RESTRICCIÓN DE EXCLUSIÓN, ESTE MAPEO HAY QUE REVISARLO:
+            // atribuiría a un solapamiento de vigencias un choque que es de otra cosa.
+            sqlx::Error::Database(ref db) if db.code().as_deref() == Some("23P01") => Self::AlreadyExists(
+                "esa vigencia se solapa con otra ya registrada para el mismo indicador".to_owned(),
+            ),
             other => Self::Storage(other),
         }
     }

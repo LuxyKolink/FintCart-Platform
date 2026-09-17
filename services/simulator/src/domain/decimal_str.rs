@@ -83,6 +83,49 @@ pub enum DecimalStrError {
     Unrepresentable(String),
 }
 
+/// Descripción de un rechazo en términos de quien lo provocó.
+///
+/// El `Display` de [`DecimalStrError`] empieza por `decimal_str:`, que es el nombre de un
+/// módulo y no algo que quien escribe el valor pueda usar. Este texto sí: sale al cliente a
+/// través del estado gRPC (ver `grpc::service::to_status`), y describe el valor RECIBIDO con
+/// una acción concreta —qué forma se espera, cuántos decimales admite su tipo—.
+///
+/// ## Por qué hay UNA función y no una por capa
+///
+/// Llegó a haber tres copias de esta traducción —una para el constructor de calculadoras, una
+/// para el alta de indicadores y el mapeo de errores—, y las tres ya habían empezado a
+/// divergir: la de los indicadores no nombraba el valor rechazado. Un mismo error del parser
+/// explicado de tres maneras hace que dos pantallas cuenten cosas distintas del mismo dato, y
+/// esto es una función pura sobre un `enum` cerrado: no necesita contexto de quien llama.
+///
+/// Nunca menciona el esquema, el SQL ni el driver: los únicos detalles técnicos que aparecen
+/// —cuántos decimales admite un tipo, cuántos dígitos caben— son los que el propio autor
+/// declara en su definición o los que documenta el modelo de datos.
+#[must_use]
+pub fn describe(err: &DecimalStrError) -> String {
+    match err {
+        DecimalStrError::Empty => "falta un valor".to_owned(),
+        DecimalStrError::Syntax(value) => format!(
+            "«{value}» no es una cifra decimal: se escriben solo dígitos y un punto, sin \
+             separador de miles, sin notación científica y sin espacios"
+        ),
+        DecimalStrError::Scale {
+            value, got, max, ..
+        } => format!("«{value}» tiene {got} decimales y su tipo admite {max} como máximo"),
+        DecimalStrError::Range {
+            value,
+            precision,
+            scale,
+        } => format!(
+            "«{value}» no cabe en su tipo (admite hasta {} dígitos, {scale} decimales)",
+            precision - scale
+        ),
+        DecimalStrError::Unrepresentable(value) => {
+            format!("«{value}» excede la precisión decimal que admite la plataforma")
+        }
+    }
+}
+
 /// Convierte una cadena decimal canónica en [`Decimal`].
 ///
 /// No impone límite de precisión: para validar contra una columna concreta usar
