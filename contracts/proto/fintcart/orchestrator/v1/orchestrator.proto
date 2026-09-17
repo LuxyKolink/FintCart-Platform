@@ -126,4 +126,14 @@ message SimulationRequest {
 message SimulationResult {
   string simulation_id = 1;
   map<string, string> result = 2; // [decimal]
+  // Procedencia de la ejecución (FR-050, FR-058). Faltaban, y su ausencia hacía que la
+  // respuesta de `POST /calculators/{id}/run` no pudiera explicarse: el delta REST promete
+  // «`calculator_version` e `indicators_used`» y el historial los lleva, así que la única
+  // ejecución que no los devolvía era justo la que el usuario acaba de lanzar.
+  //
+  // La versión dice CON QUÉ definición se calculó —una calculadora cambia con el tiempo, y sin
+  // la versión un resultado de hace un año se explicaría con la fórmula de hoy—, y los
+  // indicadores son los valores que se usaron ese día, resueltos a la fecha de ejecución.
+  int32 calculator_version = 3;
+  map<string, string> indicators_used = 4; // [decimal]
 }

@@ -73,7 +73,18 @@ describe('AppComponent — armazón', () => {
 
   it('derives a learner navigation from the role, without editorial or admin entries', () => {
     signInAs('aprendiz');
-    expect(navLabels()).toEqual(['Catálogo', 'Simuladores', 'Tu progreso', 'Notificaciones', 'Tu perfil']);
+    // Las dos de calculadoras (T118, T119) son de CUALQUIER usuario y van juntas: el catálogo
+    // de lo publicado y el taller de lo propio. Un aprendiz no ve «Revisión», que es lo que
+    // esta prueba protege.
+    expect(navLabels()).toEqual([
+      'Catálogo',
+      'Simuladores',
+      'Calculadoras',
+      'Mis calculadoras',
+      'Tu progreso',
+      'Notificaciones',
+      'Tu perfil',
+    ]);
   });
 
   it('adds the editorial entries for an editor but not the review queue', () => {
@@ -81,6 +92,7 @@ describe('AppComponent — armazón', () => {
     const labels = navLabels();
     expect(labels).toContain('Editorial');
     expect(labels).not.toContain('Revisión');
+    expect(labels).not.toContain('Revisión de calculadoras');
     expect(labels).not.toContain('Administración');
   });
 
@@ -88,6 +100,9 @@ describe('AppComponent — armazón', () => {
     signInAs('coordinador_editorial');
     expect(navLabels()).toContain('Editorial');
     expect(navLabels()).toContain('Revisión');
+    // La cola de calculadoras propuestas es del coordinador y de nadie más (FR-053): es la
+    // segunda bandeja, y va con el mismo rol que la de artículos.
+    expect(navLabels()).toContain('Revisión de calculadoras');
   });
 
   it('does not grant editorial attributions to an administrator (FR-077 boundary)', () => {
@@ -96,6 +111,7 @@ describe('AppComponent — armazón', () => {
     expect(labels).toContain('Administración');
     expect(labels).not.toContain('Editorial');
     expect(labels).not.toContain('Revisión');
+    expect(labels).not.toContain('Revisión de calculadoras');
   });
 
   it('renders the logout action with the shared button and its accessible name', () => {

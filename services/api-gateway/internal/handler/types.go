@@ -440,6 +440,17 @@ type SimulationRequest struct {
 type SimulationResult struct {
 	SimulationID string            `json:"simulation_id"`
 	Result       map[string]string `json:"result"`
+
+	// Procedencia de la ejecución (FR-050, FR-058). La promete el delta REST para
+	// `/calculators/{id}/run` —«resultados como `string` decimal, más `calculator_version` e
+	// `indicators_used`»— y faltaba: el historial la llevaba y la respuesta de la ejecución no,
+	// así que la única ejecución que no podía explicarse era la que se acababa de lanzar.
+	//
+	// `calculator_version` va SIN `omitempty` y `indicators_used` SIEMPRE como objeto, por el
+	// mismo criterio que en el historial: un campo ausente y un campo vacío significan cosas
+	// distintas, y el que recorre la procedencia no debería tener que adivinarlo.
+	CalculatorVersion int32             `json:"calculator_version"`
+	IndicatorsUsed    map[string]string `json:"indicators_used"`
 }
 
 // SimulationHistoryEntry ≡ un elemento de `GET /simulators/history` (FR-022).

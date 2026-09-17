@@ -1,0 +1,109 @@
+<fc-module-box title="Mis calculadoras">
+  <p class="fc-mine__intro">
+    Una calculadora nace <strong>privada</strong>: solo la ves tú y puedes ejecutarla. Para que
+    aparezca en el catálogo público o dentro de un artículo tiene que aprobarla un coordinador
+    editorial, y aquí es donde la propones y donde lees lo que te dijeron si la rechazaron.
+  </p>
+</fc-module-box>
+
+@if (notice(); as aviso) {
+  <fc-banner tone="success">{{ aviso }}</fc-banner>
+}
+@if (errorMessage(); as mensaje) {
+  <fc-banner tone="error">{{ mensaje }}</fc-banner>
+}
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="fc-mine__lista">
+      <fc-skeleton height="5rem" />
+      <fc-skeleton height="5rem" />
+    </div>
+  }
+  @case ('error') {
+    <fc-error-state
+      icon="calculator"
+      title="No pudimos cargar tus calculadoras"
+      message="Puede que hayas perdido la conexión. No se ha cambiado nada."
+      (retry)="retry()"
+    />
+  }
+  @default {
+    @if (enRevision() > 0) {
+      <fc-banner tone="info">
+        Tienes {{ enRevision() }}
+        {{ enRevision() === 1 ? 'calculadora' : 'calculadoras' }} esperando revisión. Mientras
+        esperan no conviene editarlas: una edición retira la propuesta, porque el coordinador
+        está leyendo una versión concreta.
+      </fc-banner>
+    }
+
+    @if (items().length === 0) {
+      <fc-empty-state
+        title="Todavía no tienes calculadoras"
+        message="Las calculadoras que sean tuyas aparecerán aquí con su estado de curaduría."
+      />
+    } @else {
+      <div class="fc-mine__lista">
+        @for (calculator of items(); track calculator.calculator_id) {
+          <article class="fc-mine__item">
+            <div class="fc-mine__cabecera">
+              <h3 class="fc-mine__nombre">{{ calculator.name }}</h3>
+              <fc-badge [tone]="tone(calculator.state)">{{ label(calculator.state) }}</fc-badge>
+              @if (calculator.is_builtin) {
+                <fc-tag category="neutral">De la plataforma</fc-tag>
+              }
+            </div>
+
+            @if (calculator.description !== '') {
+              <p>{{ calculator.description }}</p>
+            }
+
+            <p class="fc-mine__cuerpo">
+              <span>Versión {{ calculator.version }}</span>
+              <span>{{ help(calculator.state) }}</span>
+            </p>
+
+            @if (calculator.indicators_used.length > 0) {
+              <p class="fc-mine__cuerpo">
+                <span>Indicadores que usa:</span>
+                <span class="fc-mine__indicadores">{{ calculator.indicators_used.join(', ') }}</span>
+              </p>
+            }
+
+            @if (calculator.rejection_reason; as motivo) {
+              <!--
+                El motivo del rechazo (FR-054) va DENTRO de la ficha y no en un aviso de la
+                página: es un dato que hay que poder releer mientras se corrige, y un banner
+                que desaparece al recargar convertiría la corrección en adivinanza.
+              -->
+              <fc-banner tone="warning">
+                <strong>Un coordinador la revisó y pidió cambios:</strong> {{ motivo }}
+              </fc-banner>
+            }
+
+            <div class="fc-mine__acciones">
+              @if (canSubmit(calculator)) {
+                <fc-button
+                  variant="primary"
+                  size="sm"
+                  [disabled]="isSubmitting(calculator)"
+                  (pressed)="onSubmit(calculator)"
+                >
+                  {{ isSubmitting(calculator) ? 'Proponiendo…' : 'Proponer para publicación' }}
+                </fc-button>
+              }
+              <fc-link-button
+                variant="secondary"
+                size="sm"
+                [to]="['/calculadoras', calculator.calculator_id]"
+              >
+                Ver y ejecutar
+              </fc-link-button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  }
+}

@@ -87,6 +87,13 @@ func SimulationDefinition(c Clients) Definition {
 					st.Payload[payloadSimulationID] = resp.GetSimulationId()
 					st.Payload[payloadResult] = resp.GetResult()
 					st.Payload[payloadComputedAt] = resp.GetComputedAt()
+					// La PROCEDENCIA (FR-050, FR-058) viaja con el resto del resultado y no se
+					// queda en el Simulador: la respuesta de una ejecución tiene que poder
+					// explicarse sola, y la definición de una calculadora cambia con el tiempo.
+					// Los indicadores van como cadenas decimales —son cifras, no recuentos— y el
+					// Orquestador NO los interpreta: los reenvía tal cual (Principio VIII).
+					st.Payload[payloadCalculatorVersion] = resp.GetCalculatorVersion()
+					st.Payload[payloadIndicatorsUsed] = resp.GetIndicatorsUsed()
 					return nil, nil
 				},
 				// Sin compensación: no existe RPC para borrar una simulación, y con

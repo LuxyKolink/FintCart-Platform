@@ -174,3 +174,38 @@ func TestSelfApprovalSurfacesAsForbidden(t *testing.T) {
 
 	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
 }
+
+// La respuesta de una ejecución lleva su procedencia (FR-050, FR-058).
+//
+// Lo promete el delta REST para `/calculators/{id}/run` y faltaba: el historial citaba la
+// versión y los indicadores, y la ejecución recién lanzada no. Lo destapó la prueba de extremo
+// a extremo, que leyó «Calculado con la versión 0».
+func TestRunKeepsTheProvenance(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.orchestrator.simulation = &orchestratorv1.SimulationResult{
+		SimulationId:      "s-1",
+		Result:            map[string]string{"cuota": "1000.00"},
+		CalculatorVersion: 3,
+		IndicatorsUsed:    map[string]string{"UVT": "49799"},
+	}
+
+	rec := h.do(t, http.MethodPost, "/calculators/"+cuCalculatorID+"/run", `{"inputs":{"monto":"1000"}}`, true)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"calculator_version":3`)
+	require.Contains(t, rec.Body.String(), `"UVT":"49799"`)
+}
+
+// Sin indicadores, el mapa sale VACÍO y no ausente: el cliente no tiene que distinguir «no usó
+// ninguno» de «el campo no vino».
+func TestRunWithoutIndicatorsStillCarriesAnEmptyMap(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.orchestrator.simulation = &orchestratorv1.SimulationResult{SimulationId: "s-1"}
+
+	rec := h.do(t, http.MethodPost, "/calculators/"+cuCalculatorID+"/run", `{"inputs":{}}`, true)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"indicators_used":{}`)
+}

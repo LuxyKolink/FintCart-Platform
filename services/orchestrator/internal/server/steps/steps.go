@@ -73,12 +73,13 @@ const (
 	payloadCalcType = "calc_type"
 	// Calculadora definida por un usuario (FR-043). Opcional: vacío ⇒ la ejecución va
 	// por `calc_type`.
-	payloadCalculatorID = "calculator_id"
-	payloadCurrency     = "currency"
-	payloadInputs       = "inputs"
-	payloadSimulationID = "simulation_id"
-	payloadResult       = "result"
-	payloadComputedAt   = "computed_at"
+	payloadCalculatorID   = "calculator_id"
+	payloadCurrency       = "currency"
+	payloadInputs         = "inputs"
+	payloadSimulationID   = "simulation_id"
+	payloadResult         = "result"
+	payloadComputedAt     = "computed_at"
+	payloadIndicatorsUsed = "indicators_used"
 
 	// Curaduría (T115). `payloadCalculatorID` se reutiliza de arriba: en la saga es el
 	// identificador que se va a aprobar, y nombrarlo distinto solo porque la saga es otra haría

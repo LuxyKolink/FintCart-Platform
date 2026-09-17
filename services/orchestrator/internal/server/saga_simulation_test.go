@@ -40,6 +40,11 @@ type fakeSimulator struct {
 	err        error
 	anonymized []string
 
+	// provenance rellena lo que el Simulador devuelve ADEMÁS del resultado: la versión de la
+	// definición y los indicadores que se usaron. Es opcional —una ejecución por `calc_type`
+	// contra una base sin sembrar no cita ninguna definición— y por eso es un puntero.
+	provenance *simulatorv1.ComputeResponse
+
 	// El estado del calendario de indicadores (T105). Vive en este mismo doble y no en
 	// otro porque es el mismo servicio: dos `fakeSimulator` en el mismo paquete obligarían
 	// a cada prueba a saber cuál le toca.
@@ -68,11 +73,16 @@ func (f *fakeSimulator) Compute(
 		return nil, f.err
 	}
 	f.requests = append(f.requests, req)
-	return &simulatorv1.ComputeResponse{
+	resp := &simulatorv1.ComputeResponse{
 		SimulationId: "sim-1",
 		Result:       f.result,
 		ComputedAt:   "2026-08-01T12:00:00Z",
-	}, nil
+	}
+	if f.provenance != nil {
+		resp.CalculatorVersion = f.provenance.GetCalculatorVersion()
+		resp.IndicatorsUsed = f.provenance.GetIndicatorsUsed()
+	}
+	return resp, nil
 }
 
 // AnonymizeHistory registra a quién se le disoció el historial de simulaciones
@@ -363,4 +373,30 @@ func TestSimulationSagaLeavesTheAuditPayloadAloneWithoutACalculator(t *testing.T
 
 	require.Len(t, store.events, 1)
 	require.NotContains(t, string(store.events[0].Payload), "calculator_id")
+}
+
+// La procedencia viaja en la RESPUESTA de la ejecución (FR-050, FR-058).
+//
+// Faltaba: el historial citaba la versión y los indicadores, y la ejecución que el usuario
+// acababa de lanzar no. El delta REST promete las dos cosas en `/calculators/{id}/run`, así que
+// sin esto la única respuesta que no podía explicarse era la del momento en que más importa.
+func TestSimulationCarriesItsProvenance(t *testing.T) {
+	t.Parallel()
+	sim := &fakeSimulator{
+		result: map[string]string{"cuota": "1000.00"},
+		provenance: &simulatorv1.ComputeResponse{
+			CalculatorVersion: 3,
+			IndicatorsUsed:    map[string]string{"UVT": "49799"},
+		},
+	}
+	store := newMemStore()
+
+	out, err := runSimulationByCalculator(t, newSimulationEngine(store, sim), "calc-1", creditInputs())
+	require.NoError(t, err)
+
+	require.Equal(t, int32(3), out.CalculatorVersion, "la versión de la definición usada")
+	require.Equal(t, map[string]string{"UVT": "49799"}, out.IndicatorsUsed,
+		"los indicadores resueltos ese día, con su valor")
+	// Y siguen siendo CADENAS: son cifras, no recuentos (Principio VIII).
+	require.IsType(t, "", out.IndicatorsUsed["UVT"])
 }

@@ -22,6 +22,8 @@
     >
       <a routerLink="/catalogo">Catálogo</a>
       <a routerLink="/simuladores">Simuladores</a>
+      <a routerLink="/calculadoras">Calculadoras</a>
+      <a routerLink="/calculadoras/mis">Mis calculadoras</a>
       <a routerLink="/progreso">Tu progreso</a>
       <a routerLink="/notificaciones">Notificaciones</a>
       @if (auth.hasRole('editor', 'coordinador_editorial')) {
@@ -29,6 +31,7 @@
       }
       @if (auth.hasRole('coordinador_editorial')) {
         <a routerLink="/editorial/revision">Revisión</a>
+        <a routerLink="/editorial/calculadoras">Revisión de calculadoras</a>
       }
       @if (auth.hasRole('administrador')) {
         <a routerLink="/admin/categorias">Administración</a>

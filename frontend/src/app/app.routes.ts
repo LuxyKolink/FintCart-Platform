@@ -63,6 +63,29 @@ export const routes: Routes = [
       import('./features/simulators/forms/simulator-form.component').then((m) => m.SimulatorFormComponent),
   },
   {
+    // Catálogo de calculadoras publicadas (FR-052, T119). AUTENTICADA, igual que el
+    // catálogo de artículos: aunque el borde la deje abierta, la navegación de la SPA
+    // empieza después del acceso y no hay enlace público hacia ella.
+    path: 'calculadoras',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/calculators/catalog/catalog.component').then((m) => m.CalculatorsCatalogComponent),
+  },
+  {
+    // Las propias, con su estado de curaduría (FR-051, T118). Antes de ':calculatorId':
+    // 'mis' es un segmento literal y perdería contra el dinámico si se declarara después.
+    path: 'calculadoras/mis',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/calculators/mine/mine.component').then((m) => m.MyCalculatorsComponent),
+  },
+  {
+    path: 'calculadoras/:calculatorId',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/calculators/runner/runner.component').then((m) => m.CalculatorRunnerComponent),
+  },
+  {
     path: 'perfil',
     canActivate: [authGuard],
     loadComponent: () => import('./features/profile/profile.component').then((m) => m.ProfileComponent),
@@ -119,6 +142,17 @@ export const routes: Routes = [
     path: 'editorial/revision',
     canActivate: [roleGuard('coordinador_editorial')],
     loadComponent: () => import('./features/editorial/review/review.component').then((m) => m.ReviewComponent),
+  },
+  {
+    // Bandeja de curaduría de CALCULADORAS (FR-052…FR-054, T117). Es una ruta propia y no
+    // una sección de `/editorial/revision` —que es la de versiones de artículos—: son dos
+    // colas distintas y unirlas obligaría a cada coordinador a distinguir en qué mitad está.
+    path: 'editorial/calculadoras',
+    canActivate: [roleGuard('coordinador_editorial')],
+    loadComponent: () =>
+      import('./features/editorial/review/review-calculators.component').then(
+        (m) => m.ReviewCalculatorsComponent,
+      ),
   },
   {
     // Cuarto rol (FR-081, US1): el administrador NO hereda atribuciones del

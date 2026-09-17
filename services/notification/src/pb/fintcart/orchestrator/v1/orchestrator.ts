@@ -122,9 +122,27 @@ export interface SimulationResult {
   simulation_id: string;
   /** [decimal] */
   result: { [key: string]: string };
+  /**
+   * Procedencia de la ejecución (FR-050, FR-058). Faltaban, y su ausencia hacía que la
+   * respuesta de `POST /calculators/{id}/run` no pudiera explicarse: el delta REST promete
+   * «`calculator_version` e `indicators_used`» y el historial los lleva, así que la única
+   * ejecución que no los devolvía era justo la que el usuario acaba de lanzar.
+   *
+   * La versión dice CON QUÉ definición se calculó —una calculadora cambia con el tiempo, y sin
+   * la versión un resultado de hace un año se explicaría con la fórmula de hoy—, y los
+   * indicadores son los valores que se usaron ese día, resueltos a la fecha de ejecución.
+   */
+  calculator_version: number;
+  /** [decimal] */
+  indicators_used: { [key: string]: string };
 }
 
 export interface SimulationResult_ResultEntry {
+  key: string;
+  value: string;
+}
+
+export interface SimulationResult_IndicatorsUsedEntry {
   key: string;
   value: string;
 }
@@ -1224,7 +1242,7 @@ export const SimulationRequest_InputsEntry: MessageFns<SimulationRequest_InputsE
 };
 
 function createBaseSimulationResult(): SimulationResult {
-  return { simulation_id: "", result: {} };
+  return { simulation_id: "", result: {}, calculator_version: 0, indicators_used: {} };
 }
 
 export const SimulationResult: MessageFns<SimulationResult> = {
@@ -1234,6 +1252,12 @@ export const SimulationResult: MessageFns<SimulationResult> = {
     }
     Object.entries(message.result).forEach(([key, value]) => {
       SimulationResult_ResultEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    if (message.calculator_version !== 0) {
+      writer.uint32(24).int32(message.calculator_version);
+    }
+    Object.entries(message.indicators_used).forEach(([key, value]) => {
+      SimulationResult_IndicatorsUsedEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
     });
     return writer;
   },
@@ -1264,6 +1288,25 @@ export const SimulationResult: MessageFns<SimulationResult> = {
           }
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.calculator_version = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          const entry4 = SimulationResult_IndicatorsUsedEntry.decode(reader, reader.uint32());
+          if (entry4.value !== undefined) {
+            message.indicators_used[entry4.key] = entry4.value;
+          }
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1278,6 +1321,13 @@ export const SimulationResult: MessageFns<SimulationResult> = {
       simulation_id: isSet(object.simulation_id) ? globalThis.String(object.simulation_id) : "",
       result: isObject(object.result)
         ? Object.entries(object.result).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+          acc[key] = String(value);
+          return acc;
+        }, {})
+        : {},
+      calculator_version: isSet(object.calculator_version) ? globalThis.Number(object.calculator_version) : 0,
+      indicators_used: isObject(object.indicators_used)
+        ? Object.entries(object.indicators_used).reduce<{ [key: string]: string }>((acc, [key, value]) => {
           acc[key] = String(value);
           return acc;
         }, {})
@@ -1299,6 +1349,18 @@ export const SimulationResult: MessageFns<SimulationResult> = {
         });
       }
     }
+    if (message.calculator_version !== 0) {
+      obj.calculator_version = Math.round(message.calculator_version);
+    }
+    if (message.indicators_used) {
+      const entries = Object.entries(message.indicators_used);
+      if (entries.length > 0) {
+        obj.indicators_used = {};
+        entries.forEach(([k, v]) => {
+          obj.indicators_used[k] = v;
+        });
+      }
+    }
     return obj;
   },
 
@@ -1314,6 +1376,16 @@ export const SimulationResult: MessageFns<SimulationResult> = {
       }
       return acc;
     }, {});
+    message.calculator_version = object.calculator_version ?? 0;
+    message.indicators_used = Object.entries(object.indicators_used ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
     return message;
   },
 };
@@ -1388,6 +1460,86 @@ export const SimulationResult_ResultEntry: MessageFns<SimulationResult_ResultEnt
   },
   fromPartial<I extends Exact<DeepPartial<SimulationResult_ResultEntry>, I>>(object: I): SimulationResult_ResultEntry {
     const message = createBaseSimulationResult_ResultEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseSimulationResult_IndicatorsUsedEntry(): SimulationResult_IndicatorsUsedEntry {
+  return { key: "", value: "" };
+}
+
+export const SimulationResult_IndicatorsUsedEntry: MessageFns<SimulationResult_IndicatorsUsedEntry> = {
+  encode(message: SimulationResult_IndicatorsUsedEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SimulationResult_IndicatorsUsedEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSimulationResult_IndicatorsUsedEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SimulationResult_IndicatorsUsedEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: SimulationResult_IndicatorsUsedEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SimulationResult_IndicatorsUsedEntry>, I>>(
+    base?: I,
+  ): SimulationResult_IndicatorsUsedEntry {
+    return SimulationResult_IndicatorsUsedEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SimulationResult_IndicatorsUsedEntry>, I>>(
+    object: I,
+  ): SimulationResult_IndicatorsUsedEntry {
+    const message = createBaseSimulationResult_IndicatorsUsedEntry();
     message.key = object.key ?? "";
     message.value = object.value ?? "";
     return message;

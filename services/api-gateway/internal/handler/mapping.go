@@ -283,9 +283,16 @@ func quizGradeToDTO(g *orchestratorv1.QuizGradingResult) QuizGradeResult {
 }
 
 func simulationToDTO(s *orchestratorv1.SimulationResult) SimulationResult {
+	// La procedencia se reenvía tal cual (FR-050, FR-058): la versión de la definición con la
+	// que se calculó y los valores de indicador que se usaron ese día. El borde no los
+	// interpreta ni los reformatea —son cadenas decimales— y los normaliza a mapa vacío para que
+	// el cliente no tenga que distinguir «sin indicadores» de «campo ausente», igual que hace el
+	// historial.
 	return SimulationResult{
-		SimulationID: s.GetSimulationId(),
-		Result:       s.GetResult(),
+		SimulationID:      s.GetSimulationId(),
+		Result:            s.GetResult(),
+		CalculatorVersion: s.GetCalculatorVersion(),
+		IndicatorsUsed:    emptyMapIfNil(s.GetIndicatorsUsed()),
 	}
 }
 

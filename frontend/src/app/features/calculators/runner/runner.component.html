@@ -1,0 +1,99 @@
+@switch (state()) {
+  @case ('loading') {
+    <fc-module-box title="Calculadora">
+      <fc-skeleton height="2rem" />
+      <fc-skeleton height="6rem" />
+    </fc-module-box>
+  }
+  @case ('not-found') {
+    <fc-error-state
+      icon="calculator"
+      title="No encontramos esa calculadora"
+      message="Puede que el enlace esté mal, o que sea privada y no sea tuya: las calculadoras privadas solo las ve su autor."
+      [retryLabel]="null"
+    />
+    <fc-link-button [to]="['/calculadoras']">Volver a mis calculadoras</fc-link-button>
+  }
+  @case ('error') {
+    <fc-error-state
+      icon="calculator"
+      title="No pudimos cargar la calculadora"
+      message="Puede que hayas perdido la conexión. No se ha ejecutado nada."
+      (retry)="ngOnInit()"
+    />
+  }
+  @default {
+    @if (calculator(); as calc) {
+      <fc-module-box [title]="calc.name">
+        <div class="fc-run__cabecera">
+          <fc-badge [tone]="tone(calc.state)">{{ label(calc.state) }}</fc-badge>
+          <span>Versión {{ calc.version }}</span>
+        </div>
+        @if (calc.description !== '') {
+          <p class="fc-run__intro">{{ calc.description }}</p>
+        }
+        <p class="fc-run__intro">{{ help(calc.state) }}</p>
+      </fc-module-box>
+
+      <fc-module-box title="Parámetros">
+        <form class="fc-run__form" [formGroup]="form" (ngSubmit)="onSubmit()">
+          @for (field of fields(); track field.key) {
+            <fc-input
+              [label]="labelOf(field)"
+              [formControl]="controlOf(field)"
+              [hint]="field.unit === '' ? '' : 'En ' + field.unit"
+              [error]="
+                controlOf(field).errors?.['outsideBounds'] ? 'El valor está fuera del rango admitido.' : ''
+              "
+            />
+          }
+
+          <div class="fc-run__acciones">
+            <fc-button type="submit" variant="primary" [disabled]="panel() === 'running'">
+              {{ panel() === 'running' ? 'Calculando…' : 'Calcular' }}
+            </fc-button>
+          </div>
+        </form>
+      </fc-module-box>
+
+      @switch (panel()) {
+        @case ('error') {
+          @if (errorMessage(); as mensaje) {
+            <fc-banner tone="error">{{ mensaje }}</fc-banner>
+          }
+        }
+        @case ('done') {
+          <fc-module-box title="Resultado">
+            <div class="fc-run__resultado">
+              @for (salida of outputs(); track salida.label) {
+                <div class="fc-run__valor">
+                  <span>{{ salida.label }}</span>
+                  <span class="fc-run__cifra">{{ salida.value }}</span>
+                </div>
+              }
+            </div>
+
+            @if (provenance(); as prov) {
+              <p class="fc-run__procedencia">
+                Calculado con la versión {{ prov.version }} de la calculadora.
+              </p>
+              @if (indicatorRows().length > 0) {
+                <!--
+                  El snapshot de indicadores (FR-058) se enseña porque es lo que explica el
+                  resultado dentro de un año: cuando la UVT cambie, esta cifra seguirá siendo
+                  reproducible y estos son los valores con los que se obtuvo.
+                -->
+                <p class="fc-run__procedencia">Indicadores usados:</p>
+                <ul class="fc-run__indicadores">
+                  @for (indicador of indicatorRows(); track indicador.name) {
+                    <li>{{ indicador.name }}: {{ indicador.value }}</li>
+                  }
+                </ul>
+              }
+            }
+          </fc-module-box>
+        }
+      }
+    }
+  }
+}

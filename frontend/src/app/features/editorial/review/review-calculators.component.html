@@ -1,0 +1,148 @@
+<fc-module-box title="Calculadoras propuestas">
+  <p class="fc-revc__intro">
+    Estas calculadoras están esperando curaduría. Aprobar una la publica de inmediato en el
+    catálogo —y queda registrado quién la aprobó, con qué versión y de quién era—; rechazarla
+    guarda el motivo en su ficha, que es donde su autor lo lee para corregirla.
+  </p>
+</fc-module-box>
+
+@if (notice(); as aviso) {
+  <fc-banner tone="success">{{ aviso }}</fc-banner>
+}
+@if (errorMessage(); as mensaje) {
+  <fc-banner tone="error">{{ mensaje }}</fc-banner>
+}
+@if (selfApprovalBlocked()) {
+  <!--
+    FR-053. El aviso se da DESPUÉS de que el servidor lo rechace, y no escondiendo el botón:
+    una barrera que solo existe en el cliente no es una barrera, y el mensaje explica la regla
+    en lugar de dejar un «acceso denegado» sin contexto.
+  -->
+  <fc-banner tone="info">
+    Ninguna calculadora la aprueba su propio autor, ni siquiera un coordinador editorial: la
+    revisión tiene que hacerla otra persona. Tu propuesta sigue esperando a alguien más.
+  </fc-banner>
+}
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="fc-revc__lista">
+      <fc-skeleton height="6rem" />
+      <fc-skeleton height="6rem" />
+    </div>
+  }
+  @case ('error') {
+    <fc-error-state
+      icon="clipboard-check"
+      title="No pudimos cargar las calculadoras propuestas"
+      message="Puede que hayas perdido la conexión. Nada se ha publicado ni rechazado."
+      (retry)="retry()"
+    />
+  }
+  @default {
+    @if (items().length === 0) {
+      <fc-empty-state
+        icon="clipboard-check"
+        title="No hay calculadoras esperando revisión"
+        message="Cuando un autor proponga una, aparecerá aquí con su definición para que puedas decidir."
+      />
+    } @else {
+      <div class="fc-revc__lista">
+        @for (calculator of items(); track calculator.calculator_id) {
+          <article class="fc-revc__item">
+            <div class="fc-revc__cabecera">
+              <h3 class="fc-revc__nombre">{{ calculator.name }}</h3>
+              <fc-badge tone="warning">En revisión</fc-badge>
+              @if (isMine(calculator)) {
+                <!--
+                  Es TUYA. El botón se sigue mostrando —la barrera está en el servidor y
+                  esconderlo aquí sugeriría que la regla vive en la interfaz—, pero quien la
+                  pulse sabrá de antemano por qué no puede aprobarla.
+                -->
+                <fc-tag category="neutral">Tuya</fc-tag>
+              }
+            </div>
+
+            @if (calculator.description !== '') {
+              <p>{{ calculator.description }}</p>
+            }
+
+            <p class="fc-revc__cuerpo">
+              <span>Versión propuesta: {{ calculator.version }}</span>
+              <span>{{ isMine(calculator) ? 'La escribiste tú' : 'La escribió otra persona' }}</span>
+            </p>
+
+            @if (calculator.indicators_used.length > 0) {
+              <p class="fc-revc__cuerpo">
+                <span>Indicadores que usa:</span>
+                <span class="fc-revc__indicadores">{{ calculator.indicators_used.join(', ') }}</span>
+              </p>
+            }
+
+            <!--
+              Las SALIDAS se enseñan antes de aprobar, porque aprobar es lo que las pone en
+              circulación: qué devuelve la calculadora y con cuántos decimales es lo mínimo que
+              hay que haber leído para decidir. Las fórmulas no se muestran —eso es la
+              definición, y quien quiera el detalle tiene la vista completa de la calculadora—.
+            -->
+            <ul class="fc-revc__salidas">
+              @for (salida of calculator.definition.outputs; track salida.key) {
+                <li>{{ salida.label === '' ? salida.key : salida.label }} ({{ salida.scale }} decimales)</li>
+              }
+            </ul>
+
+            <div class="fc-revc__acciones">
+              <fc-button
+                variant="primary"
+                size="sm"
+                [disabled]="isBusy(calculator)"
+                (pressed)="onApprove(calculator)"
+              >
+                {{ isBusy(calculator) ? 'Aprobando…' : 'Aprobar y publicar' }}
+              </fc-button>
+              @if (!isRejecting(calculator)) {
+                <fc-button
+                  variant="secondary"
+                  size="sm"
+                  [disabled]="isBusy(calculator)"
+                  (pressed)="openReject(calculator)"
+                >
+                  Rechazar
+                </fc-button>
+              }
+              <fc-link-button
+                variant="ghost"
+                size="sm"
+                [to]="['/calculadoras', calculator.calculator_id]"
+              >
+                Ver la calculadora
+              </fc-link-button>
+            </div>
+
+            @if (isRejecting(calculator)) {
+              <div class="fc-revc__rechazo">
+                <fc-input
+                  label="Motivo del rechazo"
+                  hint="Lo leerá el autor en su ficha. Di qué cambiar, no solo que algo va mal."
+                  [formControl]="reason"
+                  [error]="reasonError() ?? ''"
+                />
+                <div class="fc-revc__acciones">
+                  <fc-button
+                    variant="primary"
+                    size="sm"
+                    [disabled]="isBusy(calculator)"
+                    (pressed)="onReject(calculator)"
+                  >
+                    {{ isBusy(calculator) ? 'Rechazando…' : 'Confirmar rechazo' }}
+                  </fc-button>
+                  <fc-button variant="ghost" size="sm" (pressed)="cancelReject()">Cancelar</fc-button>
+                </div>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    }
+  }
+}

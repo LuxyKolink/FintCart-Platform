@@ -1,0 +1,70 @@
+<fc-module-box title="Catálogo de calculadoras">
+  <p class="fc-catc__intro">
+    Estas son las calculadoras publicadas: las de la plataforma y las que proponen sus usuarios,
+    una vez revisadas y aprobadas. Puedes ejecutarlas con tus propios valores.
+  </p>
+</fc-module-box>
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="fc-catc__rejilla">
+      <fc-skeleton height="9rem" />
+      <fc-skeleton height="9rem" />
+      <fc-skeleton height="9rem" />
+    </div>
+  }
+  @case ('error') {
+    <fc-error-state
+      icon="calculator"
+      title="No pudimos cargar el catálogo de calculadoras"
+      message="Puede que hayas perdido la conexión. Inténtalo de nuevo."
+      (retry)="retry()"
+    />
+  }
+  @default {
+    @if (items().length === 0) {
+      <fc-empty-state
+        icon="calculator"
+        title="Todavía no hay calculadoras publicadas"
+        message="Cuando una calculadora se apruebe aparecerá aquí."
+      />
+    } @else {
+      <div class="fc-catc__rejilla">
+        @for (calculator of items(); track calculator.calculator_id) {
+          <fc-card>
+            <article class="fc-catc__tarjeta">
+              <div class="fc-catc__cabecera">
+                <h3 class="fc-catc__nombre">{{ calculator.name }}</h3>
+                @if (isBuiltin(calculator)) {
+                  <fc-tag category="neutral">De la plataforma</fc-tag>
+                } @else {
+                  <fc-tag category="neutral">De un usuario</fc-tag>
+                }
+              </div>
+
+              @if (calculator.description !== '') {
+                <p class="fc-catc__descripcion">{{ calculator.description }}</p>
+              }
+
+              <div class="fc-catc__pie">
+                <span class="fc-catc__procedencia">
+                  Versión {{ calculator.version }}
+                  @if (calculator.indicators_used.length > 0) {
+                    · usa {{ calculator.indicators_used.join(', ') }}
+                  }
+                </span>
+                <fc-link-button
+                  variant="secondary"
+                  size="sm"
+                  [to]="['/calculadoras', calculator.calculator_id]"
+                >
+                  Abrir
+                </fc-link-button>
+              </div>
+            </article>
+          </fc-card>
+        }
+      </div>
+    }
+  }
+}

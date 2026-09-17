@@ -206,6 +206,11 @@ func (s *Server) StartQuizGrading(
 type Simulation struct {
 	SimulationID string
 	Result       map[string]string
+	// Procedencia de la ejecución (FR-050, FR-058). La versión dice con qué DEFINICIÓN se
+	// calculó y los indicadores los valores que se usaron ese día; sin ellos, un resultado de
+	// hace un año se explicaría con la fórmula y las cifras de hoy.
+	CalculatorVersion int32
+	IndicatorsUsed    map[string]string
 }
 
 // StartSimulation ejecuta la simulación mediada y espera su resultado (D-03).
@@ -272,7 +277,57 @@ func simulationFromPayload(final map[string]any) (Simulation, error) {
 		return Simulation{}, fmt.Errorf("%w: la saga no dejó el resultado de la simulación",
 			ErrIncompletePayload)
 	}
-	return Simulation{SimulationID: id, Result: result}, nil
+
+	// La versión es un dato ACCESORIO y se lee con tolerancia: una ejecución por `calc_type`
+	// contra una base sin sembrar no cita ninguna definición, y ese 0 es la verdad —no se puede
+	// decir con qué versión se calculó porque no hubo ninguna—. Inventar un 1 sería peor.
+	version, _ := payloadInt32(final, "calculator_version")
+
+	// Los indicadores pueden llegar de dos formas, y las dos son reales: `map[string]string` es
+	// lo que deja el paso en memoria, y `map[string]any` es lo que devuelve `encoding/json` al
+	// releer el payload de `saga_state` tras un reinicio. Tratar solo la primera haría que la
+	// procedencia se perdiera —en silencio— justo en el caso que la hace más falta.
+	indicators, err := payloadStringMap(final, "indicators_used")
+	if err != nil {
+		return Simulation{}, err
+	}
+
+	return Simulation{
+		SimulationID:      id,
+		Result:            result,
+		CalculatorVersion: version,
+		IndicatorsUsed:    indicators,
+	}, nil
+}
+
+// payloadStringMap lee un mapa de cadenas que puede venir en las dos formas del payload.
+//
+// La ausencia NO es un error —una ejecución puede no usar indicadores— pero un tipo equivocado
+// sí: un mapa de números sería un payload mal construido, y tratarlo como vacío escondería que
+// alguien escribió la clave con otro tipo.
+func payloadStringMap(payload map[string]any, key string) (map[string]string, error) {
+	raw, ok := payload[key]
+	if !ok {
+		return map[string]string{}, nil
+	}
+	switch typed := raw.(type) {
+	case map[string]string:
+		return typed, nil
+	case map[string]any:
+		out := make(map[string]string, len(typed))
+		for k, v := range typed {
+			text, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("%w: %q[%q] es %T y se esperaba una cadena",
+					ErrIncompletePayload, key, k, v)
+			}
+			out[k] = text
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("%w: %q es %T y se esperaba un mapa de cadenas",
+			ErrIncompletePayload, key, raw)
+	}
 }
 
 // CalculatorApproval es el resultado de aprobar una calculadora.

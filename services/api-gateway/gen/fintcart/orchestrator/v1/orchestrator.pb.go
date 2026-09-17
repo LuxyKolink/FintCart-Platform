@@ -640,11 +640,21 @@ func (x *SimulationRequest) GetCalculatorId() string {
 }
 
 type SimulationResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SimulationId  string                 `protobuf:"bytes,1,opt,name=simulation_id,json=simulationId,proto3" json:"simulation_id,omitempty"`
-	Result        map[string]string      `protobuf:"bytes,2,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	SimulationId string                 `protobuf:"bytes,1,opt,name=simulation_id,json=simulationId,proto3" json:"simulation_id,omitempty"`
+	Result       map[string]string      `protobuf:"bytes,2,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	// Procedencia de la ejecución (FR-050, FR-058). Faltaban, y su ausencia hacía que la
+	// respuesta de `POST /calculators/{id}/run` no pudiera explicarse: el delta REST promete
+	// «`calculator_version` e `indicators_used`» y el historial los lleva, así que la única
+	// ejecución que no los devolvía era justo la que el usuario acaba de lanzar.
+	//
+	// La versión dice CON QUÉ definición se calculó —una calculadora cambia con el tiempo, y sin
+	// la versión un resultado de hace un año se explicaría con la fórmula de hoy—, y los
+	// indicadores son los valores que se usaron ese día, resueltos a la fecha de ejecución.
+	CalculatorVersion int32             `protobuf:"varint,3,opt,name=calculator_version,json=calculatorVersion,proto3" json:"calculator_version,omitempty"`
+	IndicatorsUsed    map[string]string `protobuf:"bytes,4,rep,name=indicators_used,json=indicatorsUsed,proto3" json:"indicators_used,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // [decimal]
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SimulationResult) Reset() {
@@ -687,6 +697,20 @@ func (x *SimulationResult) GetSimulationId() string {
 func (x *SimulationResult) GetResult() map[string]string {
 	if x != nil {
 		return x.Result
+	}
+	return nil
+}
+
+func (x *SimulationResult) GetCalculatorVersion() int32 {
+	if x != nil {
+		return x.CalculatorVersion
+	}
+	return 0
+}
+
+func (x *SimulationResult) GetIndicatorsUsed() map[string]string {
+	if x != nil {
+		return x.IndicatorsUsed
 	}
 	return nil
 }
@@ -745,11 +769,16 @@ const file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc = "" +
 	"\rcalculator_id\x18\x05 \x01(\tR\fcalculatorId\x1a9\n" +
 	"\vInputsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc2\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9d\x03\n" +
 	"\x10SimulationResult\x12#\n" +
 	"\rsimulation_id\x18\x01 \x01(\tR\fsimulationId\x12N\n" +
-	"\x06result\x18\x02 \x03(\v26.fintcart.orchestrator.v1.SimulationResult.ResultEntryR\x06result\x1a9\n" +
+	"\x06result\x18\x02 \x03(\v26.fintcart.orchestrator.v1.SimulationResult.ResultEntryR\x06result\x12-\n" +
+	"\x12calculator_version\x18\x03 \x01(\x05R\x11calculatorVersion\x12g\n" +
+	"\x0findicators_used\x18\x04 \x03(\v2>.fintcart.orchestrator.v1.SimulationResult.IndicatorsUsedEntryR\x0eindicatorsUsed\x1a9\n" +
 	"\vResultEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
+	"\x13IndicatorsUsedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\x94\x06\n" +
 	"\x13OrchestratorService\x12m\n" +
@@ -774,7 +803,7 @@ func file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP() []byte {
 	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescData
 }
 
-var file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_fintcart_orchestrator_v1_orchestrator_proto_goTypes = []any{
 	(*UserRef)(nil),                   // 0: fintcart.orchestrator.v1.UserRef
 	(*CalculatorApprovalRequest)(nil), // 1: fintcart.orchestrator.v1.CalculatorApprovalRequest
@@ -790,32 +819,34 @@ var file_fintcart_orchestrator_v1_orchestrator_proto_goTypes = []any{
 	nil,                               // 11: fintcart.orchestrator.v1.QuizGradingRequest.AnswersEntry
 	nil,                               // 12: fintcart.orchestrator.v1.SimulationRequest.InputsEntry
 	nil,                               // 13: fintcart.orchestrator.v1.SimulationResult.ResultEntry
-	(v1.CalcType)(0),                  // 14: fintcart.simulator.v1.CalcType
+	nil,                               // 14: fintcart.orchestrator.v1.SimulationResult.IndicatorsUsedEntry
+	(v1.CalcType)(0),                  // 15: fintcart.simulator.v1.CalcType
 }
 var file_fintcart_orchestrator_v1_orchestrator_proto_depIdxs = []int32{
 	11, // 0: fintcart.orchestrator.v1.QuizGradingRequest.answers:type_name -> fintcart.orchestrator.v1.QuizGradingRequest.AnswersEntry
-	14, // 1: fintcart.orchestrator.v1.SimulationRequest.calc_type:type_name -> fintcart.simulator.v1.CalcType
+	15, // 1: fintcart.orchestrator.v1.SimulationRequest.calc_type:type_name -> fintcart.simulator.v1.CalcType
 	12, // 2: fintcart.orchestrator.v1.SimulationRequest.inputs:type_name -> fintcart.orchestrator.v1.SimulationRequest.InputsEntry
 	13, // 3: fintcart.orchestrator.v1.SimulationResult.result:type_name -> fintcart.orchestrator.v1.SimulationResult.ResultEntry
-	5,  // 4: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:input_type -> fintcart.orchestrator.v1.StartRegistrationRequest
-	6,  // 5: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:input_type -> fintcart.orchestrator.v1.EmailVerificationRequest
-	7,  // 6: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:input_type -> fintcart.orchestrator.v1.QuizGradingRequest
-	9,  // 7: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:input_type -> fintcart.orchestrator.v1.SimulationRequest
-	0,  // 8: fintcart.orchestrator.v1.OrchestratorService.StartAccountAnonymization:input_type -> fintcart.orchestrator.v1.UserRef
-	1,  // 9: fintcart.orchestrator.v1.OrchestratorService.ApproveCalculator:input_type -> fintcart.orchestrator.v1.CalculatorApprovalRequest
-	3,  // 10: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:input_type -> fintcart.orchestrator.v1.SagaHandle
-	3,  // 11: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:output_type -> fintcart.orchestrator.v1.SagaHandle
-	3,  // 12: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:output_type -> fintcart.orchestrator.v1.SagaHandle
-	8,  // 13: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:output_type -> fintcart.orchestrator.v1.QuizGradingResult
-	10, // 14: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:output_type -> fintcart.orchestrator.v1.SimulationResult
-	3,  // 15: fintcart.orchestrator.v1.OrchestratorService.StartAccountAnonymization:output_type -> fintcart.orchestrator.v1.SagaHandle
-	2,  // 16: fintcart.orchestrator.v1.OrchestratorService.ApproveCalculator:output_type -> fintcart.orchestrator.v1.CalculatorApprovalResult
-	4,  // 17: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:output_type -> fintcart.orchestrator.v1.SagaStatus
-	11, // [11:18] is the sub-list for method output_type
-	4,  // [4:11] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	14, // 4: fintcart.orchestrator.v1.SimulationResult.indicators_used:type_name -> fintcart.orchestrator.v1.SimulationResult.IndicatorsUsedEntry
+	5,  // 5: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:input_type -> fintcart.orchestrator.v1.StartRegistrationRequest
+	6,  // 6: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:input_type -> fintcart.orchestrator.v1.EmailVerificationRequest
+	7,  // 7: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:input_type -> fintcart.orchestrator.v1.QuizGradingRequest
+	9,  // 8: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:input_type -> fintcart.orchestrator.v1.SimulationRequest
+	0,  // 9: fintcart.orchestrator.v1.OrchestratorService.StartAccountAnonymization:input_type -> fintcart.orchestrator.v1.UserRef
+	1,  // 10: fintcart.orchestrator.v1.OrchestratorService.ApproveCalculator:input_type -> fintcart.orchestrator.v1.CalculatorApprovalRequest
+	3,  // 11: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:input_type -> fintcart.orchestrator.v1.SagaHandle
+	3,  // 12: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:output_type -> fintcart.orchestrator.v1.SagaHandle
+	3,  // 13: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:output_type -> fintcart.orchestrator.v1.SagaHandle
+	8,  // 14: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:output_type -> fintcart.orchestrator.v1.QuizGradingResult
+	10, // 15: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:output_type -> fintcart.orchestrator.v1.SimulationResult
+	3,  // 16: fintcart.orchestrator.v1.OrchestratorService.StartAccountAnonymization:output_type -> fintcart.orchestrator.v1.SagaHandle
+	2,  // 17: fintcart.orchestrator.v1.OrchestratorService.ApproveCalculator:output_type -> fintcart.orchestrator.v1.CalculatorApprovalResult
+	4,  // 18: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:output_type -> fintcart.orchestrator.v1.SagaStatus
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_fintcart_orchestrator_v1_orchestrator_proto_init() }
@@ -829,7 +860,7 @@ func file_fintcart_orchestrator_v1_orchestrator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc), len(file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

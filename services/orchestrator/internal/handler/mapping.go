@@ -44,9 +44,17 @@ func quizGradingToProto(g server.QuizGrading) *orchestratorv1.QuizGradingResult 
 }
 
 func simulationToProto(s server.Simulation) *orchestratorv1.SimulationResult {
+	// Los indicadores salen SIEMPRE, vacíos si no hay: el cliente que recorre la procedencia no
+	// tiene que distinguir «sin indicadores» de «campo ausente» (mismo criterio que el historial).
+	indicators := s.IndicatorsUsed
+	if indicators == nil {
+		indicators = map[string]string{}
+	}
 	return &orchestratorv1.SimulationResult{
-		SimulationId: s.SimulationID,
-		Result:       s.Result,
+		SimulationId:      s.SimulationID,
+		Result:            s.Result,
+		CalculatorVersion: s.CalculatorVersion,
+		IndicatorsUsed:    indicators,
 	}
 }
 
