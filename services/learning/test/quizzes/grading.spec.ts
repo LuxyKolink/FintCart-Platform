@@ -9,11 +9,17 @@
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { RpcException } from '@nestjs/microservices';
 import { Test } from '@nestjs/testing';
+import { resolve } from 'node:path';
+
 import type { Pool } from 'pg';
 
 import { CONFIG, PG_POOL } from '../../src/common/database.module';
 import { LearningController } from '../../src/grpc/learning.controller';
 import { LearningModule } from '../../src/grpc/learning.module';
+
+// Los `.proto` los carga el cliente gRPC del Simulador al construir el módulo (T151): la ruta se
+// resuelve desde la raíz del servicio, que es donde el contenedor los copia (`PROTO_DIR`).
+const SIMULADOR_PROTO_DIR = resolve(__dirname, '../../contracts', 'proto');
 
 import { IDS, newMemoryFixture } from '../support/memdb';
 
@@ -31,7 +37,14 @@ async function newController(): Promise<{ controller: LearningController; pool: 
       grpcPort: '0',
       healthPort: 0,
       logLevel: 'silent',
-      protoDir: '',
+      // La dirección y los `.proto` del Simulador son reales porque `SimulatorModule` construye
+      // su cliente gRPC al arrancar el módulo, y ese cliente CARGA el `.proto` al construirse: un
+      // `protoDir` vacío hacía fallar estas pruebas con «file at fintcart/simulator/v1/… not found».
+      // El puerto es el del propio `ClientGrpc` y no una carpeta de pruebas, y el servicio no está
+      // levantado: `PublishedCalculators` solo se consulta cuando el documento incrusta una
+      // calculadora, y ningún caso de estas suites lo hace.
+      simulatorSvcAddr: '127.0.0.1:1',
+      protoDir: SIMULADOR_PROTO_DIR,
     })
     .compile();
   return { controller: moduleRef.get(LearningController), pool };

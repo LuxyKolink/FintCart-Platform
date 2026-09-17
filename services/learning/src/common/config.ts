@@ -22,7 +22,16 @@ export interface Config {
   readonly amqpAddr: string;
   /** Puerto en el que se sirve gRPC. */
   readonly grpcPort: string;
-  /** Nivel de log. */
+  /**
+   * Dirección gRPC del Simulador (T151).
+   *
+   * OBLIGATORIA como `DB_ADDR`, y por el mismo motivo por el que `DB_ADDR` lo es: Aprendizaje
+   * necesita preguntarle si una calculadora está publicada antes de guardar un artículo que la
+   * incrusta, y un valor por defecto apuntaría a un `localhost` que dentro de un contenedor es
+   * este mismo proceso —el documento se rechazaría por «no está publicada» sin que la
+   * calculadora tuviera nada malo—. Es mejor no arrancar que mentir.
+   */
+  readonly simulatorSvcAddr: string;
   /** Puerto de `/healthz`, `/readyz` y `/metrics` (D-12). */
   readonly healthPort: number;
   /** Cadencia del barrido de sesiones de cuestionario vencidas, en ms (D-17). */
@@ -62,6 +71,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     DB_ADDR: env.DB_ADDR,
     AMQP_ADDR: env.AMQP_ADDR,
     GRPC_PORT: env.GRPC_PORT,
+    SIMULATOR_SVC_ADDR: env.SIMULATOR_SVC_ADDR,
   };
 
   const missing = Object.entries(required)
@@ -77,6 +87,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dbAddr: required.DB_ADDR as string,
     amqpAddr: required.AMQP_ADDR as string,
     grpcPort: required.GRPC_PORT as string,
+    simulatorSvcAddr: required.SIMULATOR_SVC_ADDR as string,
     healthPort: healthPort(env.HEALTH_PORT),
     sessionSweepIntervalMs: sessionSweepInterval(env.SESSION_SWEEP_INTERVAL_MS),
     logLevel: env.LOG_LEVEL ?? 'info',

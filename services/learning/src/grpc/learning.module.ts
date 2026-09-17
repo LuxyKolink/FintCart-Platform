@@ -24,6 +24,7 @@ import { VersioningService } from '../publishing/versioning.service';
 import { QuizzesRepository } from '../quizzes/quizzes.repository';
 import { QuizzesService } from '../quizzes/quizzes.service';
 import { SessionService } from '../quizzes/session.service';
+import { SimulatorModule } from '../simulator/simulator.module';
 import { SessionSweeper } from '../quizzes/session.sweeper';
 import { SessionsRepository } from '../quizzes/sessions.repository';
 
@@ -36,7 +37,10 @@ import { LearningController } from './learning.controller';
   // contenedor con un mensaje que señala al repositorio y no a la importación que
   // falta. `EventsModule` entra por la misma razón: `EventsPublisher` lo necesita
   // `PublishingService` (T163).
-  imports: [DatabaseModule, EventsModule],
+  // `SimulatorModule` trae el cliente gRPC al Simulador y, con él, el puerto
+  // `PublishedCalculators` que `PublishingService` necesita para comprobar que una calculadora
+  // incrustada está publicada (T151, FR-070).
+  imports: [DatabaseModule, EventsModule, SimulatorModule],
   controllers: [LearningController, CategoriesController, ImagesController],
   providers: [
     ArticlesRepository,

@@ -18,6 +18,10 @@ import { nextPageToken, resolvePage, type PageRequestLike } from '../common/pagi
 
 import { extractBodyDocReferences, validateBodyDoc } from '../articles/body-doc.validator';
 import type { BodyDocNode } from '../articles/body-doc';
+import {
+  PublishedCalculators,
+  unpublishedCalculatorsError,
+} from '../articles/published-calculators';
 import { bodyDocToPlainText, plainTextToBodyDoc } from '../articles/plain-text';
 import { CategoriesService } from '../categories/categories.service';
 import { EventsPublisher } from '../events/publisher';
@@ -48,6 +52,7 @@ export class PublishingService {
     private readonly events: EventsPublisher,
     private readonly categories: CategoriesService,
     private readonly images: ImagesService,
+    private readonly calculators: PublishedCalculators,
   ) {}
 
   /**
@@ -128,13 +133,28 @@ export class PublishingService {
     }
 
     const doc = validateBodyDoc(bodyDoc);
-    const faltantes = await this.images.findMissing(extractBodyDocReferences(doc).imageIds);
+    const referencias = extractBodyDocReferences(doc);
+    const faltantes = await this.images.findMissing(referencias.imageIds);
     if (faltantes.length > 0) {
       throw invalidArgument(
         `el documento referencia ${faltantes.length === 1 ? 'una imagen que no existe' : 'imágenes que no existen'}: ` +
           `${faltantes.join(', ')}. Una referencia rota se guardaría sin error y el lector mostraría un hueco roto; ` +
           'vuelve a insertar la imagen desde el editor',
       );
+    }
+
+    // La calculadora incrustada se comprueba contra el Simulador, por gRPC (T151, D-25). Es una
+    // pregunta distinta de la de las imágenes —aquella se contesta en esta misma base, esta en
+    // otro servicio— y por eso va después: si el documento tiene las dos cosas mal, el autor ve
+    // primero lo que puede arreglar sin salir de la pantalla.
+    //
+    // Se pregunta solo si hay alguna: un artículo sin calculadoras no debe costar una llamada de
+    // red al Simulador, y ese es el caso de la inmensa mayoría de los guardados.
+    if (referencias.calculatorIds.length > 0) {
+      const sinPublicar = await this.calculators.missing(referencias.calculatorIds);
+      if (sinPublicar.length > 0) {
+        throw invalidArgument(unpublishedCalculatorsError(sinPublicar));
+      }
     }
 
     return { body: bodyDocToPlainText(doc), doc };

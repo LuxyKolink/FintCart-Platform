@@ -236,12 +236,19 @@ services:
     environment:
       DB_ADDR: "postgres://fintcart:dev_only_password@postgres-learning:5432/learning_db?sslmode=disable"
       AMQP_ADDR: "amqp://fintcart:dev_only_password@rabbitmq:5672/"
+      # Para preguntar si una calculadora incrustada está publicada (T151, FR-070).
+      SIMULATOR_SVC_ADDR: "simulator:9090"
       GRPC_PORT: "9090"
       LOG_LEVEL: "debug"
     ports: ["9093:9090"]
     depends_on:
       postgres-learning: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
+      # Y del Simulador, por la misma razón: guardar un artículo con una calculadora necesita
+      # preguntarle. Va sin `condition` porque el cliente gRPC conecta al hacer la primera
+      # llamada, y esperar a que esté «sano» retrasaría el arranque sin evitar nada: lo que sí
+      # evitaría es guardar un artículo en el instante en que el Simulador se está levantando.
+      simulator: { condition: service_started }
 
   simulator:
     <<: *service-common

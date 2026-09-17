@@ -28,6 +28,7 @@ import { PublishingRepository } from '../../src/publishing/publishing.repository
 import { PublishingService } from '../../src/publishing/publishing.service';
 import { VersioningService } from '../../src/publishing/versioning.service';
 
+import { FakePublishedCalculators } from '../support/calculators';
 import { IDS, newMemoryFixture } from '../support/memdb';
 
 /** SHA-256 de contenido: la forma que exige el vocabulario para `image_id`. */
@@ -75,6 +76,9 @@ function newFixture(): { pool: Pool; service: PublishingService } {
       events,
       categories,
       new ImagesService(new ImagesRepository(pool)),
+      // Ninguna calculadora publicada: lo que hace falta para T149 es que el doble se pueda
+      // configurar; las pruebas que incrustan una calculadora usan su propio doble.
+      new FakePublishedCalculators(),
     ),
   };
 }

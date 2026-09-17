@@ -32,6 +32,15 @@ export type ErrorCode =
   | 'forbidden'
   /** Fallo de la capa de persistencia. */
   | 'storage'
+  /**
+   * Un servicio del que dependemos no respondió (T151).
+   *
+   * Es DISTINTO de `storage`: aquí no falló nada nuestro, y también es distinto de «el dato
+   * está mal». Confundirlos hace que la caída de un servicio se lea como un error de quien
+   * escribe el artículo —«tu calculadora no está publicada»— cuando la calculadora está
+   * perfectamente y lo que no hay es con quién hablar.
+   */
+  | 'unavailable'
   /** Método de esqueleto todavía sin cuerpo. */
   | 'not_implemented';
 
@@ -100,6 +109,21 @@ export function notImplemented(what: string): DomainError {
  */
 export function storageError(operation: string, cause: unknown): DomainError {
   return new DomainError('storage', `fallo de persistencia al ${operation}`, cause);
+}
+
+/**
+ * Envuelve el fallo de un servicio del que dependemos, conservando la causa (T151).
+ *
+ * `dependency` nombra a quién no se pudo preguntar y `operation` qué se intentaba: al leer el
+ * log hace falta saber las dos cosas, porque el mismo «no responde» significa una cosa cuando
+ * se estaba validando un documento y otra cuando se estaba publicando.
+ */
+export function unavailable(dependency: string, operation: string, cause: unknown): DomainError {
+  return new DomainError(
+    'unavailable',
+    `el servicio ${dependency} no respondió al ${operation}`,
+    cause,
+  );
 }
 
 /**

@@ -74,6 +74,11 @@ services:
     environment:
       DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5435/learning_db?sslmode=disable"
       AMQP_ADDR: "amqp://fintcart:${RABBITMQ_PASSWORD}@${DATA_HOST}:5672/"
+      # Aprendizaje pregunta al Simulador, por gRPC, si una calculadora está publicada antes de
+      # guardar un artículo que la incrusta (T151, FR-070). Es OBLIGATORIA: sin ella el proceso no
+      # arranca, y es a propósito —un valor por defecto dentro de un contenedor apuntaría a este
+      # mismo proceso y todo documento con una calculadora se rechazaría por «no está publicada».
+      SIMULATOR_SVC_ADDR: "simulator:9090"
       GRPC_PORT: "9090"
       LOG_LEVEL: "info"
 
