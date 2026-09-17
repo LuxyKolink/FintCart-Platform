@@ -16,7 +16,7 @@ import { PG_POOL } from '../common/database.module';
 import type { Count } from '../common/counts';
 import { DomainError, conflict, forbidden, notFound, storageError } from '../common/errors';
 import type { BodyDocNode } from '../articles/body-doc';
-import { plainTextToBodyDoc } from '../articles/plain-text';
+
 import type { Page } from '../common/pagination';
 import { execTx } from '../common/tx';
 
@@ -175,7 +175,13 @@ export class PublishingRepository {
    * defensa de última línea, pero la barrera legible la pone `CategoriesService`
    * ANTES de llegar aquí.
    */
-  public async createArticle(title: string, categoryId: string, body: string, editorId: string): Promise<VersionRow> {
+  public async createArticle(
+    title: string,
+    categoryId: string,
+    body: string,
+    bodyDoc: BodyDocNode,
+    editorId: string,
+  ): Promise<VersionRow> {
     try {
       return await execTx(this.pool, async (client: PoolClient) => {
         const article = await client.query<{ id: string }>(INSERT_ARTICLE_SQL, [title, categoryId, editorId]);
@@ -186,7 +192,7 @@ export class PublishingRepository {
         const version = await client.query<RawRow>(INSERT_FIRST_VERSION_SQL, [
           articleId,
           body,
-          plainTextToBodyDoc(body),
+          bodyDoc,
           editorId,
         ]);
         return toVersion(mustRow(version.rows[0], 'crear la primera versión'));
@@ -207,7 +213,12 @@ export class PublishingRepository {
    * mismo `MAX` y uno de los dos perdería con una violación de unicidad en lugar de
    * obtener la versión 2 y la 3 respectivamente.
    */
-  public async createNewVersion(articleId: string, editorId: string, body: string): Promise<VersionRow> {
+  public async createNewVersion(
+    articleId: string,
+    editorId: string,
+    body: string,
+    bodyDoc: BodyDocNode,
+  ): Promise<VersionRow> {
     try {
       return await execTx(this.pool, async (client: PoolClient) => {
         const locked = await client.query<{ id: string }>(LOCK_ARTICLE_SQL, [articleId]);
@@ -220,7 +231,7 @@ export class PublishingRepository {
           articleId,
           next.rows[0]?.next_no ?? 1,
           body,
-          plainTextToBodyDoc(body),
+          bodyDoc,
           editorId,
         ]);
         return toVersion(mustRow(inserted.rows[0], 'crear la nueva versión'));
@@ -242,13 +253,18 @@ export class PublishingRepository {
    * @throws {DomainError} `not_found` si la versión no existe, no es suya, o `conflict`
    *   si ya no está en `borrador`.
    */
-  public async updateDraftBody(versionId: string, editorId: string, body: string): Promise<VersionRow> {
+  public async updateDraftBody(
+    versionId: string,
+    editorId: string,
+    body: string,
+    bodyDoc: BodyDocNode,
+  ): Promise<VersionRow> {
     try {
       const result = await this.pool.query<RawRow>(UPDATE_DRAFT_BODY_SQL, [
         versionId,
         editorId,
         body,
-        plainTextToBodyDoc(body),
+        bodyDoc,
       ]);
       const row = result.rows[0];
       if (row !== undefined) {

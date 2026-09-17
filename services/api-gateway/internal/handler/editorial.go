@@ -46,6 +46,7 @@ func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
 		Category:   body.Category,
 		CategoryId: body.CategoryID,
 		Body:       body.Body,
+		BodyDoc:    bodyDocJSON(body.BodyDoc),
 		EditorId:   claims.UserID,
 	})
 	if err != nil {
@@ -120,6 +121,7 @@ func (h *Handler) CreateVersion(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.clients.Learning.CreateDraft(r.Context(), &learningv1.CreateDraftRequest{
 		Body:      body.Body,
+		BodyDoc:   bodyDocJSON(body.BodyDoc),
 		EditorId:  claims.UserID,
 		ArticleId: chi.URLParam(r, "articleId"),
 	})
@@ -148,6 +150,7 @@ func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.clients.Learning.UpdateDraft(r.Context(), &learningv1.UpdateDraftRequest{
 		VersionId: chi.URLParam(r, "versionId"),
 		Body:      body.Body,
+		BodyDoc:   bodyDocJSON(body.BodyDoc),
 		EditorId:  claims.UserID,
 	})
 	if err != nil {

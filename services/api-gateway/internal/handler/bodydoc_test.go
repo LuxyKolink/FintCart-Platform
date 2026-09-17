@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	learningv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/learning/v1"
@@ -112,5 +113,64 @@ func TestVersionToDTOIncluyeElDocumento(t *testing.T) {
 
 	if got := string(versionToDTO(version).BodyDoc); got != doc {
 		t.Fatalf("la versión perdió el documento: %q", got)
+	}
+}
+
+// La dirección de ENTRADA del documento (T131): el editor manda bloques y el borde decide
+// solo de qué forma viajan.
+func TestBodyDocJSON(t *testing.T) {
+	t.Run("un objeto pasa tal cual", func(t *testing.T) {
+		doc := `{"tipo":"doc","contenido":[{"tipo":"parrafo"}]}`
+		if got := bodyDocJSON(json.RawMessage(doc)); got != doc {
+			t.Fatalf("el objeto cambió al pasar por el borde: %s", got)
+		}
+	})
+
+	t.Run("una cadena con JSON dentro se DESENVUELVE", func(t *testing.T) {
+		// Es la forma que sugiere el proto, donde el campo es una cadena. Sin desenvolver
+		// el nivel de comillas, en el campo llegaría `"{\"tipo\":…}"` y Aprendizaje lo
+		// rechazaría «por no ser JSON legible» sin decir por qué.
+		doc := `{"tipo":"doc","contenido":[]}`
+		if got := bodyDocJSON(json.RawMessage(strconv.Quote(doc))); got != doc {
+			t.Fatalf("la cadena no se desenvolvió: %q", got)
+		}
+	})
+
+	t.Run("sin documento, la cadena vacía del proto", func(t *testing.T) {
+		for _, ausente := range []json.RawMessage{nil, {}, json.RawMessage(`null`), json.RawMessage(`""`)} {
+			if got := bodyDocJSON(ausente); got != "" {
+				t.Fatalf("«no lo mandaron» debe llegar como cadena vacía, llegó %q", got)
+			}
+		}
+	})
+
+	t.Run("una cadena con basura dentro no se manda", func(t *testing.T) {
+		// Mandarla haría que Aprendizaje fallara con «body_doc no es JSON legible», que es
+		// un mensaje sobre el análisis y no sobre el documento. Vacío significa «no hay
+		// documento» y el cuerpo heredado sigue funcionando.
+		for _, basura := range []string{"{no es json}", "no es json", `{"tipo":}`} {
+			if got := bodyDocJSON(json.RawMessage(strconv.Quote(basura))); got != "" {
+				t.Fatalf("%q no debería mandarse, llegó %q", basura, got)
+			}
+		}
+	})
+}
+
+// TestListaNoNula: una lista vacía tiene que salir como `[]`, no como `null`.
+//
+// La diferencia no es estética. `null` rompe a la vez el tipo que documenta el contrato y
+// cualquier `campo.length` de quien lo consuma — y en una plantilla de Angular ese error no
+// deja ese dato sin pintar: deja la pantalla entera en blanco. Se descubrió con un artículo
+// SIN cuestionario, cuyo `quiz_ids: null` borraba el artículo completo del lector.
+func TestListaNoNula(t *testing.T) {
+	t.Parallel()
+
+	if got := listaNoNula[string](nil); got == nil || len(got) != 0 {
+		t.Fatalf("una lista nula tiene que salir como lista vacía, salió %#v", got)
+	}
+	// Y una lista con contenido se devuelve igual: la normalización no copia ni reordena.
+	original := []string{"a", "b"}
+	if got := listaNoNula(original); len(got) != 2 || got[0] != "a" {
+		t.Fatalf("la lista con contenido cambió: %#v", got)
 	}
 }

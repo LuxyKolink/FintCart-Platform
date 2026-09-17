@@ -2,10 +2,10 @@
   <h1>Administración de categorías</h1>
 
   @if (errorMessage()) {
-    <p class="fc-banner fc-banner--error">{{ errorMessage() }}</p>
+    <fc-banner tone="error">{{ errorMessage() }}</fc-banner>
   }
   @if (successMessage()) {
-    <p class="fc-banner fc-banner--success">{{ successMessage() }}</p>
+    <fc-banner tone="success">{{ successMessage() }}</fc-banner>
   }
 
   @switch (state()) {
@@ -13,7 +13,7 @@
       <p>Cargando categorías…</p>
     }
     @case ('error') {
-      <p class="fc-banner fc-banner--error">No pudimos cargar el catálogo de categorías. Intenta de nuevo.</p>
+      <fc-banner tone="error">No pudimos cargar el catálogo de categorías. Intenta de nuevo.</fc-banner>
     }
     @case ('ready') {
       <fc-module-box title="Nueva categoría">

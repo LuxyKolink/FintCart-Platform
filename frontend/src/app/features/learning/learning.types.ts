@@ -21,7 +21,11 @@ export interface Article {
    */
   body_doc?: unknown;
   current_version_no: number;
-  quiz_ids: string[];
+  /**
+   * Cuestionarios del artículo (FR-009). Puede llegar `null` o ausente —un artículo sin
+   * cuestionario es lo normal— y quien lo consuma tiene que tratarlo como lista vacía.
+   */
+  quiz_ids?: string[] | null;
 }
 
 /** Categoría del catálogo administrable (US1) — espejo del proto `learning.v1.Category`. */

@@ -50,6 +50,7 @@ import {
   catalogToPb,
   gradeToPb,
   okResult,
+  parseBodyDoc,
   quizSessionToPb,
   quizToPb,
   versionToPb,
@@ -160,6 +161,7 @@ export class LearningController {
           request.body ?? '',
           request.editor_id ?? '',
           request.article_id ?? '',
+          parseBodyDoc(request.body_doc),
         ),
       ),
     );
@@ -170,7 +172,12 @@ export class LearningController {
   public async updateDraft(request: UpdateDraftRequest): Promise<ArticleVersionPb> {
     return this.guard('UpdateDraft', async () =>
       versionToPb(
-        await this.publishing.updateDraft(request.version_id ?? '', request.editor_id ?? '', request.body ?? ''),
+        await this.publishing.updateDraft(
+          request.version_id ?? '',
+          request.editor_id ?? '',
+          request.body ?? '',
+          parseBodyDoc(request.body_doc),
+        ),
       ),
     );
   }

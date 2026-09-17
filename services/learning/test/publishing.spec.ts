@@ -13,6 +13,8 @@ import type { Pool } from 'pg';
 import { CategoriesRepository } from '../src/categories/categories.repository';
 import { CategoriesService } from '../src/categories/categories.service';
 import { EventsPublisher } from '../src/events/publisher';
+import { ImagesRepository } from '../src/images/images.repository';
+import { ImagesService } from '../src/images/images.service';
 import { PublishingRepository } from '../src/publishing/publishing.repository';
 import { PublishingService } from '../src/publishing/publishing.service';
 import { VersioningService } from '../src/publishing/versioning.service';
@@ -31,7 +33,13 @@ function newFixture(): { pool: Pool; service: PublishingService } {
   const categories = new CategoriesService(new CategoriesRepository(pool), events);
   return {
     pool,
-    service: new PublishingService(repository, new VersioningService(repository), events, categories),
+    service: new PublishingService(
+      repository,
+      new VersioningService(repository),
+      events,
+      categories,
+      new ImagesService(new ImagesRepository(pool)),
+    ),
   };
 }
 

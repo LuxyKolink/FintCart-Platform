@@ -1,0 +1,202 @@
+/*
+ * Estilos del editor de texto enriquecido (T131, T132).
+ *
+ * Van aquí y no en `styles.scss`: son de esta pieza y de ninguna otra, y esa hoja global es
+ * justo lo que el rediseño está retirando (nota N-12). Todo se resuelve con las variables
+ * del sistema de diseño, así que el editor cambia con el tema sin tocarlo.
+ */
+
+.fc-rte {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+/* El borde que avisa de un error de formulario, con el mismo lenguaje que los campos. */
+.fc-rte--invalid {
+  border-color: var(--danger);
+}
+
+.fc-rte__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-inset);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/*
+ * Botón de la barra: más pequeño que un `fc-button` porque no es una acción de la
+ * pantalla, sino una herramienta. El área sigue siendo de 44 px para poder pulsarla con el
+ * dedo (FR-098, SC-029).
+ */
+.fc-rte__btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+  color: var(--text-body);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.fc-rte__btn:hover:not(:disabled) {
+  background: var(--surface-card);
+  border-color: var(--border-default);
+}
+
+/*
+ * El estado activo NO se distingue solo por el color: además del fondo, el borde y el
+ * `aria-pressed` que ya lleva el botón, se marca con un subrayado inferior. Un formato
+ * activo que solo se ve por color desaparece para quien no distingue ese color.
+ */
+.fc-rte__btn--on {
+  background: var(--brand-accent-soft);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary-hover);
+  box-shadow: inset 0 -3px 0 var(--brand-primary);
+}
+
+.fc-rte__btn:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 1px;
+}
+
+.fc-rte__btn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/*
+ * El campo de archivo existe para abrir el diálogo del sistema, no para verse: se recorta a
+ * un píxel en lugar de esconderse con `display:none` (que lo dejaría inalcanzable también
+ * para el teclado) o con `visibility:hidden`.
+ */
+.fc-rte__archivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* El foco del teclado cae en el campo invisible: se dibuja en la etiqueta que lo representa,
+   que es lo que la persona ve. Sin esto, tabular hasta aquí no mostraría nada. */
+.fc-rte__archivo:focus-visible + .fc-rte__btn {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 1px;
+}
+
+/* Y lo mismo para el estado deshabilitado: el mensaje que explica por qué está en la barra. */
+.fc-rte__archivo:disabled + .fc-rte__btn {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.fc-rte__estado {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* El panel de la imagen y del enlace: interrumpe la escritura, así que se separa. */
+.fc-rte__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-inset);
+}
+
+.fc-rte__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/*
+ * La vista previa de la imagen que se va a insertar. Se limita la altura y se conserva la
+ * proporción: una foto vertical de móvil, sin tope, empujaría el botón de insertar fuera de
+ * la pantalla.
+ */
+.fc-rte__vista {
+  max-width: 100%;
+  max-height: 16rem;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  align-self: flex-start;
+}
+
+/* La superficie de escritura: el mínimo de alto evita que el editor nazca con la altura de
+   una línea y parezca un campo de una sola línea. */
+.fc-rte__superficie {
+  padding: var(--space-3);
+}
+
+.fc-rte__superficie :focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* El estilo del contenido lo pone ProseMirror, así que se alcanza con `:deep`-equivalente:
+   en Angular se hace con `::ng-deep` o, mejor, dejando el contenido sin encapsular. Aquí se
+   usa el selector de contenido con el prefijo de la clase del propio contenido. */
+.fc-rte__superficie .fc-rte__content {
+  min-height: 12rem;
+}
+
+.fc-rte__superficie .fc-rte__content p {
+  margin: 0 0 var(--space-3);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.fc-rte__superficie .fc-rte__content h2,
+.fc-rte__superficie .fc-rte__content h3,
+.fc-rte__superficie .fc-rte__content h4 {
+  color: var(--text-strong);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.fc-rte__superficie .fc-rte__content ul,
+.fc-rte__superficie .fc-rte__content ol {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+  color: var(--text-body);
+}
+
+.fc-rte__superficie .fc-rte__content a {
+  color: var(--brand-primary-hover);
+}
+
+.fc-rte__superficie .fc-rte__content img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.fc-rte__superficie .fc-rte__content figcaption {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/*
+ * En pantallas estrechas, la barra deja de caber en una línea. Se envuelve en vez de
+ * recortarse: un botón fuera de la pantalla es un formato que no se puede aplicar.
+ */
+@media (max-width: 767px) {
+  .fc-rte__toolbar {
+    gap: 0;
+  }
+
+  .fc-rte__panel {
+    padding: var(--space-2);
+  }
+}

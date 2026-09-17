@@ -9,6 +9,7 @@
  */
 import { Injectable } from '@nestjs/common';
 
+import type { BodyDocNode } from '../articles/body-doc';
 import { PublishingRepository, type VersionRow } from './publishing.repository';
 
 @Injectable()
@@ -23,7 +24,12 @@ export class VersioningService {
    *
    * @throws {DomainError} `not_found` si `articleId` no existe.
    */
-  public async newVersionOf(articleId: string, editorId: string, body: string): Promise<VersionRow> {
-    return this.repository.createNewVersion(articleId, editorId, body);
+  public async newVersionOf(
+    articleId: string,
+    editorId: string,
+    body: string,
+    bodyDoc: BodyDocNode,
+  ): Promise<VersionRow> {
+    return this.repository.createNewVersion(articleId, editorId, body, bodyDoc);
   }
 }

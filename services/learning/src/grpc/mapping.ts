@@ -12,6 +12,7 @@
  * hacia dentro son los tipos de dominio.
  */
 import { format } from '../common/decimal-str';
+import { invalidArgument } from '../common/errors';
 import type { Category } from '../categories/category.types';
 import type { OpResult as OpResultPb } from '../pb/fintcart/common/v1/common';
 import type { ArticleDetail, ArticleSummary } from '../articles/articles.repository';
@@ -179,6 +180,32 @@ export function gradeToPb(result: GradeResult): GradeResponsePb {
  * diría «esta versión tiene un cuerpo sin bloques» cuando en realidad es «esta versión
  * es anterior al documento de bloques».
  */
+/**
+ * `body_doc` tal como llega en la petición → valor para el servicio (T131).
+ *
+ * Es una conversión PURA de transporte y por eso vive aquí: el contrato declara el campo
+ * como una CADENA que contiene JSON —decisión documentada en `learning.proto`, para que el
+ * borde transporte el documento sin interpretarlo y el vocabulario cerrado se valide en un
+ * solo lugar—, así que alguien tiene que analizarla. Quién decide si el documento es
+ * válido es `PublishingService`: aquí no se mira ni un nodo.
+ *
+ * Una cadena vacía significa «no lo mandaron» y un JSON ilegible significa que el cliente
+ * mandó basura: el primero acaba en `null` (cuerpo heredado) y el segundo en un
+ * `invalid_argument` explícito, porque devolver `null` en silencio convertiría un error del
+ * cliente en un cuerpo vacío guardado como si fuera intención suya.
+ */
+export function parseBodyDoc(raw: string | undefined): unknown | null {
+  const texto = (raw ?? '').trim();
+  if (texto === '') {
+    return null;
+  }
+  try {
+    return JSON.parse(texto) as unknown;
+  } catch (err) {
+    throw invalidArgument('body_doc no es JSON legible', err);
+  }
+}
+
 function serializeBodyDoc(doc: BodyDocNode | null): string {
   return doc === null ? '' : JSON.stringify(doc);
 }

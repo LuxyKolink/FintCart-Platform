@@ -1,0 +1,103 @@
+/*
+ * Lo que el editor necesita y el sistema de diseño no da (T131, 003).
+ *
+ * Es deliberadamente corto: los campos, los botones y los avisos son componentes de
+ * `shared/ui` y traen sus propios estilos. Aquí solo queda la disposición de esta pantalla
+ * —el encabezado, el grupo de opciones de una pregunta y las acciones—, que es lo único que
+ * no pertenece a ninguna pieza reutilizable.
+ */
+
+.fc-editor__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.fc-editor__title {
+  margin: 0;
+}
+
+.fc-editor__state {
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+
+/* El cuerpo no usa `fc-input` porque no es un campo de texto: es el editor de bloques. */
+.fc-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.fc-editor__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+/* El mismo lenguaje que un error de campo del sistema de diseño. */
+.fc-editor__help {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fc-editor__help[data-invalid] {
+  color: var(--danger);
+}
+
+.fc-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* Cada pregunta, enmarcada como un grupo: el `fieldset`/`legend` es lo que anuncia el
+   lector de pantalla al entrar en ella. */
+.fc-editor__question {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.fc-editor__legend {
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  padding: 0 var(--space-1);
+}
+
+/*
+ * Una rejilla de tres columnas: radio · «Correcta» · campo. La etiqueta de texto no es
+ * adorno: un radio suelto al lado de un campo no dice si marca «esta es la correcta» o
+ * «esta está seleccionada», y el nombre accesible del radio («Opción B correcta») solo lo
+ * anuncia al enfocarlo.
+ */
+.fc-editor__options {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fc-editor__option-label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* En pantallas estrechas la rejilla se apila: tres columnas en 360 px dejarían el campo
+   de texto con el ancho de un dedo. */
+@media (max-width: 767px) {
+  .fc-editor__options {
+    grid-template-columns: auto 1fr;
+  }
+
+  .fc-editor__option-label {
+    display: none;
+  }
+}

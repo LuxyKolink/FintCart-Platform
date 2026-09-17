@@ -134,6 +134,29 @@ export class ImagesRepository {
   }
 
   /** Bytes de una imagen, o `null` si no existe. */
+  /**
+   * Cuáles de estos identificadores existen (T128). Devuelve los que SÍ están, para que
+   * quien pregunta pueda nombrar los que faltan: un documento que referencia una imagen
+   * inexistente se guardaría sin error y el lector mostraría un hueco roto sin que nadie
+   * supiera de dónde salió.
+   */
+  public async findExisting(imageIds: readonly string[]): Promise<readonly string[]> {
+    if (imageIds.length === 0) {
+      return [];
+    }
+    // Un marcador por identificador en vez de `ANY($1::text[])`. No es una preferencia de
+    // estilo: la forma con `ANY` y un parámetro de tipo array no es reproducible con el
+    // doble en memoria —devuelve cero filas en silencio—, y una consulta que no se puede
+    // reproducir en una prueba es una consulta que acaba sin probar. Los marcadores se
+    // generan aquí; los VALORES siguen yendo por parámetros, nunca interpolados.
+    const marcadores = imageIds.map((_, indice) => `$${indice + 1}`).join(', ');
+    const { rows } = await this.pool.query<{ id: string }>(
+      `SELECT id FROM article_images WHERE id IN (${marcadores})`,
+      [...imageIds],
+    );
+    return rows.map((row) => row.id);
+  }
+
   public async findBytes(imageId: string): Promise<Buffer | null> {
     try {
       const result = await this.pool.query<{ bytes: Buffer }>(FIND_IMAGE_BYTES_SQL, [imageId]);

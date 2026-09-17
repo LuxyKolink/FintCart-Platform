@@ -45,3 +45,58 @@ export function plainTextToBodyDoc(text: string): BodyDocNode {
 
   return { tipo: 'doc', contenido: parrafos };
 }
+
+/**
+ * Documento de bloques → texto plano: la dirección de VUELTA (T131).
+ *
+ * Existe porque `article_versions.body` sigue siendo `NOT NULL` y porque el lector de la
+ * fase 001 —y cualquier consumidor anterior a D-14— solo entiende texto. Cuando el editor
+ * manda un documento, **el documento es la fuente de verdad** y el texto se DERIVA de él:
+ * guardar los dos tal como lleguen dejaría dos versiones del mismo cuerpo que pueden
+ * contradecirse, y entonces habría que decidir cuál gana cada vez que se lean.
+ *
+ * Las reglas de qué es una línea son las de un lector de texto, no las del formato:
+ *
+ *   - Un párrafo, un encabezado y cada elemento de una lista son una línea, y las líneas
+ *     se separan con una línea en blanco — la misma unidad que `plainTextToBodyDoc`
+ *     reconoce, para que el viaje de ida y vuelta no cambie el número de párrafos.
+ *   - Los nodos de texto de un mismo párrafo se CONCATENAN: `«hola »` + `«mundo»` con
+ *     negrita en el segundo es un párrafo, no dos.
+ *   - Una imagen y una calculadora no aportan texto. Ni el `alt` ni el pie entran aquí:
+ *     describen la imagen, no son el cuerpo del artículo, y meterlos haría que el texto
+ *     de respaldo dijera algo que nadie escribió. Un artículo que solo lleva una imagen
+ *     queda con texto vacío, y eso es correcto: su cuerpo son sus bloques.
+ */
+export function bodyDocToPlainText(doc: BodyDocNode): string {
+  return (doc.contenido ?? []).flatMap(lineasDe).join('\n\n');
+}
+
+/** Las líneas de un bloque. Una lista aporta una por elemento. */
+function lineasDe(nodo: BodyDocNode): string[] {
+  switch (nodo.tipo) {
+    case 'texto':
+      return nodo.texto === undefined ? [] : [nodo.texto];
+    case 'imagen':
+    case 'calculadora':
+      return [];
+    case 'parrafo':
+    case 'encabezado': {
+      const linea = textoDe(nodo).trim();
+      return linea === '' ? [] : [linea];
+    }
+    default:
+      // `doc`, `lista` e `item_lista` no son texto: se bajan a sus hijos.
+      return (nodo.contenido ?? []).flatMap(lineasDe);
+  }
+}
+
+/** El texto de un nodo, concatenando sus nodos de texto y sin mirar las marcas. */
+function textoDe(nodo: BodyDocNode): string {
+  if (nodo.tipo === 'texto') {
+    return nodo.texto ?? '';
+  }
+  if (nodo.tipo === 'imagen' || nodo.tipo === 'calculadora') {
+    return '';
+  }
+  return (nodo.contenido ?? []).map(textoDe).join('');
+}

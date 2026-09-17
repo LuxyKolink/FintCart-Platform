@@ -12,7 +12,7 @@ import {
 import { LearningApiService } from '../learning-api.service';
 import { Article } from '../learning.types';
 import { BodyDocComponent } from './blocks/body-doc.component';
-import { parseBodyDoc, type BodyDocNode } from './blocks/body-doc';
+import { parseBodyDoc, type BodyDocNode } from '../../../shared/body-doc';
 import { nextMilestone, withinMilestone } from '../progress/milestones';
 import { ProgressApiService } from '../progress/progress-api.service';
 import { Progress } from '../progress/progress.types';
@@ -90,6 +90,15 @@ export class ArticleComponent implements OnInit {
   protected readonly bodyDoc = computed<BodyDocNode | null>(() =>
     parseBodyDoc(this.article()?.body_doc),
   );
+
+  /**
+   * El cuestionario del artículo, si lo tiene.
+   *
+   * Devuelve el primer identificador o `null`, y la plantilla lo usa con `@if (…; as quizId)`:
+   * así no hay ningún índice sobre una lista que puede no venir, y el identificador existe
+   * —con su tipo— dentro del bloque donde se usa.
+   */
+  protected readonly firstQuizId = computed<string | null>(() => this.article()?.quiz_ids?.[0] ?? null);
 
   public ngOnInit(): void {
     this.load();

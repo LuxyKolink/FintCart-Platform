@@ -90,6 +90,19 @@ function walkHtmlFiles(dir) {
   return files;
 }
 
+/**
+ * Quita los comentarios HTML antes de medir.
+ *
+ * POR QUÉ: un comentario que EXPLICA por qué se retiró una clase artesanal no es una clase en
+ * uso, y contarlo convierte la explicación en deuda — con lo que la forma de bajar la cifra
+ * pasa a ser borrar la explicación. Es el mismo falso positivo que ya tuvo la barrera de
+ * seguridad (`security-barrier.mjs`) con los comentarios que justifican no usar
+ * `bypassSecurityTrust*`: la herramienta tiene que medir el código, no lo que se dice de él.
+ */
+function sinComentarios(text) {
+  return text.replace(/<!--[\s\S]*?-->/g, '');
+}
+
 function countMatches(text, pattern) {
   const matches = text.match(new RegExp(pattern.source, 'g'));
   return matches ? matches.length : 0;
@@ -111,7 +124,7 @@ function collectMetrics() {
   let artisanalRefs = 0;
 
   for (const file of htmlFiles) {
-    const text = readFileSync(file, 'utf8');
+    const text = sinComentarios(readFileSync(file, 'utf8'));
     inlineStyles += countMatches(text, INLINE_STYLE_RE);
 
     const refs = countMatches(text, ARTISANAL_CLASS_RE);

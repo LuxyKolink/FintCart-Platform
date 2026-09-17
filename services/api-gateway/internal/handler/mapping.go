@@ -60,8 +60,27 @@ func profileToDTO(p *usersv1.Profile) Profile {
 		EmailVerified: p.GetEmailVerified(),
 		AccountStatus: p.GetAccountStatus(),
 		Preferences:   p.GetPreferences(),
-		Roles:         p.GetRoles(),
+		Roles:         listaNoNula(p.GetRoles()),
 	}
+}
+
+// listaNoNula convierte un `nil` en una lista vacía al construir una respuesta.
+//
+// POR QUÉ EXISTE, y no es cosmética: en Go una rebanada `nil` se serializa como `null`, y
+// `[]` y `null` NO son lo mismo para quien consume el JSON. El contrato documenta estos
+// campos como arreglos, así que un `null` rompe dos cosas a la vez: el tipo prometido y, en
+// el cliente, cualquier `campo.length` — que en una plantilla de Angular es un error que
+// tumba la pantalla ENTERA, no solo el dato.
+//
+// No es hipotético: un artículo sin cuestionario devolvía `quiz_ids: null` y el lector se
+// quedaba en blanco —sin cuerpo, sin título, sin nada— porque la plantilla consultaba
+// `.length` sobre ese `null`. Y una página sin resultados devolvía `items: null`, con lo que
+// la pantalla de «no hay nada» era justo la que no se dibujaba.
+func listaNoNula[T any](lista []T) []T {
+	if lista == nil {
+		return []T{}
+	}
+	return lista
 }
 
 func articleToDTO(a *learningv1.Article) Article {
@@ -73,7 +92,7 @@ func articleToDTO(a *learningv1.Article) Article {
 		Body:             a.GetBody(),
 		BodyDoc:          rawJSON(a.GetBodyDoc()),
 		CurrentVersionNo: a.GetCurrentVersionNo(),
-		QuizIDs:          a.GetQuizIds(),
+		QuizIDs:          listaNoNula(a.GetQuizIds()),
 	}
 }
 
@@ -169,6 +188,40 @@ func rawJSON(doc string) json.RawMessage {
 		return nil
 	}
 	return json.RawMessage(doc)
+}
+
+// bodyDocJSON es la dirección de ENTRADA del documento de bloques (T131): el cuerpo REST
+// llega como objeto y en el proto el campo es una cadena que contiene JSON.
+//
+// Acepta las dos formas a propósito. El proto declara una cadena —decisión documentada en
+// `learning.proto`: el borde transporta el documento sin interpretarlo—, así que un cliente
+// que copie el proto manda una cadena con JSON dentro y otro que copie el OpenAPI manda el
+// objeto; si aquí solo se aceptara una, la otra fallaría con un error sobre JSON en vez de
+// sobre el documento. Con la cadena se DESENVUELVE el nivel de comillas: pasarla tal cual
+// metería `"{\"tipo\":…}"` en el campo del proto y Aprendizaje lo rechazaría por no ser
+// JSON legible, con un mensaje que no diría por qué.
+//
+// Lo que NO hace: no valida el documento. El vocabulario cerrado se comprueba en
+// Aprendizaje, en un solo sitio (D-14); aquí solo se decide de qué forma viaja.
+func bodyDocJSON(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+
+	var texto string
+	if err := json.Unmarshal(raw, &texto); err == nil {
+		// Venía como cadena: se devuelve su contenido si a su vez es JSON, y vacío si no,
+		// para no mandar basura que Aprendizaje rechazaría con un error peor.
+		if texto == "" || !json.Valid([]byte(texto)) {
+			return ""
+		}
+		return texto
+	}
+
+	if !json.Valid(raw) {
+		return ""
+	}
+	return string(raw)
 }
 
 func versionToDTO(v *learningv1.ArticleVersion) ArticleVersion {
@@ -554,7 +607,7 @@ func calculatorToDTO(c *simulatorv1.Calculator) Calculator {
 		RejectionReason: c.GetRejectionReason(),
 		Version:         c.GetVersion(),
 		Definition:      definitionToDTO(c.GetDefinition()),
-		IndicatorsUsed:  c.GetIndicatorsUsed(),
+		IndicatorsUsed:  listaNoNula(c.GetIndicatorsUsed()),
 	}
 }
 

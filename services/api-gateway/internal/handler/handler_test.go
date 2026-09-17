@@ -611,6 +611,51 @@ func TestUpdateDraftSendsTheEditorFromTheToken(t *testing.T) {
 	require.Equal(t, "editado", h.learning.lastUpdate.GetBody())
 }
 
+// TestUpdateDraftForwardsTheDocument cubre T131: el editor manda bloques y el borde los
+// pasa como la cadena que el proto declara, SIN interpretarlos.
+func TestUpdateDraftForwardsTheDocument(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, withRoles(handler.RoleEditor))
+	doc := `{"tipo":"doc","contenido":[{"tipo":"parrafo","contenido":[{"tipo":"texto","texto":"hola"}]}]}`
+
+	rec := h.do(t, http.MethodPatch, "/editorial/versions/v-1", `{"body":"","body_doc":`+doc+`}`, true)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	// Llega como CADENA con el JSON intacto: el borde no lo convierte en nodos ni lo
+	// valida —eso es de Aprendizaje, en un solo sitio (D-14)— solo lo transporta.
+	require.Equal(t, doc, h.learning.lastUpdate.GetBodyDoc())
+}
+
+// TestUpdateDraftWithoutDocumentLeavesTheFieldEmpty fija que «no lo mandaron» no se
+// convierta en un documento vacío: son dos cosas distintas y el proto las distingue.
+func TestUpdateDraftWithoutDocumentLeavesTheFieldEmpty(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, withRoles(handler.RoleEditor))
+
+	rec := h.do(t, http.MethodPatch, "/editorial/versions/v-1", `{"body":"solo texto"}`, true)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Empty(t, h.learning.lastUpdate.GetBodyDoc())
+	require.Equal(t, "solo texto", h.learning.lastUpdate.GetBody())
+}
+
+// TestArticleWithoutQuizSerialisesAnEmptyList cubre el defecto real que encontró T134: un
+// artículo sin cuestionario devolvía `"quiz_ids":null` y el lector se quedaba EN BLANCO
+// —porque la plantilla hacía `.length` sobre ese `null`—.
+func TestArticleWithoutQuizSerialisesAnEmptyList(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, withRoles(handler.RoleUsuarioFinal))
+	h.learning.articles = &learningv1.ListPublishedResponse{Items: []*learningv1.Article{{ArticleId: "a-1"}}}
+
+	rec := h.do(t, http.MethodGet, "/catalog/articles", "", true)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	// Sobre el JSON CRUDO y no sobre el tipo: lo que rompía al cliente era el texto que
+	// viaja, así que es el texto el que hay que fijar.
+	require.Contains(t, rec.Body.String(), `"quiz_ids":[]`)
+	require.NotContains(t, rec.Body.String(), `"quiz_ids":null`)
+}
+
 // TestListVersionsForwardsTheQueryFilters cubre T166/FR-013: la misma ruta sirve
 // historial, bandeja de revisión y borradores propios según qué filtros lleguen.
 func TestListVersionsForwardsTheQueryFilters(t *testing.T) {

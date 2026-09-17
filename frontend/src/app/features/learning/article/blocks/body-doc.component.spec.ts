@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { BodyDocComponent } from './body-doc.component';
-import { parseBodyDoc, isSafeHref, type BodyDocNode } from './body-doc';
+import { parseBodyDoc, isSafeHref, type BodyDocNode } from '../../../../shared/body-doc';
 
 /**
  * El render del documento de bloques (T133, FR-063, FR-068, nota N-08).

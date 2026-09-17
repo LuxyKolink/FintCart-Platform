@@ -113,6 +113,19 @@ export class ImagesService {
   }
 
   /** Metadatos de una imagen. */
+  /**
+   * De esta lista, qué imágenes NO existen (T128).
+   *
+   * Vive aquí y no en quien valida el documento porque la tabla es de este módulo: un
+   * validador de bloques que consultara `article_images` sabría de imágenes, y el
+   * vocabulario del documento dejaría de ser solo un vocabulario.
+   */
+  public async findMissing(imageIds: readonly string[]): Promise<readonly string[]> {
+    const existentes = await this.repository.findExisting(imageIds);
+    const hay = new Set(existentes);
+    return imageIds.filter((id) => !hay.has(id));
+  }
+
   public async getMetadata(imageId: string): Promise<ImageRow> {
     requireHex('image_id', imageId);
     const image = await this.repository.find(imageId);

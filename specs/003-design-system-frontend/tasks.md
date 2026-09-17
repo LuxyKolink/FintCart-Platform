@@ -640,7 +640,7 @@ herramienta editorial.
 - [x] T066 [US5] Recomponer la bandeja de revisión presentando **de forma destacada** la decisión de aprobar o rechazar, en `frontend/src/app/features/editorial/review/review.component.html` (FR-115), eliminando sus 4 estilos en línea
 - [x] T067 [US5] Presentar el aviso de que un editor no puede aprobar su propio contenido de forma comprensible y no como error genérico, en `frontend/src/app/features/editorial/review/` (FR-116) — preserva la regla FR-008 sin duplicar su lógica en la vista
 - [x] T068 [US5] Historial de versiones con estado, autor y fecha presentados de forma consistente con el resto de la plataforma, en `frontend/src/app/features/editorial/versions/` (FR-117)
-- [ ] T069 [US5] Migrar **únicamente el marco** del editor de artículos —cabecera, paneles laterales, ajustes de publicación— en `frontend/src/app/features/editorial/editor/`, **sin tocar la superficie de redacción**, que pertenece al feature 002 (FR-123). De sus 8 estilos en línea, solo se retiran los del marco — **BLOQUEADA por 002 (T131)**: ver la nota
+- [X] T069 [US5] Migrar **únicamente el marco** del editor de artículos en `frontend/src/app/features/editorial/editor/` — **HECHA, y la frontera con 002 se respetó al pie de la letra**. El texto de la tarea decía «solo el marco» y por eso estuvo bloqueada: el marco y la superficie de redacción eran el MISMO archivo, así que tocar el marco sin tocar la superficie era imposible. 002 reescribió esa superficie (T131: el `<textarea>` pasa a ser un editor de bloques) y en cuanto el marco quedó separado del texto —`fc-tiptap-editor` por un lado, la cabecera, los paneles y las acciones por otro— la migración fue directa. Lo que se hizo: la plantilla entera de `editor.component` pasa a componentes de `shared/ui` (`fc-module-box`, `fc-input`, `fc-select`, `fc-button`, `fc-banner`, `fc-link-button`) y lo que no es una pieza reutilizable —el encabezado, la rejilla de opciones de una pregunta, las acciones— vive en `editor.component.css`, que es de esta pantalla y de ninguna otra. **Se conservaron EXACTAMENTE las etiquetas visibles y los nombres accesibles**: son lo que usan las pruebas de extremo a extremo para hablar con la pantalla, y «mejorarlos» habría sido romper la única garantía que ata el aspecto al comportamiento
 - [x] T070 [US5] Verificar la frontera con `git diff` sobre `frontend/src/app/features/editorial/editor/`: los cambios deben limitarse al marco (FR-123, quickstart §4 grupo 5)
 - [x] T071 [P] [US5] Estados de carga, error y vacío —sin borradores, sin artículos en revisión— en las tres pantallas de `frontend/src/app/features/editorial/` (FR-118, FR-119)
 - [x] T072 [US5] Responsive de las tres pantallas en `frontend/src/app/features/editorial/`; las tablas desplazan dentro de su contenedor (FR-124, FR-127, research D-27)
@@ -721,8 +721,8 @@ y comprobar que la verificación los rechaza.
 2** —antes de la primera migración, que es donde sirven—. Lo que queda aquí es la comprobación
 de que el objetivo se alcanzó de verdad, y eso solo puede medirse con todo migrado.
 
-- [ ] T075 [US6] **Eliminar `frontend/src/styles.scss`** y retirar su declaración de `frontend/angular.json` — la capa artesanal debe quedar vacía tras los cinco grupos. **Es el criterio de terminación del feature** (research D-26) — **BLOQUEADA por 002 (T131)**: las seis clases que quedan las usa solo el editor
-- [ ] T076 [US6] Verificar con `frontend/scripts/design-debt.mjs` que los estilos en línea pasaron de 94 a **0** y que ninguna plantilla referencia ya clases artesanales (FR-086, FR-088, SC-027) — **BLOQUEADA por T069**: hoy son 8, y los 8 están en el editor
+- [X] T075 [US6] **Eliminar `frontend/src/styles.scss`** y retirar su declaración de `frontend/angular.json` — **HECHO, y es el criterio de terminación del feature.** Antes de borrarla se comprobó que ninguna plantilla la necesitara: las tres últimas usuarias eran `editorial/editor/editor.component.html` (T069), `editorial/editor/tiptap-editor.component.html` —el editor que escribí para 002, que usaba `.fc-input`/`.fc-btn`— y `admin/categories/categories.component.html`, que solo usaba `.fc-banner` en tres avisos. Las tres se migraron. Nota de método: `git rm`, no `rm`, y la referencia se quitó de `angular.json` en el mismo cambio — dejar el archivo de la lista de estilos del build sin el archivo en disco produce un error de compilación que parece otra cosa
+- [X] T076 [US6] Verificar con `frontend/scripts/design-debt.mjs` que los estilos en línea pasaron de 94 a **0** y que ninguna plantilla referencia ya clases artesanales (FR-086, FR-088, SC-027) — **medido: 0 estilos en línea (base 94), 0 pantallas con clase artesanal (base 19), `styles.scss` «eliminado ✅»**, y la puerta `--check` sale con 0. Dos correcciones a la PROPIA herramienta fueron necesarias antes de poder creer la cifra: (1) contaba las referencias a una clase artesanal escritas dentro de un COMENTARIO —el mío, que explicaba precisamente por qué se había retirado—, de modo que la forma de bajar el número era borrar la explicación; ahora mide el código sin comentarios, el mismo falso positivo que ya tuvo la barrera de `bypassSecurityTrust*`; (2) el segundo recuento («referencias totales») no distinguía etiquetas de clases
 - [x] T077 [US6] Recorrer las 19 pantallas y el armazón confirmando que ninguna desentona del sistema visual común, contrastando `frontend/src/app/features/` contra los cinco kits de `design/ui_kits/` (FR-086, SC-028)
 - [x] T078 [US6] Verificar los 6 selectores no accesibles de `frontend/e2e/` (research D-29): que `fc-module`, `fc-num`, `fc-eyebrow` y `fc-linklist` **siguen definidas** en `frontend/src/styles/tokens/base.css`, y que el lector conserva `<article>` y el cuestionario conserva `<fieldset>` e `<input type="radio">`
 - [x] T079 [US6] Comprobar que la barrera de T010 rechaza un estilo en línea introducido a propósito, en `frontend/` (FR-089, SC-027)
@@ -849,8 +849,8 @@ superficie la reescribe 002 (FR-123). Es el mismo bloqueo que T069 y T075/T076.
 
 | Criterio | Resultado | Evidencia |
 |---|---|---|
-| SC-027 sin estilos en línea | **Parcial**: 94 → 8, y el rechazo automatizado funciona | `design-debt.mjs`; sonda de T079 |
-| SC-028 las 19 con el sistema común | **Parcial**: 18 de 19 | Mockups de `design/ui_kits/`; 105 capturas |
+| SC-027 sin estilos en línea | **Cumplido**: 94 → **0**, con `styles.scss` eliminado | `design-debt.mjs` (0 en línea, 0 clases, archivo eliminado); puerta `--check` en 0 |
+| SC-028 las 19 con el sistema común | **Cumplido**: 19 de 19, y ninguna plantilla usa ya una clase artesanal | Mockups de `design/ui_kits/`; capturas regeneradas; `design-debt.mjs` |
 | SC-029 qué ofrece la plataforma sin desplazar | Cumplido | Panel de marca en la primera pantalla (`visual/auth/`) |
 | SC-030 recorrible por teclado | Cumplido | `a11y.spec.ts`, 19 pantallas |
 | SC-031 100 % de controles con etiqueta | Cumplido | `expectControlsAreLabelled` en las 19, a 5 anchuras |
@@ -864,7 +864,7 @@ superficie la reescribe 002 (FR-123). Es el mismo bloqueo que T069 y T075/T076.
 | SC-039 puntos de corte una sola vez | Cumplido | `breakpoints.css`; ningún componente fija anchos |
 
 **Lo que queda abierto, y por qué**: T069 (el marco del editor), T075 (borrar `styles.scss`) y
-T076 (estilos en línea a 0) — que es también la parte no cumplida de SC-027 y SC-028. Las tres
+T076 (estilos en línea a 0) — que era también la parte no cumplida de SC-027 y SC-028. Las tres quedaron **cerradas el mismo día**: 002 reescribió la superficie de redacción (T131) y 003 migró el marco (T069), borró la hoja artesanal (T075) y lo midió (T076).
 dependen de que exista la superficie de redacción nueva del feature 002.
 
 ## Dependencies

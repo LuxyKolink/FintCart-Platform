@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import {
   BadgeComponent,
+  BannerComponent,
   ButtonComponent,
   InputComponent,
   ModuleBoxComponent,
@@ -36,6 +37,7 @@ type Busy = 'create' | 'update' | 'deactivate' | null;
     InputComponent,
     ButtonComponent,
     BadgeComponent,
+    BannerComponent,
   ],
   templateUrl: './categories.component.html',
   styles: `

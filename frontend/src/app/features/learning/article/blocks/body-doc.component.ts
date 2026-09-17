@@ -2,8 +2,13 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { environment } from '../../../../../environments/environment';
-import { headingTag, isSafeHref, type BodyDocMark, type BodyDocNode } from './body-doc';
+import {
+  isSafeHref,
+  type BodyDocMark,
+  type BodyDocNode,
+} from '../../../../shared/body-doc';
+import { mediaImageUrl } from '../../../../shared/media-url';
+import { headingTag } from './body-doc';
 
 /**
  * Renderiza un documento de bloques **por componente**, sin `innerHTML` ni
@@ -24,14 +29,13 @@ import { headingTag, isSafeHref, type BodyDocMark, type BodyDocNode } from './bo
  * el mismo nodo se dibuja distinto según dónde esté: un `texto` es un `<span>` dentro de un
  * párrafo, y un `parrafo` nunca cuelga de otro párrafo — eso lo garantiza el servidor.
  *
- * LA IMAGEN Y LA CALCULADORA NO SE PUEDEN EJECUTAR TODAVÍA, y se dice en la pantalla en
- * vez de disimularlo:
+ * LO QUE NO SE PUEDE EJECUTAR TODAVÍA se dice en la pantalla en vez de disimularse:
  *
- * - La imagen apunta a `GET /media/images/{id}`, que llega con T129/T130. Mientras ese
- *   camino no exista, el navegador no carga la imagen y se muestra su **texto
- *   alternativo** como pie visible. Es la degradación correcta y no un parche: es
- *   exactamente lo que debe verse cuando una imagen no está disponible (FR-072), y un
- *   hueco en blanco sería peor, porque el lector no sabría qué falta.
+ * - La imagen se carga de `GET /media/images/{id}` (T130, verificado: se pinta). Si no
+ *   carga —el archivo se purgó, o la red falla— se muestra su **texto alternativo** como
+ *   pie visible. Es la degradación correcta y no un parche: es exactamente lo que debe
+ *   verse cuando una imagen no está disponible (FR-072), y un hueco en blanco sería peor,
+ *   porque el lector no sabría qué falta.
  * - La calculadora se dibuja como una referencia con su enlace al simulador. T153 la
  *   convierte en un bloque ejecutable **en el lector**, por la misma ruta de ejecución que
  *   el simulador, para que la simulación quede en el historial y en la auditoría. Hasta
@@ -76,7 +80,7 @@ export class BodyDocComponent {
    * la URL es inmutable: el mismo hash devuelve siempre los mismos bytes.
    */
   protected imageSrc(node: BodyDocNode): string {
-    return `${environment.apiBaseUrl}/media/images/${node.image_id ?? ''}`;
+    return mediaImageUrl(node.image_id);
   }
 
   /** El texto que se muestra cuando la imagen no se puede cargar. Es su `alt`, no un invento. */

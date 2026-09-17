@@ -1,12 +1,16 @@
 /**
  * Persistencia del documento de bloques (T124, FR-063, FR-069).
  *
- * Lo que se fija aquí es que **el camino de escritura rellena `body_doc`**, y que lo
- * rellena con la conversión compartida (`plainTextToBodyDoc`) y no con otra parecida.
- * Importa porque la columna es anulable durante la transición: si el camino de
- * escritura no la llenara, todo compilaría, todas las pruebas anteriores seguirían
- * verdes y la columna se quedaría vacía para siempre — que es la forma más cómoda de
- * tener un dato a medias durante meses.
+ * Lo que se fija aquí es que **el camino de escritura guarda el documento que le dan**,
+ * sin volver a derivarlo por su cuenta. Importa porque la columna es anulable durante la
+ * transición: si el camino de escritura no la llenara, todo compilaría, todas las pruebas
+ * anteriores seguirían verdes y la columna se quedaría vacía para siempre — que es la
+ * forma más cómoda de tener un dato a medias durante meses.
+ *
+ * Desde T131 la DERIVACIÓN del documento a partir del texto vive en `PublishingService`
+ * —es una decisión, no una escritura—, así que estas pruebas pasan el documento ya
+ * construido: lo que comprueban es el SQL. Las reglas de esa derivación están fijadas en
+ * `test/publishing/body-doc-write.spec.ts`.
  *
  * Corre contra `pg-mem`, igual que `publishing.repository.spec.ts`: lo que puede
  * romperse es el SQL —que el `INSERT` nombre la columna nueva y que el `UPDATE` la
@@ -37,7 +41,7 @@ describe('el camino de escritura guarda el documento (T124)', () => {
   it('`createArticle` guarda el documento de la versión 1', async () => {
     const { pool, repo } = newRepo();
 
-    const version = await repo.createArticle('Título', IDS.categoryAhorro, 'Primero.\n\nSegundo.', IDS.editor);
+    const version = await repo.createArticle('Título', IDS.categoryAhorro, 'Primero.\n\nSegundo.', DOS_PARRAFOS, IDS.editor);
 
     expect(version.bodyDoc).toEqual(DOS_PARRAFOS);
     const fila = await pool.query<{ body_doc: unknown }>(
@@ -50,7 +54,7 @@ describe('el camino de escritura guarda el documento (T124)', () => {
   it('`createNewVersion` guarda el documento de la versión nueva', async () => {
     const { repo } = newRepo();
 
-    const version = await repo.createNewVersion(IDS.article, IDS.editor, 'Primero.\n\nSegundo.');
+    const version = await repo.createNewVersion(IDS.article, IDS.editor, 'Primero.\n\nSegundo.', DOS_PARRAFOS);
 
     expect(version.bodyDoc).toEqual(DOS_PARRAFOS);
   });
@@ -58,10 +62,10 @@ describe('el camino de escritura guarda el documento (T124)', () => {
   it('`updateDraftBody` REESCRIBE el documento, no lo deja con el anterior', async () => {
     const { repo } = newRepo();
 
-    const creado = await repo.createArticle('Título', IDS.categoryAhorro, 'Cuerpo inicial', IDS.editor);
+    const creado = await repo.createArticle('Título', IDS.categoryAhorro, 'Cuerpo inicial', plainTextToBodyDoc('Cuerpo inicial'), IDS.editor);
     expect(creado.bodyDoc).toEqual(plainTextToBodyDoc('Cuerpo inicial'));
 
-    const editado = await repo.updateDraftBody(creado.versionId, IDS.editor, 'Uno.\n\nDos.\n\nTres.');
+    const editado = await repo.updateDraftBody(creado.versionId, IDS.editor, 'Uno.\n\nDos.\n\nTres.', plainTextToBodyDoc('Uno.\n\nDos.\n\nTres.'));
 
     expect(editado.bodyDoc).toEqual(plainTextToBodyDoc('Uno.\n\nDos.\n\nTres.'));
   });
@@ -70,7 +74,7 @@ describe('el camino de escritura guarda el documento (T124)', () => {
     const { repo } = newRepo();
     const cuerpo = 'El interés compuesto es interés que gana interés.\n\nY su efecto crece con el tiempo.';
 
-    const version = await repo.createArticle('Título', IDS.categoryAhorro, cuerpo, IDS.editor);
+    const version = await repo.createArticle('Título', IDS.categoryAhorro, cuerpo, plainTextToBodyDoc(cuerpo), IDS.editor);
 
     expect(version.body).toBe(cuerpo);
     expect(version.bodyDoc).toEqual(plainTextToBodyDoc(cuerpo));
@@ -79,7 +83,7 @@ describe('el camino de escritura guarda el documento (T124)', () => {
   it('un cuerpo en blanco guarda un documento vacío, no un nulo', async () => {
     const { repo } = newRepo();
 
-    const version = await repo.createArticle('Título', IDS.categoryAhorro, '   \n  ', IDS.editor);
+    const version = await repo.createArticle('Título', IDS.categoryAhorro, '   \n  ', plainTextToBodyDoc('   \n  '), IDS.editor);
 
     // El servicio rechaza el cuerpo vacío antes de llegar aquí (`PublishingService`),
     // así que este caso fija QUÉ guardaría el repositorio si alguien lo llamara

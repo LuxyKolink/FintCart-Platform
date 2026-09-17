@@ -4,6 +4,7 @@ import { Observable, catchError, throwError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import {
+  ArticleImage,
   ArticleVersion,
   CreateDraftRequest,
   ListVersionsFilter,
@@ -88,6 +89,23 @@ export class EditorialApiService {
       params = params.set('page_token', filter.page_token);
     }
     return this.request(this.http.get<Page<ArticleVersion>>(`${environment.apiBaseUrl}/editorial/versions`, { params }));
+  }
+
+  /**
+   * Sube la imagen del cuerpo de un artículo (T132, T129).
+   *
+   * Va en `multipart/form-data` y no en JSON con la imagen en base64: base64 infla un 33 %
+   * lo que se envía, y el tope de 2 MB del servidor se aplica a los BYTES REALES —una
+   * imagen de 1,6 MB ocupa 2,1 MB en base64 y se rechazaría por un límite que el archivo
+   * original no alcanzaba—. El navegador se encarga de poner la frontera del formulario y
+   * de leer el archivo del disco; aquí no se toca su contenido.
+   */
+  public uploadImage(articleId: string, archivo: File): Observable<ArticleImage> {
+    const datos = new FormData();
+    datos.append('file', archivo, archivo.name);
+    return this.request(
+      this.http.post<ArticleImage>(`${environment.apiBaseUrl}/editorial/articles/${articleId}/images`, datos),
+    );
   }
 
   public createQuiz(body: UpsertQuizRequest): Observable<Quiz> {

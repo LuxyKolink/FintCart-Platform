@@ -60,9 +60,21 @@
             <p class="fc-reader__meta">Esta versión todavía no tiene cuerpo redactado.</p>
           }
 
-          @if (a.quiz_ids.length > 0) {
+          <!--
+            El cuestionario se anuncia solo si HAY uno, y el identificador sale de un
+            `computed` (`firstQuizId`) y no de un índice escrito en la plantilla.
+
+            Ese `computed` es la garantía y no un adorno: el borde serializa una lista vacía
+            como `[]` (ver `listaNoNula` en el Gateway), pero un `null` aquí no dejaba al
+            artículo sin cuestionario — dejaba la pantalla EN BLANCO entera, porque un error
+            al evaluar una plantilla se lleva por delante todo lo que esa plantilla dibuja.
+            Pasó de verdad: un artículo sin cuestionario no mostraba ni el cuerpo ni el
+            título. Es la misma razón por la que el lector vuelve a comprobar el esquema de
+            un enlace aunque el servidor ya lo haya validado.
+          -->
+          @if (firstQuizId(); as quizId) {
             <footer class="fc-reader__foot">
-              <fc-link-button variant="primary" [to]="['/cuestionarios', a.quiz_ids[0]]">
+              <fc-link-button variant="primary" [to]="['/cuestionarios', quizId]">
                 Iniciar cuestionario
               </fc-link-button>
             </footer>

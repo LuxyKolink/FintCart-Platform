@@ -16,8 +16,12 @@ import type { Count } from '../common/counts';
 import { invalidArgument } from '../common/errors';
 import { nextPageToken, resolvePage, type PageRequestLike } from '../common/pagination';
 
+import { extractBodyDocReferences, validateBodyDoc } from '../articles/body-doc.validator';
+import type { BodyDocNode } from '../articles/body-doc';
+import { bodyDocToPlainText, plainTextToBodyDoc } from '../articles/plain-text';
 import { CategoriesService } from '../categories/categories.service';
 import { EventsPublisher } from '../events/publisher';
+import { ImagesService } from '../images/images.service';
 import { PublishingRepository, type VersionFilter, type VersionRow } from './publishing.repository';
 import { VersioningService } from './versioning.service';
 
@@ -43,6 +47,7 @@ export class PublishingService {
     private readonly versioning: VersioningService,
     private readonly events: EventsPublisher,
     private readonly categories: CategoriesService,
+    private readonly images: ImagesService,
   ) {}
 
   /**
@@ -59,32 +64,80 @@ export class PublishingService {
     body: string,
     editorId: string,
     articleId: string,
+    bodyDoc: unknown = null,
   ): Promise<VersionRow> {
     requireUuid('editor_id', editorId);
-    if (body.trim() === '') {
-      throw invalidArgument('body no puede estar vacío');
+    const resuelto = await this.resolveBody(body, bodyDoc);
+    if (resuelto.doc.contenido === undefined || resuelto.doc.contenido.length === 0) {
+      throw invalidArgument(
+        'el cuerpo no puede estar vacío: una versión sin ningún bloque no tiene nada que publicar',
+      );
     }
 
     if (articleId !== '') {
       requireUuid('article_id', articleId);
-      return this.versioning.newVersionOf(articleId, editorId, body);
+      return this.versioning.newVersionOf(articleId, editorId, resuelto.body, resuelto.doc);
     }
 
     if (title.trim() === '') {
       throw invalidArgument('title no puede estar vacío');
     }
     await this.categories.assertActiveCategory(categoryId);
-    return this.repository.createArticle(title, categoryId, body, editorId);
+    return this.repository.createArticle(title, categoryId, resuelto.body, resuelto.doc, editorId);
   }
 
   /** Edita el cuerpo de un borrador propio (FR-007). */
-  public async updateDraft(versionId: string, editorId: string, body: string): Promise<VersionRow> {
+  public async updateDraft(
+    versionId: string,
+    editorId: string,
+    body: string,
+    bodyDoc: unknown = null,
+  ): Promise<VersionRow> {
     requireUuid('version_id', versionId);
     requireUuid('editor_id', editorId);
-    if (body.trim() === '') {
-      throw invalidArgument('body no puede estar vacío');
+    const resuelto = await this.resolveBody(body, bodyDoc);
+    if (resuelto.doc.contenido === undefined || resuelto.doc.contenido.length === 0) {
+      throw invalidArgument(
+        'el cuerpo no puede estar vacío: una versión sin ningún bloque no tiene nada que publicar',
+      );
     }
-    return this.repository.updateDraftBody(versionId, editorId, body);
+    return this.repository.updateDraftBody(versionId, editorId, resuelto.body, resuelto.doc);
+  }
+
+  /**
+   * Resuelve el par (texto, documento) que se persiste cuando llega un cuerpo (T131).
+   *
+   * **El documento es la fuente de verdad cuando llega**: el texto se DERIVA de él con
+   * `bodyDocToPlainText`. Guardar los dos tal como vengan —el texto por un lado, el
+   * documento por otro— dejaría dos versiones del mismo cuerpo que pueden contradecirse,
+   * y a partir de ahí cada lector tendría que decidir cuál gana. El texto sigue
+   * guardándose porque `article_versions.body` es `NOT NULL` y porque el lector de 001
+   * solo entiende texto.
+   *
+   * Cuando NO llega documento, el cuerpo es heredado —un cliente anterior al editor, o
+   * una prueba— y se convierte con la MISMA regla que usó la migración `20260902111500`:
+   * un párrafo por bloque separado por una línea en blanco.
+   *
+   * El orden de las comprobaciones no es casual: primero la forma del documento (no toca
+   * la base), después que no esté vacío, y solo al final las referencias, que sí son una
+   * consulta. Un documento malformado no debe costar una ida a la base.
+   */
+  private async resolveBody(body: string, bodyDoc: unknown): Promise<{ body: string; doc: BodyDocNode }> {
+    if (bodyDoc === null || bodyDoc === undefined) {
+      return { body, doc: plainTextToBodyDoc(body) };
+    }
+
+    const doc = validateBodyDoc(bodyDoc);
+    const faltantes = await this.images.findMissing(extractBodyDocReferences(doc).imageIds);
+    if (faltantes.length > 0) {
+      throw invalidArgument(
+        `el documento referencia ${faltantes.length === 1 ? 'una imagen que no existe' : 'imágenes que no existen'}: ` +
+          `${faltantes.join(', ')}. Una referencia rota se guardaría sin error y el lector mostraría un hueco roto; ` +
+          'vuelve a insertar la imagen desde el editor',
+      );
+    }
+
+    return { body: bodyDocToPlainText(doc), doc };
   }
 
   /** `borrador → en_revision` (FR-008). */

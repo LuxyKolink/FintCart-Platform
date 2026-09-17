@@ -15,18 +15,44 @@ export interface ArticleVersion {
   approved_by?: string;
   created_at: string;
   published_at?: string;
+  /** Texto plano de la versión; el lector lo usa solo si no hay documento. */
   body?: string;
+  /** Documento de bloques de la versión (FR-063): objeto, o una cadena con el JSON. */
+  body_doc?: unknown;
 }
 
 export interface CreateDraftRequest {
   title: string;
   /** Referencia al catálogo (FR-034) — se escoge del desplegable, no a mano. */
   category_id: string;
-  body: string;
+  /** Cuerpo en TEXTO PLANO. Heredado de 001 y usado solo cuando no hay documento. */
+  body?: string;
+  /**
+   * Documento de bloques (FR-063). Es lo que manda el editor, y **manda sobre `body`**:
+   * Aprendizaje deriva de él el texto, porque el texto no puede representar encabezados,
+   * listas ni imágenes y por tanto no puede ser la fuente de verdad.
+   */
+  body_doc?: unknown;
 }
 
 export interface UpdateDraftRequest {
-  body: string;
+  /** Texto plano, solo para el camino heredado (sin documento). */
+  body?: string;
+  /** Documento de bloques de la versión (FR-063, T131). */
+  body_doc?: unknown;
+}
+
+/**
+ * Una imagen ya guardada (T129). El `image_id` es el SHA-256 de su contenido: dos subidas
+ * del mismo archivo dan el mismo identificador, y por eso la URL es inmutable.
+ */
+export interface ArticleImage {
+  image_id: string;
+  article_id: string;
+  mime_type: string;
+  byte_size: number;
+  width: number;
+  height: number;
 }
 
 export interface QuestionInput {

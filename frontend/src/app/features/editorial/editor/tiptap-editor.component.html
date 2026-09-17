@@ -1,0 +1,170 @@
+<!--
+  Editor de texto enriquecido (T131, T132).
+
+  La barra de herramientas es `role="toolbar"` y cada botón declara su estado con
+  `aria-pressed`, no solo con color: un botón que solo cambia de color no dice si está
+  activo a quien no ve el color, y el estado de un formato es justo lo que hay que saber.
+
+  Los botones llevan `aria-label` y no solo el icono: los símbolos de la barra (B, I, H2)
+  son texto, y el nombre accesible tiene que decir qué hacen.
+-->
+<div class="fc-rte" [class.fc-rte--invalid]="invalid()">
+  <div class="fc-rte__toolbar" role="toolbar" aria-label="Formato del texto">
+    <button
+      type="button"
+      class="fc-rte__btn"
+      [class.fc-rte__btn--on]="estaActivo('negrita')"
+      [attr.aria-pressed]="estaActivo('negrita')"
+      aria-label="Negrita"
+      (click)="alternarNegrita()"
+    >
+      <strong aria-hidden="true">B</strong>
+    </button>
+    <button
+      type="button"
+      class="fc-rte__btn"
+      [class.fc-rte__btn--on]="estaActivo('cursiva')"
+      [attr.aria-pressed]="estaActivo('cursiva')"
+      aria-label="Cursiva"
+      (click)="alternarCursiva()"
+    >
+      <em aria-hidden="true">I</em>
+    </button>
+
+    @for (nivel of niveles; track nivel) {
+      <button
+        type="button"
+        class="fc-rte__btn"
+        [class.fc-rte__btn--on]="estaActivo('h' + nivel)"
+        [attr.aria-pressed]="estaActivo('h' + nivel)"
+        [attr.aria-label]="'Encabezado de nivel ' + nivel"
+        (click)="alternarEncabezado(nivel)"
+      >
+        <span aria-hidden="true">H{{ nivel }}</span>
+      </button>
+    }
+
+    <button
+      type="button"
+      class="fc-rte__btn"
+      [class.fc-rte__btn--on]="estaActivo('vinietas')"
+      [attr.aria-pressed]="estaActivo('vinietas')"
+      aria-label="Lista con viñetas"
+      (click)="alternarVinietas()"
+    >
+      <span aria-hidden="true">•</span>
+    </button>
+    <button
+      type="button"
+      class="fc-rte__btn"
+      [class.fc-rte__btn--on]="estaActivo('numerada')"
+      [attr.aria-pressed]="estaActivo('numerada')"
+      aria-label="Lista numerada"
+      (click)="alternarNumerada()"
+    >
+      <span aria-hidden="true">1.</span>
+    </button>
+
+    <button
+      type="button"
+      class="fc-rte__btn"
+      [class.fc-rte__btn--on]="estaActivo('enlace')"
+      [attr.aria-pressed]="estaActivo('enlace')"
+      aria-label="Insertar un enlace"
+      (click)="abrirPanelEnlace()"
+    >
+      <span aria-hidden="true">🔗</span>
+    </button>
+
+    <!--
+      El archivo se elige en un campo de archivo DE VERDAD: un `<input type="file">` es el
+      diálogo del sistema, y sustituirlo por un botón que lo imite quitaría lo que el
+      navegador ya aporta (arrastrar el archivo, la cámara en el móvil, los formatos que el
+      sistema conoce).
+
+      Va oculto a la VISTA pero no a la accesibilidad, y la etiqueta que lo activa ES su
+      nombre accesible. Antes había un botón con `aria-label` que pulsaba este campo por
+      detrás, y el campo quedaba sin nombre: la barrera de accesibilidad lo detectó —«controles
+      de formulario sin nombre accesible»— y tenía razón, porque un control que se puede
+      alcanzar con el teclado tiene que poder anunciarse. Con la etiqueta hay UN solo control
+      con nombre, y el foco del teclado ilumina la etiqueta (ver la hoja de estilos).
+    -->
+    <input
+      #archivo
+      class="fc-rte__archivo"
+      id="fc-rte-archivo"
+      type="file"
+      accept="image/png,image/jpeg,image/webp"
+      [disabled]="!puedeInsertarImagen"
+      [attr.aria-describedby]="puedeInsertarImagen ? null : 'fc-rte-imagen-aviso'"
+      (change)="onArchivoElegido($event)"
+    />
+    <label class="fc-rte__btn" for="fc-rte-archivo">Insertar una imagen</label>
+
+    @if (subiendo()) {
+      <span class="fc-rte__estado" role="status">Subiendo la imagen…</span>
+    } @else if (articleId() === null) {
+      <span class="fc-rte__estado" id="fc-rte-imagen-aviso">
+        Guarda el borrador para poder insertar imágenes.
+      </span>
+    }
+  </div>
+
+  @if (errorImagen(); as error) {
+    <fc-banner tone="error">{{ error }}</fc-banner>
+  }
+  @if (errorEnlace(); as error) {
+    <fc-banner tone="error">{{ error }}</fc-banner>
+  }
+
+  <!-- El panel del enlace. Un enlace son dos datos —texto y dirección— y el texto ya está
+       en el documento: aquí solo se pide la dirección. -->
+  @if (panelEnlaceAbierto()) {
+    <div class="fc-rte__panel" role="group" aria-label="Enlace">
+      <fc-input
+        label="Dirección del enlace"
+        type="url"
+        inputMode="url"
+        [formControl]="hrefControl"
+        [hint]="'Se admiten ' + esquemasDeEnlace + '. Vacío quita el enlace.'"
+      ></fc-input>
+      <div class="fc-rte__acciones">
+        <fc-button variant="primary" (pressed)="aplicarEnlace()">Aplicar enlace</fc-button>
+        <fc-button variant="secondary" (pressed)="quitarEnlace()">Quitar enlace</fc-button>
+        <fc-button variant="ghost" (pressed)="cerrarPanelEnlace()">Cancelar</fc-button>
+      </div>
+    </div>
+  }
+
+  <!--
+    El panel de la imagen. Aparece DESPUÉS de subirla, así que lo que se ve es la imagen
+    que servirá el servidor y no una vista previa del archivo del disco: lo que hay que
+    comprobar es lo que se guardó, no lo que se eligió.
+  -->
+  @if (imagenPendiente(); as pendiente) {
+    <div class="fc-rte__panel" role="group" aria-label="Describir la imagen">
+      <!-- La imagen que servirá el servidor, no una vista previa del archivo del disco. -->
+      <img class="fc-rte__vista" [src]="pendiente.url" alt="" />
+      <fc-input
+        label="Descripción de la imagen"
+        [formControl]="altControl"
+        [error]="
+          altControl.touched && altControl.hasError('required')
+            ? 'Escribe una descripción: sin ella, quien no ve la imagen no sabe qué hay.'
+            : ''
+        "
+        hint="Obligatoria: es lo que se lee en voz alta cuando la imagen no se ve. Describe lo que muestra, como se lo contarías a alguien por teléfono."
+      ></fc-input>
+      <fc-input label="Pie de foto (opcional)" [formControl]="pieControl"></fc-input>
+      <div class="fc-rte__acciones">
+        <fc-button variant="primary" [disabled]="altControl.invalid" (pressed)="insertarImagen()">
+          Insertar imagen
+        </fc-button>
+        <fc-button variant="secondary" (pressed)="cancelarImagen()">Cancelar</fc-button>
+      </div>
+    </div>
+  }
+
+  <!-- Aquí monta ProseMirror su superficie. El `div` lo llena TipTap, no Angular. -->
+  <div #host class="fc-rte__superficie"></div>
+</div>

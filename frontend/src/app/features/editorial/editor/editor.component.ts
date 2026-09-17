@@ -2,7 +2,17 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { SelectComponent } from '../../../shared/ui';
+import { EMPTY_BODY_DOC, parseBodyDoc, type BodyDocNode } from '../../../shared/body-doc';
+import { bodyDocValidator } from './body-doc-validator';
+import {
+  BannerComponent,
+  ButtonComponent,
+  InputComponent,
+  LinkButtonComponent,
+  ModuleBoxComponent,
+  SelectComponent,
+} from '../../../shared/ui';
+import { TiptapEditorComponent } from './tiptap-editor.component';
 import { LearningApiService } from '../../learning/learning-api.service';
 import { Category } from '../../learning/learning.types';
 import { scoreValidator } from '../decimal-validators';
@@ -53,8 +63,19 @@ function newQuestionGroup(fb: FormBuilder): QuestionGroup {
 @Component({
   selector: 'fc-editor',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, SelectComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    InputComponent,
+    SelectComponent,
+    BannerComponent,
+    ButtonComponent,
+    LinkButtonComponent,
+    ModuleBoxComponent,
+    TiptapEditorComponent,
+  ],
   templateUrl: './editor.component.html',
+  styleUrl: './editor.component.css',
 })
 export class EditorComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
@@ -81,14 +102,24 @@ export class EditorComponent implements OnInit {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly quizErrorMessage = signal<string | null>(null);
 
+  /**
+   * El cuerpo es un DOCUMENTO, no texto (T131).
+   *
+   * La validación mira si el documento tiene algún bloque, que es la regla del servidor: un
+   * documento sin bloques no es un artículo, y comprobarlo aquí evita un viaje para recibir
+   * un error previsible. Antes de T131 el control era un `string` con `minLength(10)`; ahora
+   * el editor entrega un objeto y el mínimo de caracteres ya no significa nada —diez
+   * caracteres caben en cualquier parte, y un documento con una imagen y ni una letra es
+   * válido—.
+   */
   protected readonly articleForm = this.fb.nonNullable.group({
     title: ['', [Validators.required, Validators.minLength(3)]],
     category_id: ['', [Validators.required]],
-    body: ['', [Validators.required, Validators.minLength(10)]],
+    body_doc: [EMPTY_BODY_DOC as BodyDocNode, [bodyDocValidator]],
   });
 
   protected readonly bodyForm = this.fb.nonNullable.group({
-    body: ['', [Validators.required, Validators.minLength(10)]],
+    body_doc: [EMPTY_BODY_DOC as BodyDocNode, [bodyDocValidator]],
   });
 
   protected readonly quizForm = this.fb.nonNullable.group({
@@ -134,7 +165,12 @@ export class EditorComponent implements OnInit {
         }
         this.version.set(found);
         this.articleId.set(found.article_id);
-        this.bodyForm.patchValue({ body: found.body ?? '' });
+        // El documento es lo que se edita. `parseBodyDoc` acepta el objeto y la cadena con
+        // JSON, y devuelve el documento o `null` si no lo es; `null` deja el editor con un
+        // párrafo en blanco, que es lo correcto para una versión sin documento (las
+        // anteriores a D-14 y las que se crearon durante la transición, todas de solo
+        // lectura porque no están en `borrador`).
+        this.bodyForm.patchValue({ body_doc: parseBodyDoc(found.body_doc) ?? EMPTY_BODY_DOC });
         this.loadState.set('ready');
       },
       error: () => this.loadState.set('not-found'),
@@ -168,8 +204,10 @@ export class EditorComponent implements OnInit {
       next: (version) => {
         this.articleSaveState.set('saved');
         this.version.set(version);
+        // El artículo ya existe: desde aquí el editor puede subir imágenes, porque ya hay
+        // un artículo al que pertenecen (`article_images.article_id`).
         this.articleId.set(version.article_id);
-        this.bodyForm.patchValue({ body: version.body ?? this.articleForm.getRawValue().body });
+        this.bodyForm.patchValue({ body_doc: this.articleForm.getRawValue().body_doc });
       },
       error: (err: unknown) => {
         this.articleSaveState.set('idle');
@@ -188,7 +226,9 @@ export class EditorComponent implements OnInit {
     this.articleSaveState.set('saving');
     this.errorMessage.set(null);
 
-    this.api.updateDraft(v.version_id, this.bodyForm.getRawValue()).subscribe({
+    // Se envía SOLO el documento: el servidor deriva de él el texto plano de `body`, y
+    // mandar los dos dejaría dos versiones del mismo cuerpo que podrían contradecirse.
+    this.api.updateDraft(v.version_id, { body_doc: this.bodyForm.getRawValue().body_doc }).subscribe({
       next: (version) => {
         this.articleSaveState.set('saved');
         this.version.set(version);

@@ -64,11 +64,20 @@ test('un editor publica un artículo tras la aprobación de un coordinador disti
 
     await page.getByLabel('Título del cuestionario').fill('Cuestionario de prueba');
     await page.getByLabel('Umbral de aprobación (0–100)').fill('50');
-    await page.locator('input[formcontrolname="prompt"]').first().fill('¿Cuánto es 2 + 2?');
-    await page.getByPlaceholder('Opción A').first().fill('3');
-    await page.getByPlaceholder('Opción B').first().fill('4');
+    // Por ETIQUETA y no por `input[formcontrolname="prompt"]`: el editor de 002 sustituyó los
+    // campos sueltos por el componente de campo del sistema de diseño, y ahí el
+    // `formControlName` vive en el componente y no en el `<input>` que hay dentro. Atarse al
+    // elemento interno era atarse a una forma que la migración de 003 iba a cambiar; el
+    // nombre accesible, en cambio, es lo que ve quien usa la pantalla — y esta prueba sigue
+    // seleccionando como seleccionaba el 98 % de las demás.
+    await page.getByLabel('Enunciado').first().fill('¿Cuánto es 2 + 2?');
+    // Por etiqueta: el campo de opción pasó de un `placeholder` a una etiqueta de verdad
+    // —un texto de ejemplo desaparece al escribir y no dice qué campo es cuál—, así que la
+    // prueba sigue seleccionando por el nombre visible.
+    await page.getByLabel('Opción A', { exact: true }).first().fill('3');
+    await page.getByLabel('Opción B', { exact: true }).first().fill('4');
     await page.getByLabel('Opción B correcta').first().check();
-    await page.locator('input[formcontrolname="weight"]').first().fill('1');
+    await page.getByLabel('Peso').first().fill('1');
     await page.getByRole('button', { name: 'Crear cuestionario' }).click();
     await expect(page.getByText('Cuestionario guardado.')).toBeVisible();
 

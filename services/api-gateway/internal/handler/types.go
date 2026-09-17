@@ -225,6 +225,9 @@ type CreateDraftRequest struct {
 	Category   string `json:"category"`
 	CategoryID string `json:"category_id,omitempty"`
 	Body       string `json:"body"`
+	// BodyDoc: documento de bloques de la versión nueva (FR-063). Se acepta como objeto
+	// JSON y viaja al proto como la cadena que este declara; ver `bodyDocJSON`.
+	BodyDoc json.RawMessage `json:"body_doc,omitempty"`
 }
 
 // ArticleVersion ≡ la respuesta de creación de borrador y cada fila del historial
@@ -249,6 +252,10 @@ type ArticleVersion struct {
 // No lleva `editor_id` por el mismo motivo que `CreateDraftRequest`: sale del token.
 type UpdateDraftRequest struct {
 	Body string `json:"body"`
+	// BodyDoc: documento de bloques del borrador (FR-063, T131). Cuando llega, manda
+	// sobre `body`: Aprendizaje deriva el texto de él (el texto no puede representar
+	// encabezados, listas ni imágenes, así que no puede ser la fuente de verdad).
+	BodyDoc json.RawMessage `json:"body_doc,omitempty"`
 }
 
 // UpsertQuizRequest ≡ `POST /editorial/quizzes` y `PUT /editorial/quizzes/{quizId}`

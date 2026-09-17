@@ -17,6 +17,7 @@
 import type { Pool } from 'pg';
 import type { IMemoryDb } from 'pg-mem';
 
+import { plainTextToBodyDoc } from '../src/articles/plain-text';
 import { PublishingRepository } from '../src/publishing/publishing.repository';
 
 import { IDS, newMemoryFixture } from './support/memdb';
@@ -40,7 +41,7 @@ describe('PublishingRepository.createArticle', () => {
   it('crea el artículo y su versión 1 en borrador', async () => {
     const { repo } = newFixture();
 
-    const version = await repo.createArticle('Nuevo artículo', IDS.categoryCredito, 'Cuerpo inicial', IDS.editor);
+    const version = await repo.createArticle('Nuevo artículo', IDS.categoryCredito, 'Cuerpo inicial', plainTextToBodyDoc('Cuerpo inicial'), IDS.editor);
 
     expect(version.versionNo).toBe(1);
     expect(version.state).toBe('borrador');
@@ -54,7 +55,7 @@ describe('PublishingRepository.createNewVersion', () => {
     const { repo } = newFixture();
 
     // El fixture ya tiene version_no 3 (publicada) y 4 (en revisión) para IDS.article.
-    const version = await repo.createNewVersion(IDS.article, IDS.editor, 'Cuerpo nuevo');
+    const version = await repo.createNewVersion(IDS.article, IDS.editor, 'Cuerpo nuevo', plainTextToBodyDoc('Cuerpo nuevo'));
 
     expect(version.versionNo).toBe(5);
     expect(version.state).toBe('borrador');
@@ -63,7 +64,7 @@ describe('PublishingRepository.createNewVersion', () => {
   it('rechaza un artículo inexistente', async () => {
     const { repo } = newFixture();
 
-    await expect(repo.createNewVersion(IDS.questionA, IDS.editor, 'x')).rejects.toMatchObject({
+    await expect(repo.createNewVersion(IDS.questionA, IDS.editor, 'x', plainTextToBodyDoc('x'))).rejects.toMatchObject({
       code: 'not_found',
     });
   });
@@ -73,7 +74,7 @@ describe('PublishingRepository.updateDraftBody', () => {
   it('edita el cuerpo de un borrador propio', async () => {
     const { repo } = newFixture();
 
-    const updated = await repo.updateDraftBody(IDS.draftVersion, IDS.editor, 'Cuerpo editado');
+    const updated = await repo.updateDraftBody(IDS.draftVersion, IDS.editor, 'Cuerpo editado', plainTextToBodyDoc('Cuerpo editado'));
 
     expect(updated.body).toBe('Cuerpo editado');
   });
@@ -81,7 +82,7 @@ describe('PublishingRepository.updateDraftBody', () => {
   it('rechaza a un editor distinto del autor (FR-008: visible únicamente a su editor)', async () => {
     const { repo } = newFixture();
 
-    await expect(repo.updateDraftBody(IDS.draftVersion, COORDINATOR, 'x')).rejects.toMatchObject({
+    await expect(repo.updateDraftBody(IDS.draftVersion, COORDINATOR, 'x', plainTextToBodyDoc('x'))).rejects.toMatchObject({
       code: 'not_found',
     });
   });
@@ -89,7 +90,7 @@ describe('PublishingRepository.updateDraftBody', () => {
   it('rechaza una versión que ya no está en borrador', async () => {
     const { repo } = newFixture();
 
-    await expect(repo.updateDraftBody(IDS.publishedVersion, IDS.editor, 'x')).rejects.toMatchObject({
+    await expect(repo.updateDraftBody(IDS.publishedVersion, IDS.editor, 'x', plainTextToBodyDoc('x'))).rejects.toMatchObject({
       code: 'not_found',
     });
   });
