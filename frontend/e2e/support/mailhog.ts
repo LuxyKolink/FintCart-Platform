@@ -65,8 +65,21 @@ function decodeQuotedPrintable(body: string): string {
  * Sondea MailHog hasta encontrar el correo de verificación dirigido a `email`
  * y devuelve la URL completa del enlace (`.../auth/verify-email?user_id=...&token=...`,
  * ver `services/notification/src/email/templates.ts::verificationLink`).
+ *
+ * ## Por qué el plazo es de UN MINUTO y no de veinte segundos
+ *
+ * Entre el registro y el correo hay una cadena asíncrona entera: la saga del Orquestador,
+ * su outbox, RabbitMQ, el consumidor de Notificación y el despachador por SMTP. En una
+ * máquina descargada son dos o tres segundos, y con los quince contenedores, el servidor
+ * de desarrollo del SPA y cuatro navegadores a la vez se ha medido **165 segundos**
+ * (`specs/002-.../findings.md`, hallazgo 7). Con veinte segundos, la prueba fallaba por la
+ * carga del anfitrión y no por lo que comprueba.
+ *
+ * El plazo no debilita la comprobación: si la cadena está rota —el evento sin binding, la
+ * cola atascada, la plantilla que falla— el correo no llega nunca y la prueba falla igual,
+ * un minuto después. Lo que se ajusta es la paciencia, no la aserción.
  */
-export async function waitForVerificationLink(email: string, timeoutMs = 20_000): Promise<string> {
+export async function waitForVerificationLink(email: string, timeoutMs = 60_000): Promise<string> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {

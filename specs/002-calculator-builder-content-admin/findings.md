@@ -185,3 +185,15 @@ Simulador, ni ninguno de los dos servicios. Las mismas llamadas por `curl` con l
 completa **puede pasar sola**, y así se verificó (`us1-aprendizaje` falló en la batería y pasó en 10,5 s
 ejecutada aparte). Antes de una demostración: `dev/down && dev/up`, esperar a que el SPA termine de componerse
 y correr la batería **una vez**.
+
+**Medición del 17 de septiembre, con la batería de 49 pruebas y cuatro procesos de navegador**: tres pruebas
+fallaron esperando el correo de verificación y **el correo llegó 165 segundos después del registro** (el
+registro devolvió 202 y la interfaz mostró «te enviamos un correo»; lo que tardó fue la cadena
+saga → outbox → RabbitMQ → Notificación → SMTP). Con el plazo de veinte segundos que traía el ayudante, esas
+tres pruebas fallaban por el anfitrión y no por lo que comprueban, así que el plazo subió a **un minuto**
+(`e2e/support/mailhog.ts`). No se debilita la aserción: si la cadena está rota, el correo no llega nunca y la
+prueba falla igual, un minuto más tarde.
+
+**Lo que NO se ha tocado**: los plazos de las aserciones de `us1`–`us4`. Son la garantía dura (N-13) y
+ajustarlos para que pasen en una máquina cargada convertiría el fallo del anfitrión en un fallo del producto
+que nadie vería. Si la batería completa no pasa, se documenta; no se afloja.
