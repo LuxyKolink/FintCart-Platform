@@ -237,7 +237,13 @@ estructura activa, no la palabra.
 > siguientes…; (SC-024) tras una anonimización, el registro de auditoría conserva el 100 % de las
 > operaciones históricas bajo identificador opaco…
 
-El bloque de depuración (T136–T148) **no se implementó** y este documento no lo reclama. Lo que sí
+El bloque de depuración (T136–T148) **no se implementó** y este documento no lo reclama.
+**La decisión es explícita y está tomada**: tras T165 se descartó la Fase 9 entera —sus trece tareas
+más T021 y T025, que migraban y probaban `pending_deletion`—, y las quince quedan marcadas `[~]` en
+`tasks.md` con el por qué. Razón: la anonimización de 001 (FR-030) ya cubre el requisito de
+privacidad; lo que la fase añadía encima era un plazo de gracia de 30 días, la reserva del correo en
+el índice único, un barrido y una pantalla de administración, es decir un subsistema entero para
+algo que no está en el alcance. Lo que sí
 existe —y conviene decir dónde está el límite— es la **anonimización** que ya traía 001 (FR-030:
 `AnonymizeHistory` en el Simulador, con `audit_log` conservando el identificador opaco) y el
 `pending_deletion` no existe en ninguna parte del código. **No cumplen** en el alcance de esta
@@ -295,8 +301,8 @@ corrigió el coral-400 a coral-500 cuando el contraste se quedaba en 4,04:1.
 | SC-020 | Cumple | 1 correo de aviso (barrido), `missing_names` antes de calcular |
 | SC-021 | Cumple | e2e del editor con imagen |
 | SC-022 | Cumple | 4 familias de ataque rechazadas + barrera de seguridad |
-| SC-023 | **No reclamado** | bloque de depuración no implementado |
-| SC-024 | **No reclamado** | ídem (la anonimización de 001 sí existe) |
+| SC-023 | **No reclamado** | Fase 9 descartada explícitamente (T136–T148, T021, T025) |
+| SC-024 | **No reclamado** | ídem (la anonimización de 001 sí existe y se conserva) |
 | SC-025 | Cumple | 5 de 5 artículos con categoría; 0 columnas de texto libre |
 | SC-026 | Cumple | 0 estilos propios, teclado en 19 pantallas, sin red externa |
 

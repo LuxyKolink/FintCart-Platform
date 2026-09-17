@@ -124,14 +124,14 @@ artículos de prueba E2E que ya estaban en la base.
 
 ### Migraciones de `users_db`
 
-- [ ] T021 [P] Migración emparejada que amplía `profiles_account_status_valid` con `pending_deletion`, añade `purge_due_at` y `purge_requested_by`, y **sustituye `profiles_email_active_uniq` por `profiles_email_reserved_uniq` sobre `('active','pending_deletion')`** — es el cambio del que depende FR-074, en `services/users/migrations/`
+- [~] T021 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] Migración emparejada que amplía `profiles_account_status_valid` con `pending_deletion`, añade `purge_due_at` y `purge_requested_by`, y **sustituye `profiles_email_active_uniq` por `profiles_email_reserved_uniq` sobre `('active','pending_deletion')`** — es el cambio del que depende FR-074, en `services/users/migrations/`
 - [X] T022 [P] Migración emparejada que amplía `roles_assignment_role_valid` con `administrador` en `services/users/migrations/`
 
 ### Pruebas de migración
 
 - [ ] T023 [P] Prueba de la reescala de calificaciones sobre un cuestionario cuyo banco cambió tras el primer intento, verificando que la conversión se aplica y que el aviso de aproximación se emite, en `services/learning/test/migrations/rescale.spec.ts`
 - [ ] T024 [P] Prueba de la migración de categorías: ningún artículo queda con `category_id` nulo y los duplicados por tildes o mayúsculas colapsan en una sola categoría, en `services/learning/test/migrations/categories.spec.ts`
-- [ ] T025 [P] Prueba de que la reserva de correo rechaza un registro con el correo de una cuenta en `pending_deletion` y lo acepta tras la anonimización, en `services/users/internal/storer/storer_postgres_test.go`
+- [~] T025 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] Prueba de que la reserva de correo rechaza un registro con el correo de una cuenta en `pending_deletion` y lo acepta tras la anonimización, en `services/users/internal/storer/storer_postgres_test.go`
 
 ### Rol `administrador` y autorización
 
@@ -414,24 +414,54 @@ romper la auditoría ni los agregados.
 **Independent Test**: marcar una cuenta, verificar que queda inaccesible pero reversible, y
 comprobar el resultado al vencer el plazo.
 
+> ### ⛔ Fase 9 DESCARTADA — decidido con el usuario tras T165
+>
+> **Qué se decidió**: implementar esta fase **no se hace**. Ni sus trece tareas (T136–T148) ni
+> las dos del bloque de datos que dependían de ella (**T021** y **T025**, que migran y prueban
+> `pending_deletion`). Las quince quedan marcadas `[~]` —**no** `[X]`— porque no están hechas:
+> marcarlas en verde sería exactamente el falso verde que este proyecto se prohíbe.
+>
+> **Por qué**: es el peor valor por hora que queda. La anonimización de 001 (FR-030) ya existe y
+> ya cubre el requisito de privacidad —una cuenta se puede anonimizar sin dejar rastro del correo
+> original—; lo que la fase añadía era **una segunda capa** encima: un plazo de gracia de 30 días,
+> una reserva del correo en el índice único durante la gracia, un barrido periódico y una pantalla
+> de administración. Es un subsistema entero para una función que nadie pidió en el alcance del
+> proyecto.
+>
+> **Qué cuesta decirlo**: **SC-023 y SC-024 NO se reclaman**. Están escritos así en
+> `success-criteria.md`, con la tabla de los catorce criterios donde doce cumplen y dos aparecen
+> como no cumplidos. Un criterio que no se cumple se declara; no se maquilla bajando el listón.
+>
+> **Qué NO queda roto por descartarla**: nada de lo implementado la llama. No hay
+> `pending_deletion` en el esquema, ni en los cuatro roles, ni en los contratos, ni en el borde,
+> ni en la SPA —se comprobó con `grep` en el código y en las migraciones antes de decidirlo—, así
+> que la fase se cae entera sin dejar huérfanos. La única promesa que sí queda desmentida es la de
+> la **tabla de diseño** de `plan.md`, que la nombra en cinco de sus doce filas; por eso la
+> re-evaluación de T165 se escribió **al lado** de esa tabla en vez de reescribirla, y la desviación
+> aparece allí como la primera de las tres declaradas.
+>
+> **Los dos documentos de contrato que la mencionaban se quedaron como estaban** (T003, T004), con
+> una nota: un contrato que describe una operación que el servicio no tiene no es un contrato, es un
+> deseo, y el borde no la expone.
+
 ### Pruebas
 
-- [ ] T136 [P] [US7] Prueba de saga de la purga vencida con compensación en cada paso, en `services/orchestrator/internal/server/saga_purge_test.go`
-- [ ] T137 [P] [US7] Prueba de que la reactivación dentro del plazo devuelve perfil, progreso e historial intactos, y que fuera del plazo falla, en `services/users/internal/server/purge_test.go`
-- [ ] T138 [P] [US7] Prueba de que tras la anonimización los agregados de `article_stats` no varían (FR-079, SC-024), en `services/learning/test/`
-- [ ] T139 [P] [US7] Prueba de que **ninguna columna conserva el correo original** tras anonimizar (FR-077), en `services/users/internal/server/anonymize_test.go`
+- [~] T136 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] [US7] Prueba de saga de la purga vencida con compensación en cada paso, en `services/orchestrator/internal/server/saga_purge_test.go`
+- [~] T137 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] [US7] Prueba de que la reactivación dentro del plazo devuelve perfil, progreso e historial intactos, y que fuera del plazo falla, en `services/users/internal/server/purge_test.go`
+- [~] T138 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] [US7] Prueba de que tras la anonimización los agregados de `article_stats` no varían (FR-079, SC-024), en `services/learning/test/`
+- [~] T139 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] [US7] Prueba de que **ninguna columna conserva el correo original** tras anonimizar (FR-077), en `services/users/internal/server/anonymize_test.go`
 
 ### Implementación
 
-- [ ] T140 [US7] `MarkForPurge` (fija `purge_due_at = now() + 30 días`, **no anonimiza**) y `ReactivateAccount` en `services/users/internal/server/purge.go`
-- [ ] T141 [US7] `ListAccountsDueForPurge` y `SearchAccounts` en `services/users/internal/server/purge.go` y su persistencia en `services/users/internal/storer/storer_postgres.go`
-- [ ] T142 [US7] Bloquear el acceso pleno en estado `pending_deletion` y exponer `account_status` en `AuthContext` y `Profile`, en `services/users/internal/server/`
-- [ ] T143 [US7] Publicar `account.purge_scheduled` con **dos routing keys** —`.notify` con correo hacia Notificación y `.audit` sin correo hacia Auditoría— y `account.purge_cancelled`, en `services/users/internal/server/` (nota N-10)
-- [ ] T144 [US7] Barrido de purgas vencidas que invoca `Users.ListAccountsDueForPurge` por gRPC y lanza la saga de anonimización existente, en `services/orchestrator/internal/server/sweeper.go` y `saga_purge.go` (research D-20)
-- [ ] T145 [US7] Anonimización de la autoría en el Simulador: `owner_id` a NULL en las calculadoras **publicadas** del titular y borrado de las privadas, en `services/simulator/src/grpc/service.rs` (Edge Cases)
-- [ ] T146 [P] [US7] Plantilla de correo `account_purge_scheduled` en `services/notification/src/email/templates/`
-- [ ] T147 [US7] Rutas `/admin/accounts`, `/admin/accounts/{userId}/purge` y `/me/account/reactivate` en `services/api-gateway/internal/handler/routes.go`, con 410 si el plazo venció
-- [ ] T148 [P] [US7] Pantalla de administración de cuentas y aviso de reactivación para el titular, en `frontend/src/app/features/admin/accounts/` y `frontend/src/app/features/profile/`
+- [~] T140 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [US7] `MarkForPurge` (fija `purge_due_at = now() + 30 días`, **no anonimiza**) y `ReactivateAccount` en `services/users/internal/server/purge.go`
+- [~] T141 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [US7] `ListAccountsDueForPurge` y `SearchAccounts` en `services/users/internal/server/purge.go` y su persistencia en `services/users/internal/storer/storer_postgres.go`
+- [~] T142 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [US7] Bloquear el acceso pleno en estado `pending_deletion` y exponer `account_status` en `AuthContext` y `Profile`, en `services/users/internal/server/`
+- [~] T143 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [US7] Publicar `account.purge_scheduled` con **dos routing keys** —`.notify` con correo hacia Notificación y `.audit` sin correo hacia Auditoría— y `account.purge_cancelled`, en `services/users/internal/server/` (nota N-10)
+- [~] T144 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [US7] Barrido de purgas vencidas que invoca `Users.ListAccountsDueForPurge` por gRPC y lanza la saga de anonimización existente, en `services/orchestrator/internal/server/sweeper.go` y `saga_purge.go` (research D-20)
+- [~] T145 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [US7] Anonimización de la autoría en el Simulador: `owner_id` a NULL en las calculadoras **publicadas** del titular y borrado de las privadas, en `services/simulator/src/grpc/service.rs` (Edge Cases)
+- [~] T146 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] [US7] Plantilla de correo `account_purge_scheduled` en `services/notification/src/email/templates/`
+- [~] T147 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [US7] Rutas `/admin/accounts`, `/admin/accounts/{userId}/purge` y `/me/account/reactivate` en `services/api-gateway/internal/handler/routes.go`, con 410 si el plazo venció
+- [~] T148 **DESCARTADA (Fase 9, ver el recuadro ⛔).** [P] [US7] Pantalla de administración de cuentas y aviso de reactivación para el titular, en `frontend/src/app/features/admin/accounts/` y `frontend/src/app/features/profile/`
 
 **Checkpoint**: US7 entregable (SC-023, SC-024).
 
