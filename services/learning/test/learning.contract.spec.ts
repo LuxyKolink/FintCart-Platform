@@ -113,6 +113,8 @@ describe('LearningService.ListPublished', () => {
       // El listado NO lleva cuerpo: devolverlo multiplicaría por cien el tamaño de una
       // página que solo muestra títulos.
       body: '',
+      // Tampoco el documento de bloques (FR-063), por el mismo motivo.
+      body_doc: '',
       current_version_no: 3,
       quiz_ids: [],
     });

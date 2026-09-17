@@ -116,6 +116,24 @@ message ArticleVersion {
   // vía OpResult no aplica; `ListVersions` sí): reabrir un borrador propio para seguir
   // editándolo exige poder leer su cuerpo actual, y no hay otro RPC que lo devuelva.
   string body = 9;
+  // Documento de bloques (FR-063, research D-14), serializado como JSON. Convive con
+  // `body` mientras `body` siga siendo la fuente de verdad: `body_doc` se rellena en
+  // toda versión nueva y `body` se elimina en una migración aparte ya verificada.
+  //
+  // POR QUÉ TEXTO JSON Y NO UN `message BodyDoc` ANIDADO, aunque lo segundo parezca
+  // más tipado: el vocabulario es CERRADO y se valida en el servidor (FR-068), y un
+  // mensaje estructurado reparte esa validación entre el esquema y el validador. Con
+  // un mensaje, un nodo o un atributo fuera del vocabulario no puede siquiera
+  // expresarse en el contrato —lo cual suena bien hasta que se mira por dónde entra el
+  // dato—: el cliente manda JSON al Gateway, el Gateway lo mapea al mensaje, y ese
+  // mapeo descarta en silencio lo que no conoce. Un cliente con un atributo de más
+  // recibiría «guardado» y perdería el atributo sin que nadie se lo dijera.
+  //
+  // Con el documento como texto, el Gateway transporta sin interpretar —que es su
+  // papel (Principio II: sin dominio en el borde)— y Aprendizaje valida el árbol entero
+  // en un solo sitio, rechazando con la ruta exacta del nodo culpable. Una validación,
+  // un mensaje de error, un lugar donde arreglarlo.
+  string body_doc = 10;
 }
 
 message CreateDraftRequest {
@@ -132,12 +150,20 @@ message CreateDraftRequest {
   string article_id = 5;
   // Obligatorio al crear artículo nuevo (FR-034): referencia al catálogo.
   string category_id = 6;
+  // Documento de bloques serializado como JSON (FR-063). Vacío ⇒ el servidor deriva
+  // el documento del texto de `body`, que es lo que hace un cliente que todavía no
+  // sabe enviar bloques (el editor llega con T131). No vacío ⇒ manda el documento y
+  // `body` pasa a ser la proyección de solo lectura que el lector antiguo espera.
+  string body_doc = 7;
 }
 
 message UpdateDraftRequest {
   string version_id = 1;
   string body = 2;
   string editor_id = 3;
+  // Documento de bloques serializado como JSON (FR-063); misma regla que en
+  // `CreateDraftRequest`: vacío ⇒ se deriva de `body`.
+  string body_doc = 4;
 }
 
 message ApprovePublishRequest {
@@ -167,6 +193,10 @@ message Article {
   int32 current_version_no = 5;
   repeated string quiz_ids = 6;
   string category_id = 7; // referencia al catálogo (FR-034)
+  // Documento de bloques de la versión vigente, serializado como JSON (FR-063). Es lo
+  // que el lector renderiza bloque a bloque, por componente y sin `innerHTML` (FR-068).
+  // Vacío ⇒ la versión es anterior al documento de bloques y el lector cae a `body`.
+  string body_doc = 8;
 }
 
 message Quiz {

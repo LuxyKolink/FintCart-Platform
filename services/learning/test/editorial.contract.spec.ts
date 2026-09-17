@@ -71,7 +71,8 @@ describe('LearningService.CreateDraft', () => {
       title: 'Presupuesto familiar',
       category: '',
       body: 'Cuerpo del borrador',
-      editor_id: IDS.editor,
+      body_doc: '',
+        editor_id: IDS.editor,
       article_id: '',
       category_id: IDS.categoryPresupuesto,
     });
@@ -89,7 +90,8 @@ describe('LearningService.CreateDraft', () => {
       title: '',
       category: '',
       body: 'Cuerpo revisado',
-      editor_id: IDS.editor,
+      body_doc: '',
+        editor_id: IDS.editor,
       article_id: IDS.article,
       // La categoría se IGNORA al crear una nueva versión: vive en `articles` y la
       // comparten todas las versiones (FR-034).
@@ -109,6 +111,7 @@ describe('LearningService.CreateDraft', () => {
         title: 't',
         category: '',
         body: 'b',
+        body_doc: '',
         editor_id: NOT_A_UUID,
         article_id: '',
         category_id: '',
@@ -125,6 +128,7 @@ describe('LearningService.CreateDraft', () => {
         title: 't',
         category: '',
         body: 'b',
+        body_doc: '',
         editor_id: IDS.editor,
         article_id: '',
         category_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -141,6 +145,7 @@ describe('LearningService.CreateDraft', () => {
         title: 't',
         category: '',
         body: 'b',
+        body_doc: '',
         editor_id: IDS.editor,
         article_id: '',
         category_id: IDS.categoryInactive,

@@ -71,6 +71,7 @@ func articleToDTO(a *learningv1.Article) Article {
 		Category:         a.GetCategory(),
 		CategoryID:       a.GetCategoryId(),
 		Body:             a.GetBody(),
+		BodyDoc:          rawJSON(a.GetBodyDoc()),
 		CurrentVersionNo: a.GetCurrentVersionNo(),
 		QuizIDs:          a.GetQuizIds(),
 	}
@@ -151,6 +152,25 @@ func quizToDTO(q *learningv1.Quiz) Quiz {
 	}
 }
 
+// rawJSON convierte el documento de bloques —que viaja como texto JSON en el proto— en
+// un `json.RawMessage` para que el borde lo emita como documento y no como cadena.
+//
+// La cadena vacía (versión anterior al documento de bloques) sale como `nil`, que con
+// `omitempty` desaparece del JSON: el cliente ve que no hay documento, en vez de un
+// documento vacío que diría «esta versión tiene un cuerpo sin bloques». La distinción
+// importa porque las dos cosas no son lo mismo para quien lee.
+//
+// Si el texto no fuera JSON válido se descarta en vez de reventar la respuesta: un
+// documento mal formado en la base es un fallo de la capa de escritura —que lo valida al
+// guardar—, y tumbar la LECTURA por eso convertiría un dato malo en una pantalla en
+// blanco. Se pierde el documento y el cliente cae a `body`, que sigue estando.
+func rawJSON(doc string) json.RawMessage {
+	if doc == "" || !json.Valid([]byte(doc)) {
+		return nil
+	}
+	return json.RawMessage(doc)
+}
+
 func versionToDTO(v *learningv1.ArticleVersion) ArticleVersion {
 	return ArticleVersion{
 		VersionID:   v.GetVersionId(),
@@ -162,6 +182,7 @@ func versionToDTO(v *learningv1.ArticleVersion) ArticleVersion {
 		CreatedAt:   v.GetCreatedAt(),
 		PublishedAt: v.GetPublishedAt(),
 		Body:        v.GetBody(),
+		BodyDoc:     rawJSON(v.GetBodyDoc()),
 	}
 }
 

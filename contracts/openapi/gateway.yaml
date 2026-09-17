@@ -79,6 +79,12 @@ components:
         title: { type: string }
         category: { type: string }
         body: { type: string }
+        # Documento de bloques de la versión publicada (FR-063, research D-14),
+        # serializado como JSON: el vocabulario es CERRADO y se valida en Aprendizaje al
+        # guardar, no en el borde. Va como objeto y no como cadena para que el lector
+        # reciba un árbol en vez de un texto que tenga que volver a analizar.
+        # Ausente en artículos publicados antes de que existiera: el lector cae a `body`.
+        body_doc: { type: object, additionalProperties: true }
         current_version_no: { type: integer }
     QuizGradeResult:
       type: object

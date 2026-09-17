@@ -103,6 +103,26 @@ export interface ArticleVersion {
    * editándolo exige poder leer su cuerpo actual, y no hay otro RPC que lo devuelva.
    */
   body: string;
+  /**
+   * Documento de bloques (FR-063, research D-14), serializado como JSON. Convive con
+   * `body` mientras `body` siga siendo la fuente de verdad: `body_doc` se rellena en
+   * toda versión nueva y `body` se elimina en una migración aparte ya verificada.
+   *
+   * POR QUÉ TEXTO JSON Y NO UN `message BodyDoc` ANIDADO, aunque lo segundo parezca
+   * más tipado: el vocabulario es CERRADO y se valida en el servidor (FR-068), y un
+   * mensaje estructurado reparte esa validación entre el esquema y el validador. Con
+   * un mensaje, un nodo o un atributo fuera del vocabulario no puede siquiera
+   * expresarse en el contrato —lo cual suena bien hasta que se mira por dónde entra el
+   * dato—: el cliente manda JSON al Gateway, el Gateway lo mapea al mensaje, y ese
+   * mapeo descarta en silencio lo que no conoce. Un cliente con un atributo de más
+   * recibiría «guardado» y perdería el atributo sin que nadie se lo dijera.
+   *
+   * Con el documento como texto, el Gateway transporta sin interpretar —que es su
+   * papel (Principio II: sin dominio en el borde)— y Aprendizaje valida el árbol entero
+   * en un solo sitio, rechazando con la ruta exacta del nodo culpable. Una validación,
+   * un mensaje de error, un lugar donde arreglarlo.
+   */
+  body_doc: string;
 }
 
 export interface CreateDraftRequest {
@@ -124,12 +144,24 @@ export interface CreateDraftRequest {
   article_id: string;
   /** Obligatorio al crear artículo nuevo (FR-034): referencia al catálogo. */
   category_id: string;
+  /**
+   * Documento de bloques serializado como JSON (FR-063). Vacío ⇒ el servidor deriva
+   * el documento del texto de `body`, que es lo que hace un cliente que todavía no
+   * sabe enviar bloques (el editor llega con T131). No vacío ⇒ manda el documento y
+   * `body` pasa a ser la proyección de solo lectura que el lector antiguo espera.
+   */
+  body_doc: string;
 }
 
 export interface UpdateDraftRequest {
   version_id: string;
   body: string;
   editor_id: string;
+  /**
+   * Documento de bloques serializado como JSON (FR-063); misma regla que en
+   * `CreateDraftRequest`: vacío ⇒ se deriva de `body`.
+   */
+  body_doc: string;
 }
 
 export interface ApprovePublishRequest {
@@ -166,6 +198,12 @@ export interface Article {
   quiz_ids: string[];
   /** referencia al catálogo (FR-034) */
   category_id: string;
+  /**
+   * Documento de bloques de la versión vigente, serializado como JSON (FR-063). Es lo
+   * que el lector renderiza bloque a bloque, por componente y sin `innerHTML` (FR-068).
+   * Vacío ⇒ la versión es anterior al documento de bloques y el lector cae a `body`.
+   */
+  body_doc: string;
 }
 
 export interface Quiz {
@@ -1170,6 +1208,7 @@ function createBaseArticleVersion(): ArticleVersion {
     created_at: "",
     published_at: "",
     body: "",
+    body_doc: "",
   };
 }
 
@@ -1201,6 +1240,9 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
     }
     if (message.body !== "") {
       writer.uint32(74).string(message.body);
+    }
+    if (message.body_doc !== "") {
+      writer.uint32(82).string(message.body_doc);
     }
     return writer;
   },
@@ -1284,6 +1326,14 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
           message.body = reader.string();
           continue;
         }
+        case 10: {
+          if (tag !== 82) {
+            break;
+          }
+
+          message.body_doc = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1304,6 +1354,7 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
       created_at: isSet(object.created_at) ? globalThis.String(object.created_at) : "",
       published_at: isSet(object.published_at) ? globalThis.String(object.published_at) : "",
       body: isSet(object.body) ? globalThis.String(object.body) : "",
+      body_doc: isSet(object.body_doc) ? globalThis.String(object.body_doc) : "",
     };
   },
 
@@ -1336,6 +1387,9 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
     if (message.body !== "") {
       obj.body = message.body;
     }
+    if (message.body_doc !== "") {
+      obj.body_doc = message.body_doc;
+    }
     return obj;
   },
 
@@ -1353,12 +1407,13 @@ export const ArticleVersion: MessageFns<ArticleVersion> = {
     message.created_at = object.created_at ?? "";
     message.published_at = object.published_at ?? "";
     message.body = object.body ?? "";
+    message.body_doc = object.body_doc ?? "";
     return message;
   },
 };
 
 function createBaseCreateDraftRequest(): CreateDraftRequest {
-  return { title: "", category: "", body: "", editor_id: "", article_id: "", category_id: "" };
+  return { title: "", category: "", body: "", editor_id: "", article_id: "", category_id: "", body_doc: "" };
 }
 
 export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
@@ -1380,6 +1435,9 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     }
     if (message.category_id !== "") {
       writer.uint32(50).string(message.category_id);
+    }
+    if (message.body_doc !== "") {
+      writer.uint32(58).string(message.body_doc);
     }
     return writer;
   },
@@ -1439,6 +1497,14 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
           message.category_id = reader.string();
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.body_doc = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1456,6 +1522,7 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
       editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : "",
       article_id: isSet(object.article_id) ? globalThis.String(object.article_id) : "",
       category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
+      body_doc: isSet(object.body_doc) ? globalThis.String(object.body_doc) : "",
     };
   },
 
@@ -1479,6 +1546,9 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     if (message.category_id !== "") {
       obj.category_id = message.category_id;
     }
+    if (message.body_doc !== "") {
+      obj.body_doc = message.body_doc;
+    }
     return obj;
   },
 
@@ -1493,12 +1563,13 @@ export const CreateDraftRequest: MessageFns<CreateDraftRequest> = {
     message.editor_id = object.editor_id ?? "";
     message.article_id = object.article_id ?? "";
     message.category_id = object.category_id ?? "";
+    message.body_doc = object.body_doc ?? "";
     return message;
   },
 };
 
 function createBaseUpdateDraftRequest(): UpdateDraftRequest {
-  return { version_id: "", body: "", editor_id: "" };
+  return { version_id: "", body: "", editor_id: "", body_doc: "" };
 }
 
 export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
@@ -1511,6 +1582,9 @@ export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
     }
     if (message.editor_id !== "") {
       writer.uint32(26).string(message.editor_id);
+    }
+    if (message.body_doc !== "") {
+      writer.uint32(34).string(message.body_doc);
     }
     return writer;
   },
@@ -1546,6 +1620,14 @@ export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
           message.editor_id = reader.string();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.body_doc = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1560,6 +1642,7 @@ export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
       version_id: isSet(object.version_id) ? globalThis.String(object.version_id) : "",
       body: isSet(object.body) ? globalThis.String(object.body) : "",
       editor_id: isSet(object.editor_id) ? globalThis.String(object.editor_id) : "",
+      body_doc: isSet(object.body_doc) ? globalThis.String(object.body_doc) : "",
     };
   },
 
@@ -1574,6 +1657,9 @@ export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
     if (message.editor_id !== "") {
       obj.editor_id = message.editor_id;
     }
+    if (message.body_doc !== "") {
+      obj.body_doc = message.body_doc;
+    }
     return obj;
   },
 
@@ -1585,6 +1671,7 @@ export const UpdateDraftRequest: MessageFns<UpdateDraftRequest> = {
     message.version_id = object.version_id ?? "";
     message.body = object.body ?? "";
     message.editor_id = object.editor_id ?? "";
+    message.body_doc = object.body_doc ?? "";
     return message;
   },
 };
@@ -1838,7 +1925,16 @@ export const ListPublishedResponse: MessageFns<ListPublishedResponse> = {
 };
 
 function createBaseArticle(): Article {
-  return { article_id: "", title: "", category: "", body: "", current_version_no: 0, quiz_ids: [], category_id: "" };
+  return {
+    article_id: "",
+    title: "",
+    category: "",
+    body: "",
+    current_version_no: 0,
+    quiz_ids: [],
+    category_id: "",
+    body_doc: "",
+  };
 }
 
 export const Article: MessageFns<Article> = {
@@ -1863,6 +1959,9 @@ export const Article: MessageFns<Article> = {
     }
     if (message.category_id !== "") {
       writer.uint32(58).string(message.category_id);
+    }
+    if (message.body_doc !== "") {
+      writer.uint32(66).string(message.body_doc);
     }
     return writer;
   },
@@ -1930,6 +2029,14 @@ export const Article: MessageFns<Article> = {
           message.category_id = reader.string();
           continue;
         }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.body_doc = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1948,6 +2055,7 @@ export const Article: MessageFns<Article> = {
       current_version_no: isSet(object.current_version_no) ? globalThis.Number(object.current_version_no) : 0,
       quiz_ids: globalThis.Array.isArray(object?.quiz_ids) ? object.quiz_ids.map((e: any) => globalThis.String(e)) : [],
       category_id: isSet(object.category_id) ? globalThis.String(object.category_id) : "",
+      body_doc: isSet(object.body_doc) ? globalThis.String(object.body_doc) : "",
     };
   },
 
@@ -1974,6 +2082,9 @@ export const Article: MessageFns<Article> = {
     if (message.category_id !== "") {
       obj.category_id = message.category_id;
     }
+    if (message.body_doc !== "") {
+      obj.body_doc = message.body_doc;
+    }
     return obj;
   },
 
@@ -1989,6 +2100,7 @@ export const Article: MessageFns<Article> = {
     message.current_version_no = object.current_version_no ?? 0;
     message.quiz_ids = object.quiz_ids?.map((e) => e) || [];
     message.category_id = object.category_id ?? "";
+    message.body_doc = object.body_doc ?? "";
     return message;
   },
 };

@@ -19,6 +19,7 @@ import type { CatalogPage } from '../articles/articles.service';
 import type { AttemptsPage, GradeResult } from '../grading/grading.service';
 import type { VersionsPage } from '../publishing/publishing.service';
 import type { VersionRow } from '../publishing/publishing.repository';
+import type { BodyDocNode } from '../articles/body-doc';
 import type { Quiz, QuizQuestion } from '../quizzes/quizzes.repository';
 import type { StartedSession } from '../quizzes/session.service';
 import type {
@@ -61,6 +62,10 @@ function summaryToPb(article: ArticleSummary): ArticlePb {
     current_version_no: article.currentVersionNo,
     quiz_ids: [],
     category_id: article.categoryId,
+    // El listado NO lleva documento, por el mismo motivo por el que no lleva cuerpo:
+    // una página de veinte artículos con sus árboles de bloques multiplicaría el
+    // tamaño de la respuesta para una vista que solo muestra títulos.
+    body_doc: '',
   };
 }
 
@@ -87,6 +92,7 @@ export function articleToPb(article: ArticleDetail): ArticlePb {
   return {
     ...summaryToPb(article),
     body: article.body,
+    body_doc: serializeBodyDoc(article.bodyDoc),
     quiz_ids: [...article.quizIds],
   };
 }
@@ -159,6 +165,24 @@ export function gradeToPb(result: GradeResult): GradeResponsePb {
   };
 }
 
+/**
+ * Documento de bloques → texto del contrato (FR-063).
+ *
+ * El documento viaja como JSON serializado, no como mensaje anidado, para que el
+ * vocabulario cerrado se valide en un solo sitio (ver la cabecera de este campo en
+ * `learning.proto`). Aquí solo se serializa lo que YA está guardado y validado: no se
+ * valida al salir, porque un documento inválido en la base es un fallo de la capa de
+ * escritura, no algo que el lector deba descubrir y arreglar.
+ *
+ * `null` sale como cadena vacía: el contrato no tiene nulos, y un cliente que reciba
+ * `""` sabe que tiene que caer a `body`. Inventar aquí un documento vacío sería peor:
+ * diría «esta versión tiene un cuerpo sin bloques» cuando en realidad es «esta versión
+ * es anterior al documento de bloques».
+ */
+function serializeBodyDoc(doc: BodyDocNode | null): string {
+  return doc === null ? '' : JSON.stringify(doc);
+}
+
 /** Versión → `ArticleVersion`. */
 export function versionToPb(version: VersionRow): ArticleVersionPb {
   return {
@@ -171,6 +195,7 @@ export function versionToPb(version: VersionRow): ArticleVersionPb {
     created_at: version.createdAt,
     published_at: version.publishedAt,
     body: version.body,
+    body_doc: serializeBodyDoc(version.bodyDoc),
   };
 }
 

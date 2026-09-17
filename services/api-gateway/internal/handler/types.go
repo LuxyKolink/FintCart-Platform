@@ -127,13 +127,19 @@ type SagaAccepted struct {
 // categorías. `Category` (el nombre visible) se conserva para no romper a los
 // consumidores actuales.
 type Article struct {
-	ArticleID        string   `json:"article_id"`
-	Title            string   `json:"title"`
-	Category         string   `json:"category"`
-	CategoryID       string   `json:"category_id,omitempty"`
-	Body             string   `json:"body"`
-	CurrentVersionNo int32    `json:"current_version_no"`
-	QuizIDs          []string `json:"quiz_ids"`
+	ArticleID  string `json:"article_id"`
+	Title      string `json:"title"`
+	Category   string `json:"category"`
+	CategoryID string `json:"category_id,omitempty"`
+	Body       string `json:"body"`
+	// BodyDoc es el documento de bloques de la versión publicada (FR-063), serializado
+	// como JSON — la misma forma en que lo transporta el proto. Va como `json.RawMessage`
+	// y no como `string` para que el JSON de salida lleve el documento COMO documento y
+	// no como una cadena escapada: el lector quiere un árbol, no un texto que tenga que
+	// volver a analizar.
+	BodyDoc          json.RawMessage `json:"body_doc,omitempty"`
+	CurrentVersionNo int32           `json:"current_version_no"`
+	QuizIDs          []string        `json:"quiz_ids"`
 }
 
 // Quiz ≡ `GET /quizzes/{quizId}` (FR-009). `PassThreshold` es `string` decimal
@@ -212,6 +218,9 @@ type ArticleVersion struct {
 	CreatedAt   string `json:"created_at"`
 	PublishedAt string `json:"published_at,omitempty"`
 	Body        string `json:"body,omitempty"`
+	// BodyDoc: documento de bloques de esa versión (FR-063), con la misma decisión de
+	// forma que en `Article`.
+	BodyDoc json.RawMessage `json:"body_doc,omitempty"`
 }
 
 // UpdateDraftRequest ≡ `PATCH /editorial/versions/{versionId}` (FR-007).

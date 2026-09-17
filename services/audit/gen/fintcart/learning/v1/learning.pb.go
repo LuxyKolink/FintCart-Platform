@@ -597,7 +597,25 @@ type ArticleVersion struct {
 	// Presente en las cuatro respuestas (`CreateDraft`/`UpdateDraft`/`ApproveAndPublish`
 	// vía OpResult no aplica; `ListVersions` sí): reabrir un borrador propio para seguir
 	// editándolo exige poder leer su cuerpo actual, y no hay otro RPC que lo devuelva.
-	Body          string `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
+	Body string `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
+	// Documento de bloques (FR-063, research D-14), serializado como JSON. Convive con
+	// `body` mientras `body` siga siendo la fuente de verdad: `body_doc` se rellena en
+	// toda versión nueva y `body` se elimina en una migración aparte ya verificada.
+	//
+	// POR QUÉ TEXTO JSON Y NO UN `message BodyDoc` ANIDADO, aunque lo segundo parezca
+	// más tipado: el vocabulario es CERRADO y se valida en el servidor (FR-068), y un
+	// mensaje estructurado reparte esa validación entre el esquema y el validador. Con
+	// un mensaje, un nodo o un atributo fuera del vocabulario no puede siquiera
+	// expresarse en el contrato —lo cual suena bien hasta que se mira por dónde entra el
+	// dato—: el cliente manda JSON al Gateway, el Gateway lo mapea al mensaje, y ese
+	// mapeo descarta en silencio lo que no conoce. Un cliente con un atributo de más
+	// recibiría «guardado» y perdería el atributo sin que nadie se lo dijera.
+	//
+	// Con el documento como texto, el Gateway transporta sin interpretar —que es su
+	// papel (Principio II: sin dominio en el borde)— y Aprendizaje valida el árbol entero
+	// en un solo sitio, rechazando con la ruta exacta del nodo culpable. Una validación,
+	// un mensaje de error, un lugar donde arreglarlo.
+	BodyDoc       string `protobuf:"bytes,10,opt,name=body_doc,json=bodyDoc,proto3" json:"body_doc,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -695,6 +713,13 @@ func (x *ArticleVersion) GetBody() string {
 	return ""
 }
 
+func (x *ArticleVersion) GetBodyDoc() string {
+	if x != nil {
+		return x.BodyDoc
+	}
+	return ""
+}
+
 type CreateDraftRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Title string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
@@ -709,7 +734,12 @@ type CreateDraftRequest struct {
 	// ese caso, porque viven en `articles` y son compartidos por todas sus versiones.
 	ArticleId string `protobuf:"bytes,5,opt,name=article_id,json=articleId,proto3" json:"article_id,omitempty"`
 	// Obligatorio al crear artículo nuevo (FR-034): referencia al catálogo.
-	CategoryId    string `protobuf:"bytes,6,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"`
+	CategoryId string `protobuf:"bytes,6,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"`
+	// Documento de bloques serializado como JSON (FR-063). Vacío ⇒ el servidor deriva
+	// el documento del texto de `body`, que es lo que hace un cliente que todavía no
+	// sabe enviar bloques (el editor llega con T131). No vacío ⇒ manda el documento y
+	// `body` pasa a ser la proyección de solo lectura que el lector antiguo espera.
+	BodyDoc       string `protobuf:"bytes,7,opt,name=body_doc,json=bodyDoc,proto3" json:"body_doc,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -786,11 +816,21 @@ func (x *CreateDraftRequest) GetCategoryId() string {
 	return ""
 }
 
+func (x *CreateDraftRequest) GetBodyDoc() string {
+	if x != nil {
+		return x.BodyDoc
+	}
+	return ""
+}
+
 type UpdateDraftRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	VersionId     string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
-	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
-	EditorId      string                 `protobuf:"bytes,3,opt,name=editor_id,json=editorId,proto3" json:"editor_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	VersionId string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Body      string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	EditorId  string                 `protobuf:"bytes,3,opt,name=editor_id,json=editorId,proto3" json:"editor_id,omitempty"`
+	// Documento de bloques serializado como JSON (FR-063); misma regla que en
+	// `CreateDraftRequest`: vacío ⇒ se deriva de `body`.
+	BodyDoc       string `protobuf:"bytes,4,opt,name=body_doc,json=bodyDoc,proto3" json:"body_doc,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -842,6 +882,13 @@ func (x *UpdateDraftRequest) GetBody() string {
 func (x *UpdateDraftRequest) GetEditorId() string {
 	if x != nil {
 		return x.EditorId
+	}
+	return ""
+}
+
+func (x *UpdateDraftRequest) GetBodyDoc() string {
+	if x != nil {
+		return x.BodyDoc
 	}
 	return ""
 }
@@ -1023,8 +1070,12 @@ type Article struct {
 	CurrentVersionNo int32    `protobuf:"varint,5,opt,name=current_version_no,json=currentVersionNo,proto3" json:"current_version_no,omitempty"`
 	QuizIds          []string `protobuf:"bytes,6,rep,name=quiz_ids,json=quizIds,proto3" json:"quiz_ids,omitempty"`
 	CategoryId       string   `protobuf:"bytes,7,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"` // referencia al catálogo (FR-034)
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Documento de bloques de la versión vigente, serializado como JSON (FR-063). Es lo
+	// que el lector renderiza bloque a bloque, por componente y sin `innerHTML` (FR-068).
+	// Vacío ⇒ la versión es anterior al documento de bloques y el lector cae a `body`.
+	BodyDoc       string `protobuf:"bytes,8,opt,name=body_doc,json=bodyDoc,proto3" json:"body_doc,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Article) Reset() {
@@ -1102,6 +1153,13 @@ func (x *Article) GetQuizIds() []string {
 func (x *Article) GetCategoryId() string {
 	if x != nil {
 		return x.CategoryId
+	}
+	return ""
+}
+
+func (x *Article) GetBodyDoc() string {
+	if x != nil {
+		return x.BodyDoc
 	}
 	return ""
 }
@@ -2131,7 +2189,7 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"\x15ListCategoriesRequest\x12)\n" +
 	"\x10include_inactive\x18\x01 \x01(\bR\x0fincludeInactive\"N\n" +
 	"\x16ListCategoriesResponse\x124\n" +
-	"\x05items\x18\x01 \x03(\v2\x1e.fintcart.learning.v1.CategoryR\x05items\"\x99\x02\n" +
+	"\x05items\x18\x01 \x03(\v2\x1e.fintcart.learning.v1.CategoryR\x05items\"\xb4\x02\n" +
 	"\x0eArticleVersion\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12\x1d\n" +
@@ -2147,7 +2205,9 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\tR\tcreatedAt\x12!\n" +
 	"\fpublished_at\x18\b \x01(\tR\vpublishedAt\x12\x12\n" +
-	"\x04body\x18\t \x01(\tR\x04body\"\xb7\x01\n" +
+	"\x04body\x18\t \x01(\tR\x04body\x12\x19\n" +
+	"\bbody_doc\x18\n" +
+	" \x01(\tR\abodyDoc\"\xd2\x01\n" +
 	"\x12CreateDraftRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x12\n" +
@@ -2156,12 +2216,14 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"\n" +
 	"article_id\x18\x05 \x01(\tR\tarticleId\x12\x1f\n" +
 	"\vcategory_id\x18\x06 \x01(\tR\n" +
-	"categoryId\"d\n" +
+	"categoryId\x12\x19\n" +
+	"\bbody_doc\x18\a \x01(\tR\abodyDoc\"\x7f\n" +
 	"\x12UpdateDraftRequest\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12\x1b\n" +
-	"\teditor_id\x18\x03 \x01(\tR\beditorId\"]\n" +
+	"\teditor_id\x18\x03 \x01(\tR\beditorId\x12\x19\n" +
+	"\bbody_doc\x18\x04 \x01(\tR\abodyDoc\"]\n" +
 	"\x15ApprovePublishRequest\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12%\n" +
@@ -2173,7 +2235,7 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"categoryId\"\x82\x01\n" +
 	"\x15ListPublishedResponse\x123\n" +
 	"\x05items\x18\x01 \x03(\v2\x1d.fintcart.learning.v1.ArticleR\x05items\x124\n" +
-	"\x04page\x18\x02 \x01(\v2 .fintcart.common.v1.PageResponseR\x04page\"\xd8\x01\n" +
+	"\x04page\x18\x02 \x01(\v2 .fintcart.common.v1.PageResponseR\x04page\"\xf3\x01\n" +
 	"\aArticle\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\x12\x14\n" +
@@ -2183,7 +2245,8 @@ const file_fintcart_learning_v1_learning_proto_rawDesc = "" +
 	"\x12current_version_no\x18\x05 \x01(\x05R\x10currentVersionNo\x12\x19\n" +
 	"\bquiz_ids\x18\x06 \x03(\tR\aquizIds\x12\x1f\n" +
 	"\vcategory_id\x18\a \x01(\tR\n" +
-	"categoryId\"\xe7\x01\n" +
+	"categoryId\x12\x19\n" +
+	"\bbody_doc\x18\b \x01(\tR\abodyDoc\"\xe7\x01\n" +
 	"\x04Quiz\x12\x17\n" +
 	"\aquiz_id\x18\x01 \x01(\tR\x06quizId\x12\x1d\n" +
 	"\n" +
