@@ -91,7 +91,7 @@ fintcart-platform/
 │   └── audit/               # Go — consumidor de auditoría inmutable
 ├── frontend/              # Angular — SPA
 ├── deploy/                # Kubernetes, k6
-├── docs/                  # anteproyecto, diagramas y RF originales del proyecto académico
+├── docs/                  # anteproyecto, diagramas, RF y el lenguaje de fórmulas
 └── specs/001-fintcart-platform/   # spec, plan, research, data-model, quickstart, tasks
 ```
 
@@ -99,7 +99,8 @@ fintcart-platform/
 
 ```bash
 go test ./...                              # Go (por servicio) — persistencia contra go-sqlmock
-cargo test                                 # Simulador — incluye casos de borde numérico
+cargo test                                 # Simulador — casos de borde numérico y los ejemplos del
+                                           # lenguaje de fórmulas (docs/lenguaje-de-formulas.md)
 npm test --workspace services/learning
 npm test --workspace services/notification
 cd frontend && npm test && npm run e2e     # Jest/Karma + Playwright — una spec por historia

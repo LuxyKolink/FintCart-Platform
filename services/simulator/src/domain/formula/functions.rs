@@ -101,6 +101,29 @@ impl Func {
         }
     }
 
+    /// TODAS las funciones del lenguaje, para poder recorrerlas.
+    ///
+    /// Existe porque hay dos sitios que tienen que hablar del conjunto entero y ninguno puede
+    /// enumerarlo por su cuenta sin volver a escribirlo: la barrera de T159 —que comprueba que
+    /// la tabla de `docs/lenguaje-de-formulas.md` y esta lista digan lo mismo— y cualquier
+    /// recorrido futuro. Una lista escrita en la prueba se quedaría corta el día que se añada
+    /// una función, que es justo lo que hay que detectar.
+    ///
+    /// El orden es el de la tabla documentada. Añadir una función son dos líneas: el brazo de
+    /// [`Self::from_name`] y esta lista.
+    pub const ALL: [Self; 10] = [
+        Self::Abs,
+        Self::Min,
+        Self::Max,
+        Self::Cuota,
+        Self::VfSerie,
+        Self::TasaPeriodica,
+        Self::Redondear,
+        Self::RedondearDinero,
+        Self::Pot,
+        Self::Potd,
+    ];
+
     /// Nombre con el que se escribe en una fórmula.
     #[must_use]
     pub const fn name(self) -> &'static str {
