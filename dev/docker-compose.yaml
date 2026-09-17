@@ -259,6 +259,15 @@ services:
       GRPC_PORT: "9090"
       RUST_LOG: "debug"
     ports: ["9094:9090"]
+    # Los `docs/` se montan porque una prueba del Simulador los LEE (`tests/formula_docs.rs`
+    # comprueba que los ejemplos de `docs/lenguaje-de-formulas.md` se analizan con el analizador de
+    # verdad). Sin el montaje, esa barrera falla dentro del contenedor por «no se pudo leer el
+    # archivo» —y una barrera que falla por su propia instalación es una barrera que se acaba
+    # silenciando—. Se monta y no se copia en la imagen: el documento es del REPOSITORIO y cambia
+    # con cada edición, así que copiarlo obligaría a reconstruir la imagen para comprobar una
+    # frase. La ruta es `/docs` porque la raíz del servicio es `/src` y la prueba busca
+    # `../../docs` desde ahí, igual que en el repositorio.
+    volumes: ["../docs:/docs:ro"]
     depends_on:
       postgres-simulator: { condition: service_healthy }
 

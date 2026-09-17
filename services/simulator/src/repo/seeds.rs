@@ -131,9 +131,26 @@ async fn sembrar_una(pool: &PgPool, seed: &Compiled) -> Result<Sembrada> {
     exec_tx(pool, move |tx| {
         Box::pin(async move {
             let Some(version) = version_vigente(tx, id).await? else {
+                // `published_version = 1` en la MISMA fila y no un `UPDATE` después: la
+                // restricción `calculators_published_has_version` exige que una calculadora
+                // publicada cite la definición aprobada, así que insertarla sin el campo y
+                // rellenarlo luego dejaría una fila que el esquema no admite ni un instante.
+                //
+                // Que la definición todavía no exista no es un problema y no lo es por diseño:
+                // la clave foránea `calculators_published_version_exists` es DIFERIBLE y se
+                // comprueba al confirmar, así que el orden dentro de esta transacción —primero
+                // la calculadora, después su definición— es válido. Ese diferimiento existe
+                // justo para este momento.
+                //
+                // Este error se cazó sembrando una base VACÍA (T163): sobre una base ya
+                // sembrada antes de que existiera la restricción, las semillas nunca volvían a
+                // insertar —son idempotentes— y la migración de T113 rellenó el campo. El
+                // síntoma era el peor posible: `dev/seed` fallando en el único camino que
+                // tiene una instalación nueva, con el catálogo de calculadoras vacío.
                 sqlx::query(
-                    "INSERT INTO calculators (id, owner_id, name, description, is_builtin, state)
-                     VALUES ($1, NULL, $2, $3, TRUE, 'publicada')",
+                    "INSERT INTO calculators \
+                       (id, owner_id, name, description, is_builtin, state, published_version)
+                     VALUES ($1, NULL, $2, $3, TRUE, 'publicada', 1)",
                 )
                 .bind(id)
                 .bind(name)

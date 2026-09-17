@@ -393,3 +393,45 @@ ejecutor (`50.000,00`), porque el formateo del historial depende del tipo declar
 un tipo. No es una cifra falsa: es la misma cifra sin formato. Cerrarlo bien exigiría que la
 escala viajara en la entrada del historial, que es el mismo cambio de contrato del párrafo
 anterior.
+
+---
+
+## Hallazgo 17 — La siembra fallaba en una base vacía: la instalación nueva se quedaba sin calculadoras
+
+**Qué pasaba**: `dev/seed` abortaba con
+
+```text
+error: simulador: fallo de persistencia: error returned from database: new row for relation
+"calculators" violates check constraint "calculators_published_has_version"
+```
+
+`repo/seeds.rs` insertaba las siete semillas con `state = 'publicada'` y **sin
+`published_version`**, y la restricción de T113 —«una calculadora publicada cita la definición
+aprobada», que es SC-018 escrita en el esquema— lo rechaza. En una base nueva, el resultado era que
+**la plataforma arrancaba sin ninguna calculadora** y el mensaje hablaba de una restricción, no de
+una siembra.
+
+**Por qué no lo cazó nada hasta ahora**, que es la parte que importa:
+
+- Las semillas se siembran con `dev/seed`, un paso MANUAL de desarrollo. Ninguna prueba automática
+  lo ejecutaba.
+- Todas las pruebas que tocan las semillas corren sobre una base que **ya las tiene**. Como la
+  siembra es idempotente, el `INSERT` no se ejecuta y el camino que fallaba no se recorría nunca.
+- Las pruebas de repositorio usan `pg-mem`, que **no impone las restricciones** del esquema real.
+- Y el entorno de desarrollo se había ido migrando por encima: las filas venían de antes de que la
+  restricción existiera y la migración de T113 rellenó el campo. El defecto solo aparece al
+  recorrer el camino completo **desde cero**, que es exactamente el camino de un despliegue.
+
+**Arreglo**: el `INSERT` escribe `published_version = 1` en la misma fila (la clave foránea que
+apunta a la definición está diferida a propósito, así que el orden dentro de la transacción —la
+calculadora primero, su definición después— es válido).
+
+**Lo que lo cierra para siempre**: `services/simulator/tests/seeds_db.rs` vacía las semillas, siembra
+contra el esquema **real**, y comprueba fila por fila que las siete nacen publicadas *con su versión
+aprobada* y con su definición; después siembra otra vez y exige que no se cree ni se versione nada.
+La primera ejecución de esa prueba encontró un error propio (borrar las definiciones antes que la
+calculadora no se puede: la calculadora cita su versión aprobada), que también quedó documentado.
+
+**Lección para el resto del proyecto**: una idempotencia que evita el `INSERT` esconde el `INSERT`.
+Toda siembra de arranque necesita una prueba que corra sobre el estado vacío, no solo sobre el
+estado ya sembrado.
