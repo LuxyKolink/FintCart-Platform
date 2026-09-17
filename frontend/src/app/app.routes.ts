@@ -128,6 +128,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/admin/categories/categories.component').then((m) => m.CategoriesComponent),
   },
   {
+    // Procedimiento anual de indicadores (FR-055…FR-062, T108). Es la otra mitad del
+    // trabajo del administrador: el catálogo de categorías ordena el contenido, y las
+    // vigencias mantienen al día las cifras con las que calculan las calculadoras.
+    path: 'admin/indicadores',
+    canActivate: [roleGuard('administrador')],
+    loadComponent: () => import('./features/admin/indicators/indicators.component').then((m) => m.IndicatorsComponent),
+  },
+  {
     // Galería interna de verificación visual de shared/ui (T048, quickstart §0).
     // No es una pantalla de producto: no tiene enlace de navegación ni guard,
     // solo sirve para contrastar los componentes migrados contra los UI kits.

@@ -9,7 +9,7 @@ import {
   LinkButtonComponent,
   SkeletonComponent,
 } from '../../../shared/ui';
-import { calcLabelOf, inputRows, resultRows } from '../history-rows';
+import { calcLabelOf, inputRows, provenanceOf, resultRows } from '../history-rows';
 import { SimulatorsService } from '../simulators.service';
 import { SimulationHistoryEntry } from '../simulators.types';
 
@@ -21,6 +21,10 @@ interface HistoryRow {
   readonly label: string;
   readonly inputs: readonly { label: string; value: string }[];
   readonly results: readonly { label: string; value: string }[];
+  /** Con qué definición se calculó: `v3`, o vacío si no hay versión que citar (T110). */
+  readonly version: string;
+  /** Indicadores usados, con su valor tal como se resolvió ese día (FR-058). */
+  readonly indicators: readonly { label: string; value: string }[];
 }
 
 /**
@@ -94,11 +98,14 @@ export class HistoryComponent implements OnInit {
   }
 
   private toRow(entry: SimulationHistoryEntry): HistoryRow {
+    const procedencia = provenanceOf(entry);
     return {
       entry,
       label: calcLabelOf(entry),
       inputs: inputRows(entry),
       results: resultRows(entry),
+      version: procedencia.version,
+      indicators: procedencia.indicators,
     };
   }
 }

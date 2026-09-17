@@ -1031,6 +1031,88 @@ func TestHistoryPublishesCalcTypeAsItsPathName(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"12345.67"`)
 }
 
+// TestHistoryPublishesTheProvenance cubre FR-050 y FR-058 en el borde: la simulación
+// tiene que poder explicarse con la versión de la definición y los indicadores que usó.
+func TestHistoryPublishesTheProvenance(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.simulator.history = &simulatorv1.ListHistoryResponse{
+		Items: []*simulatorv1.ListHistoryResponse_Entry{{
+			SimulationId:      "s-1",
+			CalcType:          simulatorv1.CalcType_CALC_TYPE_AHORRO,
+			Currency:          "COP",
+			Result:            map[string]string{"total": "12345.67"},
+			CalculatorId:      "calc-1",
+			CalculatorVersion: 3,
+			IndicatorsUsed:    map[string]string{"UVT": "50000"},
+		}},
+		Page: &commonv1.PageResponse{TotalSize: 1},
+	}
+
+	rec := h.do(t, http.MethodGet, "/simulators/history", "", true)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var cuerpo struct {
+		Items []struct {
+			CalculatorID      string            `json:"calculator_id"`
+			CalculatorVersion int32             `json:"calculator_version"`
+			IndicatorsUsed    map[string]string `json:"indicators_used"`
+		} `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &cuerpo))
+	require.Equal(t, "calc-1", cuerpo.Items[0].CalculatorID)
+	require.Equal(t, int32(3), cuerpo.Items[0].CalculatorVersion)
+	require.Equal(t, "50000", cuerpo.Items[0].IndicatorsUsed["UVT"])
+}
+
+// TestHistoryWithoutProvenanceSerialisesEmptyValues: una simulación anterior a la
+// enmienda no tiene versión que citar (la migración de T020 no pudo atribuirla), y eso
+// NO puede salir como `null`: el cliente que recorre los indicadores recibiría `null` y
+// `Object.entries(null)` falla, convirtiendo una fila pobremente explicada en una
+// pantalla en blanco.
+func TestHistoryWithoutProvenanceSerialisesEmptyValues(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.simulator.history = &simulatorv1.ListHistoryResponse{
+		Items: []*simulatorv1.ListHistoryResponse_Entry{{
+			SimulationId: "s-vieja",
+			CalcType:     simulatorv1.CalcType_CALC_TYPE_AHORRO,
+		}},
+		Page: &commonv1.PageResponse{TotalSize: 1},
+	}
+
+	rec := h.do(t, http.MethodGet, "/simulators/history", "", true)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), `"indicators_used":{}`)
+	require.Contains(t, rec.Body.String(), `"calculator_version":0`)
+}
+
+// TestCORSAllowsEveryMethodTheSurfaceUses cubre un fallo que SOLO se manifiesta en el
+// navegador: si un método no está en la lista de CORS, el preflight responde 200 y el
+// navegador descarta la petición real. El cliente recibe `status === 0` —«parece que
+// perdiste la conexión»— sobre una ruta que por `curl` funciona, así que el error apunta a
+// la red del usuario en lugar de a esta lista.
+//
+// Se recorren los métodos que la superficie declara y no una lista escrita a mano: una
+// ruta nueva con un método que no esté aquí se ve al leer `routes.go`, pero una que se
+// añada sin tocar CORS falla SOLO en un navegador, y eso no lo ve ninguna otra prueba.
+func TestCORSAllowsEveryMethodTheSurfaceUses(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		req := httptest.NewRequest(http.MethodOptions, "/admin/indicators", nil)
+		req.Header.Set("Origin", "https://app.fintcart.co")
+		req.Header.Set("Access-Control-Request-Method", method)
+		rec := httptest.NewRecorder()
+		h.router.ServeHTTP(rec, req)
+
+		allowed := rec.Header().Get("Access-Control-Allow-Methods")
+		require.Contains(t, allowed, method,
+			"CORS no permite %s: el navegador descartaría la petición real y el usuario vería un error de conexión", method)
+	}
+}
+
 // ── mapeo y listados ────────────────────────────────────────────────────────
 
 // TestEmptyListsSerializeAsArrayNotNull: un `null` haría fallar cualquier cliente que

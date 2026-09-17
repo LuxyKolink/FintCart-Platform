@@ -51,6 +51,16 @@
                 <tr>
                   <th scope="row" class="fc-history__calc">
                     <fc-badge tone="neutral">{{ row.label }}</fc-badge>
+                    <!--
+                      Procedencia (FR-050, FR-058, T110): con qué versión de la
+                      definición se calculó. `v3` y no `3` para que se lea como lo que
+                      es —una versión concreta de una fórmula que cambia—, y vacío
+                      cuando la simulación es anterior a la enmienda y no hay definición
+                      que citar, que es la verdad.
+                    -->
+                    @if (row.version) {
+                      <span class="fc-history__version">versión {{ row.version.slice(1) }}</span>
+                    }
                   </th>
                   <td class="fc-history__when">
                     <time [attr.datetime]="row.entry.created_at">
@@ -81,6 +91,34 @@
                         </div>
                       }
                     </dl>
+
+                    <!--
+                      Indicadores con los que se calculó (FR-058). Van en la columna de
+                      parámetros porque SON un parámetro: el valor de un indicador es una
+                      entrada del cálculo que nadie tecleó ese día —la puso el catálogo
+                      según la fecha— y sin él la fila no se puede reproducir cuando el
+                      UVT cambie.
+
+                      El valor se muestra canónico y sin formatear: el tipo de un
+                      indicador no lo conoce el navegador (`@UVT` es un monto, `@IPC`
+                      una tasa) y adivinarlo por el tamaño de la cifra sería inventarse
+                      un formato que la almacenada no tiene.
+                    -->
+                    @if (row.indicators.length > 0) {
+                      <dl class="fc-history__pairs fc-history__indicadores">
+                        <div class="fc-history__pair">
+                          <dt class="fc-history__key">Indicadores usados</dt>
+                          <dd class="fc-history__value">
+                            @for (item of row.indicators; track item.label) {
+                              <span class="fc-history__indicador">
+                                <span class="fc-history__indicador-nombre">{{ item.label }}</span>
+                                <span class="fc-num">{{ item.value }}</span>
+                              </span>
+                            }
+                          </dd>
+                        </div>
+                      </dl>
+                    }
                   </td>
                 </tr>
               }

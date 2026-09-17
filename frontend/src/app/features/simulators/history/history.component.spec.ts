@@ -42,6 +42,48 @@ describe('HistoryComponent', () => {
     return fixture;
   }
 
+  it('muestra la versión de la definición con la que se calculó (FR-050, T110)', async () => {
+    api.listHistory.and.returnValue(
+      of({
+        items: [{ ...entry, calculator_id: 'calc-1', calculator_version: 3 }],
+        total_size: 1,
+      }),
+    );
+    const host = (await render()).nativeElement as HTMLElement;
+
+    // Una definición cambia con el tiempo: sin la versión, una simulación de hace un año
+    // se explicaría con la fórmula de hoy.
+    expect(host.textContent).toContain('versión 3');
+  });
+
+  it('muestra los indicadores usados con su valor sin formatear (FR-058, T110)', async () => {
+    api.listHistory.and.returnValue(
+      of({
+        items: [{ ...entry, calculator_version: 2, indicators_used: { UVT: '50000', IPC: '0.05' } }],
+        total_size: 1,
+      }),
+    );
+    const host = (await render()).nativeElement as HTMLElement;
+
+    // Los valores van CANÓNICOS: el tipo de un indicador no lo conoce el navegador
+    // (`@UVT` es un monto y `@IPC` una tasa), así que formatearlos sería inventarse un
+    // formato que la cifra almacenada no tiene. Lo que sí se garantiza es que la cifra
+    // aparece entera, sin recortar (N-15).
+    expect(host.textContent).toContain('Indicadores usados');
+    expect(host.textContent).toContain('UVT');
+    expect(host.textContent).toContain('50000');
+    expect(host.textContent).toContain('0.05');
+  });
+
+  it('una simulación sin procedencia no muestra una versión inventada', async () => {
+    // Las filas anteriores a la enmienda que la migración no pudo atribuir se calcularon
+    // con el código nativo: «v0» sugeriría una definición que no existe.
+    const host = (await render()).nativeElement as HTMLElement;
+
+    expect(host.textContent).not.toContain('versión');
+    expect(host.textContent).not.toContain('Indicadores usados');
+  });
+
   it('shows each simulation with its parameters and its result in the same row', async () => {
     const host = (await render()).nativeElement as HTMLElement;
 

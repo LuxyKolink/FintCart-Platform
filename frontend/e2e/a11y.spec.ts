@@ -13,7 +13,7 @@ import { grantRole } from './support/roles';
  * contraste del texto que lo acompaña cumple AA, ni si el teclado llega hasta él. Esto
  * es lo que el rediseño podría romper en silencio.
  *
- * LAS 19 PANTALLAS, NO SOLO LAS FÁCILES. La suite se fue ampliando con cada grupo
+ * LAS 20 PANTALLAS, NO SOLO LAS FÁCILES. La suite se fue ampliando con cada grupo
  * —primero acceso, luego el portal, luego las tres del editorial— hasta cubrir todas
  * las pantallas migradas. Las que dependen de datos (lector, cuestionario, resultado
  * del simulador) se descubren navegando, porque su ruta lleva un identificador real:
@@ -215,5 +215,29 @@ test('las pantallas editoriales son recorribles por teclado y legibles', { tag: 
     await page.goto('/editorial/revision');
     await expect(page.getByRole('button', { name: 'Aprobar y publicar' }).first()).toBeVisible();
     await expectScreenIsAccessible(page, ['Aprobar y publicar']);
+  });
+});
+
+test('la administración es recorrible por teclado y legible (FR-093…FR-096)', { tag: '@a11y' }, async ({ page }) => {
+  // Un administrador recién creado: la ruta exige el rol y el JWT lo lleva dentro, así
+  // que hay que concederlo antes de entrar.
+  const email = await registerAndSignIn(page, 'e2e-a11y-admin');
+  grantRole(email, 'administrador');
+  await page.goto('/iniciar-sesion');
+  await signIn(page, email, 'Dem0stracion!2026');
+
+  await test.step('/admin/categorias', async () => {
+    await page.goto('/admin/categorias');
+    await expect(page.locator('main')).toBeVisible();
+    await expectScreenIsAccessible(page, ['Crear categoría']);
+  });
+
+  await test.step('/admin/indicadores', async () => {
+    await page.goto('/admin/indicadores');
+    await expect(page.getByRole('heading', { name: 'Indicadores financieros' })).toBeVisible();
+    // El formulario de carga anual es la acción de la pantalla, y las cifras de las
+    // vigencias —que van en `.fc-num`, sin truncar— son el texto que más fácilmente se
+    // saldría del contraste: la barrera las mide aquí.
+    await expectScreenIsAccessible(page, ['Cargar vigencia']);
   });
 });

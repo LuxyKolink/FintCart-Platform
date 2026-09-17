@@ -149,6 +149,7 @@
     },
     {
       "files": [
+        "src/app/features/simulators/**/*.ts",
         "src/app/features/calculators/**/*.ts",
         "src/app/features/admin/indicators/**/*.ts"
       ],
@@ -229,6 +230,16 @@
             "message": "Principio VIII: redondear con Big.round y modo half-even, no con Math.round."
           }
         ]
+      }
+    },
+    {
+      "files": [
+        "src/app/features/simulators/**/*.ts",
+        "src/app/features/calculators/**/*.ts",
+        "src/app/features/admin/indicators/**/*.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-restricted-types": "off"
       }
     }
   ]

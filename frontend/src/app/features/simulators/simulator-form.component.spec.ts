@@ -18,12 +18,17 @@ interface FormInternals {
  * simulaciones falle **no puede** impedir calcular: el usuario vino a calcular.
  */
 describe('SimulatorFormComponent', () => {
-  let api: { run: jasmine.Spy; listHistory: jasmine.Spy };
+  let api: { run: jasmine.Spy; listHistory: jasmine.Spy; currentIndicators: jasmine.Spy };
 
   beforeEach(() => {
     api = {
       run: jasmine.createSpy('run').and.returnValue(of({ simulation_id: 's1', result: {} })),
       listHistory: jasmine.createSpy('listHistory').and.returnValue(of({ items: [], total_size: 0 })),
+      // Por defecto, todo en vigencia: el aviso de FR-062 solo aparece cuando el
+      // servidor dice que falta algo, y eso lo fijan las pruebas que lo comprueban.
+      currentIndicators: jasmine
+        .createSpy('currentIndicators')
+        .and.returnValue(of({ indicators: [], missing_names: [] })),
     };
   });
 
@@ -63,6 +68,52 @@ describe('SimulatorFormComponent', () => {
     const host = (await render('credito')).nativeElement as HTMLElement;
 
     expect(host.textContent).toContain('Todavía no has guardado ninguna simulación');
+  });
+
+  it('advierte de que el resultado puede estar desactualizado cuando falta la vigencia (FR-062)', async () => {
+    api.currentIndicators.and.returnValue(
+      of({ indicators: [], missing_names: ['UVT', 'IPC'] }),
+    );
+    // El fixture se conserva: cambiar de modo se hace con un clic, y un clic necesita
+    // volver a detectar cambios.
+    const fixture = await render('colombia_especifica');
+    const host = fixture.nativeElement as HTMLElement;
+
+    // El GMF es el único modo que depende de `@UVT`; el modo por defecto de esta
+    // calculadora es la conversión de tasas, que no usa indicadores. Eso es justo lo que
+    // se comprueba primero: que el aviso es del MODO y no de la calculadora.
+    expect(host.textContent).not.toContain('pueden estar desactualizados');
+
+    const botonGmf = Array.from(host.querySelectorAll('button')).find((boton) =>
+      (boton.textContent ?? '').includes('Gravamen'),
+    );
+    expect(botonGmf).toBeDefined();
+    botonGmf?.click();
+    fixture.detectChanges();
+
+    expect(host.textContent).toContain('pueden estar desactualizados');
+    expect(host.textContent).toContain('UVT');
+    // Del IPC no se avisa aquí: no lo usa este modo. Un aviso que mencionara todos los
+    // indicadores sin vigencia dejaría de ser un aviso para esta pantalla.
+    expect(host.querySelector('fc-banner[data-tone="warning"]')?.textContent).not.toContain('IPC');
+  });
+
+  it('no advierte cuando la vigencia está al día', async () => {
+    api.currentIndicators.and.returnValue(of({ indicators: [], missing_names: [] }));
+    const host = (await render('colombia_especifica')).nativeElement as HTMLElement;
+
+    expect(host.textContent).not.toContain('pueden estar desactualizados');
+  });
+
+  it('que falle la consulta de indicadores no impide calcular (FR-062)', async () => {
+    api.currentIndicators.and.returnValue(throwError(() => new Error('boom')));
+    const host = (await render('credito')).nativeElement as HTMLElement;
+
+    // Sin el dato no hay aviso, pero tampoco un error: el usuario vino a calcular y la
+    // advertencia solo matiza el resultado.
+    expect(host.textContent).not.toContain('pueden estar desactualizados');
+    expect(host.querySelector('form')).not.toBeNull();
+    expect(host.textContent).toContain('Calcular');
   });
 
   it('lets the rail reach all five calculators from the form', async () => {

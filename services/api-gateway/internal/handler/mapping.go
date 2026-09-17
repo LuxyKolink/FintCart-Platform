@@ -291,13 +291,30 @@ func simulationToDTO(s *orchestratorv1.SimulationResult) SimulationResult {
 
 func historyEntryToDTO(e *simulatorv1.ListHistoryResponse_Entry) SimulationHistoryEntry {
 	return SimulationHistoryEntry{
-		SimulationID: e.GetSimulationId(),
-		CalcType:     calcTypePathName(e.GetCalcType()),
-		Currency:     e.GetCurrency(),
-		Inputs:       e.GetInputs(),
-		Result:       e.GetResult(),
-		CreatedAt:    e.GetCreatedAt(),
+		SimulationID:      e.GetSimulationId(),
+		CalcType:          calcTypePathName(e.GetCalcType()),
+		Currency:          e.GetCurrency(),
+		Inputs:            e.GetInputs(),
+		Result:            e.GetResult(),
+		CreatedAt:         e.GetCreatedAt(),
+		CalculatorID:      e.GetCalculatorId(),
+		CalculatorVersion: e.GetCalculatorVersion(),
+		// Un mapa vacío es `{}` y nunca `null`, por el mismo motivo que las listas de
+		// `listaNoNula`: el cliente que recorre la procedencia no tiene que distinguir
+		// «sin indicadores» de «campo ausente».
+		IndicatorsUsed: emptyMapIfNil(e.GetIndicatorsUsed()),
 	}
+}
+
+// emptyMapIfNil normaliza un mapa nil a uno vacío.
+//
+// `json.Marshal` de un mapa nil produce `null`, y `Object.entries(null)` falla en el
+// cliente. Es el mismo caso que cubre `listaNoNula` para los slices, con un mapa.
+func emptyMapIfNil[K comparable, V any](m map[K]V) map[K]V {
+	if m == nil {
+		return map[K]V{}
+	}
+	return m
 }
 
 // inAppToDTO convierte un elemento de la bandeja (FR-023).

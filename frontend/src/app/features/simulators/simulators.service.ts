@@ -3,7 +3,14 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { CalcType, Page, SimulationHistoryEntry, SimulationRequest, SimulationResult } from './simulators.types';
+import {
+  CalcType,
+  CurrentIndicators,
+  Page,
+  SimulationHistoryEntry,
+  SimulationRequest,
+  SimulationResult,
+} from './simulators.types';
 
 export type SimulationErrorKind = 'offline' | 'invalid' | 'server';
 
@@ -29,6 +36,21 @@ export class SimulatorsService {
   public run(calcType: CalcType, request: SimulationRequest): Observable<SimulationResult> {
     return this.http
       .post<SimulationResult>(`${environment.apiBaseUrl}/simulators/${calcType}/run`, request)
+      .pipe(catchError((err: unknown) => throwError(() => this.classify(err))));
+  }
+
+  /**
+   * Indicadores vigentes y los que se quedaron sin vigencia (FR-062).
+   *
+   * La ruta está autenticada y la sirve el borde: el frontend no consulta el catálogo
+   * por su cuenta porque el valor vigente lo decide la fecha, y quién decide la fecha es
+   * el servidor —el mismo día con el que el Simulador resuelve los indicadores al
+   * calcular—. Si el navegador preguntara por «su» hoy, en un cambio de año avisaría de
+   * una falta de vigencia que el cálculo no tendría.
+   */
+  public currentIndicators(): Observable<CurrentIndicators> {
+    return this.http
+      .get<CurrentIndicators>(`${environment.apiBaseUrl}/indicators/current`)
       .pipe(catchError((err: unknown) => throwError(() => this.classify(err))));
   }
 

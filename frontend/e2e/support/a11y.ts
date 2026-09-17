@@ -137,7 +137,9 @@ export async function expectKeyboardReaches(
 
   const reached: string[] = [];
   const withoutIndicator: string[] = [];
-  const focusKeys = new Set<string>();
+  const focusKeys: string[] = [];
+  /** Veces seguidas que el foco no ha salido del mismo elemento (ver la nota del bucle). */
+  let consecutiveRepeats = 0;
 
   for (let stop = 0; stop < maxStops; stop += 1) {
     await page.keyboard.press('Tab');
@@ -238,10 +240,31 @@ export async function expectKeyboardReaches(
     if (focused === null) {
       break;
     }
-    if (reached.length > 0 && focusKeys.has(focused.key)) {
-      break;
+    /**
+     * Parada REPETIDA en el acto: se cuenta, no se corta.
+     *
+     * El corte original era «ya vi este elemento ⇒ el orden cicló ⇒ paro», y es un falso
+     * positivo: un `<input type="date">` nativo recibe la tabulación CUATRO veces en
+     * Chromium —día, mes, año y el selector— sin dejar el elemento, así que el recorrido
+     * se detenía en la fecha y el botón de envío, que sí era alcanzable, nunca aparecía.
+     * Se descubrió en `/admin/indicadores`, la primera pantalla con un campo de fecha.
+     *
+     * El final de la página tiene su propia señal —`focused === null` cuando el foco sale
+     * al navegador— y un ciclo infinito de verdad lo corta el presupuesto de paradas. Un
+     * contador consecutivo solo evita gastar ese presupuesto en un elemento atascado, y
+     * el umbral es mayor que las cuatro paradas del campo de fecha para no volver a
+     * confundir un control compuesto con un atasco.
+     */
+    const previous = focusKeys[focusKeys.length - 1];
+    if (previous === focused.key) {
+      consecutiveRepeats += 1;
+      if (consecutiveRepeats >= 6) {
+        break;
+      }
+    } else {
+      consecutiveRepeats = 1;
     }
-    focusKeys.add(focused.key);
+    focusKeys.push(focused.key);
     reached.push(focused.name);
     if (!focused.hasRing && !focused.hasShadow) {
       withoutIndicator.push(focused.name);

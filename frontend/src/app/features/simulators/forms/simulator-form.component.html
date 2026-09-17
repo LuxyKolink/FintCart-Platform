@@ -36,6 +36,21 @@
           }
 
           @if (mode(); as m) {
+            <!--
+              FR-062: advertencia ANTES de ejecutar. Va arriba del formulario y no junto
+              al botón porque no impide calcular —dice que el resultado puede estar
+              desactualizado—, y colocarla al lado del envío la haría leer como un error
+              de validación que hay que resolver para continuar.
+            -->
+            @if (staleIndicators().length > 0) {
+              <fc-banner tone="warning">
+                Esta calculadora usa
+                <strong>{{ staleIndicators().join(', ') }}</strong>, y no hay un valor
+                vigente cargado para el año en curso. Los resultados pueden estar
+                desactualizados.
+              </fc-banner>
+            }
+
             <form class="fc-sim__form" [formGroup]="form()" (ngSubmit)="onSubmit()">
               @if (errorMessage()) {
                 <fc-banner tone="error">{{ errorMessage() }}</fc-banner>

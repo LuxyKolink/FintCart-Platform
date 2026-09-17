@@ -87,3 +87,39 @@ export function formatValue(raw: string, kind: FieldKind | ResultKind | undefine
   }
   return raw;
 }
+
+/**
+ * Procedencia de una simulación, en la forma en que se muestra (T110, FR-050, FR-058).
+ *
+ * ## Por qué NO se formatean los indicadores como dinero
+ *
+ * El valor de un indicador no tiene un tipo declarado en el cliente: `@UVT` es un monto
+ * (50.000 pesos), pero `@IPC` es una tasa (0,05) y `@TASA_USURA` también. El catálogo de
+ * indicadores lo sabe; el navegador, no. Adivinar por el tamaño de la cifra —«si es menor
+ * que uno, es una tasa»— convertiría un UVT mal cargado en 0,05 en una tasa con dos
+ * decimales, que es una cifra distinta de la almacenada.
+ *
+ * Así que el valor se muestra CANÓNICO y sin tocar, junto al nombre que le da sentido. Lo
+ * que sí importa —que no se trunque y que no pase por `number`— queda garantizado.
+ */
+export interface Provenance {
+  /** `v3`, o cadena vacía cuando la simulación no tiene versión que citar. */
+  version: string;
+  /** Indicadores usados, en orden alfabético para que dos lecturas coincidan. */
+  indicators: Row[];
+}
+
+export function provenanceOf(entry: SimulationHistoryEntry): Provenance {
+  const version = entry.calculator_version ?? 0;
+  const usados = entry.indicators_used ?? {};
+
+  return {
+    // `0` significa «sin versión» y no la versión cero: las filas anteriores a la
+    // enmienda que la migración no pudo atribuir se calcularon con constantes cableadas,
+    // y «v0» sugeriría una definición que no existe.
+    version: version > 0 ? `v${String(version)}` : '',
+    indicators: Object.keys(usados)
+      .sort()
+      .map((name) => ({ label: name, value: usados[name] })),
+  };
+}

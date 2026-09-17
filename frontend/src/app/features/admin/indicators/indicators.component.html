@@ -1,0 +1,232 @@
+<section class="fc-page" aria-labelledby="titulo-indicadores">
+  <header class="fc-page__head">
+    <p class="fc-eyebrow">Administración</p>
+    <h1 id="titulo-indicadores" class="fc-page__title">Indicadores financieros</h1>
+    <p class="fc-ind__intro">
+      Cada año cambian el salario mínimo, la UVT, la UVR, el IPC y la tasa de usura, y las
+      calculadoras los leen por nombre. Cargar el valor del año es lo que mantiene los
+      resultados al día: sin vigencia, una calculadora que usa <code>&#64;UVT</code> sigue
+      calculando con el valor anterior.
+    </p>
+  </header>
+
+  <!--
+    Estado del procedimiento anual (FR-061, FR-062). Va ARRIBA y no al final: es lo
+    único de esta pantalla que pide hacer algo, y lo que el administrador viene a
+    comprobar cuando el barrido del Orquestador le avisa por correo.
+  -->
+  @if (hayEstadoDelCalendario()) {
+    <fc-module-box>
+      <h2 class="fc-page__subtitle">Estado del procedimiento</h2>
+      <div class="fc-ind__estado">
+        @if (calendar().missing_names.length > 0) {
+          <fc-banner tone="warning">
+            <p class="fc-ind__estado-titulo">Indicadores sin vigencia para hoy</p>
+            <ul class="fc-ind__estado-lista">
+              @for (name of calendar().missing_names; track name) {
+                <li>
+                  <strong>{{ name }}</strong> — las calculadoras que lo referencian están
+                  dando resultados desactualizados.
+                </li>
+              }
+            </ul>
+          </fc-banner>
+        }
+        @if (expiringView().length > 0) {
+          <fc-banner tone="info">
+            <p class="fc-ind__estado-titulo">Vigencias próximas a terminar</p>
+            <ul class="fc-ind__estado-lista">
+              @for (item of expiringView(); track item.name + item.validTo) {
+                <li>
+                  <strong>{{ item.name }}</strong> deja de aplicar el {{ item.validTo }}
+                  ({{ item.quedan }}).
+                </li>
+              }
+            </ul>
+          </fc-banner>
+        }
+      </div>
+    </fc-module-box>
+  }
+
+  @if (errorMessage()) {
+    <fc-banner tone="error">
+      <p class="fc-ind__estado-titulo">No se pudo guardar</p>
+      <p>{{ errorMessage() }}</p>
+      @if (solapadas().length > 0) {
+        <ul class="fc-ind__estado-lista">
+          @for (indicador of solapadas(); track indicador.indicator_id) {
+            <li>
+              {{ indicador.name }}: <span class="fc-num">{{ indicador.value }}</span> del
+              {{ indicador.valid_from }} al {{ describeValidTo(indicador.valid_to) }}
+            </li>
+          }
+        </ul>
+      }
+    </fc-banner>
+  }
+
+  @if (successMessage()) {
+    <fc-banner tone="success">{{ successMessage() }}</fc-banner>
+  }
+
+  <fc-module-box>
+    <h2 class="fc-page__subtitle">
+      {{ editingId() === null ? 'Cargar una vigencia' : 'Corregir la vigencia' }}
+    </h2>
+
+    @if (editingId() === null) {
+      <p class="fc-helper">
+        Una vigencia cubre desde el primer día indicado <strong>hasta el día anterior</strong>
+        al segundo: poner el fin en 1 de enero no deja ese día descubierto, porque desde ahí
+        aplica la vigencia siguiente.
+      </p>
+    } @else {
+      <p class="fc-helper">
+        Se está corrigiendo una vigencia existente: el nombre no cambia —es el vínculo con
+        las fórmulas que lo referencian— y las simulaciones ya ejecutadas conservan el valor
+        con el que calcularon.
+      </p>
+    }
+
+    <form class="fc-ind__form" [formGroup]="form" (ngSubmit)="onCreate()" novalidate>
+      <!--
+        Los nombres ya conocidos se ofrecen como atajos y no como desplegable: un nombre
+        con una errata crea un indicador INVISIBLE —existiría en la tabla y ninguna
+        fórmula podría leerlo—, que es justo lo que el `CHECK` de formato impide. Escribir
+        uno nuevo sigue siendo posible; lo que no es, es el camino por defecto.
+      -->
+      @if (editingId() === null && knownNames().length > 0) {
+        <div class="fc-ind__atajos">
+          <span class="fc-helper" id="atajos-indicadores">Indicadores ya registrados:</span>
+          <div class="fc-ind__acciones" role="group" aria-labelledby="atajos-indicadores">
+            @for (name of knownNames(); track name) {
+              <fc-button size="sm" variant="ghost" (pressed)="pickName(name)">{{ name }}</fc-button>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="fc-ind__fila">
+        <div class="fc-ind__campo">
+          <fc-input
+            label="Indicador"
+            formControlName="name"
+            hint="Mayúsculas, empezando por letra: así lo referencian las fórmulas."
+            [error]="nameError() ?? ''"
+          ></fc-input>
+        </div>
+
+        <div class="fc-ind__campo">
+          <fc-input
+            label="Valor"
+            formControlName="value"
+            inputMode="decimal"
+            [error]="valueError() ?? ''"
+            hint="Hasta 6 decimales. Por ejemplo 49799 o 0.05."
+          ></fc-input>
+        </div>
+      </div>
+
+      <div class="fc-ind__fila">
+        <div class="fc-ind__campo">
+          <fc-input label="Aplica desde" type="date" formControlName="validFrom"></fc-input>
+        </div>
+        <div class="fc-ind__campo">
+          <fc-input label="Aplica hasta" type="date" formControlName="validTo"></fc-input>
+        </div>
+      </div>
+
+      @if (validityError()) {
+        <p class="fc-field__help" data-invalid="true">{{ validityError() }}</p>
+      }
+
+      <div class="fc-ind__acciones">
+        @if (editingId() === null) {
+          <fc-button type="submit" [disabled]="busy() !== null">
+            {{ busy() === 'create' ? 'Cargando…' : 'Cargar vigencia' }}
+          </fc-button>
+        } @else {
+          <fc-button
+            type="button"
+            [disabled]="busy() !== null"
+            (pressed)="onSaveEdit(editingIndicator())"
+          >
+            {{ busy() === 'update' ? 'Guardando…' : 'Guardar corrección' }}
+          </fc-button>
+          <fc-button type="button" variant="ghost" (pressed)="cancelEdit()">Cancelar</fc-button>
+        }
+      </div>
+    </form>
+  </fc-module-box>
+
+  <fc-module-box>
+    <h2 class="fc-page__subtitle">Vigencias registradas</h2>
+
+    @switch (state()) {
+      @case ('loading') {
+        <fc-skeleton height="2rem"></fc-skeleton>
+        <fc-skeleton height="2rem"></fc-skeleton>
+      }
+      @case ('error') {
+        <fc-error-state
+          title="No pudimos cargar las vigencias"
+          message="Vuelve a intentarlo en un momento."
+          [retryLabel]="null"
+        ></fc-error-state>
+      }
+      @default {
+        @if (indicators().length === 0) {
+          <fc-empty-state
+            title="Todavía no hay vigencias"
+            message="Carga el valor del año en curso para que las calculadoras que dependen de indicadores puedan ejecutarse."
+          ></fc-empty-state>
+        } @else {
+          @for (grupo of groups(); track grupo.name) {
+            <div class="fc-ind__grupo">
+              <h3 class="fc-ind__grupo-titulo">
+                {{ grupo.name }}
+                @if (grupo.vigencias.length > 1) {
+                  <fc-badge tone="neutral">{{ grupo.vigencias.length }} vigencias</fc-badge>
+                }
+              </h3>
+
+              <div class="fc-ind__lista">
+                @for (indicador of grupo.vigencias; track indicador.indicator_id) {
+                  <div class="fc-ind__vigencia">
+                    <div class="fc-ind__vigencia-datos">
+                      <!--
+                        La cifra va en `.fc-num`: es un valor monetario y nunca se
+                        trunca (N-15). El espacio que sobra lo absorbe el contenedor de
+                        al lado, no la cifra.
+                      -->
+                      <span class="fc-ind__vigencia-valor fc-num">{{ indicador.value }}</span>
+                      <div class="fc-ind__vigencia-fechas">
+                        del {{ indicador.valid_from }} al {{ describeValidTo(indicador.valid_to) }}
+                      </div>
+                    </div>
+
+                    @if (enCurso(indicador)) {
+                      <fc-badge tone="success">En curso</fc-badge>
+                    }
+
+                    <div class="fc-ind__acciones">
+                      <fc-button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        (pressed)="startEdit(indicador)"
+                      >
+                        Corregir
+                      </fc-button>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        }
+      }
+    }
+  </fc-module-box>
+</section>

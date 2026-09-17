@@ -102,8 +102,25 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 		// Lista explícita de orígenes, nunca `*`. Con comodín, el navegador no permite
 		// enviar credenciales, y además cualquier sitio podría invocar la API con el
 		// token de un usuario que tenga la sesión abierta.
-		AllowedOrigins:   deps.CORSOrigins,
-		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+		AllowedOrigins: deps.CORSOrigins,
+		// `PUT` TIENE que estar en la lista: sin él, el navegador responde 200 al
+		// preflight y DESCARTA la petición real, de modo que el cliente recibe un error
+		// de red —`status === 0`, «parece que perdiste la conexión»— sobre una ruta que
+		// funciona perfectamente por `curl`. Le pasó a la edición de un cuestionario
+		// (`PUT /editorial/quizzes/{quizId}`) y a la corrección de una vigencia de
+		// indicador: ninguna prueba las ejercitaba desde un navegador, y el fallo culpaba
+		// a la red del usuario en lugar de a esta lista.
+		//
+		// Las tres rutas `PUT` de la superficie y este vector son la misma decisión: si se
+		// añade otra, la lista ya está preparada.
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           300,

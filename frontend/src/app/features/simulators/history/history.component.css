@@ -124,3 +124,40 @@
 .fc-history__more {
   display: flex;
 }
+
+/*
+ * Versión de la definición con la que se calculó (T110). Va pegada al nombre de la
+ * calculadora y en tamaño pequeño: es un dato de trazabilidad, no lo que se viene a leer
+ * al historial.
+ */
+.fc-history__version {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/*
+ * Indicadores usados. Separados de los parámetros escritos a mano por una línea: son
+ * entradas también, pero no las tecleó el usuario ese día —las puso el catálogo según la
+ * fecha— y confundir ambas cosas haría creer que el UVT se eligió en el formulario.
+ */
+.fc-history__indicadores {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.fc-history__indicador {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  /* N-15: la cifra no se recorta; si no cabe, el grupo baja entero a la línea siguiente. */
+  white-space: nowrap;
+  margin-right: var(--space-2);
+}
+
+.fc-history__indicador-nombre {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}

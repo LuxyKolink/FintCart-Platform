@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -90,6 +90,31 @@ export class SimulatorFormComponent implements OnInit {
   protected readonly recentState = signal<PanelState>('loading');
   protected readonly recent = signal<SimulationHistoryEntry[]>([]);
 
+  /**
+   * Indicadores que el modo actual necesita y que NO tienen vigencia hoy (FR-062).
+   *
+   * Va aparte del resto de la carga y NO bloquea: si `/indicators/current` falla, no hay
+   * aviso y la calculadora sigue funcionando. Una advertencia que se convirtiera en un
+   * error de carga impediría calcular por un dato que solo matiza el resultado.
+   */
+  protected readonly missingIndicators = signal<string[]>([]);
+
+  /**
+   * Indicadores que el modo actual necesita y que NO tienen vigencia hoy (FR-062).
+   *
+   * Se DERIVA de la lista del servidor y de lo que declara el modo, en vez de guardarse
+   * en una señal que hubiera que mantener al día: al cambiar de calculadora —o de modo
+   * dentro de `colombia_especifica`— el aviso se recalcula solo.
+   */
+  protected readonly staleIndicators = computed<string[]>(() => {
+    const mode = this.mode();
+    if (mode === null) {
+      return [];
+    }
+    const faltan = new Set(this.missingIndicators());
+    return (mode.indicators ?? []).filter((name) => faltan.has(name));
+  });
+
   private calcType: CalcType | null = null;
 
   public ngOnInit(): void {
@@ -102,6 +127,7 @@ export class SimulatorFormComponent implements OnInit {
     this.calcType = def.calcType;
     this.definition.set(def);
     this.loadRecent();
+    this.loadIndicators();
     const firstMode = def.modes[0];
     if (firstMode !== undefined) {
       this.selectMode(firstMode);
@@ -113,6 +139,19 @@ export class SimulatorFormComponent implements OnInit {
     if (found !== undefined) {
       this.selectMode(found);
     }
+  }
+
+  /**
+   * Pregunta qué indicadores se quedaron sin vigencia y se queda con los que este modo
+   * usa. El aviso se DERIVA del modo elegido y no se guarda por modo: al cambiar de
+   * calculadora —o de modo dentro de `colombia_especifica`— la lista se recalcula sola.
+   */
+  private loadIndicators(): void {
+    this.api.currentIndicators().subscribe({
+      next: (vigentes) => this.missingIndicators.set(vigentes.missing_names),
+      // Sin red no hay aviso, pero tampoco un error: el usuario vino a calcular.
+      error: () => this.missingIndicators.set([]),
+    });
   }
 
   private selectMode(mode: CalculatorMode): void {

@@ -32,6 +32,7 @@
       }
       @if (auth.hasRole('administrador')) {
         <a routerLink="/admin/categorias">Administración</a>
+        <a routerLink="/admin/indicadores">Indicadores</a>
       }
       <a routerLink="/perfil">Tu perfil</a>
       <fc-button variant="ghost" size="sm" (pressed)="onLogout()">Cerrar sesión</fc-button>

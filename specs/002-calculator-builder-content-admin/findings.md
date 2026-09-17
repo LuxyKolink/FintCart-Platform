@@ -83,3 +83,105 @@ honesto mientras quede dicho; el mensaje lleva la tarea para que sea verificable
 falló» sin leer el texto del error, porque las dos llegan como `Unimplemented`/`500` sin un
 código propio. Cuando se implementen, esa ambigüedad desaparece sola; mientras tanto, conviene
 saber que la interfaz de administración de indicadores **está anunciada y no existe**.
+
+
+---
+
+## 4. La lista de CORS del borde no incluía `PUT`: toda una familia de rutas era inusable desde el navegador
+
+**Fecha**: durante T108/T109 (el primer `PUT` que un navegador ejercita).
+
+**Qué pasó**: al guardar la corrección de una vigencia de indicador, la pantalla mostraba «Parece que perdiste
+la conexión». Los registros del borde enseñaban el `OPTIONS` de la petición con **200** y ninguna línea del
+`PUT`: el navegador respondió al preflight y **descartó la petición real**, así que el cliente recibió
+`status === 0` —el mismo que cuando no hay red— sobre una ruta que por `curl` funcionaba perfectamente.
+
+**Causa**: `AllowedMethods` en `routes.go` listaba GET, POST, PATCH, DELETE y OPTIONS. Faltaba `PUT`, y la
+superficie tiene tres rutas `PUT`: `/calculators/{calculatorId}` (T088), `/editorial/quizzes/{quizId}` (T162,
+editar un cuestionario) y la nueva de indicadores.
+
+**Alcance real**: la edición de un cuestionario publicable llevaba rota desde T162 y ninguna prueba la
+ejercitaba desde un navegador —las de extremo a extremo crean cuestionarios con `POST` y nunca los editan—. El
+síntoma era además **engañoso**: el mensaje culpaba a la red del usuario, y ese mensaje es correcto por
+construcción (el navegador no expone el motivo de un descarte por CORS), así que no había forma de llegar a la
+causa leyéndolo.
+
+**Arreglo**: añadir `PUT` a la lista. Y una prueba nueva
+(`TestCORSAllowsEveryMethodTheSurfaceUses`) que recorre los métodos que la superficie declara y exige que el
+preflight los permita: se verificó que **falla con la lista vieja y pasa con la nueva**, porque una prueba que
+no distingue las dos versiones no protege de nada. Es un fallo que solo se manifiesta en un navegador, así que
+sin ella volvería a colarse.
+
+**Lección**: el error de red (`status === 0`) tiene dos causas —no hay red, o el navegador descartó la
+petición— y el código del cliente no puede distinguirlas. Cuando aparece en una ruta que por `curl` funciona,
+lo primero que hay que mirar es CORS, no la red.
+
+---
+
+## 5. La barrera de accesibilidad confundía un campo de fecha con un orden de tabulación cíclico
+
+**Fecha**: durante T108, al añadir la pantalla de indicadores a la barrera.
+
+**Qué pasó**: el recorrido por teclado de `/admin/indicadores` se detenía en «Aplica desde» y no llegaba al botón
+de envío, aunque el botón sí era alcanzable. La barrera afirmaba que el teclado no llegaba a una acción que sí
+alcanzaba.
+
+**Causa**: el recorrido cortaba al volver a ver un elemento ya visitado —«el orden cicló»—, y un
+`<input type="date">` **nativo recibe la tabulación cuatro veces** en Chromium sin dejar el elemento: día, mes,
+año y el selector. Cuatro paradas seguidas del mismo control parecían un ciclo.
+
+**Arreglo**: el final de la página ya tiene su propia señal (`document.activeElement` sale al navegador) y un
+ciclo infinito lo corta el presupuesto de paradas, así que la detección de ciclo se sustituye por un contador
+de repeticiones **consecutivas** con umbral por encima de las cuatro paradas del campo de fecha. La suite pasó
+de 19 a 20 pantallas con este arreglo, y sin él ninguna pantalla con un campo de fecha podría haberse añadido
+a la barrera: el falso positivo habría bloqueado justo la comprobación que existe para no romper la
+accesibilidad en silencio.
+
+**Lección**: es el segundo falso positivo de esta barrera (el primero fue seguir tabulando a mitad de página
+tras una navegación de la SPA), y los dos apuntan a lo mismo: una heurística de «esto ya lo vi» sobre un DOM
+que se comporta de maneras legítimas distintas. Cuando una barrera se equivoca, la tentación es añadir una
+excepción en la pantalla señalada; las dos veces el arreglo correcto estuvo en la barrera.
+
+---
+
+## 6. Una regla de análisis estático apuntaba a una carpeta que no existe
+
+**Fecha**: durante T108, al añadir la pantalla de indicadores a la regla de T171.
+
+**Qué pasó**: T171 configuró la prohibición del tipo `number` (Principio VIII) sobre
+`src/app/features/calculators/**/*.ts` y `src/app/features/admin/indicators/**/*.ts`. La primera carpeta **no
+existe**: el constructor visual es T097 y todavía no se ha escrito. El dinero que hay hoy en pantalla vive en
+`src/app/features/simulators/`, que no estaba en la lista.
+
+**Alcance**: la regla llevaba desde T171 aplicándose al conjunto vacío en su mitad más importante, y el
+«verde» que producía no significaba lo que decía. Al apuntarla a la carpeta real, las violaciones fueron
+**cero** —el dinero ya era `string` en todas partes, que es el resultado que se quería—, así que el efecto
+práctico fue nulo y el valor del arreglo es que ahora la regla protege de verdad.
+
+**Arreglo**: las tres carpetas en la lista (la real, la que llegará y la de indicadores), con el comentario
+que explica por qué están las tres.
+
+**Lección**: un análisis estático que no encuentra nada no distingue «el código está bien» de «la regla no está
+mirando». Un glob sobre una carpeta que no existe se ve en una línea de configuración, y solo se ve **si
+alguien escribe el primero de los archivos que la regla dice proteger**.
+
+---
+
+## 7. Evidencia nueva del hallazgo 2 (contención del anfitrión): las peticiones se cancelan a los 5 s
+
+**Fecha**: durante T108/T109, corriendo la batería de extremo a extremo completa.
+
+**Dato**: con los quince contenedores levantados y el servidor de desarrollo del SPA (2,7 GB de memoria)
+recompilando, peticiones que en reposo tardan **3 ms** se quedaron en **5,4-5,6 s** y el cliente las canceló:
+`POST /oauth/authorize` (la verificación de la contraseña es costosa a propósito), `GET /admin/indicators`,
+`POST /simulators/ahorro/run`. En los registros aparecen como `grpc_code: Canceled` y `HTTP 500`, que es lo que
+ve quien lee el log: **no** un «tardó mucho», sino una cancelación.
+
+**Comprobado**: no es la base (3 conexiones en reposo, ninguna activa), ni el grupo de conexiones del
+Simulador, ni ninguno de los dos servicios. Las mismas llamadas por `curl` con la máquina en reposo tardan
+3 ms, doce veces seguidas.
+
+**Consecuencia práctica**: una prueba de extremo a extremo que falle con un plazo de 5 s durante la batería
+completa **puede pasar sola**, y así se verificó (`us1-aprendizaje` falló en la batería y pasó en 10,5 s
+ejecutada aparte). Antes de una demostración: `dev/down && dev/up`, esperar a que el SPA termine de componerse
+y correr la batería **una vez**.

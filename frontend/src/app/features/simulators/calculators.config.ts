@@ -47,6 +47,22 @@ export interface CalculatorMode {
    * dejar que el usuario descubra el rechazo solo tras enviar el formulario.
    */
   atLeastOneOf?: string[];
+
+  /**
+   * Indicadores del catálogo de los que depende este modo (FR-062).
+   *
+   * Se declara para poder avisar ANTES de ejecutar cuando el valor vigente no está
+   * cargado: las cifras del año las administra la plataforma, y una calculadora que usa
+   * una que ya venció da un resultado que parece bueno y no lo es.
+   *
+   * En el camino NATIVO el valor llega como un campo escrito por el usuario —`gmf` pide
+   * `valor_uvt`—, y por eso el aviso no bloquea: la ejecución sigue siendo posible con
+   * el valor que cada uno tenga. Lo que dice es que la plataforma no puede confirmarlo.
+   * Las calculadoras por definición (`/calculators/{id}/run`, T097) lo resuelven del
+   * catálogo, y ahí el aviso es la única señal de que el resultado puede estar
+   * desactualizado.
+   */
+  indicators?: string[];
 }
 
 export interface CalculatorDefinition {
@@ -190,6 +206,10 @@ export const CALCULATORS: CalculatorDefinition[] = [
       {
         value: 'gmf',
         label: 'Gravamen a los Movimientos Financieros (4×1000)',
+        // La UVT es un valor oficial que cambia cada año y que la plataforma administra
+        // (FR-055): la fórmula semilla lee `@UVT`. El formulario nativo la pide porque
+        // el motor nativo la recibe por parámetro, no porque no exista en el catálogo.
+        indicators: ['UVT'],
         fields: [
           { key: 'monto', label: 'Valor del retiro o traslado', kind: 'money', required: true, strictlyPositive: true },
           { key: 'valor_uvt', label: 'Valor de la UVT vigente', kind: 'money', required: true, strictlyPositive: true },

@@ -455,6 +455,21 @@ type SimulationHistoryEntry struct {
 	Inputs       map[string]string `json:"inputs"`
 	Result       map[string]string `json:"result"`
 	CreatedAt    string            `json:"created_at"`
+
+	// Procedencia de la simulación (FR-050, FR-058, T110). Los tres campos salen
+	// SIEMPRE (vacíos si no hay dato) y no se omiten: el historial es lo que hace
+	// reproducible un resultado, y una fila sin `calculator_version` no es una fila con
+	// menos campos, es una fila que no se puede explicar.
+	//
+	// `calculator_id` y `calculator_version` dicen CON QUÉ se calculó: la definición
+	// cambia con el tiempo y una simulación de hace un año se explicaría con la fórmula
+	// de hoy si no se citara la versión.
+	CalculatorID      string `json:"calculator_id"`
+	CalculatorVersion int32  `json:"calculator_version"`
+	// `indicators_used` son los valores de indicador que se USARON, resueltos el día de
+	// la ejecución. Viajan como cadena decimal (Principio VIII) y son lo que permite
+	// reconstruir el cálculo aunque el UVT haya cambiado desde entonces.
+	IndicatorsUsed map[string]string `json:"indicators_used"`
 }
 
 // ── DTO del constructor de calculadoras (FR-043…FR-046) ─────────────────────
