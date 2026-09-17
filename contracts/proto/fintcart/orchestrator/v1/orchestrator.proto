@@ -29,11 +29,39 @@ service OrchestratorService {
   // preserva Auditoría con actor_ref opaco.
   rpc StartAccountAnonymization(UserRef) returns (SagaHandle);
 
+  // Aprobación de una calculadora al catálogo público (FR-053).
+  //
+  // Va por el Orquestador y no directo al Simulador por el mismo motivo que
+  // `StartSimulation`: el Simulador NO es productor de eventos (Principio V) y la
+  // aprobación tiene que quedar auditada. `calculator.published` es el rastro de quién
+  // aprobó qué versión y cuándo, y sin él una calculadora aparecería en el catálogo sin
+  // que nada diga cómo llegó.
+  //
+  // SÍNCRONA, como `StartSimulation`, y no un `SagaHandle`: el coordinador está esperando
+  // el resultado de un clic, y devolverle un identificador de saga al que después preguntar
+  // añadiría una consulta para una operación que dura una llamada.
+  rpc ApproveCalculator(CalculatorApprovalRequest) returns (CalculatorApprovalResult);
+
   // Consulta de estado de una saga.
   rpc GetSagaStatus(SagaHandle) returns (SagaStatus);
 }
 
 message UserRef { string user_id = 1; }
+
+message CalculatorApprovalRequest {
+  string calculator_id = 1;
+  // Coordinador editorial, y DISTINTO del autor (FR-053). El rol lo exige el borde, que
+  // es el único sitio de la plataforma que conoce los roles; la separación de autoría la
+  // imponen el Simulador y la base.
+  string coordinator_id = 2;
+}
+
+message CalculatorApprovalResult {
+  string calculator_id = 1;
+  // Versión que esta aprobación publicó. El autor puede haber escrito versiones nuevas
+  // mientras la propuesta esperaba, y la que se publica es la que se revisó.
+  int32 version = 2;
+}
 
 message SagaHandle { string saga_id = 1; }
 message SagaStatus {

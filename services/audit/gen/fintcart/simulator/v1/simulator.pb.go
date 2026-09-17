@@ -1035,6 +1035,17 @@ type ListCalculatorsRequest struct {
 	OwnerId       string                 `protobuf:"bytes,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	OnlyPublished bool                   `protobuf:"varint,2,opt,name=only_published,json=onlyPublished,proto3" json:"only_published,omitempty"`
 	Page          *v1.PageRequest        `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Filtro por estado de curaduría: `privada` | `en_revision` | `publicada`.
+	//
+	// Lo necesita la bandeja de curaduría (`GET /editorial/calculators`), que lista lo que
+	// espera revisión: no había forma de pedirlo con los otros dos filtros, y un listado sin
+	// filtro alguno está PROHIBIDO por FR-051 —devolvería las calculadoras privadas de todo
+	// el mundo—. `owner_id` sigue significando «las mías», así que este campo no da acceso a
+	// las de nadie: solo acota por estado lo que ya se podía pedir.
+	//
+	// Vacío ⇒ sin filtro por estado. Es el único de los tres que puede ir vacío y no deja la
+	// consulta sin filtrar, porque `owner_id` y `only_published` siguen aplicándose.
+	State         string `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1088,6 +1099,13 @@ func (x *ListCalculatorsRequest) GetPage() *v1.PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListCalculatorsRequest) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
 }
 
 type ListCalculatorsResponse struct {
@@ -2026,11 +2044,12 @@ const file_fintcart_simulator_v1_simulator_proto_rawDesc = "" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12K\n" +
 	"\n" +
 	"definition\x18\x05 \x01(\v2+.fintcart.simulator.v1.CalculatorDefinitionR\n" +
-	"definition\"\x8f\x01\n" +
+	"definition\"\xa5\x01\n" +
 	"\x16ListCalculatorsRequest\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\tR\aownerId\x12%\n" +
 	"\x0eonly_published\x18\x02 \x01(\bR\ronlyPublished\x123\n" +
-	"\x04page\x18\x03 \x01(\v2\x1f.fintcart.common.v1.PageRequestR\x04page\"\x88\x01\n" +
+	"\x04page\x18\x03 \x01(\v2\x1f.fintcart.common.v1.PageRequestR\x04page\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\"\x88\x01\n" +
 	"\x17ListCalculatorsResponse\x127\n" +
 	"\x05items\x18\x01 \x03(\v2!.fintcart.simulator.v1.CalculatorR\x05items\x124\n" +
 	"\x04page\x18\x02 \x01(\v2 .fintcart.common.v1.PageResponseR\x04page\"h\n" +

@@ -66,6 +66,115 @@ func (x *UserRef) GetUserId() string {
 	return ""
 }
 
+type CalculatorApprovalRequest struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	CalculatorId string                 `protobuf:"bytes,1,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	// Coordinador editorial, y DISTINTO del autor (FR-053). El rol lo exige el borde, que
+	// es el único sitio de la plataforma que conoce los roles; la separación de autoría la
+	// imponen el Simulador y la base.
+	CoordinatorId string `protobuf:"bytes,2,opt,name=coordinator_id,json=coordinatorId,proto3" json:"coordinator_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CalculatorApprovalRequest) Reset() {
+	*x = CalculatorApprovalRequest{}
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalculatorApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalculatorApprovalRequest) ProtoMessage() {}
+
+func (x *CalculatorApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalculatorApprovalRequest.ProtoReflect.Descriptor instead.
+func (*CalculatorApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CalculatorApprovalRequest) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *CalculatorApprovalRequest) GetCoordinatorId() string {
+	if x != nil {
+		return x.CoordinatorId
+	}
+	return ""
+}
+
+type CalculatorApprovalResult struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	CalculatorId string                 `protobuf:"bytes,1,opt,name=calculator_id,json=calculatorId,proto3" json:"calculator_id,omitempty"`
+	// Versión que esta aprobación publicó. El autor puede haber escrito versiones nuevas
+	// mientras la propuesta esperaba, y la que se publica es la que se revisó.
+	Version       int32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CalculatorApprovalResult) Reset() {
+	*x = CalculatorApprovalResult{}
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalculatorApprovalResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalculatorApprovalResult) ProtoMessage() {}
+
+func (x *CalculatorApprovalResult) ProtoReflect() protoreflect.Message {
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalculatorApprovalResult.ProtoReflect.Descriptor instead.
+func (*CalculatorApprovalResult) Descriptor() ([]byte, []int) {
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CalculatorApprovalResult) GetCalculatorId() string {
+	if x != nil {
+		return x.CalculatorId
+	}
+	return ""
+}
+
+func (x *CalculatorApprovalResult) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
 type SagaHandle struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SagaId        string                 `protobuf:"bytes,1,opt,name=saga_id,json=sagaId,proto3" json:"saga_id,omitempty"`
@@ -75,7 +184,7 @@ type SagaHandle struct {
 
 func (x *SagaHandle) Reset() {
 	*x = SagaHandle{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[1]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +196,7 @@ func (x *SagaHandle) String() string {
 func (*SagaHandle) ProtoMessage() {}
 
 func (x *SagaHandle) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[1]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,7 +209,7 @@ func (x *SagaHandle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SagaHandle.ProtoReflect.Descriptor instead.
 func (*SagaHandle) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{1}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SagaHandle) GetSagaId() string {
@@ -122,7 +231,7 @@ type SagaStatus struct {
 
 func (x *SagaStatus) Reset() {
 	*x = SagaStatus{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[2]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -134,7 +243,7 @@ func (x *SagaStatus) String() string {
 func (*SagaStatus) ProtoMessage() {}
 
 func (x *SagaStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[2]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -147,7 +256,7 @@ func (x *SagaStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SagaStatus.ProtoReflect.Descriptor instead.
 func (*SagaStatus) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{2}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SagaStatus) GetSagaId() string {
@@ -189,7 +298,7 @@ type StartRegistrationRequest struct {
 
 func (x *StartRegistrationRequest) Reset() {
 	*x = StartRegistrationRequest{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[3]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +310,7 @@ func (x *StartRegistrationRequest) String() string {
 func (*StartRegistrationRequest) ProtoMessage() {}
 
 func (x *StartRegistrationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[3]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +323,7 @@ func (x *StartRegistrationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRegistrationRequest.ProtoReflect.Descriptor instead.
 func (*StartRegistrationRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{3}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StartRegistrationRequest) GetEmail() string {
@@ -248,7 +357,7 @@ type EmailVerificationRequest struct {
 
 func (x *EmailVerificationRequest) Reset() {
 	*x = EmailVerificationRequest{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[4]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -260,7 +369,7 @@ func (x *EmailVerificationRequest) String() string {
 func (*EmailVerificationRequest) ProtoMessage() {}
 
 func (x *EmailVerificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[4]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -273,7 +382,7 @@ func (x *EmailVerificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailVerificationRequest.ProtoReflect.Descriptor instead.
 func (*EmailVerificationRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{4}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *EmailVerificationRequest) GetUserId() string {
@@ -304,7 +413,7 @@ type QuizGradingRequest struct {
 
 func (x *QuizGradingRequest) Reset() {
 	*x = QuizGradingRequest{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[5]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -316,7 +425,7 @@ func (x *QuizGradingRequest) String() string {
 func (*QuizGradingRequest) ProtoMessage() {}
 
 func (x *QuizGradingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[5]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -329,7 +438,7 @@ func (x *QuizGradingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuizGradingRequest.ProtoReflect.Descriptor instead.
 func (*QuizGradingRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{5}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *QuizGradingRequest) GetUserId() string {
@@ -373,7 +482,7 @@ type QuizGradingResult struct {
 
 func (x *QuizGradingResult) Reset() {
 	*x = QuizGradingResult{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[6]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -385,7 +494,7 @@ func (x *QuizGradingResult) String() string {
 func (*QuizGradingResult) ProtoMessage() {}
 
 func (x *QuizGradingResult) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[6]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -398,7 +507,7 @@ func (x *QuizGradingResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuizGradingResult.ProtoReflect.Descriptor instead.
 func (*QuizGradingResult) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{6}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *QuizGradingResult) GetAttemptId() string {
@@ -467,7 +576,7 @@ type SimulationRequest struct {
 
 func (x *SimulationRequest) Reset() {
 	*x = SimulationRequest{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[7]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +588,7 @@ func (x *SimulationRequest) String() string {
 func (*SimulationRequest) ProtoMessage() {}
 
 func (x *SimulationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[7]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +601,7 @@ func (x *SimulationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SimulationRequest.ProtoReflect.Descriptor instead.
 func (*SimulationRequest) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{7}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SimulationRequest) GetUserId() string {
@@ -540,7 +649,7 @@ type SimulationResult struct {
 
 func (x *SimulationResult) Reset() {
 	*x = SimulationResult{}
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[8]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -552,7 +661,7 @@ func (x *SimulationResult) String() string {
 func (*SimulationResult) ProtoMessage() {}
 
 func (x *SimulationResult) ProtoReflect() protoreflect.Message {
-	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[8]
+	mi := &file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -565,7 +674,7 @@ func (x *SimulationResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SimulationResult.ProtoReflect.Descriptor instead.
 func (*SimulationResult) Descriptor() ([]byte, []int) {
-	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{8}
+	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SimulationResult) GetSimulationId() string {
@@ -588,7 +697,13 @@ const file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc = "" +
 	"\n" +
 	"+fintcart/orchestrator/v1/orchestrator.proto\x12\x18fintcart.orchestrator.v1\x1a%fintcart/simulator/v1/simulator.proto\"\"\n" +
 	"\aUserRef\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"%\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"g\n" +
+	"\x19CalculatorApprovalRequest\x12#\n" +
+	"\rcalculator_id\x18\x01 \x01(\tR\fcalculatorId\x12%\n" +
+	"\x0ecoordinator_id\x18\x02 \x01(\tR\rcoordinatorId\"Y\n" +
+	"\x18CalculatorApprovalResult\x12#\n" +
+	"\rcalculator_id\x18\x01 \x01(\tR\fcalculatorId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\"%\n" +
 	"\n" +
 	"SagaHandle\x12\x17\n" +
 	"\asaga_id\x18\x01 \x01(\tR\x06sagaId\"}\n" +
@@ -636,13 +751,14 @@ const file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc = "" +
 	"\x06result\x18\x02 \x03(\v26.fintcart.orchestrator.v1.SimulationResult.ResultEntryR\x06result\x1a9\n" +
 	"\vResultEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\x96\x05\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\x94\x06\n" +
 	"\x13OrchestratorService\x12m\n" +
 	"\x11StartRegistration\x122.fintcart.orchestrator.v1.StartRegistrationRequest\x1a$.fintcart.orchestrator.v1.SagaHandle\x12r\n" +
 	"\x16StartEmailVerification\x122.fintcart.orchestrator.v1.EmailVerificationRequest\x1a$.fintcart.orchestrator.v1.SagaHandle\x12m\n" +
 	"\x10StartQuizGrading\x12,.fintcart.orchestrator.v1.QuizGradingRequest\x1a+.fintcart.orchestrator.v1.QuizGradingResult\x12j\n" +
 	"\x0fStartSimulation\x12+.fintcart.orchestrator.v1.SimulationRequest\x1a*.fintcart.orchestrator.v1.SimulationResult\x12d\n" +
-	"\x19StartAccountAnonymization\x12!.fintcart.orchestrator.v1.UserRef\x1a$.fintcart.orchestrator.v1.SagaHandle\x12[\n" +
+	"\x19StartAccountAnonymization\x12!.fintcart.orchestrator.v1.UserRef\x1a$.fintcart.orchestrator.v1.SagaHandle\x12|\n" +
+	"\x11ApproveCalculator\x123.fintcart.orchestrator.v1.CalculatorApprovalRequest\x1a2.fintcart.orchestrator.v1.CalculatorApprovalResult\x12[\n" +
 	"\rGetSagaStatus\x12$.fintcart.orchestrator.v1.SagaHandle\x1a$.fintcart.orchestrator.v1.SagaStatusB\x8c\x02\n" +
 	"\x1ccom.fintcart.orchestrator.v1B\x11OrchestratorProtoP\x01ZWgithub.com/fintcart/platform/services/audit/gen/fintcart/orchestrator/v1;orchestratorv1\xa2\x02\x03FOX\xaa\x02\x18Fintcart.Orchestrator.V1\xca\x02\x18Fintcart\\Orchestrator\\V1\xe2\x02$Fintcart\\Orchestrator\\V1\\GPBMetadata\xea\x02\x1aFintcart::Orchestrator::V1b\x06proto3"
 
@@ -658,41 +774,45 @@ func file_fintcart_orchestrator_v1_orchestrator_proto_rawDescGZIP() []byte {
 	return file_fintcart_orchestrator_v1_orchestrator_proto_rawDescData
 }
 
-var file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_fintcart_orchestrator_v1_orchestrator_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_fintcart_orchestrator_v1_orchestrator_proto_goTypes = []any{
-	(*UserRef)(nil),                  // 0: fintcart.orchestrator.v1.UserRef
-	(*SagaHandle)(nil),               // 1: fintcart.orchestrator.v1.SagaHandle
-	(*SagaStatus)(nil),               // 2: fintcart.orchestrator.v1.SagaStatus
-	(*StartRegistrationRequest)(nil), // 3: fintcart.orchestrator.v1.StartRegistrationRequest
-	(*EmailVerificationRequest)(nil), // 4: fintcart.orchestrator.v1.EmailVerificationRequest
-	(*QuizGradingRequest)(nil),       // 5: fintcart.orchestrator.v1.QuizGradingRequest
-	(*QuizGradingResult)(nil),        // 6: fintcart.orchestrator.v1.QuizGradingResult
-	(*SimulationRequest)(nil),        // 7: fintcart.orchestrator.v1.SimulationRequest
-	(*SimulationResult)(nil),         // 8: fintcart.orchestrator.v1.SimulationResult
-	nil,                              // 9: fintcart.orchestrator.v1.QuizGradingRequest.AnswersEntry
-	nil,                              // 10: fintcart.orchestrator.v1.SimulationRequest.InputsEntry
-	nil,                              // 11: fintcart.orchestrator.v1.SimulationResult.ResultEntry
-	(v1.CalcType)(0),                 // 12: fintcart.simulator.v1.CalcType
+	(*UserRef)(nil),                   // 0: fintcart.orchestrator.v1.UserRef
+	(*CalculatorApprovalRequest)(nil), // 1: fintcart.orchestrator.v1.CalculatorApprovalRequest
+	(*CalculatorApprovalResult)(nil),  // 2: fintcart.orchestrator.v1.CalculatorApprovalResult
+	(*SagaHandle)(nil),                // 3: fintcart.orchestrator.v1.SagaHandle
+	(*SagaStatus)(nil),                // 4: fintcart.orchestrator.v1.SagaStatus
+	(*StartRegistrationRequest)(nil),  // 5: fintcart.orchestrator.v1.StartRegistrationRequest
+	(*EmailVerificationRequest)(nil),  // 6: fintcart.orchestrator.v1.EmailVerificationRequest
+	(*QuizGradingRequest)(nil),        // 7: fintcart.orchestrator.v1.QuizGradingRequest
+	(*QuizGradingResult)(nil),         // 8: fintcart.orchestrator.v1.QuizGradingResult
+	(*SimulationRequest)(nil),         // 9: fintcart.orchestrator.v1.SimulationRequest
+	(*SimulationResult)(nil),          // 10: fintcart.orchestrator.v1.SimulationResult
+	nil,                               // 11: fintcart.orchestrator.v1.QuizGradingRequest.AnswersEntry
+	nil,                               // 12: fintcart.orchestrator.v1.SimulationRequest.InputsEntry
+	nil,                               // 13: fintcart.orchestrator.v1.SimulationResult.ResultEntry
+	(v1.CalcType)(0),                  // 14: fintcart.simulator.v1.CalcType
 }
 var file_fintcart_orchestrator_v1_orchestrator_proto_depIdxs = []int32{
-	9,  // 0: fintcart.orchestrator.v1.QuizGradingRequest.answers:type_name -> fintcart.orchestrator.v1.QuizGradingRequest.AnswersEntry
-	12, // 1: fintcart.orchestrator.v1.SimulationRequest.calc_type:type_name -> fintcart.simulator.v1.CalcType
-	10, // 2: fintcart.orchestrator.v1.SimulationRequest.inputs:type_name -> fintcart.orchestrator.v1.SimulationRequest.InputsEntry
-	11, // 3: fintcart.orchestrator.v1.SimulationResult.result:type_name -> fintcart.orchestrator.v1.SimulationResult.ResultEntry
-	3,  // 4: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:input_type -> fintcart.orchestrator.v1.StartRegistrationRequest
-	4,  // 5: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:input_type -> fintcart.orchestrator.v1.EmailVerificationRequest
-	5,  // 6: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:input_type -> fintcart.orchestrator.v1.QuizGradingRequest
-	7,  // 7: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:input_type -> fintcart.orchestrator.v1.SimulationRequest
+	11, // 0: fintcart.orchestrator.v1.QuizGradingRequest.answers:type_name -> fintcart.orchestrator.v1.QuizGradingRequest.AnswersEntry
+	14, // 1: fintcart.orchestrator.v1.SimulationRequest.calc_type:type_name -> fintcart.simulator.v1.CalcType
+	12, // 2: fintcart.orchestrator.v1.SimulationRequest.inputs:type_name -> fintcart.orchestrator.v1.SimulationRequest.InputsEntry
+	13, // 3: fintcart.orchestrator.v1.SimulationResult.result:type_name -> fintcart.orchestrator.v1.SimulationResult.ResultEntry
+	5,  // 4: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:input_type -> fintcart.orchestrator.v1.StartRegistrationRequest
+	6,  // 5: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:input_type -> fintcart.orchestrator.v1.EmailVerificationRequest
+	7,  // 6: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:input_type -> fintcart.orchestrator.v1.QuizGradingRequest
+	9,  // 7: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:input_type -> fintcart.orchestrator.v1.SimulationRequest
 	0,  // 8: fintcart.orchestrator.v1.OrchestratorService.StartAccountAnonymization:input_type -> fintcart.orchestrator.v1.UserRef
-	1,  // 9: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:input_type -> fintcart.orchestrator.v1.SagaHandle
-	1,  // 10: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:output_type -> fintcart.orchestrator.v1.SagaHandle
-	1,  // 11: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:output_type -> fintcart.orchestrator.v1.SagaHandle
-	6,  // 12: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:output_type -> fintcart.orchestrator.v1.QuizGradingResult
-	8,  // 13: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:output_type -> fintcart.orchestrator.v1.SimulationResult
-	1,  // 14: fintcart.orchestrator.v1.OrchestratorService.StartAccountAnonymization:output_type -> fintcart.orchestrator.v1.SagaHandle
-	2,  // 15: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:output_type -> fintcart.orchestrator.v1.SagaStatus
-	10, // [10:16] is the sub-list for method output_type
-	4,  // [4:10] is the sub-list for method input_type
+	1,  // 9: fintcart.orchestrator.v1.OrchestratorService.ApproveCalculator:input_type -> fintcart.orchestrator.v1.CalculatorApprovalRequest
+	3,  // 10: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:input_type -> fintcart.orchestrator.v1.SagaHandle
+	3,  // 11: fintcart.orchestrator.v1.OrchestratorService.StartRegistration:output_type -> fintcart.orchestrator.v1.SagaHandle
+	3,  // 12: fintcart.orchestrator.v1.OrchestratorService.StartEmailVerification:output_type -> fintcart.orchestrator.v1.SagaHandle
+	8,  // 13: fintcart.orchestrator.v1.OrchestratorService.StartQuizGrading:output_type -> fintcart.orchestrator.v1.QuizGradingResult
+	10, // 14: fintcart.orchestrator.v1.OrchestratorService.StartSimulation:output_type -> fintcart.orchestrator.v1.SimulationResult
+	3,  // 15: fintcart.orchestrator.v1.OrchestratorService.StartAccountAnonymization:output_type -> fintcart.orchestrator.v1.SagaHandle
+	2,  // 16: fintcart.orchestrator.v1.OrchestratorService.ApproveCalculator:output_type -> fintcart.orchestrator.v1.CalculatorApprovalResult
+	4,  // 17: fintcart.orchestrator.v1.OrchestratorService.GetSagaStatus:output_type -> fintcart.orchestrator.v1.SagaStatus
+	11, // [11:18] is the sub-list for method output_type
+	4,  // [4:11] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -709,7 +829,7 @@ func file_fintcart_orchestrator_v1_orchestrator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc), len(file_fintcart_orchestrator_v1_orchestrator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

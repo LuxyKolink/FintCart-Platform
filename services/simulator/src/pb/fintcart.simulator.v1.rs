@@ -234,6 +234,18 @@ pub struct ListCalculatorsRequest {
     pub only_published: bool,
     #[prost(message, optional, tag = "3")]
     pub page: ::core::option::Option<super::super::common::v1::PageRequest>,
+    /// Filtro por estado de curaduría: `privada` | `en_revision` | `publicada`.
+    ///
+    /// Lo necesita la bandeja de curaduría (`GET /editorial/calculators`), que lista lo que
+    /// espera revisión: no había forma de pedirlo con los otros dos filtros, y un listado sin
+    /// filtro alguno está PROHIBIDO por FR-051 —devolvería las calculadoras privadas de todo
+    /// el mundo—. `owner_id` sigue significando «las mías», así que este campo no da acceso a
+    /// las de nadie: solo acota por estado lo que ya se podía pedir.
+    ///
+    /// Vacío ⇒ sin filtro por estado. Es el único de los tres que puede ir vacío y no deja la
+    /// consulta sin filtrar, porque `owner_id` y `only_published` siguen aplicándose.
+    #[prost(string, tag = "4")]
+    pub state: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListCalculatorsResponse {

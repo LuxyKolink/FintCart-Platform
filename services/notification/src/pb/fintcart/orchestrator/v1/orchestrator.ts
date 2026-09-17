@@ -14,6 +14,25 @@ export interface UserRef {
   user_id: string;
 }
 
+export interface CalculatorApprovalRequest {
+  calculator_id: string;
+  /**
+   * Coordinador editorial, y DISTINTO del autor (FR-053). El rol lo exige el borde, que
+   * es el único sitio de la plataforma que conoce los roles; la separación de autoría la
+   * imponen el Simulador y la base.
+   */
+  coordinator_id: string;
+}
+
+export interface CalculatorApprovalResult {
+  calculator_id: string;
+  /**
+   * Versión que esta aprobación publicó. El autor puede haber escrito versiones nuevas
+   * mientras la propuesta esperaba, y la que se publica es la que se revisó.
+   */
+  version: number;
+}
+
 export interface SagaHandle {
   saga_id: string;
 }
@@ -164,6 +183,158 @@ export const UserRef: MessageFns<UserRef> = {
   fromPartial<I extends Exact<DeepPartial<UserRef>, I>>(object: I): UserRef {
     const message = createBaseUserRef();
     message.user_id = object.user_id ?? "";
+    return message;
+  },
+};
+
+function createBaseCalculatorApprovalRequest(): CalculatorApprovalRequest {
+  return { calculator_id: "", coordinator_id: "" };
+}
+
+export const CalculatorApprovalRequest: MessageFns<CalculatorApprovalRequest> = {
+  encode(message: CalculatorApprovalRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.calculator_id !== "") {
+      writer.uint32(10).string(message.calculator_id);
+    }
+    if (message.coordinator_id !== "") {
+      writer.uint32(18).string(message.coordinator_id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CalculatorApprovalRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculatorApprovalRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.coordinator_id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CalculatorApprovalRequest {
+    return {
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      coordinator_id: isSet(object.coordinator_id) ? globalThis.String(object.coordinator_id) : "",
+    };
+  },
+
+  toJSON(message: CalculatorApprovalRequest): unknown {
+    const obj: any = {};
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.coordinator_id !== "") {
+      obj.coordinator_id = message.coordinator_id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CalculatorApprovalRequest>, I>>(base?: I): CalculatorApprovalRequest {
+    return CalculatorApprovalRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CalculatorApprovalRequest>, I>>(object: I): CalculatorApprovalRequest {
+    const message = createBaseCalculatorApprovalRequest();
+    message.calculator_id = object.calculator_id ?? "";
+    message.coordinator_id = object.coordinator_id ?? "";
+    return message;
+  },
+};
+
+function createBaseCalculatorApprovalResult(): CalculatorApprovalResult {
+  return { calculator_id: "", version: 0 };
+}
+
+export const CalculatorApprovalResult: MessageFns<CalculatorApprovalResult> = {
+  encode(message: CalculatorApprovalResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.calculator_id !== "") {
+      writer.uint32(10).string(message.calculator_id);
+    }
+    if (message.version !== 0) {
+      writer.uint32(16).int32(message.version);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CalculatorApprovalResult {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCalculatorApprovalResult();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.calculator_id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.version = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CalculatorApprovalResult {
+    return {
+      calculator_id: isSet(object.calculator_id) ? globalThis.String(object.calculator_id) : "",
+      version: isSet(object.version) ? globalThis.Number(object.version) : 0,
+    };
+  },
+
+  toJSON(message: CalculatorApprovalResult): unknown {
+    const obj: any = {};
+    if (message.calculator_id !== "") {
+      obj.calculator_id = message.calculator_id;
+    }
+    if (message.version !== 0) {
+      obj.version = Math.round(message.version);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CalculatorApprovalResult>, I>>(base?: I): CalculatorApprovalResult {
+    return CalculatorApprovalResult.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CalculatorApprovalResult>, I>>(object: I): CalculatorApprovalResult {
+    const message = createBaseCalculatorApprovalResult();
+    message.calculator_id = object.calculator_id ?? "";
+    message.version = object.version ?? 0;
     return message;
   },
 };

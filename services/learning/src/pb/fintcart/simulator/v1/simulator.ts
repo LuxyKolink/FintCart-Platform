@@ -356,7 +356,22 @@ export interface UpsertCalculatorRequest {
 export interface ListCalculatorsRequest {
   owner_id: string;
   only_published: boolean;
-  page?: PageRequest | undefined;
+  page?:
+    | PageRequest
+    | undefined;
+  /**
+   * Filtro por estado de curaduría: `privada` | `en_revision` | `publicada`.
+   *
+   * Lo necesita la bandeja de curaduría (`GET /editorial/calculators`), que lista lo que
+   * espera revisión: no había forma de pedirlo con los otros dos filtros, y un listado sin
+   * filtro alguno está PROHIBIDO por FR-051 —devolvería las calculadoras privadas de todo
+   * el mundo—. `owner_id` sigue significando «las mías», así que este campo no da acceso a
+   * las de nadie: solo acota por estado lo que ya se podía pedir.
+   *
+   * Vacío ⇒ sin filtro por estado. Es el único de los tres que puede ir vacío y no deja la
+   * consulta sin filtrar, porque `owner_id` y `only_published` siguen aplicándose.
+   */
+  state: string;
 }
 
 export interface ListCalculatorsResponse {
@@ -2649,7 +2664,7 @@ export const UpsertCalculatorRequest: MessageFns<UpsertCalculatorRequest> = {
 };
 
 function createBaseListCalculatorsRequest(): ListCalculatorsRequest {
-  return { owner_id: "", only_published: false, page: undefined };
+  return { owner_id: "", only_published: false, page: undefined, state: "" };
 }
 
 export const ListCalculatorsRequest: MessageFns<ListCalculatorsRequest> = {
@@ -2662,6 +2677,9 @@ export const ListCalculatorsRequest: MessageFns<ListCalculatorsRequest> = {
     }
     if (message.page !== undefined) {
       PageRequest.encode(message.page, writer.uint32(26).fork()).join();
+    }
+    if (message.state !== "") {
+      writer.uint32(34).string(message.state);
     }
     return writer;
   },
@@ -2697,6 +2715,14 @@ export const ListCalculatorsRequest: MessageFns<ListCalculatorsRequest> = {
           message.page = PageRequest.decode(reader, reader.uint32());
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.state = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2711,6 +2737,7 @@ export const ListCalculatorsRequest: MessageFns<ListCalculatorsRequest> = {
       owner_id: isSet(object.owner_id) ? globalThis.String(object.owner_id) : "",
       only_published: isSet(object.only_published) ? globalThis.Boolean(object.only_published) : false,
       page: isSet(object.page) ? PageRequest.fromJSON(object.page) : undefined,
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
     };
   },
 
@@ -2725,6 +2752,9 @@ export const ListCalculatorsRequest: MessageFns<ListCalculatorsRequest> = {
     if (message.page !== undefined) {
       obj.page = PageRequest.toJSON(message.page);
     }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
     return obj;
   },
 
@@ -2738,6 +2768,7 @@ export const ListCalculatorsRequest: MessageFns<ListCalculatorsRequest> = {
     message.page = (object.page !== undefined && object.page !== null)
       ? PageRequest.fromPartial(object.page)
       : undefined;
+    message.state = object.state ?? "";
     return message;
   },
 };

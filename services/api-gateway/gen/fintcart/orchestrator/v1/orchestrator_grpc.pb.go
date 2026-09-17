@@ -24,6 +24,7 @@ const (
 	OrchestratorService_StartQuizGrading_FullMethodName          = "/fintcart.orchestrator.v1.OrchestratorService/StartQuizGrading"
 	OrchestratorService_StartSimulation_FullMethodName           = "/fintcart.orchestrator.v1.OrchestratorService/StartSimulation"
 	OrchestratorService_StartAccountAnonymization_FullMethodName = "/fintcart.orchestrator.v1.OrchestratorService/StartAccountAnonymization"
+	OrchestratorService_ApproveCalculator_FullMethodName         = "/fintcart.orchestrator.v1.OrchestratorService/ApproveCalculator"
 	OrchestratorService_GetSagaStatus_FullMethodName             = "/fintcart.orchestrator.v1.OrchestratorService/GetSagaStatus"
 )
 
@@ -48,6 +49,18 @@ type OrchestratorServiceClient interface {
 	// Saga de anonimización (FR-030/D-08): anonimiza Auth/Users/Learning/Simulator;
 	// preserva Auditoría con actor_ref opaco.
 	StartAccountAnonymization(ctx context.Context, in *UserRef, opts ...grpc.CallOption) (*SagaHandle, error)
+	// Aprobación de una calculadora al catálogo público (FR-053).
+	//
+	// Va por el Orquestador y no directo al Simulador por el mismo motivo que
+	// `StartSimulation`: el Simulador NO es productor de eventos (Principio V) y la
+	// aprobación tiene que quedar auditada. `calculator.published` es el rastro de quién
+	// aprobó qué versión y cuándo, y sin él una calculadora aparecería en el catálogo sin
+	// que nada diga cómo llegó.
+	//
+	// SÍNCRONA, como `StartSimulation`, y no un `SagaHandle`: el coordinador está esperando
+	// el resultado de un clic, y devolverle un identificador de saga al que después preguntar
+	// añadiría una consulta para una operación que dura una llamada.
+	ApproveCalculator(ctx context.Context, in *CalculatorApprovalRequest, opts ...grpc.CallOption) (*CalculatorApprovalResult, error)
 	// Consulta de estado de una saga.
 	GetSagaStatus(ctx context.Context, in *SagaHandle, opts ...grpc.CallOption) (*SagaStatus, error)
 }
@@ -110,6 +123,16 @@ func (c *orchestratorServiceClient) StartAccountAnonymization(ctx context.Contex
 	return out, nil
 }
 
+func (c *orchestratorServiceClient) ApproveCalculator(ctx context.Context, in *CalculatorApprovalRequest, opts ...grpc.CallOption) (*CalculatorApprovalResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CalculatorApprovalResult)
+	err := c.cc.Invoke(ctx, OrchestratorService_ApproveCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *orchestratorServiceClient) GetSagaStatus(ctx context.Context, in *SagaHandle, opts ...grpc.CallOption) (*SagaStatus, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SagaStatus)
@@ -141,6 +164,18 @@ type OrchestratorServiceServer interface {
 	// Saga de anonimización (FR-030/D-08): anonimiza Auth/Users/Learning/Simulator;
 	// preserva Auditoría con actor_ref opaco.
 	StartAccountAnonymization(context.Context, *UserRef) (*SagaHandle, error)
+	// Aprobación de una calculadora al catálogo público (FR-053).
+	//
+	// Va por el Orquestador y no directo al Simulador por el mismo motivo que
+	// `StartSimulation`: el Simulador NO es productor de eventos (Principio V) y la
+	// aprobación tiene que quedar auditada. `calculator.published` es el rastro de quién
+	// aprobó qué versión y cuándo, y sin él una calculadora aparecería en el catálogo sin
+	// que nada diga cómo llegó.
+	//
+	// SÍNCRONA, como `StartSimulation`, y no un `SagaHandle`: el coordinador está esperando
+	// el resultado de un clic, y devolverle un identificador de saga al que después preguntar
+	// añadiría una consulta para una operación que dura una llamada.
+	ApproveCalculator(context.Context, *CalculatorApprovalRequest) (*CalculatorApprovalResult, error)
 	// Consulta de estado de una saga.
 	GetSagaStatus(context.Context, *SagaHandle) (*SagaStatus, error)
 }
@@ -166,6 +201,9 @@ func (UnimplementedOrchestratorServiceServer) StartSimulation(context.Context, *
 }
 func (UnimplementedOrchestratorServiceServer) StartAccountAnonymization(context.Context, *UserRef) (*SagaHandle, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StartAccountAnonymization not implemented")
+}
+func (UnimplementedOrchestratorServiceServer) ApproveCalculator(context.Context, *CalculatorApprovalRequest) (*CalculatorApprovalResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApproveCalculator not implemented")
 }
 func (UnimplementedOrchestratorServiceServer) GetSagaStatus(context.Context, *SagaHandle) (*SagaStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSagaStatus not implemented")
@@ -280,6 +318,24 @@ func _OrchestratorService_StartAccountAnonymization_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OrchestratorService_ApproveCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CalculatorApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrchestratorServiceServer).ApproveCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: OrchestratorService_ApproveCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrchestratorServiceServer).ApproveCalculator(ctx, req.(*CalculatorApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _OrchestratorService_GetSagaStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SagaHandle)
 	if err := dec(in); err != nil {
@@ -324,6 +380,10 @@ var OrchestratorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartAccountAnonymization",
 			Handler:    _OrchestratorService_StartAccountAnonymization_Handler,
+		},
+		{
+			MethodName: "ApproveCalculator",
+			Handler:    _OrchestratorService_ApproveCalculator_Handler,
 		},
 		{
 			MethodName: "GetSagaStatus",
