@@ -46,6 +46,47 @@ Consumo **idempotente** (clave de idempotencia = `event_id`).
 | `simulation.executed` | Orquestador | Auditoría | Auditar simulación (FR-025/SC-006); Simulador NO produce (D-03) |
 | `account.anonymized` | Orquestador | Auditoría | Auditar supresión/anonimización (FR-030) |
 
+### Eventos añadidos por la enmienda 002
+
+| Evento | Productor | Consumidores | Propósito |
+|--------|-----------|--------------|-----------|
+| `indicator.calendar_alert` | Orquestador | Notificación, Auditoría | Faltan indicadores del período o están por vencer (FR-061) |
+| `calculator.published` | Orquestador | Auditoría | Auditar la aprobación de una calculadora al catálogo público (FR-053) |
+| `category.deactivated` | Aprendizaje | Auditoría | Auditar la desactivación de una categoría (FR-035) |
+
+**El Simulador sigue sin ser productor** (Principio V). Los dos eventos que nacen en su
+territorio —el aviso del calendario de indicadores y la aprobación de una calculadora— los
+publica el Orquestador, que es quien pregunta por gRPC y encola en su `event_outbox`. Es el
+mismo patrón que ya resolvió D-03 para `simulation.executed`: el dueño del dato no es el dueño
+del hecho notificable.
+
+### Lo que el delta de 002 prometía y NO está en este catálogo
+
+Un catálogo que documente eventos que nadie publica es peor que uno corto: quien lo lea
+supondrá recibos que no existen. Tres de los seis eventos del delta no están aquí, y cada uno
+por su razón:
+
+- `account.purge_scheduled` y `account.purge_cancelled`: pertenecen a la **Fase 9 (depuración
+de cuentas), descartada explícitamente** tras T165. El flujo que los emitía no existe, así que
+no se documentan. Su nota de enrutamiento —dos routing keys, una con correo hacia
+Notificación y otra sin correo hacia Auditoría, para que la PII del titular no acabe en el
+registro inmutable de cinco años— es un diseño correcto y queda escrito en
+`specs/002-calculator-builder-content-admin/contracts/events/events-catalog-delta.md`, para el
+día en que esa fase se retome.
+- `indicator.updated`: el delta lo asignaba al Orquestador para auditar la carga de un
+indicador, y **nunca tuvo productor**: los indicadores los guarda el Gateway contra el
+Simulador sin pasar por ninguna saga, así que no hay `event_outbox` del que salga. Se deja
+fuera en vez de dejarlo prometiendo una auditoría que no ocurre. Que una edición de
+indicador no quede auditada es una carencia REAL y se declara aquí: se ve en el historial de
+simulaciones —cada una guarda el valor con el que calculó (FR-058)—, pero no en `audit_log`,
+y esa es la diferencia entre reconstruir un resultado y acreditar quién lo cambió.
+
+**Leyenda del hallazgo 20**: `category.deactivated` **sí** se publicaba desde Aprendizaje
+(T056) y **no** estaba enlazado en el Orquestador, así que el exchange lo descartaba en
+silencio y FR-035 no se cumplía. Se descubrió comparando este catálogo con los bindings
+reales del broker (`rabbitmqctl list_bindings`) al aplicar este delta, y ahora está declarado,
+enlazado y comprobado por `frontend/scripts/events-barrier.mjs`.
+
 > **Nota N-03 — la bandeja in-app NO llega por evento.** Tres eventos
 > (`learning.article_published`, `user.progress_milestone`, `user.activity`) tenían
 > asignada Notificación como consumidor «para materializar la bandeja in-app». Esa
@@ -55,12 +96,13 @@ Consumo **idempotente** (clave de idempotencia = `event_id`).
 > con `Users.AppendInAppNotification`, llamado desde el paso de la saga.
 >
 > Los tres eventos siguen produciéndose y se enlazan a `audit.q`, no a
-> `notification.q`. Notificación solo recibe los **tres** eventos que producen un
-> correo (`user.registered`, `auth.password_changed`, `auth.security_alert`), que son
-> exactamente las tres plantillas que admite su esquema. Un binding sin plantilla
-> entregaría mensajes que el consumidor solo puede descartar, y una cola que recibe y
-> tira en silencio es indistinguible de una que funciona. Ver
-> `services/orchestrator/internal/events/topology.go`.
+> `notification.q`. Notificación solo recibe los eventos que producen un correo:
+> `user.registered`, `auth.password_changed`, `auth.security_alert` —las tres plantillas del
+esquema de 001— y `indicator.calendar_alert`, que se sumó con su propia migración
+(`20260902130000_indicator_calendar_alert_template`) precisamente porque un binding sin
+plantilla entregaría mensajes que el consumidor solo puede descartar, y una cola que recibe y
+tira en silencio es indistinguible de una que funciona. Ver
+`services/orchestrator/internal/events/topology.go`.
 
 ---
 
@@ -127,3 +169,32 @@ Sin montos/PII sensibles en el payload de auditoría (solo metadatos de la opera
 { "actor_ref": "uuid-opaco", "anonymized_at": "RFC-3339" }
 ```
 Auditoría conserva el registro inmutable ≥ 5 años con `actor_ref` opaco (FR-031).
+
+### `indicator.calendar_alert`
+```jsonc
+{
+  "missing":  ["UVT", "SMMLV"],
+  "expiring": [{ "name": "TASA_USURA", "valid_to": "2027-01-01", "days_remaining": 21 }],
+  "admin_refs": ["uuid-opaco"]
+}
+```
+Sin `email`: el aviso llega al administrador a través de los `admin_refs`, que ya están en la
+plataforma. El valor del indicador no viaja aquí —quien lo necesite lo pide a
+`Indicators.Resolve`—, así que el evento no es una copia del catálogo de indicadores sino la
+constancia de que el procedimiento anual se supervisó.
+
+### `calculator.published`
+```json
+{ "calculator_ref": "uuid", "version": 3, "owner_ref": "uuid-opaco", "approver_ref": "uuid-opaco" }
+```
+Invariante auditable: `approver_ref != owner_ref` (FR-053). Es el mismo hecho que la
+aprobación de un artículo: la curaduría se acredita con dos identificadores distintos.
+
+### `category.deactivated`
+```json
+{ "category_ref": "uuid", "slug": "ahorro", "actor_ref": "uuid-opaco" }
+```
+Va SOLO a Auditoría: desactivar una categoría no genera correo (FR-035). El `slug` viaja
+además del identificador porque es lo que el lector vio en el catálogo, y un `audit_log` que
+solo guarde un UUID obliga a consultar una tabla que puede haber cambiado para saber qué se
+desactivó.
