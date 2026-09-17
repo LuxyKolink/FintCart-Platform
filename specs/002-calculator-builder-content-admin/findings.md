@@ -226,3 +226,54 @@ bloquea a nadie —nada genera código desde ese archivo y Swagger UI documenta 
 `.yaml`— y por eso no se arregla a medias aquí: aplicar el delta entero es T004, y hacerlo ruta
 a ruta dejaría un documento que describe parte de una familia y no el resto, que es peor que uno
 desactualizado de forma homogénea.
+
+## Hallazgo 10 — La prueba de US4 no limpia lo que crea, y una tanda fallida la deja fallando por otra razón
+
+**Qué pasa**: `us4-editorial.spec.ts` crea un artículo, le añade una versión y la envía a
+revisión. Si la prueba falla a mitad —o si se ejecuta varias veces— las versiones se acumulan en
+`en_revision`, y su localizador
+`locator('article').filter({ hasText: 'Cuerpo del artículo de prueba' })` deja de resolver a UN
+elemento. La prueba protegida (N-13) no se toca, así que el fallo **no se arregla desde el
+código**: hay que limpiar la base.
+
+**Medido**: ocho versiones en revisión con el mismo cuerpo hicieron fallar `us4` en el segundo
+fallo consecutivo de la tarde, y el mensaje que da —«strict mode violation … resolved to 3
+elements»— habla de un localizador, no de los datos. Es la misma clase de problema que ya se
+documentó para los indicadores y para las calculadoras (hallazgos 7 y 11): **una prueba que deja
+datos cambia el estado de la siguiente ejecución**, y en las que no se pueden tocar la limpieza es
+una operación de operador, no de código.
+
+**Operación**: antes de una tanda (sobre todo si la anterior falló), limpiar los datos de prueba:
+
+```sql
+-- learning_db
+DELETE FROM article_versions WHERE state IN ('en_revision', 'borrador');
+DELETE FROM articles WHERE title ~ '(Artículo editorial|Artículo E2E|Artículo de barrera)';
+```
+
+## Hallazgo 11 — Una barra de navegación que crece desborda en un punto de corte que no puede saberlo
+
+**Qué pasa**: al añadir tres entradas a la navegación (T117–T119) la barra dejó de caber a
+**768 px** y la captura visual lo cazó con **185 px de desbordamiento horizontal**. El corte de
+colapso a menú estaba en `--bp-md` (768 px) y **no depende del ancho sino del número de enlaces**:
+con siete enlaces cabía, con diez no.
+
+**Arreglo**: el colapso sube a `--bp-lg` (1024 px), que es el punto de corte siguiente del
+sistema. Una tableta de 768 a 1023 px ve el menú desplegable, que es lo que ya veía por debajo de
+768.
+
+**Lo que deja dicho**: la captura visual de cada pantalla a los cuatro anchos es lo único que
+podía detectar esto —ninguna prueba de unidad mira el ancho— y añadir navegación es una razón
+legítima para volver a medir. Queda escrito en `app.component.css`, junto al corte.
+
+## Hallazgo 12 — Un enlace nuevo puede romper una prueba protegida por su NOMBRE
+
+**Qué pasa**: la segunda bandeja de curaduría se llamó «Revisión de calculadoras», y el enlace de
+la bandeja de artículos se llama «Revisión». Los localizadores de Playwright resuelven por
+**subcadena**, así que `getByRole('link', { name: 'Revisión' })` pasó a resolver DOS elementos y
+rompió `us4-editorial`, `visual/editorial` y `visual/admin` —las tres, en los tres tramos que
+entran a la bandeja—. N-13 dice exactamente esto: **un nombre, un enlace**.
+
+**Arreglo**: la etiqueta nueva pasa a ser «Curaduría». Se cambia la etiqueta, **no la aserción**:
+las pruebas de US1–US4 son la garantía dura y ajustarlas para que quepan destruiría lo único que
+protege la accesibilidad y los recorridos.

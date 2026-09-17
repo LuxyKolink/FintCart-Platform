@@ -40,12 +40,22 @@
 }
 
 /*
- * Bajo `--bp-md` (768px, ver `tokens/breakpoints.css`) la navegación horizontal no
+ * Bajo `--bp-lg` (1024px, ver `tokens/breakpoints.css`) la navegación horizontal no
  * cabe y colapsa a un menú desplegable. Las propiedades personalizadas no se
  * resuelven dentro de `@media`, así que el literal va escrito y el token citado:
  * es la regla documentada en el propio archivo de tokens.
+ *
+ * El corte estaba en `--bp-md` (768px) y subió un punto cuando la navegación creció
+ * con las entradas de curaduría (T117–T119): a 768px eran once enlaces en una fila y
+ * la barra desbordaba en horizontal —185px medidos por la captura visual, que es
+ * justo lo que ese barrido existe para detectar—. La alternativa era que los enlaces
+ * se partieran en dos líneas, y un menú desplegable se lee mejor que una barra de dos
+ * pisos; el precio es que una tableta de 768 a 1023 px ve el menú.
+ *
+ * La lección para la próxima entrada: este corte depende del NÚMERO de enlaces, no del
+ * ancho, así que añadir navegación es una razón legítima para volver a medirlo.
  */
-@media (max-width: 767.98px) {
+@media (max-width: 1023.98px) {
   .fc-topbar__toggle {
     display: inline-flex;
     align-items: center;

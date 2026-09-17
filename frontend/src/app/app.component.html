@@ -31,7 +31,15 @@
       }
       @if (auth.hasRole('coordinador_editorial')) {
         <a routerLink="/editorial/revision">Revisión</a>
-        <a routerLink="/editorial/calculadoras">Revisión de calculadoras</a>
+        <!--
+          «Curaduría» y NO «Revisión de calculadoras»: el selector por NOMBRE de un enlace
+          resuelve por subcadena, y «Revisión de calculadoras» contiene «Revisión» —el enlace de
+          la bandeja de artículos—, así que `getByRole('link', { name: 'Revisión' })` pasaba a
+          resolver DOS elementos y rompía las pruebas protegidas de US4 (nota N-13: un nombre,
+          un enlace). Se cambia la etiqueta nueva, no la aserción: las pruebas de US1–US4 son la
+          garantía dura y no se tocan.
+        -->
+        <a routerLink="/editorial/calculadoras">Curaduría</a>
       }
       @if (auth.hasRole('administrador')) {
         <a routerLink="/admin/categorias">Administración</a>

@@ -92,7 +92,7 @@ describe('AppComponent — armazón', () => {
     const labels = navLabels();
     expect(labels).toContain('Editorial');
     expect(labels).not.toContain('Revisión');
-    expect(labels).not.toContain('Revisión de calculadoras');
+    expect(labels).not.toContain('Curaduría');
     expect(labels).not.toContain('Administración');
   });
 
@@ -101,8 +101,10 @@ describe('AppComponent — armazón', () => {
     expect(navLabels()).toContain('Editorial');
     expect(navLabels()).toContain('Revisión');
     // La cola de calculadoras propuestas es del coordinador y de nadie más (FR-053): es la
-    // segunda bandeja, y va con el mismo rol que la de artículos.
-    expect(navLabels()).toContain('Revisión de calculadoras');
+    // segunda bandeja, y va con el mismo rol que la de artículos. Se llama «Curaduría» y no
+    // «Revisión de calculadoras» porque un selector por subcadena sobre «Revisión» resolvería
+    // DOS enlaces —el de los artículos y este— y rompería las pruebas de US4 (nota N-13).
+    expect(navLabels()).toContain('Curaduría');
   });
 
   it('does not grant editorial attributions to an administrator (FR-077 boundary)', () => {
@@ -111,7 +113,7 @@ describe('AppComponent — armazón', () => {
     expect(labels).toContain('Administración');
     expect(labels).not.toContain('Editorial');
     expect(labels).not.toContain('Revisión');
-    expect(labels).not.toContain('Revisión de calculadoras');
+    expect(labels).not.toContain('Curaduría');
   });
 
   it('renders the logout action with the shared button and its accessible name', () => {
