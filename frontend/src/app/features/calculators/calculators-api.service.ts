@@ -4,7 +4,13 @@ import { Observable, catchError, throwError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { Page, OpAck } from '../editorial/editorial.types';
-import { Calculator, CalculatorApproval } from './calculator.types';
+import {
+  Calculator,
+  CalculatorApproval,
+  CalculatorWriteBody,
+  DefinitionIssue,
+  DefinitionReport,
+} from './calculator.types';
 
 /**
  * Error clasificado de una llamada de curaduría (US5, T116–T119).
@@ -26,6 +32,15 @@ export type CalculatorErrorKind = 'offline' | 'forbidden' | 'notFound' | 'invali
 
 export class CalculatorError extends Error {
   public readonly kind: CalculatorErrorKind;
+
+  /**
+   * Los problemas de una definición rechazada, con su ubicación (FR-046).
+   *
+   * Viaja en el error y no en un canal aparte porque es parte de lo mismo: quien llama tiene que
+   * poder señalar los campos que el servidor acaba de rechazar, y una respuesta de error sin la
+   * lista obligaría a repetir la llamada de validación para descubrir lo que ya se dijo.
+   */
+  public issues: DefinitionIssue[] = [];
 
   public constructor(kind: CalculatorErrorKind, message: string) {
     super(message);
@@ -61,6 +76,38 @@ export class CalculatorsApiService {
   /** El catálogo público: solo publicadas (FR-052). */
   public listCatalog(pageToken = ''): Observable<Page<Calculator>> {
     return this.request(this.http.get<Page<Calculator>>(`${environment.apiBaseUrl}/calculators`, { params: token(pageToken) }));
+  }
+
+  /**
+   * Comprueba una definición SIN guardarla (FR-046).
+   *
+   * Responde 200 con `valid` y la lista de problemas, y no un 422, porque aquí «no es válida» es
+   * una respuesta legítima a una pregunta legítima: el autor está preguntando mientras escribe.
+   * Los problemas vienen TODOS y cada uno con su `location`, que es lo que permite resaltar el
+   * campo exacto en vez de mostrar un mensaje suelto sobre la definición entera.
+   */
+  public validate(body: CalculatorWriteBody): Observable<DefinitionReport> {
+    return this.request(
+      this.http.post<DefinitionReport>(`${environment.apiBaseUrl}/calculators/validate`, body),
+    );
+  }
+
+  /** Crea una calculadora propia (FR-043). Nace `privada`. */
+  public create(body: CalculatorWriteBody): Observable<Calculator> {
+    return this.request(this.http.post<Calculator>(`${environment.apiBaseUrl}/calculators`, body));
+  }
+
+  /**
+   * Guarda una versión nueva de una calculadora propia (FR-043).
+   *
+   * El Simulador sube la versión y **no toca lo publicado**: si la calculadora estaba publicada,
+   * lo que el catálogo sirve sigue siendo la versión aprobada hasta que un coordinador apruebe
+   * esta (FR-052). Editar una que está `en_revision` retira la propuesta, y es deliberado.
+   */
+  public update(calculatorId: string, body: CalculatorWriteBody): Observable<Calculator> {
+    return this.request(
+      this.http.put<Calculator>(`${environment.apiBaseUrl}/calculators/${calculatorId}`, body),
+    );
   }
 
   /** La bandeja de curaduría: lo que espera revisión (FR-052). */
@@ -132,6 +179,39 @@ export class CalculatorsApiService {
         return new CalculatorError(
           'notFound',
           'No encontramos esa calculadora, o no es tuya. Las calculadoras privadas solo las ve su autor.',
+        );
+      }
+      if (err.status === 422) {
+        // 422 y no 400: la petición está bien formada y lo que no se puede procesar es su
+        // contenido. El borde manda `code`, `message` y `errors[]` con la ubicación de cada
+        // problema, así que NO se descarta: el constructor resalta el campo exacto con esto.
+        const body = err.error as { errors?: DefinitionIssue[] } | null;
+        const problemas = body?.errors ?? [];
+        const error = new CalculatorError(
+          'invalid',
+          problemas.length === 1
+            ? problemas[0].message
+            : `La definición tiene ${problemas.length} problemas que hay que corregir.`,
+        );
+        error.issues = problemas;
+        return error;
+      }
+      if (err.status === 400) {
+        // El 400 SÍ lleva su motivo, y el motivo es lo que el autor de la calculadora escribió
+        // para quien la usa: «El monto tiene que superar 1000». El borde lo transporta desde que
+        // se corrigió ese camino, así que ignorarlo aquí y poner una frase propia devolvería el
+        // problema al punto de partida —el usuario leyendo «la operación no se pudo completar»
+        // cuando la explicación existe y se redactó a propósito (FR-044, FR-045)—.
+        //
+        // Si el cuerpo no trae mensaje —un 400 de otra ruta— se cae al texto propio: un cuerpo
+        // vacío no puede quedarse sin explicación.
+        const body = err.error as { message?: string } | null;
+        const propio = body?.message ?? '';
+        return new CalculatorError(
+          'invalid',
+          propio === ''
+            ? 'La operación no se pudo completar en ese estado. Recarga la página y vuelve a intentarlo.'
+            : propio,
         );
       }
       if (err.status >= 400 && err.status < 500) {

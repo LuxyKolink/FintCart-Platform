@@ -1,0 +1,247 @@
+<fc-module-box title="Constructor de calculadoras">
+  <p class="fc-build__intro">
+    Aquí escribes una calculadora: qué datos pide, qué reglas tienen que cumplirse y qué
+    resultados devuelve. Las cuentas las hace el motor del Simulador, así que una definición
+    describe la fórmula —«cuota_mensual = cuota(monto, tasa, meses)»— y nunca el resultado.
+  </p>
+</fc-module-box>
+
+@if (notice(); as aviso) {
+  <fc-banner tone="success">{{ aviso }}</fc-banner>
+}
+@if (errorMessage(); as mensaje) {
+  <fc-banner tone="error">{{ mensaje }}</fc-banner>
+}
+
+@switch (state()) {
+  @case ('loading') {
+    <fc-skeleton height="6rem" />
+    <fc-skeleton height="10rem" />
+  }
+  @case ('error') {
+    <fc-error-state
+      icon="calculator"
+      title="No pudimos cargar la calculadora"
+      message="Puede que no exista o que no sea tuya. No se ha cambiado nada."
+      (retry)="onRetry()"
+    />
+  }
+  @default {
+    @if (editing(); as actual) {
+      <div class="fc-build__estado">
+        <fc-badge [tone]="tone(actual.state)">{{ label(actual.state) }}</fc-badge>
+        <span class="fc-build__intro">{{ help(actual.state) }}</span>
+      </div>
+
+      @if (actual.is_builtin) {
+        <fc-banner tone="info">
+          Esta calculadora es de la plataforma. Puedes mirarla y ejecutarla, pero no editarla:
+          una semilla la define el repositorio, no un autor.
+        </fc-banner>
+      }
+      @if (actual.state === 'publicada') {
+        <fc-banner tone="info">
+          Al guardar se crea una <strong>versión nueva</strong> que sigue privada. Lo que el
+          catálogo sirve no cambia hasta que un coordinador la apruebe.
+        </fc-banner>
+      }
+      @if (actual.state === 'en_revision') {
+        <fc-banner tone="warning">
+          Guardar <strong>retira la propuesta</strong>: un coordinador está leyendo una versión
+          concreta, y aprobar una que ha cambiado no sería aprobar lo que leyó.
+        </fc-banner>
+      }
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSave()">
+      <fc-module-box title="Qué es">
+        <div class="fc-build__rejilla">
+          <fc-input label="Nombre" formControlName="name" [error]="fieldError('name')" />
+          <fc-input
+            label="Descripción"
+            formControlName="description"
+            hint="Para qué sirve, en una frase"
+            [error]="fieldError('description')"
+          />
+        </div>
+      </fc-module-box>
+
+      <fc-module-box title="Datos que pide">
+        <div class="fc-build__panel" formArrayName="inputs">
+          @for (grupo of inputs.controls; track $index; let i = $index) {
+            <div class="fc-build__fila" [formGroupName]="i">
+              <fc-input
+                label="Clave"
+                formControlName="key"
+                hint="El nombre que usan las fórmulas"
+                [error]="fieldError('inputs.' + i + '.key')"
+              />
+              <fc-input
+                label="Etiqueta"
+                formControlName="label"
+                [error]="fieldError('inputs.' + i + '.label')"
+              />
+              <fc-select label="Tipo" formControlName="type" [options]="typeOptions" />
+              <fc-select label="Unidad" formControlName="unit" [options]="unitOptions" />
+              <fc-input
+                label="Mínimo"
+                formControlName="min_value"
+                inputMode="decimal"
+                [error]="fieldError('inputs.' + i + '.min_value')"
+              />
+              <fc-input
+                label="Máximo"
+                formControlName="max_value"
+                inputMode="decimal"
+                [error]="fieldError('inputs.' + i + '.max_value')"
+              />
+              <fc-input
+                label="Valor por defecto"
+                formControlName="default_value"
+                inputMode="decimal"
+                [error]="fieldError('inputs.' + i + '.default_value')"
+              />
+              <div class="fc-build__quitar">
+                <!--
+                  El número va en el TEXTO y no en un `aria-label`: `fc-button` no expone uno, y
+                  un botón que se repite en cada fila necesita un nombre propio para que quien
+                  usa un lector de pantalla sepa cuál está pulsando.
+                -->
+                <fc-button variant="ghost" size="sm" type="button" (pressed)="removeInput(i)">
+                  Quitar la entrada {{ i + 1 }}
+                </fc-button>
+              </div>
+            </div>
+          }
+        </div>
+        <fc-button variant="secondary" size="sm" type="button" (pressed)="addInput()">
+          Añadir dato
+        </fc-button>
+      </fc-module-box>
+
+      <fc-module-box title="Reglas">
+        <p class="fc-build__intro">
+          Una regla es una condición que tiene que cumplirse para calcular, con el mensaje que
+          lee quien la incumple. Ejemplo: <code>tasa_anual &gt; 0</code> — «La tasa tiene que ser
+          positiva». Sin reglas, cualquier valor dentro de los mínimos y máximos se acepta.
+        </p>
+        <div class="fc-build__panel" formArrayName="validations">
+          @for (grupo of validations.controls; track $index; let i = $index) {
+            <div class="fc-build__fila" [formGroupName]="i">
+              <fc-input
+                label="Condición"
+                formControlName="expression"
+                [error]="fieldError('validations.' + i + '.expression')"
+              />
+              <fc-input
+                label="Mensaje"
+                formControlName="message"
+                [error]="fieldError('validations.' + i + '.message')"
+              />
+              <div class="fc-build__quitar">
+                <fc-button variant="ghost" size="sm" type="button" (pressed)="removeRule(i)">
+                  Quitar la regla {{ i + 1 }}
+                </fc-button>
+              </div>
+            </div>
+          }
+        </div>
+        <fc-button variant="secondary" size="sm" type="button" (pressed)="addRule()">
+          Añadir regla
+        </fc-button>
+      </fc-module-box>
+
+      <fc-module-box title="Resultados">
+        <div class="fc-build__panel" formArrayName="outputs">
+          @for (grupo of outputs.controls; track $index; let i = $index) {
+            <div class="fc-build__fila" [formGroupName]="i">
+              <fc-input
+                label="Clave"
+                formControlName="key"
+                [error]="fieldError('outputs.' + i + '.key')"
+              />
+              <fc-input
+                label="Etiqueta"
+                formControlName="label"
+                [error]="fieldError('outputs.' + i + '.label')"
+              />
+              <fc-input
+                label="Fórmula"
+                formControlName="expression"
+                [error]="fieldError('outputs.' + i + '.expression')"
+              />
+              <fc-input
+                label="Decimales"
+                formControlName="scale"
+                inputMode="numeric"
+                [error]="fieldError('outputs.' + i + '.scale')"
+              />
+              <fc-input
+                label="Solo cuando"
+                formControlName="when"
+                hint="Opcional: una condición"
+                [error]="fieldError('outputs.' + i + '.when')"
+              />
+              <div class="fc-build__quitar">
+                <fc-button variant="ghost" size="sm" type="button" (pressed)="removeOutput(i)">
+                  Quitar el resultado {{ i + 1 }}
+                </fc-button>
+              </div>
+            </div>
+          }
+        </div>
+        <fc-button variant="secondary" size="sm" type="button" (pressed)="addOutput()">
+          Añadir resultado
+        </fc-button>
+      </fc-module-box>
+
+      <fc-module-box title="Comprobación">
+        <div class="fc-build__panel">
+          @if (valid() === true && issues().length === 0) {
+            <fc-banner tone="success">
+              La definición se puede analizar: los datos, las reglas y las fórmulas están bien
+              escritos.
+            </fc-banner>
+          } @else if (valid() === false) {
+            <fc-banner tone="warning">
+              Hay algo que corregir antes de guardar. Cada problema señala dónde está.
+            </fc-banner>
+          }
+
+          @if (generalIssues().length > 0) {
+            <ul class="fc-build__problemas">
+              @for (issue of generalIssues(); track issue.location + issue.message) {
+                <li>
+                  <span class="fc-build__ubicacion">{{ issue.location || 'definición' }}</span>:
+                  {{ issue.message }}
+                </li>
+              }
+            </ul>
+          }
+
+          @if (issues().length > 0) {
+            <ul class="fc-build__problemas">
+              @for (issue of issues(); track issue.location + issue.message) {
+                <li>{{ describe(issue) }}</li>
+              }
+            </ul>
+          }
+        </div>
+      </fc-module-box>
+
+      <div class="fc-build__acciones">
+        <fc-button variant="primary" type="submit" [disabled]="!canSave()">
+          {{ save() === 'saving' ? 'Guardando…' : 'Guardar' }}
+        </fc-button>
+        <fc-button variant="secondary" type="button" (pressed)="onValidate()">
+          Comprobar ahora
+        </fc-button>
+        @if (savedId(); as id) {
+          <fc-link-button variant="secondary" [to]="['/calculadoras', id]">
+            Ver y ejecutar
+          </fc-link-button>
+        }
+      </div>
+    </form>
+  }
+}

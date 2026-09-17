@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	orchestratorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/orchestrator/v1"
 	simulatorv1 "github.com/fintcart/platform/services/api-gateway/gen/fintcart/simulator/v1"
@@ -341,4 +343,24 @@ func TestRunCalculatorDefaultsTheCurrency(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.NotNil(t, h.orchestrator.lastSimulation)
 	assert.Equal(t, "COP", h.orchestrator.lastSimulation.GetCurrency())
+}
+
+// Un rechazo por una regla del AUTOR llega al usuario con el texto del autor.
+//
+// Es la mitad visible de FR-045: la regla existe para poder explicar por qué no se calcula, y su
+// `message` lo escribe el autor de la calculadora. El borde lo tenía aplanado a «petición
+// inválida» —se comprobó contra la pila real, con `monto > 1000` y «El monto tiene que superar
+// 1000»—, así que la explicación nunca llegaba a quien la necesitaba.
+func TestRunKeepsTheAuthorsRuleMessage(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.orchestrator.simulationErr = status.Error(codes.InvalidArgument, "El monto tiene que superar 1000")
+
+	rec := h.do(t, http.MethodPost, "/calculators/"+cuCalculatorID+"/run", `{"inputs":{"monto":"500"}}`, true)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "El monto tiene que superar 1000")
+	// Y el código sigue siendo el del borde: lo que se transporta es el MENSAJE, no el vocabulario
+	// de gRPC.
+	require.Contains(t, rec.Body.String(), `"code":"bad_request"`)
 }

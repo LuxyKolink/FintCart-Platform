@@ -222,8 +222,13 @@ export class CalculatorRunnerComponent implements OnInit {
       return;
     }
 
+    // Las dos comprobaciones importan y son distintas. `collectInputs` devuelve `null` cuando
+    // falta un campo OBLIGATORIO —que no es lo mismo que un control inválido: un campo opcional
+    // vacío es correcto—, y `form.invalid` cubre las COTAS declaradas, que la ayuda comprueba con
+    // `decimal.js`. Sin la segunda, un valor fuera de rango se mandaba al servidor y el usuario
+    // leía un error suyo en lugar de lo que ya sabía el formulario.
     const inputs = this.collectInputs();
-    if (inputs === null) {
+    if (inputs === null || this.form.invalid) {
       this.form.markAllAsTouched();
       this.panel.set('error');
       this.errorMessage.set('Revisa los campos marcados.');
@@ -279,15 +284,17 @@ export class CalculatorRunnerComponent implements OnInit {
   /**
    * Arma un control por entrada, con los validadores que la definición declara.
    *
-   * Las cotas (`min`/`max`) se comprueban con `decimal.js` y no con `Validators.min`, que opera
-   * con `number`: comparar «1000000000000000000000» con un `number` no dice nada útil.
+   * Las cotas (`min_value`/`max_value`) se comprueban con `decimal.js` y no con `Validators.min`,
+   * que opera con `number`: comparar «1000000000000000000000» con un `number` no dice nada útil.
+   * Y se leen con el nombre del CONTRATO: leerlas como `min`/`max` —que es lo que hacía esta
+   * ayuda— las dejaba en `undefined` y no comprobaba nada (ver `CalculatorField`).
    */
   private buildForm(calculator: Calculator): void {
     for (const field of calculator.definition.inputs) {
       const validators = field.required ? [Validators.required] : [];
       this.form.addControl(
         field.key,
-        new FormControl(field.default ?? '', {
+        new FormControl(field.default_value ?? '', {
           validators: [
             ...validators,
             (control: AbstractControl): ReturnType<typeof this.checkBounds> =>
@@ -305,10 +312,18 @@ export class CalculatorRunnerComponent implements OnInit {
     }
     try {
       const parsed = decimalStr.parse(raw);
-      if (field.min !== undefined && field.min !== '' && parsed.lessThan(decimalStr.parse(field.min))) {
+      if (
+        field.min_value !== undefined &&
+        field.min_value !== '' &&
+        parsed.lessThan(decimalStr.parse(field.min_value))
+      ) {
         return { outsideBounds: true };
       }
-      if (field.max !== undefined && field.max !== '' && parsed.greaterThan(decimalStr.parse(field.max))) {
+      if (
+        field.max_value !== undefined &&
+        field.max_value !== '' &&
+        parsed.greaterThan(decimalStr.parse(field.max_value))
+      ) {
         return { outsideBounds: true };
       }
     } catch {

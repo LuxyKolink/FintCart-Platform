@@ -4,6 +4,11 @@
     aparezca en el catálogo público o dentro de un artículo tiene que aprobarla un coordinador
     editorial, y aquí es donde la propones y donde lees lo que te dijeron si la rechazaron.
   </p>
+  <div class="fc-mine__acciones">
+    <fc-link-button variant="primary" [to]="['/calculadoras/nueva']">
+      Crear una calculadora
+    </fc-link-button>
+  </div>
 </fc-module-box>
 
 @if (notice(); as aviso) {
@@ -41,7 +46,7 @@
     @if (items().length === 0) {
       <fc-empty-state
         title="Todavía no tienes calculadoras"
-        message="Las calculadoras que sean tuyas aparecerán aquí con su estado de curaduría."
+        message="Puedes crear la primera con el constructor: describe qué datos pide, qué reglas tiene y qué devuelve."
       />
     } @else {
       <div class="fc-mine__lista">
@@ -100,6 +105,15 @@
               >
                 Ver y ejecutar
               </fc-link-button>
+              @if (canEdit(calculator)) {
+                <fc-link-button
+                  variant="secondary"
+                  size="sm"
+                  [to]="['/calculadoras', calculator.calculator_id, 'editar']"
+                >
+                  Editar
+                </fc-link-button>
+              }
             </div>
           </article>
         }

@@ -303,3 +303,61 @@ ejecuta también los ejemplos de documentación marcados como `ignore` —el de
 `src/repo/tx.rs` es un fragmento con `pool` sin definir—, así que esa invocación informa un fallo que
 no existe. Las pruebas de base se corren con `cargo test --tests -- --ignored` (28 en verde), que es
 lo que ejecuta el CI.
+
+## Hallazgo 14 — El ejecutor leía `min`/`max`/`default` y el contrato manda `min_value`/`max_value`/`default_value`
+
+**Qué pasaba**: el Gateway serializa las cotas de una entrada como `min_value`, `max_value` y
+`default_value` —así están en su DTO, así las manda al Simulador y así las recibe de él— y el tipo
+del frontend declaraba `min`, `max` y `default`. `field.min` valía `undefined` **siempre**: el
+ejecutor no comprobaba ninguna cota y no rellenaba ningún valor por defecto.
+
+**Por qué nadie lo notó**: no es un error de compilación, y todas las calculadoras con las que se
+probó se ejecutaban con valores dentro del rango y escribiendo el valor a mano. El defecto no
+producía ningún síntoma hasta que alguien declaraba una cota y confiaba en ella — que es
+exactamente lo que hace el constructor visual (T097), la primera pantalla que declara cotas y
+espera verlas respetadas.
+
+**Arreglo**: los nombres del cable se usan tal cual, sin traducir, y hay dos pruebas escritas
+contra el JSON que manda el borde —no contra una definición inventada por la prueba, que es lo que
+dejó pasar el defecto—: el valor por defecto se rellena y una cota fuera de rango se rechaza.
+
+**Lo que deja dicho**: dos vocabularios para el mismo dato no fallan cuando se escribe el segundo,
+fallan cuando alguien confía en él. Y una prueba que construye sus datos con los nombres
+equivocados comprueba el código equivocado.
+
+## Hallazgo 15 — El motivo de un rechazo no llegaba al usuario: la cadena de la saga aplanaba el mensaje
+
+**Qué pasaba**: una calculadora con la regla `monto > 1000` y el mensaje «El monto tiene que
+superar 1000» —escrito por su autor— respondía, al ejecutarla con 500:
+
+```
+{"code":"bad_request","message":"petición inválida"}
+```
+
+El mensaje existía, viajaba por tres servicios y se perdía en los dos últimos eslabones:
+
+1. **El Orquestador** devolvía `status.Error(InvalidArgument, err.Error())`, donde `err.Error()`
+   era la cadena completa del fallo de la saga: `server: argumento inválido: server: saga fallida y
+   compensada (simulacion): paso 0 (simulator.compute): ejecutar la simulación de <uuid>: rpc
+   error: code = InvalidArgument desc = El monto tiene que superar 1000`. El motivo estaba al
+   final, detrás de nombres internos y de un identificador de usuario.
+2. **El borde** sustituía todo 400 por «petición inválida».
+
+**Arreglo, en los dos sitios**: el Orquestador baja al estado gRPC **más profundo** de la cadena
+—el del participante que rechazó la operación, que es el único redactado para quien llama— y
+conserva su código; el borde deja pasar el mensaje de la familia 400 tal cual. Los demás códigos
+(401, 403, 404, 409, 429) mantienen su texto fijo: sus mensajes genéricos sí informan y pasarlos
+pondría delante del usuario el prefijo interno de cada servicio.
+
+**Dos detalles del lenguaje que costaron trabajo y quedan escritos en el código**:
+
+- `status.FromError` sobre un error **envuelto** devuelve el código del participante pero el
+  mensaje de la cadena entera. Quedarse con él propaga el aplanado.
+- `errors.Unwrap` —el singular— devuelve `nil` para un `fmt.Errorf("%w: %w", …)`, porque desde Go
+  1.20 eso construye un error con `Unwrap() []error`. Hay que recorrer el árbol. La prueba lo cazó
+  porque no se conformaba con el código correcto: comprobaba el **mensaje**.
+
+**Lo que deja dicho**: FR-045 existe para poder explicar por qué no se calcula, y su `message` lo
+escribe el autor. Un camino de tres servicios puede perderlo sin que nada falle, así que el texto
+tiene que comprobarse de extremo a extremo —`e2e/constructor-calculadora.spec.ts` lo hace con una
+cota, y la regla del autor quedó verificada contra la pila real con `curl`—.

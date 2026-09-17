@@ -157,6 +157,17 @@ export class MyCalculatorsComponent implements OnInit {
     return canBeSubmitted(calculator);
   }
 
+  /**
+   * Si se ofrece el enlace al constructor.
+   *
+   * No es una regla de negocio —el Simulador rechazaría una edición de una semilla con su propio
+   * mensaje— sino no ofrecer un enlace que lleva a una pantalla que va a decir que no. La semilla
+   * es el único caso: no tiene autor, así que no hay nada que editar de ella.
+   */
+  protected canEdit(calculator: Calculator): boolean {
+    return !calculator.is_builtin;
+  }
+
   protected isSubmitting(calculator: Calculator): boolean {
     return this.submitting() === calculator.calculator_id;
   }

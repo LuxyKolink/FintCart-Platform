@@ -80,6 +80,21 @@ export const routes: Routes = [
       import('./features/calculators/mine/mine.component').then((m) => m.MyCalculatorsComponent),
   },
   {
+    // El constructor visual (T097, FR-043). DOS rutas y no una con un parámetro opcional:
+    // `/nueva` no existe todavía como recurso —se está creando— y `:calculatorId/editar` sí, así
+    // que confundirlas obligaría al componente a adivinar si tiene que guardar o crear.
+    path: 'calculadoras/nueva',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/calculators/builder/builder.component').then((m) => m.CalculatorBuilderComponent),
+  },
+  {
+    path: 'calculadoras/:calculatorId/editar',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/calculators/builder/builder.component').then((m) => m.CalculatorBuilderComponent),
+  },
+  {
     path: 'calculadoras/:calculatorId',
     canActivate: [authGuard],
     loadComponent: () =>

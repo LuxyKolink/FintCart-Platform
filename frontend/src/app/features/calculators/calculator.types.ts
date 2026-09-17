@@ -18,15 +18,31 @@ export type CalculatorState = 'privada' | 'en_revision' | 'publicada';
  * definiciones separadas. */
 export type CalculatorInputType = 'monto' | 'tasa' | 'entero';
 
+/**
+ * Un campo de entrada, tal como viaja por el borde.
+ *
+ * ## Los nombres son los del contrato, y esto costó un defecto real
+ *
+ * El Gateway serializa `min_value`, `max_value` y `default_value` —así están en su DTO y así los
+ * manda al Simulador y los recibe de él—, y esta interfaz declaraba `min`, `max` y `default`. La
+ * consecuencia no era un error de compilación: era peor. `field.min` valía `undefined` **siempre**,
+ * así que el ejecutor no comprobaba ninguna cota y no rellenaba ningún valor por defecto, y todo
+ * parecía funcionar porque las calculadoras de prueba se ejecutaban con valores dentro del rango. Lo
+ * destapó el constructor visual (T097), que es la primera pantalla que declara cotas y espera verlas
+ * respetadas al ejecutar.
+ *
+ * Se escribe con los nombres del cable y NO se traduce al leerlos: dos vocabularios para el mismo
+ * dato es lo que produjo el defecto.
+ */
 export interface CalculatorField {
   key: string;
   label: string;
   type: CalculatorInputType;
   unit: string;
   /** Cadenas decimales, o ausentes cuando no hay cota. */
-  min?: string;
-  max?: string;
-  default?: string;
+  min_value?: string;
+  max_value?: string;
+  default_value?: string;
   required: boolean;
 }
 
@@ -62,6 +78,28 @@ export interface Calculator {
   version: number;
   definition: CalculatorDefinition;
   indicators_used: string[];
+}
+
+/** Un problema concreto de una definición, con la ubicación que lo señala (FR-046). */
+export interface DefinitionIssue {
+  /** Ruta del problema dentro de la definición: `outputs[1].expression`. */
+  location: string;
+  /** Vocabulario cerrado del contrato: `campo_inexistente`, `limite_excedido`, … */
+  code: string;
+  message: string;
+}
+
+/** Lo que responde `POST /calculators/validate` (FR-046). */
+export interface DefinitionReport {
+  valid: boolean;
+  errors: DefinitionIssue[];
+}
+
+/** Cuerpo de `POST`/`PUT /calculators`: nombre, descripción y definición. */
+export interface CalculatorWriteBody {
+  name: string;
+  description: string;
+  definition: CalculatorDefinition;
 }
 
 /** Resultado de aprobar: la versión que quedó publicada (FR-053). */

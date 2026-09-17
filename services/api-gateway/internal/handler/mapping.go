@@ -496,6 +496,37 @@ func (h *Handler) writeGRPCError(w http.ResponseWriter, r *http.Request, err err
 	code := status.Code(err)
 	httpStatus, errCode, message := httpFromGRPC(code)
 
+	// Un error de la familia «la petición no vale» (400) SÍ lleva su mensaje al cliente.
+	//
+	// ## Por qué el mensaje genérico era un defecto y no una precaución
+	//
+	// `httpFromGRPC` devuelve textos fijos para no filtrar detalle interno, y ese criterio es
+	// correcto para un 5xx: el cliente no puede hacer nada con «pq: relation … does not exist» y
+	// ahí sí hay algo que proteger. En un 4xx no lo es, y se comprobó con una ejecución real: una
+	// calculadora con la regla `monto > 1000` y el mensaje «El monto tiene que superar 1000»
+	// respondía `{"code":"bad_request","message":"petición inválida"}` — el autor había escrito
+	// exactamente lo que había que decirle al usuario, FR-044 y FR-045 exigen decir **qué campo y
+	// por qué**, y el borde lo tiraba a la basura para poner una frase que no informa de nada.
+	//
+	// Los servicios ya sanean lo suyo por su cuenta: cada uno mapea sus fallos técnicos a
+	// `Internal` con un texto fijo («error interno», «fallo de persistencia»), así que lo que
+	// viaja en un `InvalidArgument` es, por construcción, texto escrito para quien llama. Ese es
+	// el reparto de responsabilidades: el servicio decide QUÉ se puede contar, el borde decide el
+	// CÓDIGO.
+	//
+	// ## Por qué solo esta familia
+	//
+	// 401, 403, 404, 409 y 429 conservan su texto fijo. Sus mensajes genéricos sí informan —«no
+	// autenticado», «acceso denegado», «recurso no encontrado»— y varias pantallas ya escriben su
+	// propia versión para ellos; pasarlos tal cual pondría delante del usuario el prefijo interno
+	// de cada servicio («simulador: no encontrado»). La familia 400 es distinta: su texto genérico
+	// no dice nada y no hay otro sitio del que sacar el motivo.
+	if httpStatus == http.StatusBadRequest {
+		if st, ok := status.FromError(err); ok && st.Message() != "" {
+			message = st.Message()
+		}
+	}
+
 	// Un 5xx se registra como error y un 4xx como advertencia: el primero es un
 	// problema nuestro y debe alertar, el segundo es un cliente equivocado y no.
 	level := slog.LevelWarn

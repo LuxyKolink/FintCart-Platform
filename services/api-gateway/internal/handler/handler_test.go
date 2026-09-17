@@ -244,6 +244,10 @@ type fakeOrchestrator struct {
 	lastSimulation *orchestratorv1.SimulationRequest
 	grading        *orchestratorv1.QuizGradingResult
 	simulation     *orchestratorv1.SimulationResult
+	// `simulationErr` es el fallo que devuelve la ejecución, y hace falta desde que el borde
+	// conserva el MENSAJE de un 400: sin un doble que falle no se puede comprobar que el texto de
+	// la regla que escribió el autor llega al usuario (FR-044, FR-045).
+	simulationErr error
 
 	// Aprobación de una calculadora (T116, FR-053).
 	lastApproval *orchestratorv1.CalculatorApprovalRequest
@@ -269,6 +273,9 @@ func (f *fakeOrchestrator) StartQuizGrading(_ context.Context, in *orchestratorv
 
 func (f *fakeOrchestrator) StartSimulation(_ context.Context, in *orchestratorv1.SimulationRequest, _ ...grpc.CallOption) (*orchestratorv1.SimulationResult, error) {
 	f.lastSimulation = in
+	if f.simulationErr != nil {
+		return nil, f.simulationErr
+	}
 	return f.simulation, nil
 }
 
