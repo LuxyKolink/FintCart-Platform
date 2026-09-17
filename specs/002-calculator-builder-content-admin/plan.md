@@ -133,6 +133,49 @@ inmutable de Auditoría (FR-077 vs FR-031), y la restricción
 `calculators_builtin_has_no_owner`, que se relajó a una implicación porque una equivalencia
 estricta habría hecho fallar la anonimización del autor de una calculadora publicada.
 
+### Re-evaluación sobre el código ya escrito (T165)
+
+Las dos tablas anteriores son del DISEÑO: dicen que el diseño cabe en los principios. Esta dice que
+el **código** los cumple, principio por principio, y nombra lo que se comprobó y cómo. Donde el
+diseño prometía algo que la implementación no hizo, se declara en vez de reescribir la promesa.
+
+| # | Principio | Estado | Evidencia sobre el código |
+|---|-----------|--------|---------------------------|
+| I | Bounded Contexts | ✅ PASS | Aprendizaje no comparte tipos con el Simulador: pregunta por `PublishedCalculators` (un puerto propio en `src/articles/published-calculators.ts`) y las calculadoras incrustadas viajan como **identificador opaco**. La única superficie compartida son los `.proto` de `contracts/` |
+| II | gRPC interno, REST en el borde | ✅ PASS | Ningún servicio interno ganó superficie HTTP. Los endpoints nuevos —incluida la subida multiparte de imágenes— están todos en el Gateway (`internal/handler/routes.go`) |
+| III | Database-per-service | ✅ PASS | Verificado en el código: el Simulador solo abre `simulator_db` y Aprendizaje solo `learning_db`; la única mención cruzada es el comentario que **explica** que la pregunta se responde por gRPC. La validación de una calculadora incrustada es una llamada gRPC (T151), no una consulta a la base del otro |
+| IV | Redis acotado | ✅ PASS | **Comprobado en ejecución, no leyendo el compose**: `redis-cli client list` da exactamente dos orígenes, auth-server y api-gateway. La sesión de cuestionario vive en `quiz_sessions` de `learning_db` (D-17), y las únicas claves de Redis son `blacklist:` y `ratelimit:` |
+| V | RabbitMQ solo a Notificación y Auditoría | ✅ PASS | **Comprobado en ejecución**: `rabbitmqctl list_connections` da seis conexiones —auth, users, orchestrator, learning, notification y audit— y **el Simulador no aparece**; en su crate no hay ni una línea de AMQP (el `grep` de `AMQP_ADDR` da una coincidencia: el comentario de `main.rs` que dice que no la hay) |
+| VI | Saga vía Orquestador | ✅ PASS para lo implementado | Las sagas que existen (registro, verificación de correo, simulación, calificación de cuestionario, curaduría, anonimización) pasan todas por el Orquestador y están en `saga_state`. **La saga de purga no existe** —ver desviaciones— |
+| VII | Autenticación y autorización estandarizadas | ✅ PASS | `administrador` es un cuarto rol en los claims; la comprobación es un middleware explícito de la capa de transporte del Gateway y **no** ocultar botones. Comprobado en vivo: un autor con los dos roles recibe 403 al aprobar su propia calculadora (FR-053), y `administrador` no hereda las atribuciones de `coordinador_editorial` |
+| VIII | Precisión monetaria (NON-NEGOTIABLE) | ✅ PASS | `#![deny(clippy::disallowed_types)]` en la RAÍZ del crate del Simulador (y `clippy.toml` con `disallowed-types = [f32, f64]`), lo que alcanza a todos los módulos —comprobado introduciendo un `f64` a propósito y viendo fallar `clippy`—; `NUMERIC` en la base; `string` decimal en todo el contrato; ninguna cifra monetaria se trunca en la interfaz (N-15). `pot` y `potd` siguen separadas |
+| IX | Capas y mapeo explícito | ✅ PASS | El analizador, el AST y el evaluador viven en `src/domain/formula/` sin importar tipos de transporte ni de fila; la conversión `string` decimal ↔ `Decimal` está confinada a `src/grpc/mapping.rs`; el validador de documento está en la capa de aplicación de Aprendizaje (`src/articles/body-doc.validator.ts`), no en el controlador |
+| X | Entrypoints delgados y configuración por entorno | ✅ PASS | `BOOTSTRAP_ADMIN_EMAIL`, `RATE_LIMIT_RPM`, `INDICATOR_SWEEP_INTERVAL`, `INDICATOR_ALERT_EMAIL`, `SIMULATOR_SVC_ADDR`… todo por entorno, y `SIMULATOR_SVC_ADDR` es **obligatoria**: el servicio no arranca sin ella. El administrador inicial no se siembra en una migración (D-21) |
+| XI | Migraciones versionadas y disciplina de datos | ✅ PASS | Las **30** migraciones de los 7 servicios tienen su `down` y revierten de verdad: ciclo `up → down -all → up` en base limpia y reversión paso a paso sobre una **copia de los datos reales** (T166), sin pérdida en las tres con conversión. Escrituras multi-tabla con `execTx`; errores envueltos con causa |
+| XII | Flujo de desarrollo local uniforme | ✅ PASS | `dev/build && dev/up && dev/migrate && dev/seed` deja el sistema funcionando **sin ningún paso manual**, verificado desde cero (borrando los volúmenes) en T163 — y esa verificación encontró el defecto 17: la siembra fallaba en una base vacía |
+
+**Desviaciones declaradas** (lo que el diseño prometía y la implementación no hizo):
+
+1. **La depuración de cuentas no se implementó.** Las filas III, V, VI, VII y X de la tabla de diseño
+   mencionan `pending_deletion`, el aviso `account.purge_scheduled`, `ListAccountsDueForPurge` y la
+   saga de purga. **Nada de eso existe** en el código: T136–T148 están sin hacer y así consta en
+   `tasks.md`, con **SC-023 y SC-024 declarados como no reclamados** en `success-criteria.md`. No es
+   una desviación de un principio —no haber escrito código no viola ninguno— pero sí lo es de la
+   tabla de diseño, y por eso se dice aquí en vez de dejarla afirmando lo que no hay. La
+   **anonimización** de 001 (FR-030) sí existe y se conserva.
+2. **Los indicadores no se versionan.** El diseño hablaba de «vigencia con reemplazo»; la
+   implementación **edita la fila** (`Indicators::upsert` con `existing`), y lo que hace segura la
+   corrección es el **snapshot**: cada simulación guardó el valor con el que calculó (FR-058),
+   comprobado en vivo en T161 (se edita la UVT y el historial sigue explicando el resultado viejo).
+3. **El aviso de vencimiento nombra dos consecuencias y no una** (hallazgo 19): el correo afirmaba
+   que las calculadoras «están dando resultados con el valor anterior», cierto en el camino nativo y
+   falso en el camino por definición, donde la ejecución **falla**. Corregido en el texto, no en el
+   principio.
+
+**Resultado del gate sobre el código**: ✅ **PASS**. Sin violaciones de los doce principios, con las
+tres desviaciones declaradas arriba —dos de alcance y una de texto— y sin necesidad de Complexity
+Tracking.
+
 ## Project Structure
 
 ### Documentation (this feature)

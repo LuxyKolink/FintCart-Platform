@@ -271,7 +271,7 @@ Tres partes, tres comprobaciones reproducibles:
 | Parte | Cómo se comprueba | Resultado |
 |---|---|---|
 | Sin estilos propios | `node frontend/scripts/design-debt.mjs` (barrera en el lint) | **0** estilos en línea, **0** pantallas con clase artesanal, `styles.scss` eliminado |
-| Solo con teclado | `e2e/a11y.spec.ts`: 20 pantallas con `expectControlsAreLabelled`, `expectKeyboardReaches` y contraste AA | en verde en la suite completa |
+| Solo con teclado | `e2e/a11y.spec.ts`: **19 pantallas** con `expectControlsAreLabelled`, `expectKeyboardReaches` y contraste AA | en verde en la suite completa |
 | Sin red externa | `e2e/offline-assets.spec.ts`: se bloquean todos los dominios externos y se comprueba que tipografía e iconos siguen presentes | en verde |
 
 Además `e2e/zoom-200.spec.ts` (la interfaz al 200 % sin desbordar) y la barrera de contraste, que
@@ -298,7 +298,7 @@ corrigió el coral-400 a coral-500 cuando el contraste se quedaba en 4,04:1.
 | SC-023 | **No reclamado** | bloque de depuración no implementado |
 | SC-024 | **No reclamado** | ídem (la anonimización de 001 sí existe) |
 | SC-025 | Cumple | 5 de 5 artículos con categoría; 0 columnas de texto libre |
-| SC-026 | Cumple | 0 estilos propios, teclado en 20 pantallas, sin red externa |
+| SC-026 | Cumple | 0 estilos propios, teclado en 19 pantallas, sin red externa |
 
 **12 de 14 cumplen; los otros dos no se reclaman** y están declarados como no implementados en
 `tasks.md`, que es la única forma honesta de no cumplir un criterio.
