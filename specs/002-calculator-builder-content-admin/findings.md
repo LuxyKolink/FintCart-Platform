@@ -635,3 +635,99 @@ stubs: significa que el contrato que consume el código es el que está en `cont
 **Lo que se dejó escrito**: el procedimiento que funciona, con sus dos condiciones, va en la
 cabecera de `contracts/generate.sh`. Era un conocimiento de una hora que no estaba en ningún
 sitio, y sin él el siguiente intento empieza por el mismo panic.
+
+---
+
+## Hallazgo 22 — Un arnés de pruebas de migración que se cae deja esquemas en la base (y luego cuelga)
+
+**Qué pasó**: al escribir el arnés de las pruebas de migración (T023/T024/T122) contra PostgreSQL 16
+real, una ejecución de `jest` **se colgó hasta agotar el tiempo**. En la base quedaron dos esquemas
+`mig_*` y una conexión en estado `idle in transaction (aborted)`.
+
+La causa encadenada: un fichero de migración que aborta **dentro de su propio `BEGIN`** deja la
+sesión en «transacción abortada», y desde ahí toda orden posterior falla —incluido el
+`DROP SCHEMA` de la limpieza—. El esquema se quedaba, la conexión también, y la siguiente ejecución
+acumulaba basura. El arnés era el que estaba mal, no las migraciones.
+
+**Arreglo**: el arnés hace `ROLLBACK` en dos sitios, y en los dos por razones distintas —al limpiar,
+porque no puede saber si quedó una transacción abierta; y al capturar el fallo de una migración,
+porque es el único sitio donde se sabe con certeza—. Se comprueba al final de cada suite que no
+queden esquemas `mig_*`: un arnés que ensucia la base en la que corre acaba dando por buenas
+ejecuciones que miden un estado que ya no es el de partida.
+
+---
+
+## Hallazgo 23 — La migración de categorías no se podía volver a aplicar tras revertirla
+
+**Qué pasaba**: `20260902101500_link_articles_to_categories` se aplicaba bien, se revertía bien, y
+**volver a aplicarla fallaba**:
+
+```
+ERROR: duplicate key value violates unique constraint "categories_slug_key"
+DETAIL: Key (slug)=(ahorro) already exists.
+```
+
+La razón: su `down` devuelve `articles.category` pero **no borra las categorías** que creó el `up`
+—no puede: borrarlas se llevaría por delante las que haya creado el administrador, y el `down` no
+distingue unas de otras—. Así que al reaplicar, el paso que crea categorías desde el texto libre se
+encontraba con los slugs ya tomados.
+
+**Por qué importa**: revertir y volver a aplicar es el **camino de recuperación normal** de
+`golang-migrate` —es lo que se hace cuando hay que deshacer una migración para arreglar algo—, y aquí
+terminaba en un error que no explica nada. El ciclo `up → down` de T166 no lo vio porque se probó
+sobre una base sin artículos: es un defecto que **solo existe con datos dentro**, igual que el de la
+siembra (hallazgo 17) solo existía con la base vacía.
+
+**Arreglo**: la migración pasa a ser **idempotente en su efecto** —`ON CONFLICT (slug) DO NOTHING`
+y las posiciones contadas desde el máximo existente, porque `categories_position_active_uniq`
+también chocaría—. La categoría que ya estaba se queda con su nombre y el relleno la encuentra por
+slug igual que antes. Cambiar una migración ya aplicada se justifica aquí porque el cambio solo
+AÑADE tolerancia: en una base ya migrada el fichero no se vuelve a ejecutar y su efecto no cambia.
+
+**Verificado sobre los datos reales de desarrollo**, no solo sobre datos sintéticos: respaldo de
+`(id, category_id)` de los 5 artículos, `down` + `up` de la migración, y después
+**0 artículos sin categoría** y **0 artículos cuyo destino cambió** respecto al respaldo. Es decir:
+el arreglo hace posible la reaplicación sin alterar el resultado de la primera.
+
+**Cómo se encontró**: la prueba que pedía T024 («ningún artículo queda con `category_id` nulo y los
+duplicados por tildes colapsan») incluía la reaplicación como parte del ciclo. Una prueba que solo
+comprobara el `up` habría dado el visto bueno a una migración de un solo uso.
+
+---
+
+## Hallazgo 24 — El lint de Aprendizaje llevaba 26 errores, CI lo ejecuta, y la regla del Principio VIII fallaba sobre código correcto
+
+**Qué pasaba**: `npm run lint` en `services/learning` devolvía **26 errores**, y el job de CI lo
+ejecuta con el comentario «Lint (incluye la prohibición de number — Principio VIII)». El job llevaba
+rojo sin que nadie lo mirara.
+
+Cuatro de esos errores eran de la regla que más importa en este proyecto —la del Principio VIII,
+NON-NEGOTIABLE— y **los cuatro eran correctos**:
+
+```ts
+questionsToServe: number                  // un CONTEO de preguntas
+Number.isInteger(questionsToServe)        // validar un conteo
+random: () => number = Math.random        // una fuente de aleatoriedad
+```
+
+La regla prohibía el tipo `number` a secas en `src/quizzes/**`, y ahí conviven las calificaciones
+(`score`, `weight`, `pass_threshold`) con valores que no son dinero. Una regla que señala código
+correcto es una regla que se acaba desactivando —y al desactivarla deja de proteger lo que
+protegía—, así que **no se silenció: se la hizo precisar el NOMBRE**, que es lo que de verdad
+distingue un valor financiero de un conteo. Los 22 restantes (aserciones redundantes, `any` que
+venía de `sharp` sin tipos, tipos de retorno que faltaban, un `async` sin `await`, un `throw` de algo
+que no era un `Error`) se corrigieron en el código.
+
+**El detalle que más vale de todo esto**: al escribir la versión precisa de la regla, la primera
+búsqueda del vocabulario financiero usaba la bandera `i` y sin fronteras de palabra, así que
+encontraba `tasa` dentro de **«pregun-tasa-servir»** —es decir, la regla nueva tenía el mismo tipo de
+falso positivo que la vieja, sobre el nombre del parámetro que la había motivado—. Lo cazó su propia
+auto-prueba. Ahora el vocabulario exige empezar en frontera de palabra (`montoTotal` sí) y no seguir
+en minúsculas (`preguntasAServir` no).
+
+**La prueba de que sigue sirviendo**: `services/learning/scripts/lint-viii-selftest.mjs`, enganchado
+a `npm run lint`, comprueba **nueve formas de valor financiero** que deben seguir fallando —parámetro,
+propiedad de clase, miembro de tipo, `Number()`, `Math.round` y cuatro en camelCase: `montoTotal`,
+`passThreshold`, `tasaInteres`, `valorUvt`— y **tres usos legítimos** que deben seguir pasando. Sin
+esa auto-prueba, este cambio habría sido un ajuste de configuración que nadie vuelve a mirar: la
+forma de degradar una barrera no es quitarla, es hacerla más laxa sin dejar constancia.

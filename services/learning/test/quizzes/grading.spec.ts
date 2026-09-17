@@ -22,6 +22,7 @@ import { LearningModule } from '../../src/grpc/learning.module';
 const SIMULADOR_PROTO_DIR = resolve(__dirname, '../../contracts', 'proto');
 
 import { IDS, newMemoryFixture } from '../support/memdb';
+import type { GradeRequest } from '../../src/pb/fintcart/learning/v1/learning';
 
 const MISSING_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
@@ -76,7 +77,11 @@ async function startSession(controller: LearningController): Promise<string> {
   return session.session_id;
 }
 
-function gradeReq(sessionId: string, userID: string, answers: Record<string, string>) {
+function gradeReq(
+  sessionId: string,
+  userID: string,
+  answers: Record<string, string>,
+): GradeRequest {
   return {
     user_id: userID,
     quiz_id: IDS.quiz,

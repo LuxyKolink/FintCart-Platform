@@ -23,6 +23,7 @@ import type { Pool } from 'pg';
 import { CONFIG, PG_POOL } from '../src/common/database.module';
 import { LearningController } from '../src/grpc/learning.controller';
 import { LearningModule } from '../src/grpc/learning.module';
+import type { GradeResponse } from '../src/pb/fintcart/learning/v1/learning';
 
 // Los `.proto` los carga el cliente gRPC del Simulador al construir el módulo (T151): la ruta se
 // resuelve desde la raíz del servicio, que es donde el contenedor los copia (`PROTO_DIR`).
@@ -98,7 +99,10 @@ async function expectRpcCode(call: Promise<unknown>, expected: GrpcStatus): Prom
  * acepta respuestas fuera de una sesión emitida (FR-040). Como el cuestionario del
  * fixture tiene dos preguntas y `questions_to_serve` es 5, la sesión sirve las dos.
  */
-async function grade(controller: LearningController, answers: Record<string, string>) {
+async function grade(
+  controller: LearningController,
+  answers: Record<string, string>,
+): Promise<GradeResponse> {
   const session = await controller.startQuizSession({ user_id: IDS.user, quiz_id: IDS.quiz });
   return controller.gradeAndStoreAttempt({
     user_id: IDS.user,

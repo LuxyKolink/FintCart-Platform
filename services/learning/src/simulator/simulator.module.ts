@@ -16,6 +16,7 @@
  */
 import { Module } from '@nestjs/common';
 import { ClientGrpc, ClientsModule, Transport } from '@nestjs/microservices';
+import type { GrpcOptions } from '@nestjs/microservices/interfaces/microservice-configuration.interface';
 import { join } from 'node:path';
 
 import { CONFIG, DatabaseModule } from '../common/database.module';
@@ -38,7 +39,7 @@ export const SIMULATOR_SERVICE_NAME = 'SimulatorService';
         name: SIMULATOR_GRPC,
         imports: [DatabaseModule],
         inject: [CONFIG],
-        useFactory: (config: Config) => ({
+        useFactory: (config: Config): GrpcOptions => ({
           transport: Transport.GRPC,
           options: {
             // La dirección viene del entorno y es OBLIGATORIA (ver `config.ts`): un valor por
@@ -70,7 +71,8 @@ export const SIMULATOR_SERVICE_NAME = 'SimulatorService';
   providers: [
     {
       provide: SimulatorCalculatorsService,
-      useFactory: (client: ClientGrpc) => new SimulatorCalculatorsService(client),
+      useFactory: (client: ClientGrpc): SimulatorCalculatorsService =>
+        new SimulatorCalculatorsService(client),
       inject: [SIMULATOR_GRPC],
     },
     // El dominio pide el PUERTO, no la clase: es lo que permite probar el rechazo de un

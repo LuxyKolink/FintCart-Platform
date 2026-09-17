@@ -22,29 +22,46 @@ import {
 } from '../../src/images/images.service';
 import { IDS, newMemoryFixture } from '../support/memdb';
 
+/**
+ * Convierte a `Buffer` el resultado de `sharp`.
+ *
+ * `sharp` viene sin tipos en este proyecto —no es dependencia de producción, solo de
+ * pruebas— así que `.toBuffer()` devuelve `any` y el `return` de una función `async`
+ * contamina con `any` todo lo que la use. Se resuelve en el borde, una sola vez, con una
+ * comprobación de forma real: si `sharp` devolviera algo que no es un `Buffer`, la prueba
+ * falla aquí con un mensaje que dice qué pasó, en lugar de propagar `any` hacia dentro.
+ */
+async function comoBuffer(imagen: unknown): Promise<Buffer> {
+  const bytes = await (imagen as { toBuffer: () => Promise<unknown> }).toBuffer();
+  if (!Buffer.isBuffer(bytes)) {
+    throw new Error(`sharp no devolvió un Buffer, sino ${typeof bytes}`);
+  }
+  return bytes;
+}
+
 /** Un PNG real, del tamaño pedido. */
 async function png(width = 4, height = 3): Promise<Buffer> {
-  return sharp({
-    create: { width, height, channels: 3, background: { r: 200, g: 30, b: 30 } },
-  })
-    .png()
-    .toBuffer();
+  return comoBuffer(
+    sharp({
+      create: { width, height, channels: 3, background: { r: 200, g: 30, b: 30 } },
+    }).png(),
+  );
 }
 
 async function jpeg(width = 5, height = 2): Promise<Buffer> {
-  return sharp({
-    create: { width, height, channels: 3, background: { r: 10, g: 90, b: 200 } },
-  })
-    .jpeg()
-    .toBuffer();
+  return comoBuffer(
+    sharp({
+      create: { width, height, channels: 3, background: { r: 10, g: 90, b: 200 } },
+    }).jpeg(),
+  );
 }
 
 async function webp(width = 6, height = 4): Promise<Buffer> {
-  return sharp({
-    create: { width, height, channels: 3, background: { r: 30, g: 180, b: 90 } },
-  })
-    .webp()
-    .toBuffer();
+  return comoBuffer(
+    sharp({
+      create: { width, height, channels: 3, background: { r: 30, g: 180, b: 90 } },
+    }).webp(),
+  );
 }
 
 function newService(): { service: ImagesService; repository: ImagesRepository } {
@@ -78,11 +95,9 @@ describe('ImagesService.upload — los bytes mandan (FR-066)', () => {
 
   it('rechaza un formato de imagen real pero NO admitido (GIF)', async () => {
     const { service } = newService();
-    const gif = await sharp({
-      create: { width: 3, height: 3, channels: 3, background: { r: 1, g: 1, b: 1 } },
-    })
-      .gif()
-      .toBuffer();
+    const gif = await comoBuffer(
+      sharp({ create: { width: 3, height: 3, channels: 3, background: { r: 1, g: 1, b: 1 } } }).gif(),
+    );
 
     // Admitido por `sharp`, no por el contrato: el mensaje tiene que decir cuál es el
     // formato real y cuáles se admiten, no «archivo inválido».
@@ -164,14 +179,14 @@ describe('ImagesService.upload — lo que sí entra', () => {
       const { image } = await service.upload({
         ...SUBIDA,
         declaredMimeType: mime,
-        bytes: bytes as Buffer,
+        bytes,
       });
 
-      expect(image.mimeType).toBe(mime as string);
-      expect(image.width).toBe(width as number);
-      expect(image.height).toBe(height as number);
-      expect(image.byteSize).toBe((bytes as Buffer).length);
-      expect(ALLOWED_MIME_TYPES).toContain(mime as string);
+      expect(image.mimeType).toBe(mime);
+      expect(image.width).toBe(width);
+      expect(image.height).toBe(height);
+      expect(image.byteSize).toBe(bytes.length);
+      expect(ALLOWED_MIME_TYPES).toContain(mime);
     }
   });
 
@@ -204,9 +219,11 @@ describe('ImagesService.upload — lo que sí entra', () => {
     expect(segunda.image.imageId).toBe(primera.image.imageId);
 
     const { pool } = newMemoryFixture();
-    const contadas = await pool.query('SELECT count(*)::int AS total FROM article_images');
+    const contadas = await pool.query<{ total: number }>(
+      'SELECT count(*)::int AS total FROM article_images',
+    );
     expect(new ImagesRepository(pool)).toBeDefined();
-    expect(contadas.rows[0]?.['total']).toBeDefined();
+    expect(contadas.rows[0]?.total).toBeDefined();
     expect(repository).toBeDefined();
   });
 

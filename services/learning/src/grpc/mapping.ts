@@ -194,7 +194,7 @@ export function gradeToPb(result: GradeResult): GradeResponsePb {
  * `invalid_argument` explícito, porque devolver `null` en silencio convertiría un error del
  * cliente en un cuerpo vacío guardado como si fuera intención suya.
  */
-export function parseBodyDoc(raw: string | undefined): unknown | null {
+export function parseBodyDoc(raw: string | undefined): unknown {
   const texto = (raw ?? '').trim();
   if (texto === '') {
     return null;

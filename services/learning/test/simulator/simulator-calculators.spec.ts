@@ -40,15 +40,17 @@ class FakeSimulator {
     const error = this.falla;
     const estado = this.respuestas[request.calculator_id];
     return {
-      toPromise: async () => {
+      toPromise: (): Promise<{ state?: string }> => {
         if (error !== null) {
-          throw error;
+          return Promise.reject(
+            error instanceof Error ? error : new Error(String(error)),
+          );
         }
         if (estado === undefined) {
           // Igual que el Simulador: «no existe» y «no la puedes ver» son lo mismo.
-          throw errorGrpc(GrpcStatus.NOT_FOUND);
+          return Promise.reject(errorGrpc(GrpcStatus.NOT_FOUND));
         }
-        return { state: estado };
+        return Promise.resolve({ state: estado });
       },
     };
   }

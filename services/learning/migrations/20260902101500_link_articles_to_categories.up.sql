@@ -43,15 +43,35 @@ $$;
 
 -- 1) Categorías desde el contenido existente. `name` conserva un original
 --    (el alfabéticamente menor entre los equivalentes); `slug` deriva de la
---    clave, con posición consecutiva por orden de slug.
+--    clave, con posición consecutiva por encima de las que ya haya.
+--
+--    Es IDEMPOTENTE por slug y por posición, y eso no es defensa de más
+--    (hallazgo 23): la reversión de esta migración devuelve `articles.category`
+--    pero **no borra las categorías** —borrarlas se llevaría por delante las que
+--    haya creado el administrador, y el `down` no puede distinguirlas—. Así que
+--    revertir y volver a aplicar, que es el camino de recuperación normal de
+--    `golang-migrate`, se encontraba con los slugs ya tomados y fallaba con
+--    «duplicate key value violates unique constraint "categories_slug_key"».
+--    El `ON CONFLICT` deja en pie la categoría que ya estaba —la de la primera
+--    aplicación, con su nombre— y el relleno del paso 3 la encuentra por slug
+--    igual que antes. Y la posición se cuenta desde el máximo existente porque
+--    `categories_position_active_uniq` también chocaría si se empezara otra vez
+--    por uno.
 INSERT INTO categories (name, slug, position)
-SELECT min(btrim(a.category))                                  AS name,
-       learning_category_slug(learning_category_key(btrim(a.category))) AS slug,
-       row_number() OVER (ORDER BY learning_category_slug(
-           learning_category_key(btrim(a.category))))::integer AS position
-FROM articles a
-WHERE length(btrim(a.category)) > 0
-GROUP BY learning_category_slug(learning_category_key(btrim(a.category)));
+SELECT nuevos.name,
+       nuevos.slug,
+       (base.max_position + nuevos.pos)::integer
+FROM (
+    SELECT min(btrim(a.category))                                  AS name,
+           learning_category_slug(learning_category_key(btrim(a.category))) AS slug,
+           row_number() OVER (ORDER BY learning_category_slug(
+               learning_category_key(btrim(a.category))))::integer AS pos
+    FROM articles a
+    WHERE length(btrim(a.category)) > 0
+    GROUP BY learning_category_slug(learning_category_key(btrim(a.category)))
+) nuevos
+CROSS JOIN (SELECT COALESCE(max(position), 0) AS max_position FROM categories) base
+ON CONFLICT (slug) DO NOTHING;
 
 -- 2) Completar hasta cinco categorías temáticas (SC-009). Solo se inserta una
 --    categoría canónica si su slug aún no está tomado, y las posiciones se

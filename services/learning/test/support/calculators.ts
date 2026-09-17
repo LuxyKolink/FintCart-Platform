@@ -22,15 +22,17 @@ export class FakePublishedCalculators implements PublishedCalculators {
    */
   public constructor(
     private readonly publicadas: readonly string[] = [],
-    private readonly falla: unknown = null,
+    private readonly falla: Error | null = null,
   ) {}
 
-  public async missing(ids: readonly string[]): Promise<readonly string[]> {
+  public missing(ids: readonly string[]): Promise<readonly string[]> {
     this.preguntas.push([...ids]);
     if (this.falla !== null) {
-      throw this.falla;
+      // El doble finge la CAÍDA del Simulador con un error de verdad, no con un valor
+      // arbitrario: `throw 'algo'` no se puede distinguir de un fallo del propio código.
+      return Promise.reject(this.falla);
     }
-    return ids.filter((id) => !this.publicadas.includes(id));
+    return Promise.resolve(ids.filter((id) => !this.publicadas.includes(id)));
   }
 
   /** Cuántas veces se preguntó algo. Se usa para comprobar que no se pregunta de más. */

@@ -134,6 +134,6 @@ function esNoEncontrado(err: unknown): boolean {
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
-    (err as { code: unknown }).code === GrpcStatus.NOT_FOUND
+    (err as { code?: unknown }).code === GrpcStatus.NOT_FOUND
   );
 }
