@@ -27,6 +27,9 @@
 # Uso:
 #   dev/seed                          cliente OAuth + catálogo de ejemplo + semillas
 #   dev/seed role <correo> <rol>      concede un rol a una cuenta ya registrada
+#
+# Para probar la superficie REST hace falta un token; lo da `dev/token <correo> [rol...]`,
+# que además registra y verifica la cuenta si no existe.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 

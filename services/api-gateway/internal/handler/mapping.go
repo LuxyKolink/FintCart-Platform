@@ -739,3 +739,40 @@ func issuesToDTO(errors []*simulatorv1.DefinitionError) []DefinitionIssue {
 	}
 	return out
 }
+
+// ── indicadores financieros (T107) ──────────────────────────────────────────
+
+func indicatorToDTO(i *simulatorv1.Indicator) Indicator {
+	return Indicator{
+		IndicatorID:  i.GetIndicatorId(),
+		Name:         i.GetName(),
+		Value:        i.GetValue(),
+		ValidFrom:    i.GetValidFrom(),
+		ValidTo:      i.GetValidTo(),
+		RegisteredBy: i.GetRegisteredBy(),
+	}
+}
+
+func indicatorsToDTO(items []*simulatorv1.Indicator) []Indicator {
+	out := make([]Indicator, 0, len(items))
+	for _, i := range items {
+		out = append(out, indicatorToDTO(i))
+	}
+	return out
+}
+
+func calendarStatusToDTO(s *simulatorv1.IndicatorCalendarStatus) CalendarStatus {
+	expiring := make([]ExpiringIndicator, 0, len(s.GetExpiring()))
+	for _, e := range s.GetExpiring() {
+		expiring = append(expiring, ExpiringIndicator{
+			Name:          e.GetName(),
+			ValidTo:       e.GetValidTo(),
+			DaysRemaining: e.GetDaysRemaining(),
+		})
+	}
+
+	return CalendarStatus{
+		MissingNames: listaNoNula(s.GetMissingNames()),
+		Expiring:     expiring,
+	}
+}

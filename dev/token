@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# dev/token — obtiene un token de acceso REAL para probar el borde a mano.
+#
+# Uso:
+#   dev/token <correo> [rol...]
+#
+# Registra la cuenta si no existe, verifica el correo leyendo MailHog, concede los
+# roles indicados y devuelve un `access_token` listo para `curl`:
+#
+#   ADMIN=$(dev/token admin@fintcart.test administrador)
+#   curl -s localhost:8080/admin/indicators/status -H "Authorization: Bearer $ADMIN" | jq
+#
+# ## Por qué existe
+#
+# El contrato exige token en casi toda la superficie y `quickstart.md` escribe
+# `$ADMIN_TOKEN` sin decir de dónde sale. Montarlo a mano son seis pasos —registro,
+# correo, verificación, rol, código de autorización y canje— de los que dos fallan en
+# silencio si se equivocan (el rol no concedido da 403 y el PKCE mal calculado da un
+# `invalid_grant` que no explica que el problema es el `code_challenge`).
+#
+# Recorre el MISMO camino que la SPA: no hay atajo de pruebas ni token firmado a mano.
+# Eso importa más de lo que parece: un helper que firmara un JWT por su cuenta probaría
+# que el borde sabe leer un token, no que el flujo de OAuth2 funciona — y lo segundo es
+# lo que hay que verificar antes de una demostración.
+#
+# NUNCA usar fuera de desarrollo: crea cuentas de verdad en la base de desarrollo y
+# escribe en el log del servicio de autenticación.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+require_docker
+
+# Los avisos van a la salida de ERROR, no a la estándar: este script se usa como
+# `ADMIN=$(dev/token correo administrador)`, y cualquier cosa que escriba en stdout
+# acaba DENTRO de la variable — el token llegaría precedido de tres líneas de log y
+# `curl` devolvería un 400 del servidor HTTP por una cabecera mal formada, que es un
+# error que no apunta a su causa.
+aviso() { printf '\033[1;34m==>\033[0m %s\n' "$*" >&2; }
+
+GATEWAY="${FINTCART_GATEWAY_URL:-http://localhost:8080}"
+MAILHOG="${FINTCART_MAILHOG_URL:-http://localhost:8025}"
+CLIENT_ID="fintcart-spa"
+REDIRECT_URI="${FINTCART_REDIRECT_URI:-http://localhost:4200/auth/callback}"
+
+# Contraseña de las cuentas de prueba: fija y conocida a propósito. Se cumple la
+# política de Auth (longitud y variedad) para que el registro no falle por ella.
+PASSWORD="Prueba-desarrollo-2026!"
+
+email="${1:-}"
+shift || true
+roles=("$@")
+
+[[ -n "$email" ]] || die "uso: dev/token <correo> [rol...]"
+
+# ── utilidades ───────────────────────────────────────────────────────────────
+
+# base64url SIN relleno, que es lo que exige RFC 7636 para PKCE.
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+
+sha256_b64url() { printf '%s' "$1" | openssl dgst -sha256 -binary | b64url; }
+
+# json_field <json> <campo> — extrae un campo de primer nivel sin depender de `jq`.
+# Se evita `jq` a propósito: `dev/` no debe exigir nada que `require_docker` no exija
+# ya, y esto se usa en el arranque de una demostración.
+json_field() {
+  python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ""))' "$2" <<<"$1"
+}
+
+http_post() {
+  curl -sS -o /tmp/fintcart-token-body.json -w '%{http_code}' \
+    -X POST "$1" -H 'Content-Type: application/json' -d "$2"
+}
+
+# ── 1. registro (idempotente) ────────────────────────────────────────────────
+#
+# El registro pasa por la saga, así que la respuesta es 202 y hay que esperar el
+# correo. Si la cuenta YA existe, el registro no falla visiblemente —la saga responde
+# igual para no revelar qué correos están dados de alta—, así que no se puede
+# distinguir por el código: se sigue el camino y en el paso de verificación se
+# interpreta el resultado.
+
+aviso "registrando $email"
+status=$(http_post "$GATEWAY/auth/register" \
+  "{\"email\":\"$email\",\"password\":\"$PASSWORD\",\"display_name\":\"Cuenta de prueba\"}")
+case "$status" in
+  2??) ;;
+  *) die "el registro falló con HTTP $status: $(cat /tmp/fintcart-token-body.json)" ;;
+esac
+
+# ── 2. el correo de verificación, leído de MailHog ───────────────────────────
+
+aviso "esperando el correo de verificación en MailHog"
+link=""
+for _ in $(seq 1 40); do
+  # Se pide un lote y se filtra por destinatario: MailHog devuelve los últimos por
+  # fecha descendente, así que el de esta cuenta está entre los primeros.
+  link=$(curl -sS "$MAILHOG/api/v2/messages?limit=50" | python3 -c '
+import json, re, sys, urllib.parse
+want = sys.argv[1].lower()
+try:
+    items = json.load(sys.stdin).get("items", [])
+except Exception:
+    items = []
+for msg in items:
+    to = msg.get("To") or [{}]
+    addr = "{0}@{1}".format(to[0].get("Mailbox", ""), to[0].get("Domain", "")).lower()
+    if addr != want:
+        continue
+    body = msg["Content"]["Body"]
+    # `notification` envía el cuerpo con `Content-Transfer-Encoding: quoted-printable`
+    # (MIME estándar para texto con acentos), así que hay que decodificarlo: sin eso
+    # un salto de línea suave parte la URL y un `=3D` sustituye cada `=`.
+    body = re.sub(r"=\r?\n", "", body)
+    body = re.sub(r"=([0-9A-Fa-f]{2})", lambda m: chr(int(m.group(1), 16)), body)
+    m = re.search(r"https?://\S+/auth/verify-email\?\S+", body)
+    if m:
+        print(m.group(0))
+        break
+' "$email")
+
+  [[ -n "$link" ]] && break
+  sleep 0.5
+done
+
+if [[ -z "$link" ]]; then
+  # El caso legítimo: la cuenta ya estaba verificada y no se envió correo nuevo. Se
+  # comprueba pidiendo un token directamente; si el acceso funciona, no hay nada que
+  # verificar y este paso es el que sobra.
+  aviso "no llegó correo de verificación (¿cuenta ya verificada?); se intenta el acceso"
+else
+  user_id=$(python3 -c 'import sys,urllib.parse as u; print(u.parse_qs(u.urlparse(sys.argv[1]).query).get("user_id",[""])[0])' "$link")
+  token=$(python3 -c 'import sys,urllib.parse as u; print(u.parse_qs(u.urlparse(sys.argv[1]).query).get("token",[""])[0])' "$link")
+
+  aviso "verificando el correo de $user_id"
+  status=$(http_post "$GATEWAY/auth/verify-email" \
+    "{\"user_id\":\"$user_id\",\"verification_token\":\"$token\"}")
+  case "$status" in
+    2??) ;;
+    *) warn "la verificación devolvió HTTP $status: $(cat /tmp/fintcart-token-body.json) (se continúa)" ;;
+  esac
+fi
+
+# ── 3. roles ─────────────────────────────────────────────────────────────────
+#
+# Los roles NO se pueden pedir por la API —con razón: un endpoint que permitiera
+# auto-concederse `administrador` anularía FR-082—, así que se usa el mismo script que
+# usaría un operador real.
+for role in "${roles[@]:-}"; do
+  [[ -n "$role" ]] || continue
+  bash "$(dirname "${BASH_SOURCE[0]}")/seed" role "$email" "$role" >/dev/null
+  aviso "rol concedido: $role"
+done
+
+# ── 4. autorización con PKCE ─────────────────────────────────────────────────
+
+verifier="$(openssl rand -hex 32)"
+challenge="$(sha256_b64url "$verifier")"
+
+aviso "autorizando a $email"
+status=$(http_post "$GATEWAY/oauth/authorize" \
+  "{\"email\":\"$email\",\"password\":\"$PASSWORD\",\"client_id\":\"$CLIENT_ID\",
+    \"redirect_uri\":\"$REDIRECT_URI\",\"code_challenge\":\"$challenge\",
+    \"code_challenge_method\":\"S256\",\"scopes\":[\"perfil\",\"catalogo\",\"simulador\",\"progreso\"]}")
+
+body="$(cat /tmp/fintcart-token-body.json)"
+case "$status" in
+  2??) ;;
+  *) die "la autorización falló con HTTP $status: $body" ;;
+esac
+code="$(json_field "$body" code)"
+
+# ── 5. canje del código ──────────────────────────────────────────────────────
+
+status=$(http_post "$GATEWAY/oauth/token" \
+  "{\"grant_type\":\"authorization_code\",\"code\":\"$code\",\"code_verifier\":\"$verifier\",
+    \"client_id\":\"$CLIENT_ID\",\"redirect_uri\":\"$REDIRECT_URI\"}")
+
+body="$(cat /tmp/fintcart-token-body.json)"
+rm -f /tmp/fintcart-token-body.json
+case "$status" in
+  2??) ;;
+  *) die "el canje falló con HTTP $status: $body" ;;
+esac
+
+access="$(json_field "$body" access_token)"
+[[ -n "$access" ]] || die "la respuesta no traía access_token: $body"
+
+# El token va SOLO a la salida estándar: quien lo captura con `$(dev/token ...)` lo
+# recibe, y quien lo ejecuta mirando la consola no lo confunde con un mensaje de log.
+printf '%s\n' "$access"

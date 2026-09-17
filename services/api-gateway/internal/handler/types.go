@@ -326,6 +326,69 @@ type CategoryInput struct {
 	Position    int32  `json:"position"`
 }
 
+// Indicator es una vigencia de indicador financiero (FR-055, T107).
+//
+// `value` es una CADENA decimal y no un número JSON: es la misma decisión que ya llevan
+// los montos y las tasas del contrato (Principio VIII / D-10). Un `json.Number` o un
+// `float64` en el borde empezaría a redondear en la primera operación que se hiciera con
+// él, y el valor del UVT es exactamente el dato que la plataforma existe para no
+// redondear.
+type Indicator struct {
+	IndicatorID  string `json:"indicator_id"`
+	Name         string `json:"name"`
+	Value        string `json:"value"`
+	ValidFrom    string `json:"valid_from"`
+	ValidTo      string `json:"valid_to"` // vacío ⇒ SIN fecha de fin; ver el mapeo del Simulador
+	RegisteredBy string `json:"registered_by"`
+}
+
+// IndicatorInput ≡ cuerpo de `POST /admin/indicators` y `PUT /admin/indicators/{indicatorId}`.
+//
+// No lleva `actor_id`: sale de las marcas del token (FR-060). Tampoco `indicator_id`,
+// que va en la RUTA para la corrección: el identificador de una vigencia no es un dato
+// que se elija al crearla.
+type IndicatorInput struct {
+	Name      string `json:"name"`
+	Value     string `json:"value"`
+	ValidFrom string `json:"valid_from"`
+	ValidTo   string `json:"valid_to"`
+}
+
+// IndicatorConflict es el `409` de FR-059 — dos vigencias del mismo indicador que se pisan.
+//
+// Lleva las vigencias que ya existen para ese nombre porque el mensaje del servicio no
+// cruza la frontera gRPC (política de `httpFromGRPC`) y sin ellas el administrador leería
+// «conflicto con el estado actual» sin saber cuál de las dos cifras sobra.
+type IndicatorConflict struct {
+	Code     string      `json:"code"`
+	Message  string      `json:"message"`
+	Existing []Indicator `json:"existing"`
+}
+
+// CurrentIndicators son los valores vigentes hoy y los nombres sin vigencia (FR-062).
+//
+// Las dos listas viajan juntas: quien las usa es el ejecutor de una calculadora, que
+// necesita saber qué valor rige y si lo que la fórmula referencia está al día antes de
+// dejar ejecutar.
+type CurrentIndicators struct {
+	Indicators   []Indicator `json:"indicators"`
+	MissingNames []string    `json:"missing_names"`
+}
+
+// CalendarStatus es el estado del procedimiento anual (FR-061): lo que se quedó sin
+// vigencia y lo que está por vencer dentro de la ventana de aviso.
+type CalendarStatus struct {
+	MissingNames []string            `json:"missing_names"`
+	Expiring     []ExpiringIndicator `json:"expiring"`
+}
+
+// ExpiringIndicator es una vigencia próxima a terminar.
+type ExpiringIndicator struct {
+	Name          string `json:"name"`
+	ValidTo       string `json:"valid_to"`
+	DaysRemaining int32  `json:"days_remaining"`
+}
+
 // CategoryConflict es el `409` de desactivar una categoría con artículos
 // publicados (FR-035). Lleva `published_count` para que el mensaje al
 // administrador diga CUÁNTOS, no solo que no se puede.

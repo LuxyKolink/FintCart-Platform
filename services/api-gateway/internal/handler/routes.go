@@ -242,7 +242,30 @@ func (h *Handler) Routes(deps Deps) http.Handler {
 			r.Post("/admin/categories", h.CreateCategory)
 			r.Patch("/admin/categories/{categoryId}", h.UpdateCategory)
 			r.Delete("/admin/categories/{categoryId}", h.DeactivateCategory)
+
+			// Indicadores financieros anuales (FR-055…FR-061, T107). El procedimiento
+			// es del administrador: es él quien transcribe las cifras oficiales de cada
+			// año, y una vigencia mal cargada afecta a TODAS las calculadoras que
+			// referencian ese indicador, no solo a las de quien la cargó.
+			//
+			// `/admin/indicators/status` va declarada ANTES que `/admin/indicators/{...}`
+			// por el mismo motivo que `/calculators/validate`: chi resuelve por el patrón
+			// más específico, pero declararlas juntas deja ver que «status» es una palabra
+			// reservada de esta familia y que un identificador no puede llamarse así.
+			r.Get("/admin/indicators", h.ListIndicators)
+			r.Get("/admin/indicators/status", h.IndicatorCalendarStatus)
+			r.Post("/admin/indicators", h.CreateIndicator)
+			r.Put("/admin/indicators/{indicatorId}", h.UpdateIndicator)
 		})
+
+		// ── Indicadores vigentes: cualquier usuario autenticado (FR-062) ─────
+		//
+		// Va FUERA del grupo de administración a propósito: la advertencia de FR-062 la
+		// ve quien va a ejecutar una calculadora, que no tiene por qué ser
+		// administrador. Lo que se expone son los valores vigentes —cifras oficiales
+		// publicadas— y los nombres que se quedaron sin vigencia, que es justo lo que
+		// hace falta para saber si un resultado puede estar desactualizado.
+		r.Get("/indicators/current", h.CurrentIndicators)
 	})
 
 	return r

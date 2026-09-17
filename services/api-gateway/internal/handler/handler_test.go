@@ -286,6 +286,18 @@ type fakeSimulator struct {
 	lastUpsert   *simulatorv1.UpsertCalculatorRequest
 	lastValidate *simulatorv1.ValidateDefinitionRequest
 	upsertCalls  int
+
+	// Indicadores financieros (T107). Igual que los del constructor: lo que casi todas
+	// las afirmaciones comprueban es lo que el borde ENVIÓ —de dónde salió el
+	// administrador, qué identificador viajó en la ruta—, y un doble que solo devolviera
+	// una respuesta las dejaría sin comprobar.
+	indicators        *simulatorv1.ListIndicatorsResponse
+	indicator         *simulatorv1.Indicator
+	calendarStatus    *simulatorv1.IndicatorCalendarStatus
+	upsertIndErr      error
+	lastIndicatorList *simulatorv1.ListIndicatorsRequest
+	lastUpsertInd     *simulatorv1.UpsertIndicatorRequest
+	indicatorLists    int
 }
 
 func (f *fakeSimulator) ListHistory(_ context.Context, _ *simulatorv1.ListHistoryRequest, _ ...grpc.CallOption) (*simulatorv1.ListHistoryResponse, error) {
@@ -326,6 +338,40 @@ func (f *fakeSimulator) UpsertCalculator(_ context.Context, in *simulatorv1.Upse
 		return &simulatorv1.Calculator{}, nil
 	}
 	return f.calculator, nil
+}
+
+func (f *fakeSimulator) ListIndicators(_ context.Context, in *simulatorv1.ListIndicatorsRequest, _ ...grpc.CallOption) (*simulatorv1.ListIndicatorsResponse, error) {
+	f.lastIndicatorList = in
+	f.indicatorLists++
+	if f.indicators == nil {
+		return &simulatorv1.ListIndicatorsResponse{}, nil
+	}
+	return f.indicators, nil
+}
+
+func (f *fakeSimulator) UpsertIndicator(_ context.Context, in *simulatorv1.UpsertIndicatorRequest, _ ...grpc.CallOption) (*simulatorv1.Indicator, error) {
+	f.lastUpsertInd = in
+	if f.upsertIndErr != nil {
+		return nil, f.upsertIndErr
+	}
+	if f.indicator != nil {
+		return f.indicator, nil
+	}
+	return &simulatorv1.Indicator{
+		IndicatorId:  "ind-1",
+		Name:         in.GetName(),
+		Value:        in.GetValue(),
+		ValidFrom:    in.GetValidFrom(),
+		ValidTo:      in.GetValidTo(),
+		RegisteredBy: in.GetActorId(),
+	}, nil
+}
+
+func (f *fakeSimulator) GetIndicatorCalendarStatus(_ context.Context, _ *commonv1.PageRequest, _ ...grpc.CallOption) (*simulatorv1.IndicatorCalendarStatus, error) {
+	if f.calendarStatus == nil {
+		return &simulatorv1.IndicatorCalendarStatus{}, nil
+	}
+	return f.calendarStatus, nil
 }
 
 func (f *fakeSimulator) DeleteCalculator(_ context.Context, in *simulatorv1.CalculatorRef, _ ...grpc.CallOption) (*commonv1.OpResult, error) {
@@ -519,6 +565,11 @@ func TestProtectedRoutesRejectAnonymousRequests(t *testing.T) {
 		{http.MethodPost, "/admin/categories"},
 		{http.MethodPatch, "/admin/categories/cat-1"},
 		{http.MethodDelete, "/admin/categories/cat-1"},
+		{http.MethodGet, "/admin/indicators"},
+		{http.MethodGet, "/admin/indicators/status"},
+		{http.MethodPost, "/admin/indicators"},
+		{http.MethodPut, "/admin/indicators/ind-1"},
+		{http.MethodGet, "/indicators/current"},
 	} {
 		rec := h.do(t, route.method, route.target, `{}`, false)
 		require.Equal(t, http.StatusUnauthorized, rec.Code,

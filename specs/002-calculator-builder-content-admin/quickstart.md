@@ -110,6 +110,15 @@ curl -s -X POST localhost:8080/calculators/validate -H "Authorization: Bearer $T
 
 ## 5. Verificar indicadores y procedimiento anual (US4)
 
+Los tres endpoints de administración exigen token **y** rol `administrador`. El token se
+obtiene con `dev/token`, que recorre el flujo real —registro, verificación por correo, rol y
+PKCE— y no un atajo de pruebas:
+
+```bash
+ADMIN_TOKEN=$(dev/token admin@fintcart.test administrador)
+TOKEN=$(dev/token usuario@fintcart.test)   # sin rol: usuario final
+```
+
 ```bash
 # Vigencia solapada debe rechazarse en la BASE, no solo en la aplicación (FR-059)
 curl -si -X POST localhost:8080/admin/indicators -H "Authorization: Bearer $ADMIN_TOKEN" \

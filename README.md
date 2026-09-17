@@ -69,6 +69,7 @@ dev/up         # levanta la topología y espera los health checks
 dev/migrate    # aplica las migraciones de las 7 bases con estado
 dev/seed       # cliente OAuth + contenido mínimo sin el cual el sistema no se puede usar
 dev/demo       # recorre el sistema de punta a punta y enseña qué mirar
+dev/token      # token de acceso real para probar el borde a mano
 ```
 
 Cero pasos manuales adicionales (Principio XII). Para detener y limpiar: `dev/down`. La guía completa — health checks, herramientas de inspección (Swagger UI, Mailhog, RabbitMQ, Adminer), regeneración de contratos, migraciones, verificación paso a paso del flujo principal y gates de cumplimiento — está en [`specs/001-fintcart-platform/quickstart.md`](specs/001-fintcart-platform/quickstart.md), que estos mismos comandos deben coincidir exactamente con los scripts de `dev/` (verificado en CI).

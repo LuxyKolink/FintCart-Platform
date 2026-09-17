@@ -34,6 +34,7 @@ dev/up         # levanta la topología y espera los health checks de PostgreSQL,
 dev/migrate    # aplica las migraciones de los 7 servicios con estado (golang-migrate uniforme)
 dev/seed       # datos sin los que la plataforma no se puede USAR (ver abajo)
 dev/demo       # recorre el sistema de punta a punta y enseña qué mirar
+dev/token      # token de acceso real para probar el borde a mano (ver abajo)
 ```
 
 Eso es todo: **cero pasos manuales adicionales** (Principio XII, regla 4). Para detener y limpiar:
@@ -93,6 +94,23 @@ nota hasta que se intenta entrar:
 dev/seed                                   # cliente OAuth `fintcart-spa` + 5 artículos + 1 cuestionario
 dev/seed role ana@fintcart.co editor       # rol editorial sobre una cuenta ya registrada
 ```
+
+### `dev/token` para probar la superficie REST
+
+Casi todas las rutas exigen token, y obtenerlo a mano son seis pasos —registro, correo,
+verificación, rol, autorización con PKCE y canje— de los que dos fallan sin decir por qué. El
+verbo hace el recorrido completo, el MISMO que hace la SPA, y devuelve el token por la
+salida estándar para poder capturarlo:
+
+```bash
+TOKEN=$(dev/token ana@fintcart.co)                 # usuario final
+ADMIN=$(dev/token admin@fintcart.co administrador) # con rol
+curl -s localhost:8080/me/profile -H "Authorization: Bearer $TOKEN" | jq
+```
+
+Los avisos de progreso salen por la salida de ERROR justamente para que la captura de arriba
+funcione. No hay atajo: el token viene del flujo real de OAuth2, así que verificar con él es
+verificar el flujo.
 
 Es idempotente. No es una migración a propósito: `golang-migrate` versiona el esquema, y
 una migración con `INSERT` llevaría este cliente OAuth de desarrollo a producción
