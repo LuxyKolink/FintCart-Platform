@@ -249,16 +249,49 @@ describe('toEditorDoc — lo que se guardó se vuelve a abrir igual', () => {
     expect(editable.content?.[0]?.content?.[0]?.text).toBe('Queda esto');
   });
 
-  it('una calculadora no se pierde en silencio: queda su referencia', () => {
-    // El editor no inserta calculadoras (T153), pero un documento que las traiga no puede
-    // perderlas al abrirlo y guardarlo. Se conserva una referencia honesta: texto que dice
-    // que hay una calculadora y cuál.
+  it('una calculadora se vuelve a abrir como calculadora, con su versión (T152)', () => {
+    // Mientras el editor no tuvo nodo propio (T131), este mismo caso producía un PÁRRAFO con
+    // «[calculadora calc-1]», y era peor que descartarla: al guardar, el párrafo sustituía al
+    // bloque y el artículo perdía la calculadora sin ningún error. Ahora se reconstruye el nodo.
     const editable = toEditorDoc({
       tipo: 'doc',
       contenido: [{ tipo: 'calculadora', calculator_id: 'calc-1', version: 3 }],
     });
 
-    expect(editable.content?.[0]?.content?.[0]?.text).toBe('[calculadora calc-1]');
+    expect(editable.content?.[0]).toEqual({
+      type: 'calculadora',
+      attrs: { calculatorId: 'calc-1', version: 3 },
+    });
+  });
+
+  it('y el viaje de ida y vuelta la deja idéntica', () => {
+    const guardado: BodyDocNode = {
+      tipo: 'doc',
+      contenido: [
+        { tipo: 'parrafo', contenido: [{ tipo: 'texto', texto: 'Calcula:' }] },
+        { tipo: 'calculadora', calculator_id: 'calc-1', version: 3 },
+      ],
+    };
+
+    expect(toBodyDoc(toEditorDoc(guardado))).toEqual(guardado);
+  });
+
+  it('una calculadora sin versión no se puede ni abrir ni guardar', () => {
+    // Los dos lados exigen lo mismo, y por eso el viaje completo es seguro: el servidor rechaza
+    // un nodo sin versión («una calculadora necesita version entera ≥ 1») y el editor lo descarta
+    // antes de mandarlo. Sin la versión no se sabe a qué definición quedó atado el artículo.
+    expect(
+      toEditorDoc({
+        tipo: 'doc',
+        contenido: [{ tipo: 'calculadora', calculator_id: 'calc-1' }],
+      }).content,
+    ).toEqual([{ type: 'paragraph' }]);
+    expect(
+      toBodyDoc({
+        type: 'doc',
+        content: [{ type: 'calculadora', attrs: { calculatorId: 'calc-1', version: 0 } }],
+      }),
+    ).toEqual({ tipo: 'doc', contenido: [] });
   });
 
   it('un enlace con esquema no admitido se abre sin enlace, no sin texto', () => {

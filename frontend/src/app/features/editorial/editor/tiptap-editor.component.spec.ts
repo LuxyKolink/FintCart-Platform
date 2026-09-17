@@ -14,6 +14,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Observable, of, throwError } from 'rxjs';
 
 import type { BodyDocNode } from '../../../shared/body-doc';
+import { CalculatorsApiService } from '../../calculators/calculators-api.service';
 import { EditorialApiService, EditorialError } from '../editorial-api.service';
 import { TiptapEditorComponent } from './tiptap-editor.component';
 
@@ -38,6 +39,39 @@ class ApiFalsa {
   }
 }
 
+/**
+ * El doble del catálogo de calculadoras (T152).
+ *
+ * Devuelve una lista como la del catálogo público —solo publicadas, con su versión— porque es lo
+ * que el selector enseña, y puede fallar para comprobar que un catálogo que no llega se cuenta en
+ * vez de mostrar un selector vacío que parece «no hay ninguna».
+ */
+class CatalogoFalso {
+  public llamadas = 0;
+  public falla = false;
+  public items: unknown[] = [
+    {
+      calculator_id: 'calc-1',
+      name: 'Cuota de crédito',
+      description: 'La cuota mensual de un crédito.',
+      version: 3,
+      state: 'publicada',
+      definition: {
+        inputs: [{ key: 'monto', label: 'Monto', type: 'monto', unit: 'COP', required: true }],
+        validations: [],
+        outputs: [],
+      },
+    },
+  ];
+
+  public listCatalog(): Observable<unknown> {
+    this.llamadas += 1;
+    return this.falla
+      ? throwError(() => new Error('sin red'))
+      : of({ items: this.items, next_page_token: '', total_size: this.items.length });
+  }
+}
+
 const IMAGEN_ID = 'a'.repeat(64);
 const IMAGEN: BodyDocNode = {
   tipo: 'doc',
@@ -48,12 +82,17 @@ describe('fc-tiptap-editor', () => {
   let fixture: ComponentFixture<TiptapEditorComponent>;
   let componente: TiptapEditorComponent;
   let api: ApiFalsa;
+  let catalogo: CatalogoFalso;
 
   beforeEach(async () => {
     api = new ApiFalsa();
+    catalogo = new CatalogoFalso();
     await TestBed.configureTestingModule({
       imports: [ReactiveFormsModule, TiptapEditorComponent],
-      providers: [{ provide: EditorialApiService, useValue: api }],
+      providers: [
+        { provide: EditorialApiService, useValue: api },
+        { provide: CalculatorsApiService, useValue: catalogo },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(TiptapEditorComponent);
@@ -161,6 +200,105 @@ describe('fc-tiptap-editor', () => {
     fixture.detectChanges();
 
     expect(superficie().querySelector('p')).not.toBeNull();
+  });
+
+  describe('la calculadora incrustada (T152)', () => {
+    /** El `<select>` del panel, por su etiqueta visible. */
+    function selector(): HTMLSelectElement {
+      const campo = fixture.nativeElement.querySelector('.fc-rte__panel select');
+      if (campo === null) {
+        throw new Error('el panel no montó el selector');
+      }
+      return campo as HTMLSelectElement;
+    }
+
+    it('pide el catálogo la primera vez y no en cada apertura', () => {
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+      expect(catalogo.llamadas).toBe(1);
+
+      // Cerrar y volver a abrir no vuelve a pedirlo: el catálogo ya está en memoria, y quien
+      // escribe puede estar abriendo y cerrando mientras busca la calculadora que quiere.
+      componente['cerrarPanelCalculadora']();
+      fixture.detectChanges();
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+      expect(catalogo.llamadas).toBe(1);
+    });
+
+    it('solo ofrece calculadoras publicadas, con su versión a la vista', () => {
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+
+      // El catálogo público es el de publicadas: una privada o en revisión no llega aquí.
+      const opciones = Array.from(selector().options).map((o) => o.textContent?.trim());
+      expect(opciones).toEqual(['Cuota de crédito · versión 3']);
+    });
+
+    it('inserta el bloque con la versión VIGENTE, y sin poder escribirla a mano', () => {
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+
+      const elegir = selector();
+      elegir.value = 'calc-1';
+      elegir.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      botonPorTexto('Incrustar calculadora').click();
+      fixture.detectChanges();
+
+      // La versión la pone el editor con el dato que acaba de leer. Si fuera un campo editable,
+      // se podría fijar una versión que nunca se publicó, y el artículo quedaría atado a algo
+      // que nadie aprobó.
+      const guardado = componente['editor']?.getJSON() ?? { content: [] };
+      const nodo = (guardado.content ?? []).find((n) => n.type === 'calculadora');
+      expect(nodo?.attrs).toEqual({ calculatorId: 'calc-1', version: 3 });
+      // Y el panel se cierra: el bloque ya está en el documento y el panel ya no sirve.
+      expect(fixture.nativeElement.querySelector('.fc-rte__panel')).toBeNull();
+    });
+
+    it('enseña la ficha de lo elegido antes de insertarlo', () => {
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+
+      const elegir = selector();
+      elegir.value = 'calc-1';
+      elegir.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      const ficha = fixture.nativeElement.querySelector('.fc-rte__ficha').textContent;
+      expect(ficha).toContain('Cuota de crédito');
+      expect(ficha).toContain('1 dato(s) de entrada');
+      // El botón está apagado mientras no haya nada elegido: el selector arranca vacío.
+      expect(botonPorTexto('Incrustar calculadora').disabled).toBe(false);
+    });
+
+    it('no se puede insertar mientras no se haya elegido nada', () => {
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+
+      expect(botonPorTexto('Incrustar calculadora').disabled).toBe(true);
+    });
+
+    it('un catálogo que no llega se dice, en vez de parecer «no hay ninguna»', () => {
+      catalogo.falla = true;
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+
+      // La diferencia importa: «todavía no hay ninguna publicada» manda a publicar una, y que la
+      // petición haya fallado manda a reintentar. Enseñar la primera cuando pasó lo segundo es
+      // mandar a hacer el trabajo equivocado.
+      expect(fixture.nativeElement.textContent).toContain('No pudimos cargar el catálogo');
+      expect(fixture.nativeElement.textContent).not.toContain('Todavía no hay ninguna calculadora publicada');
+    });
+
+    it('un catálogo vacío sí dice que no hay ninguna publicada', () => {
+      catalogo.items = [];
+      botonPorTexto('Incrustar una calculadora').click();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain('Todavía no hay ninguna calculadora publicada');
+    });
   });
 
   describe('la imagen (T132)', () => {
@@ -359,7 +497,10 @@ describe('la integración con el formulario', () => {
   it('un `FormControl` recibe el documento y lo marca vacío cuando no hay bloques', async () => {
     await TestBed.configureTestingModule({
       imports: [ReactiveFormsModule, TiptapEditorComponent],
-      providers: [{ provide: EditorialApiService, useValue: new ApiFalsa() }],
+      providers: [
+        { provide: EditorialApiService, useValue: new ApiFalsa() },
+        { provide: CalculatorsApiService, useValue: new CatalogoFalso() },
+      ],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(TiptapEditorComponent);

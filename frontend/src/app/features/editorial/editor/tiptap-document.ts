@@ -84,6 +84,54 @@ export const Imagen = Node.create({
 });
 
 /**
+ * El nodo `calculadora` (T152, FR-070).
+ *
+ * Es atómico por la misma razón que la imagen, y con una consecuencia mayor: un cálculo
+ * incrustado son DOS datos —qué calculadora y con qué versión—, y la versión se fija al
+ * incrustar para que el artículo quede atado a la definición con la que se escribió. Si fueran
+ * texto dentro del documento, borrar un carácter cambiaría la versión que el artículo declara.
+ *
+ * La vista en el editor NO trae el nombre de la calculadora: el documento guarda el
+ * identificador, que es lo único que no cambia. Escribir el nombre en el nodo lo dejaría
+ * obsoleto el día que alguien renombre la calculadora, y el editor enseñaría un nombre que ya no
+ * existe. Lo que se ve es la referencia y la versión, que es lo que se está fijando.
+ */
+export const Calculadora = Node.create({
+  name: 'calculadora',
+  group: 'block',
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      calculatorId: { default: null },
+      version: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'aside[data-calculator-id]' }];
+  },
+
+  renderHTML({ node }) {
+    const version = node.attrs['version'];
+    return [
+      'aside',
+      mergeAttributes({
+        'data-calculator-id': String(node.attrs['calculatorId'] ?? ''),
+        // El atributo lleva la versión y no solo el identificador: lo que se está fijando es
+        // «esta calculadora, en esta versión», y sin ella el nodo no se puede reconstruir.
+        'data-calculator-version': String(version ?? ''),
+        class: 'fc-rte__calculadora',
+      }),
+      ['p', { class: 'fc-rte__calculadora-titulo' }, 'Calculadora incrustada'],
+      ['p', { class: 'fc-rte__calculadora-version' }, `Versión ${String(version ?? '?')}`],
+      ['p', { class: 'fc-rte__calculadora-id' }, String(node.attrs['calculatorId'] ?? '')],
+    ] as never;
+  },
+});
+
+/**
  * Las extensiones del editor, ya restringidas al vocabulario.
  *
  * Cada `false` es una decisión y no una limpieza: lo que no se puede producir no se puede
@@ -116,6 +164,7 @@ export const EXTENSIONES = [
     },
   }),
   Imagen,
+  Calculadora,
 ];
 
 /** Añade el esquema por defecto a una URL escrita sin él (`ejemplo.com` → `https://…`). */
@@ -188,6 +237,21 @@ function bloqueDe(nodo: JSONContent): BodyDocNode | null {
         alt: typeof alt === 'string' ? alt : '',
         ...(typeof pie === 'string' && pie.trim() !== '' ? { pie } : {}),
       };
+    }
+    case 'calculadora': {
+      // Sin identificador ni versión no hay nada que referenciar: no se guarda el bloque. Es la
+      // misma decisión que con la imagen, y aquí importa más, porque un nodo así el servidor lo
+      // rechazaría por «una calculadora necesita version entera ≥ 1» y el mensaje hablaría de un
+      // nodo que quien escribe no ve.
+      const calculatorId = nodo.attrs?.['calculatorId'];
+      const version = nodo.attrs?.['version'];
+      if (typeof calculatorId !== 'string' || calculatorId.trim() === '') {
+        return null;
+      }
+      if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
+        return null;
+      }
+      return { tipo: 'calculadora', calculator_id: calculatorId, version };
     }
     default:
       // Un tipo desconocido no debería llegar (el esquema no lo produce). Si llegara —una
@@ -308,18 +372,32 @@ function bloqueAEditable(nodo: BodyDocNode): JSONContent | null {
         attrs: { imageId: nodo.image_id, alt: nodo.alt, pie: nodo.pie ?? null },
       };
     }
+    case 'calculadora': {
+      // T152: el editor YA la produce y la sabe reconstruir. Se exige lo mismo que al guardar
+      // —identificador y versión entera— porque un nodo a medias no se puede editar ni volver a
+      // guardar: se descarta y el bloque se pierde, pero no se convierte en texto.
+      //
+      // Convertirla en un párrafo con su identificador fue lo que hizo T131 mientras el nodo no
+      // existía, y era PEOR que descartarla: al guardar, el párrafo sustituía al bloque y el
+      // artículo perdía la calculadora sin ningún error. Un bloque que no se puede representar se
+      // pierde, se ve que se perdió, y el que escribe puede volver a insertarlo.
+      const version = nodo.version;
+      if (
+        typeof nodo.calculator_id !== 'string' ||
+        nodo.calculator_id.trim() === '' ||
+        typeof version !== 'number' ||
+        !Number.isInteger(version) ||
+        version < 1
+      ) {
+        return null;
+      }
+      return {
+        type: 'calculadora',
+        attrs: { calculatorId: nodo.calculator_id, version },
+      };
+    }
     default:
-      // `calculadora` llega por el contrato y la dibuja el LECTOR; el editor no la
-      // produce (T153). Descartarla aquí perdería el bloque al guardar, así que se
-      // conserva como texto de referencia: el editor de T131 no la edita, y convertirla
-      // en un párrafo con su identificador es lo único honesto sin decir que se puede
-      // editar algo que no se puede.
-      return nodo.tipo === 'calculadora' && nodo.calculator_id !== undefined
-        ? {
-            type: 'paragraph',
-            content: [{ type: 'text', text: `[calculadora ${nodo.calculator_id}]` }],
-          }
-        : null;
+      return null;
   }
 }
 

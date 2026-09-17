@@ -21,7 +21,7 @@ import {
 } from '@angular/forms';
 import { Editor, type JSONContent } from '@tiptap/core';
 
-import { BannerComponent, ButtonComponent, InputComponent } from '../../../shared/ui';
+import { BannerComponent, ButtonComponent, InputComponent, SelectComponent } from '../../../shared/ui';
 import {
   BODY_DOC_HEADING_LEVELS,
   BODY_DOC_LINK_SCHEMES,
@@ -31,6 +31,8 @@ import {
   type BodyDocNode,
 } from '../../../shared/body-doc';
 import { mediaImageUrl } from '../../../shared/media-url';
+import { CalculatorError, CalculatorsApiService } from '../../calculators/calculators-api.service';
+import type { Calculator } from '../../calculators/calculator.types';
 import { EditorialApiService, EditorialError } from '../editorial-api.service';
 import { EXTENSIONES, toBodyDoc, toEditorDoc } from './tiptap-document';
 
@@ -89,7 +91,7 @@ interface ImagenPendiente {
   // desaconsejada y se filtra igual; aquí al menos los nombres van prefijados con
   // `fc-rte__`, así que no pueden chocar con nada de fuera.
   encapsulation: ViewEncapsulation.None,
-  imports: [ReactiveFormsModule, BannerComponent, ButtonComponent, InputComponent],
+  imports: [ReactiveFormsModule, BannerComponent, ButtonComponent, InputComponent, SelectComponent],
   templateUrl: './tiptap-editor.component.html',
   styleUrl: './tiptap-editor.component.css',
   providers: [
@@ -113,6 +115,16 @@ export class TiptapEditorComponent implements ControlValueAccessor, AfterViewIni
 
   @ViewChild('host', { static: true }) private host!: ElementRef<HTMLElement>;
   private readonly api = inject(EditorialApiService);
+  /**
+   * El catálogo de calculadoras publicadas (T152).
+   *
+   * Se usa el MISMO servicio que el ejecutor y el constructor de calculadoras, y no una copia
+   * dentro de la API editorial: `GET /calculators` ya tiene un cliente, y un segundo cliente del
+   * mismo endpoint acabaría clasificando los errores de otra manera —el editor tiene que saber
+   * distinguir «no hay catálogo» de «no se pudo preguntar», que es exactamente lo que hace
+   * `CalculatorError`—.
+   */
+  private readonly calculadoras = inject(CalculatorsApiService);
   private readonly zone = inject(NgZone);
 
   private editor: Editor | null = null;
@@ -145,6 +157,19 @@ export class TiptapEditorComponent implements ControlValueAccessor, AfterViewIni
   protected readonly errorEnlace = signal<string | null>(null);
 
   /**
+   * El panel de la calculadora incrustada (T152).
+   *
+   * El catálogo se pide al ABRIR el panel y no al construir el editor: quien escribe un
+   * artículo no siempre incrusta una calculadora, y cargar el catálogo entero en cada
+   * borrador que se abre es gastar una petición para nada.
+   */
+  protected readonly panelCalculadoraAbierto = signal(false);
+  protected readonly catalogo = signal<readonly Calculator[]>([]);
+  protected readonly cargandoCatalogo = signal(false);
+  protected readonly errorCalculadora = signal<string | null>(null);
+  protected readonly calculadoraElegida = signal<Calculator | null>(null);
+
+  /**
    * Los tres campos del panel son controles de formulario y no señales con manejadores.
    *
    * No es preferencia de estilo: `fc-input` es un control de formulario —así lo usa toda la
@@ -159,6 +184,21 @@ export class TiptapEditorComponent implements ControlValueAccessor, AfterViewIni
     validators: [Validators.required, Validators.maxLength(BODY_DOC_MAX_ALT)],
   });
   protected readonly pieControl: FormControl<string> = new FormControl('', { nonNullable: true });
+  /** El selector de calculadoras del panel. Vacío = nada elegido. */
+  protected readonly controlCalculadora: FormControl<string> = new FormControl('', { nonNullable: true });
+
+  /**
+   * El selector de la calculadora avisa por el control, no por un manejador del evento.
+   *
+   * `fc-select` es un control de formulario —como `fc-input`—, así que el valor de lo elegido
+   * llega por `valueChanges`. Añadirle un `@Output` solo para esto daría dos formas de leer el
+   * mismo dato dentro del mismo componente.
+   */
+  public constructor() {
+    this.controlCalculadora.valueChanges.subscribe((calculatorId) => {
+      this.onCalculadoraElegida(calculatorId);
+    });
+  }
 
   public ngAfterViewInit(): void {
     this.editor = new Editor({
@@ -253,6 +293,88 @@ export class TiptapEditorComponent implements ControlValueAccessor, AfterViewIni
   /** ¿Se puede intentar insertar una imagen? Depende de que el artículo ya exista. */
   protected get puedeInsertarImagen(): boolean {
     return this.articleId() !== null && !this.subiendo();
+  }
+
+  // ── calculadora incrustada (T152) ───────────────────────────────────────────
+
+  /**
+   * Las opciones del selector, con el nombre y la versión.
+   *
+   * La versión va en la etiqueta porque es lo que se está fijando al incrustar: el artículo
+   * queda atado a ESA definición, así que elegir «Cuota de crédito» sin ver la versión sería
+   * elegir algo que no se ve en ninguna parte.
+   */
+  protected opcionesDeCalculadora(): { value: string; label: string }[] {
+    return this.catalogo().map((calc) => ({
+      value: calc.calculator_id,
+      label: `${calc.name} · versión ${calc.version}`,
+    }));
+  }
+
+  protected abrirPanelCalculadora(): void {
+    this.errorCalculadora.set(null);
+    this.calculadoraElegida.set(null);
+    this.controlCalculadora.setValue('', { emitEvent: false });
+    this.panelCalculadoraAbierto.set(true);
+    if (this.catalogo().length > 0) {
+      return;
+    }
+    this.cargandoCatalogo.set(true);
+    this.calculadoras.listCatalog().subscribe({
+      next: (pagina) => {
+        this.catalogo.set(pagina.items);
+        this.cargandoCatalogo.set(false);
+      },
+      error: (err: unknown) => {
+        this.cargandoCatalogo.set(false);
+        // El catálogo público se puede consultar sin sesión, así que un fallo aquí es un fallo
+        // de red o del servicio, no un problema de permisos.
+        this.errorCalculadora.set(
+          err instanceof CalculatorError ? err.message : 'No pudimos cargar el catálogo de calculadoras.',
+        );
+      },
+    });
+  }
+
+  /** Guarda la calculadora elegida para enseñar su ficha antes de insertarla. */
+  protected onCalculadoraElegida(calculatorId: string): void {
+    this.calculadoraElegida.set(
+      this.catalogo().find((calc) => calc.calculator_id === calculatorId) ?? null,
+    );
+  }
+
+  /** Cuántas entradas pide la calculadora elegida: lo que hace falta para saber si es la que es. */
+  protected entradasDe(calc: Calculator): number {
+    return calc.definition.inputs.length;
+  }
+
+  protected cerrarPanelCalculadora(): void {
+    this.panelCalculadoraAbierto.set(false);
+    this.calculadoraElegida.set(null);
+  }
+
+  /**
+   * Inserta el bloque con la versión VIGENTE de la calculadora.
+   *
+   * La versión sale del catálogo, no de un campo que quien escribe pueda tocar: la fija el
+   * editor con el dato que acaba de leer, que es lo único que garantiza que sea una versión
+   * publicada. Escribirla a mano permitiría fijar una versión que nunca se publicó.
+   */
+  protected insertarCalculadora(): void {
+    const elegida = this.calculadoraElegida();
+    const editor = this.editor;
+    if (elegida === null || editor === null) {
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'calculadora',
+        attrs: { calculatorId: elegida.calculator_id, version: elegida.version },
+      })
+      .run();
+    this.cerrarPanelCalculadora();
   }
 
   // ── enlace ──────────────────────────────────────────────────────────────────

@@ -101,6 +101,17 @@
     />
     <label class="fc-rte__btn" for="fc-rte-archivo">Insertar una imagen</label>
 
+    <button
+      type="button"
+      class="fc-rte__btn"
+      [class.fc-rte__btn--on]="panelCalculadoraAbierto()"
+      [attr.aria-pressed]="panelCalculadoraAbierto()"
+      aria-label="Incrustar una calculadora"
+      (click)="abrirPanelCalculadora()"
+    >
+      <span aria-hidden="true">∑</span>
+    </button>
+
     @if (subiendo()) {
       <span class="fc-rte__estado" role="status">Subiendo la imagen…</span>
     } @else if (articleId() === null) {
@@ -163,6 +174,67 @@
         <fc-button variant="secondary" (pressed)="cancelarImagen()">Cancelar</fc-button>
       </div>
     </div>
+  }
+
+  <!--
+    El panel de la calculadora (T152, FR-070). Solo aparecen las PUBLICADAS, porque son las
+    únicas que el lector podrá ejecutar: el catálogo que devuelve `GET /calculators` es el
+    público, así que una calculadora privada o en revisión no está en la lista. El servidor lo
+    comprueba igual al guardar —esta lista es una ayuda, no la garantía—.
+  -->
+  @if (panelCalculadoraAbierto()) {
+    <div class="fc-rte__panel" role="group" aria-label="Calculadora incrustada">
+      @if (cargandoCatalogo()) {
+        <p class="fc-rte__estado" role="status">Cargando el catálogo…</p>
+      } @else if (errorCalculadora()) {
+        <!--
+          Nada. El aviso de error ya está debajo, y el catálogo vacío DESPUÉS de un fallo no
+          significa lo mismo que un catálogo vacío de verdad: lo primero manda a reintentar y lo
+          segundo a publicar una calculadora. Enseñar «todavía no hay ninguna publicada» cuando lo
+          que pasó es que falló la petición manda a hacer el trabajo equivocado — y era lo que
+          hacía esta plantilla antes de que la prueba lo cazara.
+        -->
+      } @else if (catalogo().length === 0) {
+        <p class="fc-rte__estado">
+          Todavía no hay ninguna calculadora publicada. Publica una en «Mis calculadoras» y
+          vuelve aquí para incrustarla.
+        </p>
+      } @else {
+        <fc-select
+          label="Calculadora del catálogo"
+          [options]="opcionesDeCalculadora()"
+          [formControl]="controlCalculadora"
+          hint="Se incrusta la versión publicada ahora mismo: el artículo queda atado a ella."
+        ></fc-select>
+      }
+
+      @if (calculadoraElegida(); as elegida) {
+        <div class="fc-rte__ficha">
+          <p class="fc-rte__ficha-titulo">{{ elegida.name }}</p>
+          @if (elegida.description !== '') {
+            <p>{{ elegida.description }}</p>
+          }
+          <p class="fc-rte__ficha-detalle">
+            {{ entradasDe(elegida) }} dato(s) de entrada · versión {{ elegida.version }}
+          </p>
+        </div>
+      }
+
+      <div class="fc-rte__acciones">
+        <fc-button
+          variant="primary"
+          [disabled]="calculadoraElegida() === null"
+          (pressed)="insertarCalculadora()"
+        >
+          Incrustar calculadora
+        </fc-button>
+        <fc-button variant="secondary" (pressed)="cerrarPanelCalculadora()">Cancelar</fc-button>
+      </div>
+    </div>
+  }
+
+  @if (errorCalculadora(); as error) {
+    <fc-banner tone="error">{{ error }}</fc-banner>
   }
 
   <!-- Aquí monta ProseMirror su superficie. El `div` lo llena TipTap, no Angular. -->

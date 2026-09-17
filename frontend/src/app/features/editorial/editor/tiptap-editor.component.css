@@ -200,3 +200,47 @@
     padding: var(--space-2);
   }
 }
+
+/*
+ * La calculadora incrustada, vista en el editor (T152).
+ *
+ * El nodo lo dibuja ProseMirror —no la plantilla de Angular— así que estos nombres van
+ * prefijados con `fc-rte__` como todo lo demás de esta hoja, que se aplica sin encapsular.
+ */
+.fc-rte__calculadora {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+}
+.fc-rte__calculadora-titulo {
+  margin: 0;
+  font-weight: var(--fw-semibold);
+}
+.fc-rte__calculadora-version {
+  margin: var(--space-1) 0 0;
+  color: var(--text-body);
+  font-size: var(--fs-sm);
+}
+.fc-rte__calculadora-id {
+  margin: var(--space-1) 0 0;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+/* La ficha de lo elegido: lo que se va a incrustar, antes de incrustarlo. */
+.fc-rte__ficha {
+  padding: var(--space-2) 0;
+  color: var(--text-body);
+  font-size: var(--fs-sm);
+}
+.fc-rte__ficha-titulo {
+  margin: 0;
+  font-weight: var(--fw-semibold);
+}
+.fc-rte__ficha-detalle {
+  margin: var(--space-1) 0 0;
+  color: var(--text-faint);
+}
