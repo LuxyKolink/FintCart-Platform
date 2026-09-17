@@ -1,5 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { Observable, of, throwError } from 'rxjs';
+
+import {
+  CalculatorError,
+  CalculatorsApiService,
+} from '../../../calculators/calculators-api.service';
+import type { Calculator } from '../../../calculators/calculator.types';
 
 import { BodyDocComponent } from './body-doc.component';
 import { parseBodyDoc, isSafeHref, type BodyDocNode } from '../../../../shared/body-doc';
@@ -20,13 +27,37 @@ import { parseBodyDoc, isSafeHref, type BodyDocNode } from '../../../../shared/b
  * La segunda mitad es la razón de ser de todo el vocabulario cerrado, así que se prueba
  * con el ataque dentro, no con un documento bonito.
  */
+/**
+ * El doble del catálogo de calculadoras, para el bloque incrustado.
+ *
+ * El bloque pide la definición al montarse, así que el render del documento necesita un doble:
+ * lo que se prueba en este archivo es el documento —qué elemento emite cada nodo y que el marcado
+ * no se interprete—, y la máquina de estados del bloque tiene su propia prueba.
+ */
+class CatalogoFalso {
+  public respuesta: Calculator | null = null;
+  public falla: CalculatorError | null = null;
+
+  public get(): Observable<Calculator> {
+    if (this.falla !== null) {
+      return throwError(() => this.falla);
+    }
+    if (this.respuesta === null) {
+      return throwError(() => new CalculatorError('notFound', 'no está'));
+    }
+    return of(this.respuesta);
+  }
+}
+
 describe('BodyDocComponent', () => {
   let fixture: ComponentFixture<BodyDocComponent>;
+  let catalogo: CatalogoFalso;
 
   async function render(doc: BodyDocNode): Promise<HTMLElement> {
+    catalogo = new CatalogoFalso();
     await TestBed.configureTestingModule({
       imports: [BodyDocComponent],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), { provide: CalculatorsApiService, useValue: catalogo }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(BodyDocComponent);
@@ -225,13 +256,60 @@ describe('BodyDocComponent', () => {
     });
   });
 
-  describe('calculadora incrustada', () => {
-    it('se dibuja como referencia con su enlace al simulador', async () => {
-      const host = await render(doc({ tipo: 'calculadora', calculator_id: 'ahorro', version: 2 }));
+  describe('calculadora incrustada (T153)', () => {
+    it('monta el ejecutor con la definición que da el catálogo', async () => {
+      catalogo = new CatalogoFalso();
+      catalogo.respuesta = {
+        calculator_id: 'calc-1',
+        owner_id: '',
+        name: 'Doble del monto',
+        description: '',
+        is_builtin: false,
+        state: 'publicada',
+        approved_by: '',
+        rejection_reason: '',
+        version: 2,
+        indicators_used: [],
+        definition: {
+          inputs: [
+            {
+              key: 'monto',
+              label: 'Monto a invertir',
+              type: 'monto',
+              unit: 'COP',
+              required: true,
+            },
+          ],
+          validations: [],
+          outputs: [{ key: 'doble', label: 'Doble', expression: 'monto * 2', scale: 2 }],
+        },
+      };
+      await TestBed.configureTestingModule({
+        imports: [BodyDocComponent],
+        providers: [provideRouter([]), { provide: CalculatorsApiService, useValue: catalogo }],
+      }).compileComponents();
+      fixture = TestBed.createComponent(BodyDocComponent);
+      fixture.componentRef.setInput(
+        'doc',
+        doc({ tipo: 'calculadora', calculator_id: 'calc-1', version: 2 }),
+      );
+      fixture.detectChanges();
 
-      const enlace = host.querySelector('a');
-      expect(enlace?.getAttribute('href')).toBe('/simuladores/ahorro');
-      expect(host.textContent).toContain('Versión 2');
+      const host = fixture.nativeElement as HTMLElement;
+      // El bloque es EJECUTABLE en el lector (FR-071) y no un enlace a otra pantalla: la
+      // ejecución tiene que quedar en el historial de quien la hace.
+      expect(host.querySelector('form')).not.toBeNull();
+      expect(host.textContent).toContain('Monto a invertir');
+    });
+
+    it('si la calculadora ya no está publicada, el artículo sigue leyéndose (FR-072)', async () => {
+      // Sin respuesta, el doble contesta `notFound`.
+      const host = await render(doc({ tipo: 'calculadora', calculator_id: 'calc-1', version: 2 }));
+
+      expect(host.textContent).toContain('ya no está publicada');
+      // Y el resto del documento no se cae: lo que se prueba aquí es que el bloque degrada sin
+      // arrastrar al artículo entero.
+      expect(host.querySelector('.fc-blocks')).not.toBeNull();
     });
   });
 

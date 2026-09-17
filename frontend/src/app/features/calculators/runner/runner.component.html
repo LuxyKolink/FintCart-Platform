@@ -12,7 +12,15 @@
       message="Puede que el enlace esté mal, o que sea privada y no sea tuya: las calculadoras privadas solo las ve su autor."
       [retryLabel]="null"
     />
-    <fc-link-button [to]="['/calculadoras']">Volver a mis calculadoras</fc-link-button>
+    <!--
+      Incrustado no se enlaza fuera: quien llegue aquí desde un artículo no debe acabar en «Mis
+      calculadoras» —una pantalla que quizá ni conoce— por haber pulsado el enlace equivocado. En
+      el artículo, este caso no se llega a ver: el bloque que lo contiene lo convierte en el aviso
+      de FR-072 antes de montar el ejecutor.
+    -->
+    @if (!embedded()) {
+      <fc-link-button [to]="['/calculadoras']">Volver a mis calculadoras</fc-link-button>
+    }
   }
   @case ('error') {
     <fc-error-state
@@ -25,14 +33,16 @@
   @default {
     @if (calculator(); as calc) {
       <fc-module-box [title]="calc.name">
-        <div class="fc-run__cabecera">
-          <fc-badge [tone]="tone(calc.state)">{{ label(calc.state) }}</fc-badge>
-          <span>Versión {{ calc.version }}</span>
-        </div>
+        @if (!embedded()) {
+          <div class="fc-run__cabecera">
+            <fc-badge [tone]="tone(calc.state)">{{ label(calc.state) }}</fc-badge>
+            <span>Versión {{ calc.version }}</span>
+          </div>
+          <p class="fc-run__intro">{{ help(calc.state) }}</p>
+        }
         @if (calc.description !== '') {
           <p class="fc-run__intro">{{ calc.description }}</p>
         }
-        <p class="fc-run__intro">{{ help(calc.state) }}</p>
       </fc-module-box>
 
       <fc-module-box title="Parámetros">

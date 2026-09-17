@@ -361,3 +361,35 @@ pondría delante del usuario el prefijo interno de cada servicio.
 escribe el autor. Un camino de tres servicios puede perderlo sin que nada falle, así que el texto
 tiene que comprobarse de extremo a extremo —`e2e/constructor-calculadora.spec.ts` lo hace con una
 cota, y la regla del autor quedó verificada contra la pila real con `curl`—.
+
+---
+
+## Hallazgo 16 — El historial no puede nombrar una simulación hecha con una calculadora de usuario
+
+**Qué pasa**: `T110` hizo que cada simulación conserve su procedencia —`calculator_id`,
+`calculator_version`, `indicators_used`— y el historial la muestra: la fila lleva «versión 1»
+(T110) junto a la fecha, los resultados y los parámetros. Pero el **badge que dice qué
+calculadora se usó** sale de `history-rows.ts::calcLabelOf`, que busca el `calc_type` en
+`calculators.config.ts` —la tabla de las cinco calculadoras clásicas del cliente—. Para una
+calculadora **de usuario** el `calc_type` es `usuario` (D-26) y no está en esa tabla, así que la
+celda muestra la palabra cruda `usuario`.
+
+**Por qué no se arregla aquí**: el nombre de la calculadora no viaja en la entrada del historial
+—el contrato lleva el identificador y la versión—, y resolverlo en el cliente costaría una
+petición por fila al catálogo de calculadoras. Las dos salidas honestas son añadirlo al DTO del
+borde (una unión con `calculator_definitions` en la consulta del historial) o dejar que el
+historial muestre el identificador corto. La primera es un cambio de contrato y la segunda enseña
+un UUID, que no es más útil que `usuario`.
+
+**Lo que sí queda comprobado**: la procedencia se registra y se muestra (la versión), y la fila
+existe en el historial de quien ejecutó desde el artículo —`e2e/calculadora-incrustada.spec.ts`
+lo afirma—, que es lo que FR-071/FR-050 piden. Lo que falta es cosmético y está acotado a las
+calculadoras de usuario.
+
+**Un detalle de presentación que conviene saber y que la prueba afirma a conciencia**: el
+historial muestra el valor **canónico** que devolvió el Simulador (`50000`) y no el formateado del
+ejecutor (`50.000,00`), porque el formateo del historial depende del tipo declarado en
+`calculators.config.ts` —`money`, `rate`— y una calculadora de usuario declara una **escala**, no
+un tipo. No es una cifra falsa: es la misma cifra sin formato. Cerrarlo bien exigiría que la
+escala viajara en la entrada del historial, que es el mismo cambio de contrato del párrafo
+anterior.

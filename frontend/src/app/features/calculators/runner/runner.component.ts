@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -128,6 +128,25 @@ export class CalculatorRunnerComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(CalculatorsApiService);
 
+  /**
+   * La definición ya cargada, cuando la tiene quien usa este componente (T153).
+   *
+   * Un artículo incrustado ya tuvo que leer la calculadora para saber si sigue publicada
+   * (FR-072), así que volver a pedirla aquí sería una segunda petición de lo mismo. Cuando llega
+   * por aquí no se pide nada por la ruta: el componente pasa a ser «pinta y ejecuta esto».
+   */
+  public readonly definition = input<Calculator | null>(null);
+
+  /**
+   * `true` cuando el ejecutor va DENTRO de otra pantalla —un artículo—.
+   *
+   * Lo que cambia es que no se enseña el estado de la calculadora ni su ayuda —«Publicada» y un
+   * párrafo que explica qué significa cada estado son información de quien la administra, no de
+   * quien está leyendo un artículo— ni el enlace de vuelta al catálogo, que sacaría a quien lee
+   * del artículo que estaba leyendo.
+   */
+  public readonly embedded = input<boolean>(false);
+
   protected readonly state = signal<LoadState>('loading');
   protected readonly calculator = signal<Calculator | null>(null);
   protected readonly panel = signal<PanelState>('idle');
@@ -141,6 +160,15 @@ export class CalculatorRunnerComponent implements OnInit {
   protected readonly fields = computed<CalculatorField[]>(() => this.calculator()?.definition.inputs ?? []);
 
   public ngOnInit(): void {
+    // La definición que llega de fuera manda: quien la pasa ya la pidió.
+    const yaCargada = this.definition();
+    if (yaCargada !== null) {
+      this.calculator.set(yaCargada);
+      this.buildForm(yaCargada);
+      this.state.set('ready');
+      return;
+    }
+
     const id = this.route.snapshot.paramMap.get('calculatorId') ?? '';
     if (id === '') {
       this.state.set('not-found');

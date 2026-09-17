@@ -1,6 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, input, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
 import {
   isSafeHref,
@@ -9,6 +8,7 @@ import {
 } from '../../../../shared/body-doc';
 import { mediaImageUrl } from '../../../../shared/media-url';
 import { headingTag } from './body-doc';
+import { EmbeddedCalculatorComponent } from './embedded-calculator.component';
 
 /**
  * Renderiza un documento de bloques **por componente**, sin `innerHTML` ni
@@ -48,7 +48,7 @@ import { headingTag } from './body-doc';
 @Component({
   selector: 'fc-body-doc',
   standalone: true,
-  imports: [NgTemplateOutlet, RouterLink],
+  imports: [NgTemplateOutlet, EmbeddedCalculatorComponent],
   templateUrl: './body-doc.component.html',
   styleUrl: './body-doc.component.css',
 })

@@ -144,19 +144,14 @@
 
     @case ('calculadora') {
       <!--
-        Referencia a la calculadora publicada. T153 la convierte en un bloque ejecutable
-        aquí mismo, por la misma ruta de ejecución que el simulador; hasta entonces se
-        enlaza, que es accionable y no promete nada que no pueda cumplir.
+        La calculadora se ejecuta AQUÍ (T153, FR-071): misma ruta que el simulador, para que la
+        ejecución quede en el historial de quien la hace. Si `calculator_id` faltara no se dibuja
+        nada —un bloque sin referencia no es un bloque—; el vocabulario lo exige, así que un
+        documento sin él no pudo guardarse.
       -->
-      <aside class="fc-blocks__calculator">
-        <p class="fc-blocks__calculator-label">Calculadora incrustada</p>
-        <a class="fc-blocks__calculator-link" [routerLink]="['/simuladores', n.calculator_id]">
-          Abrir la calculadora
-        </a>
-        @if (n.version) {
-          <p class="fc-blocks__calculator-version">Versión {{ n.version }} del artículo</p>
-        }
-      </aside>
+      @if (n.calculator_id; as calculatorId) {
+        <fc-embedded-calculator [calculatorId]="calculatorId" [pinnedVersion]="n.version ?? null" />
+      }
     }
   }
 </ng-template>

@@ -17,12 +17,16 @@ import { grantRole } from './support/roles';
  *
  * ## Por qué la calculadora se crea por la API y no por la interfaz
  *
- * Porque **el constructor visual no existe todavía** (T097): no hay ningún formulario que
- * escriba una definición. La prueba usa la sesión REAL de la aplicación —lee el token que el
- * SPA guardó y llama al borde con él— y crea la calculadora como la crearía el constructor:
- * por `POST /calculators`, con el token de la persona que la va a proponer. Inventarse un
- * token o sembrar la fila en la base probaría menos: la calculadora tiene que ser de quien dice
- * serlo, o la aprobación no significaría nada.
+ * Porque lo que se prueba aquí es la CURADURÍA —proponer, ver en la bandeja, aprobar, servir en
+ * el catálogo— y no el formulario que escribe la definición: el constructor visual existe desde
+ * T097 y tiene su propia prueba de recorrido completo (`constructor-calculadora.spec.ts`).
+ * Repetirlo aquí alargaría esta prueba sin comprobar nada de lo suyo.
+ *
+ * La prueba usa la sesión REAL de la aplicación —lee el token que el SPA guardó y llama al borde
+ * con él— y crea la calculadora como la crea el constructor: por `POST /calculators`, con el
+ * token de la persona que la va a proponer. Inventarse un token o sembrar la fila en la base
+ * probaría menos: la calculadora tiene que ser de quien dice serlo, o la aprobación no
+ * significaría nada.
  *
  * ## La separación de autoría se comprueba contra el servidor
  *
