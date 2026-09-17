@@ -515,3 +515,85 @@ que siguiera exigiendo la frase vieja habría inmovilizado el defecto.
 diferencia estaba en el texto del aviso, no en el motor. Ninguna prueba podía verlo: el mensaje
 afirmaba un comportamiento del sistema en un archivo de plantillas y el comportamiento real vivía en
 otro servicio.
+
+---
+
+## Hallazgo 20 — `category.deactivated` se publicaba y no lo recibía nadie: el exchange lo tiraba en silencio
+
+**Qué pasaba**: al aplicar el delta del catálogo de eventos (T005) y compararlo con los bindings
+**reales** del broker en ejecución, en vez de con lo que el diseño decía:
+
+```
+$ rabbitmqctl list_bindings source_name routing_key destination_name | grep fintcart.events
+fintcart.events   account.anonymized        audit.q
+fintcart.events   auth.password_changed     audit.q
+fintcart.events   auth.password_changed     notification.q
+fintcart.events   calculator.published      audit.q
+fintcart.events   indicator.calendar_alert  audit.q
+fintcart.events   indicator.calendar_alert  notification.q
+fintcart.events   learning.article_published audit.q
+...
+(faltaba categoría, y no por error de grep: no existía)
+```
+
+Aprendizaje publicaba `category.deactivated` desde T056 (FR-035: auditar la desactivación de una
+categoría). El Orquestador declara el exchange, las colas y los bindings, y **no tenía ni la
+constante ni el enlace**. Un exchange `topic` con una routing key sin binding no devuelve error:
+**descarta el mensaje**. Así que la desactivación se cobraba, la promesa de FR-035 se quedaba sin
+cumplir, y no había ni un log, ni una métrica, ni una alerta que lo dijeran.
+
+**Lo peor no era el olvido, era el comentario que lo tapaba.** En `services/learning/src/events/
+publisher.ts` la constante dice, textualmente, `/** Debe coincidir EXACTAMENTE con
+orchestrator/internal/events/topology.go */`. Coincidía con todo menos con lo que importaba:
+topology.go no la tenía. Es el mismo patrón que el defecto 17 (el de la siembra): una afirmación
+en un comentario que nadie comprueba, en un sitio donde comprobarla es barato.
+
+**Por qué nada lo cazó**, y esto es lo que hubo que cambiar:
+
+1. La prueba que existía —`TestEveryCatalogEventHasSomewhereToGo`, en
+   `services/orchestrator/internal/events/topology_test.go`— recorre `allCatalogEvents`, una lista
+   **escrita a mano**, y el propio comentario de la lista avisaba de que había que ampliarla al
+   añadir un evento. Una barrera que depende de que alguien se acuerde de ampliarla no es una
+   barrera: es una nota. Nadie se acordó.
+2. El productor sí estaba probado, pero contra **su propia** constante local (`EVENT_CATEGORY_
+   DEACTIVATED`), que es el nombre que se envía — verifica que el cable dice lo que el productor
+   cree, no que alguien del otro lado escuche.
+3. El arranque del Orquestador no falla ante un binding incompleto, y RabbitMQ tampoco: un exchange
+   `topic` acepta cualquier routing key. El sistema entero funciona igual con el defecto dentro.
+
+**Arreglo**, en tres partes:
+
+- `topology.go`: `EventCategoryDeactivated = "category.deactivated"` y su entrada en
+  `BindingsAudit`, con el comentario del hallazgo y la razón de por qué va SOLO a Auditoría (una
+  desactivación no genera correo). El comentario de `BindingsAudit`, que decía «los ONCE eventos del
+  catálogo» cuando ya había trece, pasa a decir catorce.
+- **La barrera de verdad**: `frontend/scripts/events-barrier.mjs`, enganchada a `npm run lint`.
+  En vez de leer una lista escrita a mano, **lee a los productores**: recoge todo literal con forma
+  de evento asignado a un identificador que contenga «event» —`EventUserRegistered`,
+  `EVENT_CATEGORY_DEACTIVATED`, `eventType`, cualquier convención— en los fuentes de `services/`
+  (sin pruebas ni stubs generados), y exige que cada uno esté declarado y enlazado. Comprueba
+  además las dos direcciones entre el catálogo y los bindings, y que ninguna cola sea distinta de
+  `notification.q`/`audit.q`. **Su primera ejecución falló con el defecto delante**: la primera
+  versión del regex se dejaba `EVENT_CATEGORY_DEACTIVATED` porque buscaba «event» en minúsculas —
+  el mismo error de forma que el defecto que perseguía, así que el patrón pasó a ser
+  insensible a mayúsculas y la forma se exige por el punto (`user.activity` sí, `simulation` no)—.
+- La prueba de Go se conserva, porque prueba lo complementario (que lo declarado esté enlazado, con
+  el canal falso delante), pero deja de ser la única defensa y su comentario lo dice.
+
+**Comprobado en vivo después del arreglo** — reinicio del Orquestador, binding en el broker y
+camino completo hasta la base:
+
+```
+$ rabbitmqctl list_bindings | grep category.deactivated
+fintcart.events   category.deactivated   audit.q          ← ya está
+
+$ curl -X DELETE localhost:8080/admin/categories/<id>     ← 204
+$ psql audit_db: SELECT operation, actor_ref FROM audit_log WHERE ...
+ category.deactivated | f88b1b48-…                        ← la fila que antes no existía
+```
+
+**La lección, que es la del defecto 17 con otro traje**: una promesa del sistema que nadie
+comprueba no se rompe cuando alguien la incumple, sino cuando alguien la mira. Y la forma de
+mirarla es **comparar la documentación con el sistema en ejecución** (`rabbitmqctl list_bindings`),
+no con el diseño. T005 era una tarea de documentación y encontró un fallo de integración; eso es
+exactamente lo que una tarea de contrato debe hacer.

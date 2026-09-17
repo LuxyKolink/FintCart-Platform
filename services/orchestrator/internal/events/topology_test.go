@@ -92,11 +92,18 @@ func (f *fakeChannel) keysOf(queue string) []string {
 // allCatalogEvents son los eventos de `contracts/events/events-catalog.md`, más los tres que
 // añade la enmienda 002 y que hoy existen: el aviso del calendario
 // (`indicator.calendar_alert`, FR-061) y la aprobación de una calculadora
-// (`calculator.published`, FR-053). La enmienda declara seis; los otros cuatro acompañan a
-// historias que aún no tienen productor —`indicator.updated` no tiene ninguno posible, y los de
-// purga y desactivación de categoría llegan con US7 y US6—, y el catálogo se completa con
-// ellas. Añadir un evento a esta lista sin añadirlo a los bindings hace fallar esta prueba, y
-// es lo que se busca: un evento sin binding se descarta en silencio.
+// (`calculator.published`, FR-053) y la desactivación de categoría (`category.deactivated`,
+// FR-035). De los seis del delta, dos acompañan a la fase de depuración que se DESCartó
+// (`account.purge_scheduled`, `account.purge_cancelled`) y uno —`indicator.updated`— no llegó
+// a tener productor, así que ninguno de los tres está aquí: el catálogo documenta lo que el
+// código hace, no lo que el diseño imaginó.
+//
+// `category.deactivated` FALTABA en esta lista y en los bindings hasta el hallazgo 20: el
+// evento se publicaba desde Aprendizaje y el exchange lo descartaba en silencio. Esta lista,
+// escrita a mano, no podía cazarlo —nadie la amplió—, y por eso la comprobación de verdad se
+// movió a `frontend/scripts/events-barrier.mjs`, que lee a los PRODUCTORES en vez de
+// esperar a que alguien se acuerde. Aquí se conserva porque prueba lo complementario:
+// que lo declarado en `topology.go` esté enlazado, con el canal falso delante.
 //
 // El catálogo se escribe a mano aquí a propósito, y por eso hay que ampliarlo al añadir un
 // evento: es la lista contra la que se comprueba que todo lo declarado tiene binding. Si se
@@ -120,6 +127,7 @@ var allCatalogEvents = []string{
 	EventAccountAnonymized,
 	EventIndicatorCalendarAlert,
 	EventCalculatorPublished,
+	EventCategoryDeactivated,
 }
 
 // ── pruebas ────────────────────────────────────────────────────────────────

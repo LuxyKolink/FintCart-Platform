@@ -78,8 +78,20 @@ const (
 	EventAuthSecurityAlert   = "auth.security_alert"
 	EventAuthSessionRevoked  = "auth.session_revoked"
 
-	// Producido por Aprendizaje.
+	// Producidos por Aprendizaje.
 	EventLearningArticlePublished = "learning.article_published"
+
+	// Producido por Aprendizaje al desactivar una categoría (FR-035, T056).
+	//
+	// Este nombre FALTABA aquí hasta el hallazgo 20, y su ausencia no daba ningún error:
+	// Aprendizaje lo publicaba con la routing key `category.deactivated`, el exchange
+	// `topic` no encontraba binding, y el mensaje se descartaba en silencio. La
+	// desactivación se cobraba y la auditoría de FR-035 nunca llegaba. Se descubrió
+	// verificando el catálogo de eventos (T005) contra los bindings REALES del broker
+	// (`rabbitmqctl list_bindings`): el nombre estaba en el código de Aprendizaje, que
+	// incluso lo comentaba como «debe coincidir EXACTAMENTE con topology.go», y no
+	// estaba en el único sitio donde coincidir importa.
+	EventCategoryDeactivated = "category.deactivated"
 
 	// Producido por el Orquestador en su barrido del calendario (FR-061, T105).
 	//
@@ -106,10 +118,12 @@ const (
 var (
 	// BindingsNotification: los eventos que generan un EMAIL.
 	//
-	// Son exactamente tres, y coinciden uno a uno con las tres plantillas que admite
-	// el CHECK `notification_events_queue_template_valid` (`verificacion`,
-	// `cambio_password`, `alerta_seguridad`). Esa coincidencia no es casual: un
-	// binding sin plantilla entrega mensajes que el consumidor solo puede descartar.
+	// Son exactamente cuatro, y coinciden uno a uno con las plantillas que admite el
+	// CHECK `notification_events_queue_template_valid` (`verificacion`,
+	// `cambio_password`, `alerta_seguridad` y, desde la migración
+	// `20260902130000_indicator_calendar_alert_template`, `indicator_calendar_alert`).
+	// Esa coincidencia no es casual: un binding sin plantilla entrega mensajes que el
+	// consumidor solo puede descartar.
 	//
 	// `events-catalog.md` asignaba además `learning.article_published`,
 	// `user.progress_milestone` y `user.activity` a Notificación, con destino «bandeja
@@ -136,9 +150,10 @@ var (
 
 	// BindingsAudit: los eventos con valor probatorio (FR-025, FR-031).
 	//
-	// Incluye los ONCE eventos del catálogo. Junto con [BindingsNotification] eso
-	// garantiza la propiedad que de verdad importa aquí: **ningún evento producido
-	// carece de binding**. Un evento sin binding no da error —el exchange `topic`
+	// Incluye los CATORCE eventos del catálogo (los once de 001 más el aviso de
+	// indicadores, la publicación de calculadora y la desactivación de categoría).
+	// Junto con [BindingsNotification] eso garantiza la propiedad que de verdad importa
+	// aquí: **ningún evento producido carece de binding**. Un evento sin binding no da error —el exchange `topic`
 	// acepta cualquier routing key— y el broker lo descarta en silencio, así que la
 	// única defensa es que la lista esté completa.
 	//
@@ -166,6 +181,10 @@ var (
 		// La aprobación de una calculadora es un acto de curaduría con autor: el evento dice
 		// quién aprobó, qué versión y de quién, que es lo que FR-053 exige poder acreditar.
 		EventCalculatorPublished,
+		// Desactivar una categoría cambia el catálogo que ve el lector, así que quién lo hizo
+		// y cuándo es exactamente lo que FR-035 quiere poder acreditar. Sin este binding el
+		// evento se publicaba para nadie (hallazgo 20).
+		EventCategoryDeactivated,
 	}
 )
 
