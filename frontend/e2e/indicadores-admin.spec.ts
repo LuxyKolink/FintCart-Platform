@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { deleteIndicator } from './support/indicators';
 import { waitForVerificationLink } from './support/mailhog';
 import { grantRole } from './support/roles';
 
@@ -21,6 +22,24 @@ import { grantRole } from './support/roles';
  * El rol se concede con `dev/seed role` porque no existe ningún endpoint que permita
  * auto-postularse (FR-082); ver `support/roles.ts`.
  */
+/**
+ * Indicador que la prueba crea, para poder borrarlo al terminar.
+ *
+ * La API no tiene `DELETE` de vigencias —a propósito: una vigencia se corrige, no se
+ * borra— y una prueba que deja datos cambia el estado para la siguiente: la lista crece, las
+ * capturas visuales enseñan indicadores de prueba y el recorrido por teclado de la barrera
+ * se alarga con cada `Corregir`. Se anota aquí y se borra en el `afterEach`, que corre
+ * también cuando la prueba falla.
+ */
+let indicadorCreado: string | null = null;
+
+test.afterEach(() => {
+  if (indicadorCreado !== null) {
+    deleteIndicator(indicadorCreado);
+    indicadorCreado = null;
+  }
+});
+
 test('el administrador carga la vigencia anual y ve el estado del procedimiento', async ({ page }) => {
   const stamp = Date.now();
   const adminEmail = `e2e-admin-${stamp}@fintcart.test`;
@@ -28,6 +47,7 @@ test('el administrador carga la vigencia anual y ve el estado del procedimiento'
   // Un nombre de indicador propio de la prueba: no toca las cifras sembradas (UVT, IPC…)
   // y deja la base como estaba. El formato lo impone el `CHECK` de la tabla.
   const nombre = `ZZE2E${stamp}`;
+  indicadorCreado = nombre;
 
   await test.step('registrar y habilitar al administrador', async () => {
     await page.goto('/crear-cuenta');
