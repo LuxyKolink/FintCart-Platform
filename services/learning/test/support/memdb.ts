@@ -48,6 +48,7 @@ CREATE TABLE article_versions (
     article_id UUID NOT NULL REFERENCES articles (id),
     version_no INTEGER NOT NULL,
     body TEXT NOT NULL,
+    body_doc JSONB,
     state TEXT NOT NULL DEFAULT 'borrador',
     created_by UUID NOT NULL,
     approved_by UUID,
@@ -197,9 +198,13 @@ function seed(db: IMemoryDb): void {
     VALUES ('${IDS.article}', 'Ahorro para principiantes', '${IDS.categoryAhorro}', '${IDS.editor}'),
            ('${IDS.draftArticle}', 'Borrador sin revisar', '${IDS.categoryAhorro}', '${IDS.editor}');
 
-    INSERT INTO article_versions (id, article_id, version_no, body, state, created_by, approved_by, published_at)
-    VALUES ('${IDS.publishedVersion}', '${IDS.article}', 3, 'Cuerpo publicado', 'publicado', '${IDS.editor}', '${IDS.user}', now()),
-           ('${IDS.draftVersion}', '${IDS.draftArticle}', 1, 'Cuerpo en borrador', 'borrador', '${IDS.editor}', NULL, NULL);
+    INSERT INTO article_versions (id, article_id, version_no, body, body_doc, state, created_by, approved_by, published_at)
+    VALUES ('${IDS.publishedVersion}', '${IDS.article}', 3, 'Cuerpo publicado',
+            '{"tipo":"doc","contenido":[{"tipo":"parrafo","contenido":[{"tipo":"texto","texto":"Cuerpo publicado"}]}]}'::jsonb,
+            'publicado', '${IDS.editor}', '${IDS.user}', now()),
+           ('${IDS.draftVersion}', '${IDS.draftArticle}', 1, 'Cuerpo en borrador',
+            '{"tipo":"doc","contenido":[{"tipo":"parrafo","contenido":[{"tipo":"texto","texto":"Cuerpo en borrador"}]}]}'::jsonb,
+            'borrador', '${IDS.editor}', NULL, NULL);
 
     UPDATE articles SET current_version_id = '${IDS.publishedVersion}' WHERE id = '${IDS.article}';
     UPDATE articles SET current_version_id = '${IDS.draftVersion}' WHERE id = '${IDS.draftArticle}';
