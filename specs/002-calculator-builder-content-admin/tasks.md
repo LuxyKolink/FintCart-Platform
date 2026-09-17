@@ -232,6 +232,7 @@ veces y comparar conjuntos servidos y calificaciones.
 > Coste de dejarlo así: el demo sigue sirviendo para US1 y para el arranque de sesión, y deja
 > de servir como verificación de punta a punta. Debería ser una tarea propia.
 
+
 ### Pruebas
 
 - [X] T061 [P] [US2] Prueba de contrato gRPC de `StartQuizSession` verificando que devuelve exactamente `questions_to_serve` preguntas y **sin** la clave correcta, en `services/learning/test/contract/quiz-session.contract.spec.ts`
@@ -459,6 +460,13 @@ verificar que aparece en el historial de simulaciones.
 - [X] T154 [US8] Ejecutar por la **misma ruta** Gateway → Orquestador → Simulador, de modo que la ejecución quede en el historial y en la auditoría (FR-071), en `frontend/src/app/features/learning/article/blocks/` — **HECHA y verificada**: la ejecución va por `POST /calculators/{id}/run` → borde → Orquestador → Simulador, la misma ruta que cualquier simulación (D-25), y el e2e lo comprueba donde importa: **la fila aparece en `/simuladores/historial` del lector** con su versión. Si alguien reescribiera el bloque para calcular en el navegador, el resultado se vería igual y esta aserción fallaría.
 - [X] T155 [US8] Degradación a aviso cuando la calculadora deja de estar publicada, sin romper la lectura, en `frontend/src/app/features/learning/article/blocks/` — **HECHA**. Cuatro estados con mensajes distintos: publicada ⇒ ejecutor; **ya no está publicada** ⇒ aviso en su lugar y el artículo sigue leyéndose; **fallo de red** ⇒ error con reintento; y si la calculadora se corrigió después, se dice con qué versión se calculó y con cuál se escribió el artículo. La distinción entre el segundo y el tercero es la que más importa: decirle a quien lee que la calculadora desapareció cuando lo único que pasó es que se cayó la red es mentirle sobre el contenido del artículo. Probado en los dos niveles (unidad y extremo a extremo).
 - [X] T156 [P] [US8] Prueba e2e del recorrido completo: incrustar, publicar, ejecutar como lector y comprobar el historial, en `frontend/e2e/` — **HECHA y verificada contra la pila real**: `e2e/calculadora-incrustada.spec.ts` recorre incrustar desde el editor (con el panel de verdad), publicar, ejecutar desde el artículo **sin salir de él** (se comprueba que la URL no cambia) y encontrar la ejecución en el historial con su procedencia. La calculadora y la publicación se hacen por la API —el constructor y el flujo editorial tienen sus propias pruebas de recorrido completo— y lo que se prueba aquí es el bloque. La limpieza va por SQL (`support/articles.ts`, nuevo: no existe endpoint que borre un artículo). **Hallazgo 16**: el historial no puede NOMBRAR una simulación de una calculadora de usuario (el badge sale de `calculators.config.ts`) ni formatearla con su escala; la procedencia sí queda.
+
+**Bloque US8 cerrado (T149–T156, 2026-09-17)** — verificado contra la pila real: 400 al incrustar
+una calculadora no publicada nombrando cuál, 201 tras publicarla, aviso en el artículo cuando la
+calculadora se elimina, ejecución desde el artículo por la misma ruta que el simulador y fila en el
+historial del lector. **Hallazgo 16** en `findings.md`: el historial no puede nombrar ni formatear
+una simulación de una calculadora de usuario (el nombre y la escala no viajan en la entrada).
+
 
 **Checkpoint**: US8 entregable.
 
