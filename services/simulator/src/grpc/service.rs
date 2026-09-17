@@ -101,6 +101,9 @@ fn to_status(err: &Error) -> Status {
         Error::InvalidInput(msg) => Status::invalid_argument(msg.clone()),
         Error::Decimal(err) => Status::invalid_argument(decimal_str::describe(err)),
         Error::NotFound => Status::not_found("no encontrado"),
+        // 403 y no 400: la petición está bien formada, y quien la manda no puede hacerla. El
+        // borde traduce los dos códigos por separado, así que la distinción llega al cliente.
+        Error::PermissionDenied(msg) => Status::permission_denied(msg.clone()),
         Error::AlreadyExists(msg) => Status::already_exists(msg.clone()),
         Error::Storage(_) => Status::internal("error interno"),
         Error::NotImplemented(what) => Status::unimplemented(what.clone()),
@@ -824,14 +827,22 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
     /// regla de la PETICIÓN —qué se está preguntando— y no de la tabla, así que no tiene
     /// sitio en el repositorio. Un listado sin filtro devolvería las calculadoras privadas
     /// de todo el mundo.
+    ///
+    /// El filtro de estado (T116) entra en esa misma regla: **no sustituye a los otros dos, se
+    /// suma**. Pedir `state = 'privada'` sin `owner_id` no es un listado global —el repositorio
+    /// sigue devolviendo solo las propias—, y pedir `state = 'en_revision'` es la bandeja de
+    /// curaduría, que es lo que la hace posible. Ver la nota de `Calculators::list`.
     async fn list_calculators_inner(
         &self,
         req: ListCalculatorsRequest,
     ) -> Result<ListCalculatorsResponse, Error> {
         let owner_id = mapping::parse_optional_uuid(&req.owner_id, "owner_id")?;
-        if owner_id.is_none() && !req.only_published {
+        let state = mapping::parse_state(&req.state)?;
+
+        if owner_id.is_none() && !req.only_published && state.is_none() {
             return Err(Error::InvalidInput(
-                "hay que indicar owner_id o only_published: no existe un listado sin filtrar"
+                "hay que indicar owner_id, only_published o state: no existe un listado sin \
+                 filtrar"
                     .to_owned(),
             ));
         }
@@ -842,7 +853,7 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
 
         let page = self
             .calculators
-            .list(owner_id, req.only_published, page_size, &page_token)
+            .list(owner_id, req.only_published, state, page_size, &page_token)
             .await?;
         Ok(mapping::calculators_response(page))
     }

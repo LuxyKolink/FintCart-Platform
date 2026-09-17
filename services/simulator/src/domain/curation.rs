@@ -185,7 +185,10 @@ pub fn approve(situation: &Situacion, coordinator: Uuid) -> Result<State> {
         ));
     }
     if situation.owner_id == Some(coordinator) {
-        return Err(Error::InvalidInput(
+        // `PermissionDenied` y no `InvalidInput`: la petición está bien formada y el actor
+        // identificado; lo que falla es que esa persona no puede hacerlo. El borde traduce este
+        // error a 403 y aquel a 400, y un 400 diría que el problema es cómo se escribió.
+        return Err(Error::PermissionDenied(
             "nadie aprueba su propia calculadora: la aprobación tiene que hacerla otro \
              coordinador (FR-053)"
                 .to_owned(),
@@ -217,7 +220,7 @@ pub fn reject(situation: &Situacion, coordinator: Uuid) -> Result<State> {
         ));
     }
     if situation.owner_id == Some(coordinator) {
-        return Err(Error::InvalidInput(
+        return Err(Error::PermissionDenied(
             "nadie revisa su propia calculadora: la revisión tiene que hacerla otro \
              coordinador (FR-053)"
                 .to_owned(),
@@ -310,7 +313,7 @@ mod tests {
 
         let err = approve(&en_revision, AUTOR).unwrap_err();
         assert!(
-            matches!(&err, Error::InvalidInput(msg) if msg.contains("su propia calculadora")),
+            matches!(&err, Error::PermissionDenied(msg) if msg.contains("su propia calculadora")),
             "el error tiene que explicar que la aprobación es de otro: {err:?}"
         );
     }
@@ -375,7 +378,7 @@ mod tests {
     fn nadie_revisa_su_propia_calculadora() {
         let err = reject(&situacion(State::EnRevision), AUTOR).unwrap_err();
         assert!(
-            matches!(&err, Error::InvalidInput(msg) if msg.contains("su propia calculadora")),
+            matches!(&err, Error::PermissionDenied(msg) if msg.contains("su propia calculadora")),
             "el mensaje tiene que decir por qué no puede: {err:?}"
         );
     }

@@ -160,12 +160,21 @@ pub trait Calculators: Send + Sync + 'static {
     /// [`Error::NotFound`] si no existe o no es visible para el actor.
     async fn get(&self, id: Uuid, actor_id: Option<Uuid>) -> Result<CalculatorRow>;
 
-    /// Lista calculadoras propias y/o publicadas.
+    /// Lista calculadoras propias, del catálogo y/o en revisión.
     ///
-    /// Los dos filtros son acumulativos: `owner_id` añade las propias y `only_published` el
-    /// catálogo. Que ambos sean opcionales aquí NO significa que lo sean en el contrato —
-    /// FR-051 prohíbe un listado global sin filtrar, y quien lo impide es la capa gRPC,
-    /// porque es una regla de la petición y no de la tabla.
+    /// Los filtros son acumulativos: `owner_id` añade las propias, `only_published` el
+    /// catálogo y `state` el estado que se pida. Que los tres sean opcionales aquí NO
+    /// significa que lo sean en el contrato —FR-051 prohíbe un listado global sin filtrar, y
+    /// quien lo impide es la capa gRPC, porque es una regla de la petición y no de la tabla—.
+    ///
+    /// ## `state` ACOTA; no abre (FR-051)
+    ///
+    /// Es la parte que hay que leer antes de tocar la consulta. Pedir `state = 'privada'`
+    /// devuelve las privadas **propias** y ninguna ajena; lo único que el filtro abre es
+    /// `en_revision`, y solo cuando se pide explícitamente, porque una propuesta al catálogo
+    /// es justamente lo que la curaduría tiene que poder leer. Sin esa precisión, un
+    /// `state = 'privada'` sin `owner_id` sería un listado de las calculadoras privadas de
+    /// todo el mundo.
     ///
     /// # Errores
     ///
@@ -175,6 +184,7 @@ pub trait Calculators: Send + Sync + 'static {
         &self,
         owner_id: Option<Uuid>,
         only_published: bool,
+        state: Option<State>,
         page_size: i32,
         page_token: &str,
     ) -> Result<CalculatorPage>;
@@ -399,16 +409,23 @@ impl Calculators for PgCalculators {
         &self,
         owner_id: Option<Uuid>,
         only_published: bool,
+        state: Option<State>,
         page_size: i32,
         page_token: &str,
     ) -> Result<CalculatorPage> {
         let limit = clamp_page_size(page_size);
         let offset = parse_page_token(page_token)?;
 
+        // Se pide la bandeja de curaduría: lo que hay que enseñar es la definición PROPUESTA, y
+        // para una primera propuesta `published_version` es nulo, así que la vista pública no
+        // encontraría fila y la bandeja saldría vacía. Y es la versión correcta por otra razón
+        // además: es la que `approve` publica (`published_version = version`), así que el
+        // coordinador lee exactamente lo que aprobaría.
+        let en_revision = state == Some(State::EnRevision);
+
         // La vista se elige UNA vez y la usan la página y el total.
-        let version = if owner_id.is_some() && !only_published {
-            // Listar las propias es listar el taller: el autor ve sus borradores, que es lo que
-            // necesita para seguir trabajando.
+        let version = if en_revision || (owner_id.is_some() && !only_published) {
+            // El taller del autor: ve sus borradores, que es lo que necesita para trabajar.
             VERSION_VIGENTE
         } else {
             // El catálogo enseña lo aprobado aunque quien pregunte sea el autor: una lista
@@ -417,38 +434,54 @@ impl Calculators for PgCalculators {
             VERSION_APROBADA
         };
 
+        // `$3` ACOTA por estado y `$4` abre SOLO las propuestas en revisión. Ver la nota del
+        // puerto: sin el segundo, pedir `state = 'privada'` sin `owner_id` listaría las
+        // calculadoras privadas de todo el mundo; sin el primero, el catálogo dejaría de acotar.
+        const VISIBILIDAD: &str = "(
+                c.owner_id = $1
+                OR ($2 AND c.state = 'publicada')
+                OR ($4 AND c.state = 'en_revision')
+              )
+              AND ($3 = '' OR c.state = $3)";
+
+        let estado = state.map_or("", State::as_db);
+
         let page_sql = format!(
             "{}
-              WHERE (c.owner_id = $1) OR ($2 AND c.state = 'publicada')
+              WHERE {VISIBILIDAD}
               ORDER BY c.name, c.id
-              LIMIT $3 OFFSET $4",
+              LIMIT $5 OFFSET $6",
             select_calculator(version)
         );
 
         let rows = sqlx::query(&page_sql)
             .bind(owner_id)
             .bind(only_published)
+            .bind(estado)
+            .bind(en_revision)
             .bind(i64::from(limit))
             .bind(offset)
             .fetch_all(&self.pool)
             .await
             .map_err(Error::from_sqlx)?;
 
-        // El total usa la MISMA proyección que la página: contar filas que el `JOIN` de la
-        // vista descarta daría un total que no corresponde a lo que se está listando —el
-        // cliente pediría una página más y la recibiría vacía—.
+        // El total usa la MISMA proyección y el MISMO `WHERE` que la página: contar filas que el
+        // `JOIN` de la vista descarta daría un total que no corresponde a lo que se está listando
+        // —el cliente pediría una página más y la recibiría vacía—.
         let total_sql = format!(
             "SELECT count(*)
                FROM calculators c
                JOIN calculator_definitions d
                  ON d.calculator_id = c.id
                 AND d.version = {version}
-              WHERE (c.owner_id = $1) OR ($2 AND c.state = 'publicada')"
+              WHERE {VISIBILIDAD}"
         );
 
         let total: i64 = sqlx::query_scalar(&total_sql)
             .bind(owner_id)
             .bind(only_published)
+            .bind(estado)
+            .bind(en_revision)
             .fetch_one(&self.pool)
             .await
             .map_err(Error::from_sqlx)?;

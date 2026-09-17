@@ -20,6 +20,7 @@
 
 use rust_decimal::Decimal;
 
+use crate::domain::curation::State;
 use crate::domain::decimal_str;
 use crate::domain::definition::{
     self, Definition, Draft, DraftOutput, DraftValidation, InputField, Issue,
@@ -463,6 +464,29 @@ pub fn parse_optional_uuid(raw: &str, field: &str) -> Result<Option<uuid::Uuid>>
         return Ok(None);
     }
     parse_uuid(raw, field).map(Some)
+}
+
+/// Interpreta el estado de curaduría opcional de un listado (T116).
+///
+/// La cadena vacía significa «sin filtro por estado», que es lo que el contrato dice con el
+/// campo vacío. Un valor desconocido se rechaza ENUMERANDO los tres estados admitidos en lugar
+/// de dejarlo pasar al repositorio: el `CHECK` de la columna no ve este valor —viaja como
+/// parámetro del `WHERE`—, así que sin esta comprobación un `state = 'borrador'` devolvería una
+/// lista vacía sin decir por qué, y el síntoma sería una bandeja de curaduría que «no tiene
+/// nada» cuando lo que pasa es que se pidió mal.
+///
+/// # Errores
+///
+/// [`Error::InvalidInput`] si el valor no es uno de los tres estados.
+pub fn parse_state(raw: &str) -> Result<Option<State>> {
+    match raw.trim() {
+        "" => Ok(None),
+        value => State::from_db(value).map(Some).map_err(|_| {
+            Error::InvalidInput(format!(
+                "estado {value:?} desconocido: los admitidos son privada, en_revision y publicada"
+            ))
+        }),
+    }
 }
 
 /// Interpreta el UUID opaco de un titular.

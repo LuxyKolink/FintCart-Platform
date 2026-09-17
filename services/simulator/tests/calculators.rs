@@ -333,6 +333,7 @@ impl Calculators for FakeCalculators {
         &self,
         owner_id: Option<Uuid>,
         only_published: bool,
+        state: Option<State>,
         _page_size: i32,
         _page_token: &str,
     ) -> Result<CalculatorPage> {
@@ -344,6 +345,7 @@ impl Calculators for FakeCalculators {
             .filter(|row| {
                 (owner_id.is_some() && row.owner_id == owner_id)
                     || (only_published && row.state == State::Publicada)
+                    || (state == Some(State::EnRevision) && row.state == State::EnRevision)
             })
             .cloned()
             .collect();
@@ -916,6 +918,7 @@ async fn list_sin_ningun_filtro_se_rechaza() {
 
     let status = client
         .list_calculators(ListCalculatorsRequest {
+            state: String::new(),
             owner_id: String::new(),
             only_published: false,
             page: None,
@@ -937,6 +940,7 @@ async fn list_por_autor_devuelve_las_propias() {
 
     let respuesta = client
         .list_calculators(ListCalculatorsRequest {
+            state: String::new(),
             owner_id: USER.to_owned(),
             only_published: false,
             page: None,
@@ -962,6 +966,7 @@ async fn el_catalogo_publico_no_trae_las_privadas() {
 
     let respuesta = client
         .list_calculators(ListCalculatorsRequest {
+            state: String::new(),
             owner_id: String::new(),
             only_published: true,
             page: None,
@@ -1181,7 +1186,11 @@ async fn el_autor_no_aprueba_su_propia_calculadora() {
         .await
         .unwrap_err();
 
-    assert_eq!(status.code(), Code::InvalidArgument);
+    assert_eq!(
+        status.code(),
+        Code::PermissionDenied,
+        "un 403 y no un 400: la petición está bien formada, quien no puede es él"
+    );
     assert!(
         status.message().contains("su propia calculadora"),
         "el mensaje tiene que explicar por qué no puede: {}",
@@ -1288,5 +1297,99 @@ async fn el_rechazo_guarda_el_motivo_recortado() {
         filas[0].state,
         State::Privada,
         "una primera propuesta rechazada vuelve a privada"
+    );
+}
+
+// ── ListCalculators: el filtro de curaduría (T116) ──────────────────────────
+
+/// La bandeja de curaduría es alcanzable: `state` solo, sin `owner_id` ni `only_published`.
+///
+/// Sin este filtro no había forma de listar las propuestas —los otros dos son «las mías» y «el
+/// catálogo»—, y la única alternativa habría sido un listado sin filtrar, que FR-051 prohíbe.
+#[tokio::test]
+async fn la_bandeja_de_curaduria_se_puede_pedir_solo_con_el_estado() {
+    let repo = FakeCalculators::default();
+    let mut client = start(repo.clone()).await;
+
+    let creada = client
+        .upsert_calculator(peticion(definicion_de_cuota()))
+        .await
+        .unwrap()
+        .into_inner();
+    client
+        .submit_calculator_for_review(ref_de(&creada.calculator_id))
+        .await
+        .unwrap();
+
+    let pagina = client
+        .list_calculators(ListCalculatorsRequest {
+            owner_id: String::new(),
+            only_published: false,
+            state: "en_revision".to_owned(),
+            page: None,
+        })
+        .await
+        .expect("la bandeja tiene que poder pedirse")
+        .into_inner();
+
+    assert_eq!(pagina.items.len(), 1, "la calculadora propuesta está");
+    assert_eq!(pagina.items[0].state, "en_revision");
+}
+
+/// Un estado que no existe se rechaza enumerando los que sí.
+///
+/// El valor viaja como parámetro de un `WHERE`, así que el `CHECK` de la columna no lo ve: sin
+/// esta comprobación la respuesta sería una lista vacía, y el síntoma —una bandeja de curaduría
+/// «sin nada que revisar»— no señalaría a quien escribió mal el filtro.
+#[tokio::test]
+async fn un_estado_desconocido_se_rechaza_nombrando_los_validos() {
+    let mut client = start(FakeCalculators::default()).await;
+
+    let status = client
+        .list_calculators(ListCalculatorsRequest {
+            owner_id: String::new(),
+            only_published: false,
+            state: "borrador".to_owned(),
+            page: None,
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    for esperado in ["privada", "en_revision", "publicada"] {
+        assert!(
+            status.message().contains(esperado),
+            "el mensaje tiene que enumerar los estados: {}",
+            status.message()
+        );
+    }
+}
+
+/// Un listado sin ningún filtro sigue estando prohibido (FR-051).
+///
+/// La comprobación es la misma de antes, y se repite aquí porque el filtro nuevo la cambia: el
+/// mensaje enumera ahora las tres formas de acotar, y una prueba que siguiera esperando dos
+/// pasaría sin comprobar que la tercera también cuenta.
+#[tokio::test]
+async fn sin_ningun_filtro_el_listado_se_rechaza() {
+    let mut client = start(FakeCalculators::default()).await;
+
+    let status = client
+        .list_calculators(ListCalculatorsRequest {
+            owner_id: String::new(),
+            only_published: false,
+            state: String::new(),
+            page: None,
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(
+        status
+            .message()
+            .contains("owner_id, only_published o state"),
+        "el mensaje tiene que decir las tres: {}",
+        status.message()
     );
 }

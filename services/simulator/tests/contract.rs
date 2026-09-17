@@ -195,6 +195,7 @@ impl Calculators for NoCalculators {
         &self,
         _owner_id: Option<Uuid>,
         _only_published: bool,
+        _state: Option<State>,
         _page_size: i32,
         _page_token: &str,
     ) -> Result<CalculatorPage> {
@@ -355,6 +356,7 @@ impl Calculators for FakeCalculators {
         &self,
         _owner_id: Option<Uuid>,
         _only_published: bool,
+        _state: Option<State>,
         _page_size: i32,
         _page_token: &str,
     ) -> Result<CalculatorPage> {

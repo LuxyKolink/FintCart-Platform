@@ -47,6 +47,18 @@ pub enum Error {
     #[error("simulador: no encontrado")]
     NotFound,
 
+    /// El actor no puede hacer eso sobre ESE recurso (FR-053).
+    ///
+    /// Es un error distinto de [`Error::InvalidInput`] y la distinción llega al cliente: el
+    /// borde traduce este a **403** y aquel a 400. Aprobar la calculadora propia no es una
+    /// petición mal formada —está bien formada y el actor está identificado—, es una petición
+    /// que esa persona no puede hacer; devolver 400 diría que el problema es cómo la escribió.
+    ///
+    /// Nace con la curaduría (T113) y no cubre la visibilidad: una calculadora privada ajena
+    /// sigue dando [`Error::NotFound`], porque ahí lo que no se puede es *saber que existe*.
+    #[error("simulador: permiso denegado: {0}")]
+    PermissionDenied(String),
+
     /// Fallo de la capa de persistencia.
     ///
     /// `#[source]` y no `#[from]`: la conversión automática desde `sqlx::Error` sería

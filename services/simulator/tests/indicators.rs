@@ -36,7 +36,7 @@ use fintcart_simulator::pb::fintcart::simulator::v1::{
     ListIndicatorsRequest, UpsertIndicatorRequest,
 };
 use fintcart_simulator::repo::calculators::{
-    CalculatorPage, CalculatorRow, Calculators, VersionRef,
+    CalculatorPage, CalculatorRow, Calculators, State, VersionRef,
 };
 use fintcart_simulator::repo::indicators::{CalendarStatus, Expiring, IndicatorRow, Indicators};
 use fintcart_simulator::repo::simulations::{
@@ -223,6 +223,7 @@ impl Calculators for NoConstructor {
         &self,
         _owner_id: Option<Uuid>,
         _only_published: bool,
+        _state: Option<State>,
         _page_size: i32,
         _page_token: &str,
     ) -> Result<CalculatorPage> {

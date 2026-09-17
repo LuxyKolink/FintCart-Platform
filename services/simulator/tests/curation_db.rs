@@ -403,7 +403,7 @@ async fn editar_una_publicada_no_cambia_lo_que_sirve_el_catalogo() {
     // otra consulta, y una vista que solo se aplicara en `get` dejaría el catálogo enseñando lo
     // no aprobado.
     let catalogo = repo
-        .list(None, true, 100, "")
+        .list(None, true, None, 100, "")
         .await
         .expect("el catálogo tiene que listarse");
     let en_catalogo = catalogo
@@ -583,4 +583,118 @@ async fn aprobar_lo_que_no_existe_es_un_no_encontrado() {
         repo.submit(inventado, autor()).await,
         Err(Error::NotFound)
     ));
+}
+
+/// El filtro de estado ACOTA la visibilidad; no la abre (FR-051).
+///
+/// Es la propiedad que hace segura la bandeja de curaduría (T116), y la que un doble no puede
+/// comprobar porque vive en el `WHERE`. Se comprueban las tres direcciones:
+///
+///   · `en_revision` sin ningún otro filtro devuelve las propuestas de CUALQUIERA —es lo que la
+///     curaduría tiene que poder leer, y por eso el filtro abre esa puerta y solo esa—;
+///   · `privada` sin `owner_id` no devuelve nada ajeno, aunque el estado exista y esté pedido;
+///   · el catálogo (`only_published`) sigue sin incluir lo que no está aprobado.
+#[tokio::test]
+#[ignore = "necesita PostgreSQL: dev/up && dev/migrate"]
+async fn el_filtro_de_estado_no_abre_las_privadas_ajenas() {
+    let pool = pool().await;
+    let autor_a = autor();
+    let autor_b = autor();
+    let _guard_a = Guard::nuevo(&pool, autor_a).await;
+    let _guard_b = Guard::nuevo(&pool, autor_b).await;
+    let repo = PgCalculators::new(pool.clone());
+
+    // A: una privada y una propuesta. B: una privada y una publicada.
+    let privada_a = repo
+        .upsert(None, autor_a, "ZZ TEST privada de A", "", &definicion())
+        .await
+        .expect("se crea");
+    let propuesta_a = repo
+        .upsert(None, autor_a, "ZZ TEST propuesta de A", "", &definicion())
+        .await
+        .expect("se crea");
+    repo.submit(propuesta_a.id, autor_a)
+        .await
+        .expect("se propone");
+
+    let privada_b = repo
+        .upsert(None, autor_b, "ZZ TEST privada de B", "", &definicion())
+        .await
+        .expect("se crea");
+    let publicada_b = repo
+        .upsert(None, autor_b, "ZZ TEST publicada de B", "", &definicion())
+        .await
+        .expect("se crea");
+    repo.submit(publicada_b.id, autor_b)
+        .await
+        .expect("se propone");
+    repo.approve(publicada_b.id, autor_a)
+        .await
+        .expect("A aprueba lo de B");
+
+    // 1) La bandeja: las propuestas de los dos, y solo las propuestas.
+    let bandeja = repo
+        .list(None, false, Some(State::EnRevision), 100, "")
+        .await
+        .expect("la bandeja tiene que listarse");
+    let en_bandeja: Vec<Uuid> = bandeja.items.iter().map(|row| row.id).collect();
+    assert!(
+        en_bandeja.contains(&propuesta_a.id),
+        "la propuesta de A está"
+    );
+    assert!(!en_bandeja.contains(&privada_a.id), "una privada NO está");
+    assert!(
+        !en_bandeja.contains(&privada_b.id),
+        "ni la privada de nadie"
+    );
+    assert!(
+        !en_bandeja.contains(&publicada_b.id),
+        "una aprobada tampoco"
+    );
+    assert!(
+        bandeja.total >= 2,
+        "el total tiene que contar lo mismo que la página"
+    );
+
+    // 2) Pedir las privadas sin ser el autor no devuelve ninguna ajena. Es la comprobación que
+    //    hace segura la existencia del filtro.
+    let privadas = repo
+        .list(None, false, Some(State::Privada), 100, "")
+        .await
+        .expect("la consulta es válida");
+    assert!(
+        privadas.items.is_empty(),
+        "sin owner_id no puede salir ninguna privada, ni la propia: no se pidió ninguna"
+    );
+
+    // Y las propias sí, con `owner_id`.
+    let mis_privadas = repo
+        .list(Some(autor_a), false, Some(State::Privada), 100, "")
+        .await
+        .expect("la consulta es válida");
+    let ids: Vec<Uuid> = mis_privadas.items.iter().map(|row| row.id).collect();
+    assert_eq!(ids, vec![privada_a.id]);
+
+    // 3) El catálogo sigue sin incluir lo no aprobado, ni siquiera pidiendo el estado.
+    let catalogo = repo
+        .list(None, true, None, 100, "")
+        .await
+        .expect("el catálogo tiene que listarse");
+    let ids: Vec<Uuid> = catalogo.items.iter().map(|row| row.id).collect();
+    assert!(
+        ids.contains(&publicada_b.id),
+        "lo aprobado está en el catálogo"
+    );
+    assert!(!ids.contains(&propuesta_a.id), "una propuesta no está");
+    assert!(!ids.contains(&privada_a.id), "una privada tampoco");
+
+    // Y la propuesta se sirve con su DEFINICIÓN VIGENTE, que es la que se aprobaría: si la
+    // bandeja enseñara la publicada, para una primera propuesta no habría fila y saldría vacía.
+    let en_bandeja = bandeja
+        .items
+        .iter()
+        .find(|row| row.id == propuesta_a.id)
+        .expect("la propuesta de A está en la bandeja");
+    assert_eq!(en_bandeja.version, 1);
+    assert_eq!(en_bandeja.published_version, None);
 }
