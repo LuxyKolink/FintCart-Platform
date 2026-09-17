@@ -31,7 +31,11 @@ import { execTx, RepoError } from './tx.js';
  * una cuarta plantilla sin migrar la base sea un error de compilación en lugar de un
  * `violates check constraint` en ejecución, con el evento ya perdido.
  */
-export type TemplateName = 'verificacion' | 'cambio_password' | 'alerta_seguridad';
+export type TemplateName =
+  | 'verificacion'
+  | 'cambio_password'
+  | 'alerta_seguridad'
+  | 'indicator_calendar_alert';
 
 /**
  * Payload de una notificación.

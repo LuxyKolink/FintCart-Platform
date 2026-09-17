@@ -28,12 +28,37 @@ function toAddress(msg: MailHogMessage): string {
  * Sin decodificar, un salto de línea suave (`=\n`) parte la URL a la mitad y un
  * `=3D` literal reemplaza cada `=`, corrompiendo justo el query string que se
  * necesita leer. Ver RFC 2045 §6.7.
+ *
+ * ## Por qué se decodifica con `TextDecoder` y no byte a byte
+ *
+ * Cada `=XX` de quoted-printable es UN BYTE, no un carácter: los acentos se codifican
+ * en dos o tres seguidos (`ó` es `=C3=B3`). Decodificarlos por separado con
+ * `String.fromCharCode` los convierte en dos caracteres latinos —«Ã³»—, que es lo que
+ * hoy no se nota porque este ayudante solo extrae una URL en ASCII, pero sí se notaría
+ * en cuanto una prueba afirmara sobre una frase del cuerpo: el fallo aparecería como
+ * «el texto no está», con el texto delante.
  */
 function decodeQuotedPrintable(body: string): string {
-  return body
-    .replace(/=\r\n/gu, '')
-    .replace(/=\n/gu, '')
-    .replace(/=([0-9A-Fa-f]{2})/gu, (_match, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+  const sinSaltosSuaves = body.replace(/=\r\n/gu, '').replace(/=\n/gu, '');
+  const bytes = new Uint8Array(sinSaltosSuaves.length);
+  let total = 0;
+
+  for (let i = 0; i < sinSaltosSuaves.length; i += 1) {
+    const escape = /=([0-9A-Fa-f]{2})/u.exec(sinSaltosSuaves.slice(i, i + 3));
+    if (escape !== null) {
+      bytes[total] = parseInt(escape[1], 16);
+      total += 1;
+      i += 2;
+      continue;
+    }
+    bytes[total] = sinSaltosSuaves.charCodeAt(i) & 0xff;
+    total += 1;
+  }
+
+  // `fatal: false`: un cuerpo que no fuera UTF-8 válido se lee con el carácter de
+  // reemplazo en lugar de lanzar, porque esta función la usan pruebas y una excepción
+  // aquí hablaría de una codificación rota y no de lo que se estaba comprobando.
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(0, total));
 }
 
 /**

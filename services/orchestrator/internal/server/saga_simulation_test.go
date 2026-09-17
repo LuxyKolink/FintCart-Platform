@@ -39,6 +39,26 @@ type fakeSimulator struct {
 	result     map[string]string
 	err        error
 	anonymized []string
+
+	// El estado del calendario de indicadores (T105). Vive en este mismo doble y no en
+	// otro porque es el mismo servicio: dos `fakeSimulator` en el mismo paquete obligarían
+	// a cada prueba a saber cuál le toca.
+	calendarStatus *simulatorv1.IndicatorCalendarStatus
+	calendarCalls  int
+}
+
+// GetIndicatorCalendarStatus responde lo que la prueba declare (T105, FR-061).
+func (f *fakeSimulator) GetIndicatorCalendarStatus(
+	_ context.Context, _ *commonv1.PageRequest, _ ...grpc.CallOption,
+) (*simulatorv1.IndicatorCalendarStatus, error) {
+	f.calendarCalls++
+	if f.err != nil {
+		return nil, f.err
+	}
+	if f.calendarStatus == nil {
+		return &simulatorv1.IndicatorCalendarStatus{}, nil
+	}
+	return f.calendarStatus, nil
 }
 
 func (f *fakeSimulator) Compute(

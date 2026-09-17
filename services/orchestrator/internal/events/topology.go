@@ -80,6 +80,13 @@ const (
 
 	// Producido por Aprendizaje.
 	EventLearningArticlePublished = "learning.article_published"
+
+	// Producido por el Orquestador en su barrido del calendario (FR-061, T105).
+	//
+	// El Simulador es quien sabe qué indicador se quedó sin vigencia, pero no publica
+	// (Principio V): lo pregunta el Orquestador y publica él, igual que D-03 resolvió la
+	// auditoría de simulaciones.
+	EventIndicatorCalendarAlert = "indicator.calendar_alert"
 )
 
 // Bindings de cada cola, según la columna «Consumidores» del catálogo.
@@ -112,6 +119,12 @@ var (
 		EventUserRegistered,
 		EventAuthPasswordChanged,
 		EventAuthSecurityAlert,
+		// El aviso del procedimiento anual (FR-061) SÍ produce correo —es su única
+		// razón de existir—, y desde T106 tiene plantilla
+		// (`indicator_calendar_alert`). Sin este binding, el evento se publicaría para
+		// nadie: el exchange `topic` acepta cualquier routing key y descarta en
+		// silencio lo que no case con ningún binding.
+		EventIndicatorCalendarAlert,
 	}
 
 	// BindingsAudit: los eventos con valor probatorio (FR-025, FR-031).
@@ -139,6 +152,10 @@ var (
 		EventUserActivity,
 		EventSimulationExecuted,
 		EventAccountAnonymized,
+		// El aviso de indicadores deja constancia de que el procedimiento anual se
+		// supervisó: si nadie lo atendió, la auditoría es donde se puede ver que la
+		// plataforma avisó y cuándo.
+		EventIndicatorCalendarAlert,
 	}
 )
 

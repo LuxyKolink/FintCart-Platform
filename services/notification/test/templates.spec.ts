@@ -93,6 +93,83 @@ describe('plantilla de verificación', () => {
   });
 });
 
+/** El aviso del procedimiento anual (T106, FR-061). */
+describe('plantilla del aviso de indicadores', () => {
+  it('un indicador sin vigencia pide acción y explica la consecuencia', () => {
+    const { subject, body } = render(
+      'indicator_calendar_alert',
+      { kind: 'sin_vigencia', name: 'UVT', valid_to: '', days_remaining: '0', as_of: '2026-06-15' },
+      ctx,
+    );
+
+    // El asunto es lo ÚNICO que se ve en la bandeja de entrada: si no distingue lo que
+    // requiere acción de lo que es un aviso anticipado, el correo se archiva sin leer.
+    expect(subject).toContain('Acción requerida');
+    expect(subject).toContain('UVT');
+    expect(body).toContain('no tiene un valor vigente para hoy');
+    // La consecuencia concreta, que es lo que hace que alguien actúe.
+    expect(body).toContain('resultados con el valor anterior');
+  });
+
+  it('un vencimiento próximo dice la fecha y cuántos días quedan', () => {
+    const { subject, body } = render(
+      'indicator_calendar_alert',
+      {
+        kind: 'por_vencer',
+        name: 'IPC',
+        valid_to: '2027-01-01',
+        days_remaining: '12',
+        as_of: '2026-12-20',
+      },
+      ctx,
+    );
+
+    expect(subject).toContain('2027-01-01');
+    expect(body).toContain('2027-01-01');
+    expect(body).toContain('12 días');
+    // Y no dice «acción requerida»: todavía no hay nada roto, y llamar urgente a lo que
+    // no lo es es la forma de que deje de mirarse lo que sí lo es.
+    expect(subject).not.toContain('Acción requerida');
+  });
+
+  it('un payload incompleto falla en lugar de entregar un correo a medias', () => {
+    // Sin el nombre no hay aviso posible, y un correo que dijera «el indicador undefined
+    // no tiene vigencia» se entrega con éxito y no sirve para nada. Un vencimiento sin
+    // fecha es el mismo caso: el aviso existe para decir CUÁNDO.
+    expect(() => render('indicator_calendar_alert', { kind: 'sin_vigencia' }, ctx)).toThrow(
+      TemplateError,
+    );
+    expect(() =>
+      render('indicator_calendar_alert', { kind: 'por_vencer', name: 'UVT' }, ctx),
+    ).toThrow(TemplateError);
+  });
+
+  it('una clase de aviso desconocida es un fallo, no un texto genérico', () => {
+    // Si el Orquestador empieza a emitir una clase nueva y esta plantilla no la conoce,
+    // entregar algo vago lo contaría como enviado y nadie se enteraría de que el aviso no
+    // se entendió.
+    expect(() =>
+      render(
+        'indicator_calendar_alert',
+        { kind: 'clase_que_no_existe', name: 'UVT' },
+        ctx,
+      ),
+    ).toThrow(TemplateError);
+  });
+
+  it('el correo no lleva cifras de indicadores', () => {
+    // Quien lo recibe es quien teclea el valor: un correo con la cifra dentro invita a
+    // copiarla de un correo, que es como se cargan datos equivocados.
+    const { body } = render(
+      'indicator_calendar_alert',
+      { kind: 'sin_vigencia', name: 'UVT', valid_to: '', days_remaining: '0' },
+      ctx,
+    );
+
+    expect(body).not.toMatch(/\d{4,}/u);
+  });
+});
+
 describe('las otras dos plantillas', () => {
   it('cambio_password avisa de que puede no haber sido el titular', () => {
     const { body } = render('cambio_password', { changed_at: '2026-08-01T10:00:00Z' }, ctx);

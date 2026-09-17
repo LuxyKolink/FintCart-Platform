@@ -253,6 +253,31 @@ SELECT ` + outboxColumns + `
  ORDER BY created_at
  LIMIT $1`
 
+// insertStandaloneEventQuery encola un evento sin saga.
+//
+// `saga_id` va como `NULL` —la columna admite el nulo justo para esto— y el `ON CONFLICT`
+// hace la operación idempotente sobre la clave primaria: el `id` de la fila ES el
+// `event_id` del sobre, así que dos barridos con el mismo identificador determinista
+// —mismo aviso, mismo día— escriben una sola fila.
+const insertStandaloneEventQuery = `
+INSERT INTO event_outbox (id, saga_id, event_type, routing_key, payload)
+VALUES ($1, NULL, $2, $3, $4)
+ON CONFLICT (id) DO NOTHING`
+
+// InsertStandaloneEvent encola un evento que no pertenece a ninguna saga.
+func (s *PostgresStorer) InsertStandaloneEvent(ctx context.Context, row OutboxRow) (bool, error) {
+	res, err := s.db.ExecContext(ctx, insertStandaloneEventQuery,
+		row.ID, row.EventType, row.RoutingKey, row.Payload)
+	if err != nil {
+		return false, wrap(fmt.Sprintf("encolar el evento %s", row.EventType), err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return false, wrap("leer las filas afectadas al encolar un evento", err)
+	}
+	return affected == 1, nil
+}
+
 // ListPendingEvents devuelve los eventos sin publicar en orden de creación.
 func (s *PostgresStorer) ListPendingEvents(ctx context.Context, limit int32) ([]OutboxRow, error) {
 	var rows []OutboxRow

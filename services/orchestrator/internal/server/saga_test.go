@@ -144,6 +144,24 @@ func (m *memStore) ListResumable(_ context.Context, limit int32) ([]storer.SagaR
 func (m *memStore) ListPendingEvents(context.Context, int32) ([]storer.OutboxRow, error) {
 	return nil, nil
 }
+
+// InsertStandaloneEvent imita la clave primaria del outbox y su `ON CONFLICT DO NOTHING`.
+//
+// Devolver siempre `true` haría que el doble aceptara como nuevo un aviso que ya estaba
+// encolado, y esa es justo la propiedad que el barrido de indicadores necesita comprobar:
+// un doble que no deduplica convierte en verde una prueba sobre la idempotencia.
+func (m *memStore) InsertStandaloneEvent(_ context.Context, row storer.OutboxRow) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, existing := range m.events {
+		if existing.ID == row.ID {
+			return false, nil
+		}
+	}
+	m.events = append(m.events, row)
+	return true, nil
+}
 func (m *memStore) MarkEventPublished(context.Context, uuid.UUID) error            { return nil }
 func (m *memStore) IncrementEventAttempts(context.Context, uuid.UUID, error) error { return nil }
 

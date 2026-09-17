@@ -103,7 +103,72 @@ export function render(
           'Si reconoces esta actividad, no tienes que hacer nada.',
         ].join('\n'),
       };
+
+    case 'indicator_calendar_alert':
+      return indicatorAlert(payload);
   }
+}
+
+/**
+ * Correo del procedimiento anual de indicadores (T106, FR-061).
+ *
+ * ## Qué dice y qué NO dice
+ *
+ * Dice QUÉ indicador y QUÉ hay que hacer, y no menciona cifras: quien lo recibe es quien
+ * administra el catálogo y las teclea él mismo. Un correo con «el UVT vence el 1 de enero»
+ * es accionable; uno con el valor dentro invita a copiarlo de un correo, que es como se
+ * cargan cifras equivocadas.
+ *
+ * ## Las dos clases de aviso, con textos distintos
+ *
+ * `sin_vigencia` —el indicador se quedó sin valor para hoy— es un problema ACTIVO: las
+ * calculadoras que lo referencian están calculando con el dato del año anterior. `por_vencer`
+ * es un aviso ANTICIPADO de treinta días. El mismo texto para los dos haría parecer
+ * urgente lo que no lo es, y dejaría sin urgencia lo que sí lo es.
+ *
+ * El asunto lo distingue también, porque es lo único que se ve en la bandeja de entrada.
+ */
+function indicatorAlert(payload: NotificationPayload): RenderedEmail {
+  const name = require_('indicator_calendar_alert', payload, 'name');
+  const kind = require_('indicator_calendar_alert', payload, 'kind');
+
+  if (kind === 'sin_vigencia') {
+    return {
+      subject: `Acción requerida: el indicador ${name} no tiene vigencia`,
+      body: [
+        `El indicador ${name} no tiene un valor vigente para hoy.`,
+        '',
+        'Las calculadoras que lo referencian están dando resultados con el valor anterior, ' +
+          'así que pueden estar desactualizadas sin que nadie lo note.',
+        '',
+        'Carga el valor del período en curso en la pantalla de indicadores.',
+      ].join('\n'),
+    };
+  }
+
+  if (kind === 'por_vencer') {
+    // `valid_to` y `days_remaining` son obligatorios en esta clase: el aviso existe para
+    // decir CUÁNDO, y sin la fecha el texto no tendría nada que decir. Se leen con
+    // `require_` para que un payload incompleto falle en lugar de entregar un correo que
+    // dice «vence el undefined».
+    const validTo = require_('indicator_calendar_alert', payload, 'valid_to');
+    const days = require_('indicator_calendar_alert', payload, 'days_remaining');
+
+    return {
+      subject: `Aviso: el indicador ${name} deja de aplicar el ${validTo}`,
+      body: [
+        `El indicador ${name} deja de estar vigente el ${validTo}: quedan ${days} días.`,
+        '',
+        'Carga el valor del período siguiente antes de esa fecha para que las calculadoras ' +
+          'que lo usan sigan al día.',
+      ].join('\n'),
+    };
+  }
+
+  // Una clase desconocida es un fallo de contrato, no un texto genérico: el servicio de
+  // Notificación no puede inventarse qué hacer con un aviso que no entiende, y entregarlo
+  // «a medias» lo dejaría contado como enviado.
+  throw new TemplateError('indicator_calendar_alert', `kind desconocido: ${kind}`);
 }
 
 /**

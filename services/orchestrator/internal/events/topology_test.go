@@ -89,7 +89,13 @@ func (f *fakeChannel) keysOf(queue string) []string {
 	return keys
 }
 
-// allCatalogEvents son los ONCE eventos de `contracts/events/events-catalog.md`.
+// allCatalogEvents son los eventos de `contracts/events/events-catalog.md`, más el aviso
+// del calendario que añade la enmienda 002 (`indicator.calendar_alert`, FR-061).
+//
+// El catálogo se escribe a mano aquí a propósito, y por eso hay que ampliarlo al añadir un
+// evento: es la lista contra la que se comprueba que todo lo declarado tiene binding. Si se
+// derivara de `BindingsNotification`/`BindingsAudit`, la prueba de cobertura no comprobaría
+// nada —diría que todo lo enlazado está enlazado— y un evento nuevo sin binding pasaría.
 //
 // Se enumera aparte de `BindingsNotification`/`BindingsAudit` a propósito: si la
 // lista se derivara de ellas, la prueba de cobertura no comprobaría nada — diría que
@@ -106,6 +112,7 @@ var allCatalogEvents = []string{
 	EventUserActivity,
 	EventSimulationExecuted,
 	EventAccountAnonymized,
+	EventIndicatorCalendarAlert,
 }
 
 // ── pruebas ────────────────────────────────────────────────────────────────
@@ -158,6 +165,10 @@ func TestNotificationOnlyReceivesWhatItCanSend(t *testing.T) {
 		EventUserRegistered,
 		EventAuthPasswordChanged,
 		EventAuthSecurityAlert,
+		// El aviso del procedimiento anual produce correo y desde T106 tiene plantilla:
+		// es el cuarto evento con binding a Notificación, y la lista es la misma que la
+		// del CHECK `notification_events_queue_template_valid`.
+		EventIndicatorCalendarAlert,
 	}, ch.keysOf(QueueNotification))
 }
 

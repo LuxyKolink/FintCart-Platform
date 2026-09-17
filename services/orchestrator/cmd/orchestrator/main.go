@@ -160,7 +160,13 @@ func run() error {
 		Interval:  outboxInterval,
 	})
 
-	return serve(ctx, logger, grpcServer, relay, engine, cfg.GRPCPort)
+	// El barrido del calendario de indicadores (FR-061, T105). Se construye AQUÍ y no
+	// dentro del motor de sagas: el aviso no pertenece a ninguna saga —lo descubre el
+	// reloj, no un avance de pasos— y meterlo en el motor obligaría a inventar una saga
+	// de un solo paso para una operación sin compensación posible.
+	sweeper := server.NewSweeper(participants.Simulator, store, cfg.IndicatorAlertEmail, logger)
+
+	return serve(ctx, logger, grpcServer, relay, engine, sweeper, cfg)
 }
 
 // serve corre el servidor gRPC, el publicador del outbox y el barrido de reanudación
@@ -171,8 +177,10 @@ func serve(
 	srv *grpc.Server,
 	relay *outbox.Relay,
 	engine *server.Engine,
-	port string,
+	sweeper *server.Sweeper,
+	cfg config,
 ) error {
+	port := cfg.GRPCPort
 	// `ListenConfig.Listen` y no `net.Listen`: el contexto solo se usa para resolver
 	// la dirección, no afecta al listener devuelto. Es la variante con contexto que
 	// exige el linter, y aquí además evita colgarse en una resolución DNS lenta.
@@ -203,6 +211,15 @@ func serve(
 	go func() {
 		defer wg.Done()
 		resumeLoop(runCtx, logger, engine)
+	}()
+
+	// El aviso del procedimiento anual de indicadores (FR-061, T105). Su primer barrido
+	// NO es inmediato, al contrario que el del rescate: el calendario cambia unas pocas
+	// veces al año y un barrido al arrancar solo añadiría trabajo al despliegue.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		indicatorLoop(runCtx, logger, sweeper, cfg.IndicatorSweepInterval)
 	}()
 
 	wg.Add(1)
@@ -256,6 +273,56 @@ func serve(
 	}
 	logger.Info("apagado ordenado completado")
 	return nil
+}
+
+// indicatorLoop avisa periódicamente de los indicadores sin vigencia o por vencer
+// (FR-061, T105).
+//
+// ## Por qué el primer barrido NO es inmediato, al contrario que el de rescate
+//
+// El rescate de sagas barre al arrancar porque lo que quedó a medias lleva ya esperando
+// todo lo que duró la caída. Aquí es al revés: el estado del calendario cambia cuando un
+// administrador carga una vigencia —unas pocas veces al año—, así que un barrido al
+// arrancar solo añadiría trabajo al despliegue y, con un intervalo en horas, adelantaría
+// como mucho unas horas un aviso que llega con treinta días de antelación.
+//
+// Cada vuelta es un RPC al Simulador y, si hay algo que avisar, una inserción por indicador
+// en el outbox. El aviso se publica una sola vez al día aunque el barrido pase cada pocos
+// minutos: el identificador del evento es determinista (ver `sweeper.go`).
+func indicatorLoop(
+	ctx context.Context,
+	logger *slog.Logger,
+	sweeper *server.Sweeper,
+	interval time.Duration,
+) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	logger.Info("barrido del calendario de indicadores arrancado", slog.Duration("interval", interval))
+
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Info("barrido del calendario de indicadores detenido")
+			return
+		case <-ticker.C:
+			resumen, err := sweeper.SweepIndicators(ctx)
+			if err != nil {
+				// No se propaga: un Simulador que no responde no puede tumbar al
+				// Orquestador, que es quien mueve las sagas. El siguiente barrido
+				// reintenta, y mientras tanto el fallo queda en el log.
+				logger.ErrorContext(ctx, "barrido del calendario de indicadores fallido",
+					slog.String("error", err.Error()))
+				continue
+			}
+			if resumen.Indicadores > 0 {
+				logger.WarnContext(ctx, "calendario de indicadores con avisos",
+					slog.Int("indicadores", resumen.Indicadores),
+					slog.Int("avisos_nuevos", resumen.Publicados),
+					slog.Int("avisos_ya_encolados", resumen.Repetidos))
+			}
+		}
+	}
 }
 
 // resumeLoop reclama periódicamente las sagas que quedaron a medias.
@@ -343,6 +410,11 @@ const (
 	// si fuera menor, cada barrido encontraría vacío lo que el anterior acaba de
 	// reclamar y el rescate no avanzaría más rápido, solo consultaría más.
 	resumeInterval = 2 * time.Minute
+
+	// indicatorSweepInterval es el valor por defecto del barrido del calendario: en horas,
+	// porque lo que se vigila cambia unas pocas veces al año y el aviso llega con treinta
+	// días de antelación. El despliegue de desarrollo lo acorta por entorno.
+	indicatorSweepInterval = 12 * time.Hour
 )
 
 type config struct {
@@ -355,21 +427,47 @@ type config struct {
 	GRPCPort      string
 	HealthPort    string
 	LogLevel      string
+	// IndicatorSweepInterval es la espera entre barridos del calendario de indicadores.
+	IndicatorSweepInterval time.Duration
+	// IndicatorAlertEmail es el buzón que recibe el aviso de vencimiento (FR-061).
+	//
+	// Opcional a propósito: sin él el barrido sigue consultando el estado y deja el aviso
+	// en el log, pero no publica un correo. Fallar al arrancar por una dirección que falta
+	// tumbaría al Orquestador —y con él las sagas— por un aviso operativo.
+	IndicatorAlertEmail string
 }
 
 var errMissingEnv = errors.New("falta una variable de entorno obligatoria")
 
 func loadConfig() (config, error) {
 	cfg := config{
-		DBAddr:        os.Getenv("DB_ADDR"),
-		AMQPAddr:      os.Getenv("AMQP_ADDR"),
-		AuthAddr:      os.Getenv("AUTH_SVC_ADDR"),
-		UsersAddr:     os.Getenv("USERS_SVC_ADDR"),
-		LearningAddr:  os.Getenv("LEARNING_SVC_ADDR"),
-		SimulatorAddr: os.Getenv("SIMULATOR_SVC_ADDR"),
-		GRPCPort:      os.Getenv("GRPC_PORT"),
-		HealthPort:    os.Getenv("HEALTH_PORT"),
-		LogLevel:      os.Getenv("LOG_LEVEL"),
+		DBAddr:              os.Getenv("DB_ADDR"),
+		AMQPAddr:            os.Getenv("AMQP_ADDR"),
+		AuthAddr:            os.Getenv("AUTH_SVC_ADDR"),
+		UsersAddr:           os.Getenv("USERS_SVC_ADDR"),
+		LearningAddr:        os.Getenv("LEARNING_SVC_ADDR"),
+		SimulatorAddr:       os.Getenv("SIMULATOR_SVC_ADDR"),
+		GRPCPort:            os.Getenv("GRPC_PORT"),
+		HealthPort:          os.Getenv("HEALTH_PORT"),
+		LogLevel:            os.Getenv("LOG_LEVEL"),
+		IndicatorAlertEmail: os.Getenv("INDICATOR_ALERT_EMAIL"),
+	}
+
+	// El intervalo tiene valor por defecto y se puede acortar por entorno (el compose de
+	// desarrollo lo hace para que US4 se pueda probar sin esperar horas). Un valor
+	// ilegible NO se ignora en silencio: se cae al valor por defecto y se avisa, porque un
+	// `INDICATOR_SWEEP_INTERVAL=5` —sin unidad— que se interpretara como cinco segundos
+	// dejaría un barrido constante contra el Simulador sin que nadie lo supiera.
+	cfg.IndicatorSweepInterval = indicatorSweepInterval
+	if raw := os.Getenv("INDICATOR_SWEEP_INTERVAL"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			return config{}, fmt.Errorf("INDICATOR_SWEEP_INTERVAL=%q no es una duración de Go (300ms, 1.5h, 5m): %w", raw, err)
+		}
+		if parsed <= 0 {
+			return config{}, fmt.Errorf("INDICATOR_SWEEP_INTERVAL=%q tiene que ser positivo", raw)
+		}
+		cfg.IndicatorSweepInterval = parsed
 	}
 
 	if cfg.HealthPort == "" {

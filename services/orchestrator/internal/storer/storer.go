@@ -82,6 +82,22 @@ type Storer interface {
 
 	// ── outbox (lo consume `internal/outbox`) ────────────────────────────────
 
+	// InsertStandaloneEvent encola un evento que NO pertenece a ninguna saga.
+	//
+	// Existe para los barridos periódicos: la alerta de indicadores (FR-061) y, más
+	// adelante, la de purgas vencidas (US7). Son trabajos que descubre el propio
+	// Orquestador mirando el reloj, no el avance de una saga, así que no hay
+	// transacción de saga en la que meter el evento — y `AdvanceSaga` no sirve para
+	// ellos.
+	//
+	// Devuelve `false` si el evento YA estaba encolado, y esa es su propiedad
+	// importante: el barrido vuelve a pasar cada pocos minutos y no puede producir un
+	// correo por vuelta. La idempotencia la impone la BASE (`ON CONFLICT (id) DO
+	// NOTHING` sobre la clave primaria), no una comprobación previa en Go: dos
+	// barridos solapados —un reinicio que arranca el bucle mientras el anterior
+	// termina— pasarían los dos por la comprobación y escribirían dos veces.
+	InsertStandaloneEvent(ctx context.Context, row OutboxRow) (bool, error)
+
 	// ListPendingEvents devuelve los eventos sin publicar en orden de creación.
 	ListPendingEvents(ctx context.Context, limit int32) ([]OutboxRow, error)
 

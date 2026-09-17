@@ -34,15 +34,16 @@ export class MalformedEventError extends Error {
  * Eventos que producen un correo, y con qué plantilla.
  *
  * Coincide exactamente con `events.BindingsNotification` del Orquestador y con el
- * CHECK `notification_events_queue_template_valid`. Los tres tienen que decir lo mismo:
+ * CHECK `notification_events_queue_template_valid`. Los CUATRO tienen que decir lo mismo:
  * un binding sin entrada aquí entregaría mensajes que este servicio solo puede
  * descartar, y una entrada aquí sin plantilla en la base fallaría al insertar con el
- * evento ya consumido.
+ * evento ya consumido. El cuarto —el aviso de indicadores— entra con la enmienda 002.
  */
 const TEMPLATE_BY_EVENT: Readonly<Record<string, TemplateName>> = {
   'user.registered': 'verificacion',
   'auth.password_changed': 'cambio_password',
   'auth.security_alert': 'alerta_seguridad',
+  'indicator.calendar_alert': 'indicator_calendar_alert',
 };
 
 /**

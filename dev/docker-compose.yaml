@@ -278,6 +278,12 @@ services:
       # horas (ver `deploy/vps`).
       PURGE_SWEEP_INTERVAL: "${PURGE_SWEEP_INTERVAL:-5m}"
       INDICATOR_SWEEP_INTERVAL: "${INDICATOR_SWEEP_INTERVAL:-5m}"
+      # Buzón que recibe el aviso del procedimiento anual (FR-061). Es una dirección de
+      # DESPLIEGUE y no la de una persona: el aviso le corresponde a quien opera la
+      # plataforma, no a la cuenta con la que alguien entró a cargar las cifras. En
+      # desarrollo apunta a la cuenta administradora de las pruebas; sin valor, el
+      # barrido mira el calendario y deja el aviso en el log, sin enviar correo.
+      INDICATOR_ALERT_EMAIL: "${INDICATOR_ALERT_EMAIL:-administracion@fintcart.test}"
       GRPC_PORT: "9090"
       LOG_LEVEL: "debug"
     ports: ["9095:9090"]
