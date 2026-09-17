@@ -87,3 +87,24 @@ message SearchAccountsResponse {
 
 // AnonymizeProfile: sin cambio de forma. Sigue siendo idempotente y sin
 // compensación, como documenta services/users/internal/server/anonymize.go:30.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTA (T003): cinco RPC de este delta NO existen, y no por olvido
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// El contrato final (`contracts/proto/fintcart/users/v1/users.proto`) tiene
+// `AssignRole` y `RevokeRole` —implementados en `services/users/internal/server/`, con la
+// `account_status` en `AuthContext`, que es lo que la administración de roles necesita—.
+// Los otros cinco corresponden a la Fase 9 (depuración de cuentas con plazo de gracia),
+// **descartada explícitamente** tras T165:
+//
+//   MarkForPurge · ReactivateAccount · ListAccountsDueForPurge · SearchAccounts
+//
+// Y `pending_deletion` como estado de cuenta, con él. Un RPC que ningún servicio
+// implementa no es un contrato: es una promesa que el borde no puede cumplir, y dejarlo
+// declarado obligaría a generar stubs de métodos que nunca existirán —el peor tipo de
+// deuda, porque parece código—. El diseño se conserva aquí para el día en que la fase se
+// retome; ver el recuadro ⛔ de `specs/002-calculator-builder-content-admin/tasks.md`.
+//
+// Importa además lo que NO se pierde: la anonimización (FR-030) existe desde 001 y sigue
+// intacta, con `AnonymizeProfile` en este mismo contrato.

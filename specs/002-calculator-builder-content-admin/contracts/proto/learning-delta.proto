@@ -154,3 +154,29 @@ message ArticleImageBlob {
 // ListAttemptsResponse.Attempt:
 //   string score = 3;                 // [decimal] AHORA porcentaje sobre 100
 //   + repeated string served_question_ids = 5;   // FR-039
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTA (T001): el contrato FINAL se llamó de otro modo en cuatro sitios
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Este delta es la propuesta de diseño; `contracts/proto/fintcart/learning/v1/
+// learning.proto` es lo que existe. Los cuatro cambios de nombre NO son desviaciones
+// accidentales —cada uno quita una ambigüedad del delta— y se dejan escritos aquí para
+// que quien lea el delta no busque en el proto algo que nunca se llamó así:
+//
+//   delta                          → contrato final
+//   ArticleImageBlob               → GetArticleImageResponse
+//   UploadArticleImageRequest.content → ...Request.bytes
+//   UploadArticleImageRequest.editor_id → ...Request.uploaded_by
+//   ArticleImage.byte_size (int32) → ArticleImage.byte_size (string)
+//   ArticleImage (sin article_id)  → ArticleImage.article_id
+//
+// El último merece la explicación: `byte_size` es un CONTEO, no un monto, pero un
+// `int32` lo ataría al techo de 2 GB que nadie ha pedido y que gRPC no obliga a tener
+// —el tope real está en 2 MB por D-13—. Y `article_id` viaja en la respuesta porque una
+// imagen huérfana (subida y nunca referenciada) es un caso que el editor ve, y sin el
+// identificador del artículo no puede saber a cuál volver.
+//
+// El delta tampoco mencionaba `GetArticleImageResponse.bytes` teniendo los bytes en un
+// mensaje propio: el motivo es que el borde necesita la META y los BYTES juntos para
+// poner el `ETag` y el `Content-Type` sin una segunda llamada.

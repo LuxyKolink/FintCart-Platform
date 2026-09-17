@@ -472,3 +472,294 @@ paths:
       summary: Consulta completa de datos personales del titular (FR-029) — perfil, progreso, historial de cuestionarios e historial de simulaciones.
       responses:
         '200': { description: Datos personales completos }
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Enmienda 002 — constructor de calculadoras, administración y contenido
+  # ═══════════════════════════════════════════════════════════════════════════
+  #
+  # Todas son del BORDE (Principio II): los servicios internos no ganan superficie
+  # HTTP. Las de `/admin/**` exigen el rol `administrador` por middleware explícito
+  # (FR-081) y las de `/editorial/calculators/**` el rol `coordinador_editorial`, NO
+  # `administrador` (FR-082): aprobar contenido no es atribución del administrador.
+  #
+  # Ninguna ruta de depuración de cuentas aparece aquí: la Fase 9 se descartó, y un
+  # contrato que describe una operación que el servicio no tiene es un deseo, no un
+  # contrato. El diseño de esas rutas —incluido el `410` de la reactivación vencida—
+  # queda en `specs/002-calculator-builder-content-admin/contracts/openapi/gateway-delta.yaml`.
+
+  # ── Categorías del catálogo editorial (FR-032…FR-035) ──────────────────────
+  /catalog/categories:
+    get:
+      summary: Categorías activas, ordenadas por `position` (público y desplegable del editor)
+      security: []
+      responses:
+        '200': { description: Lista ordenada; la consume también la pantalla de acceso antes del login }
+
+  /admin/categories:
+    get:
+      summary: Catálogo completo, incluidas las desactivadas (rol administrador)
+      responses:
+        '200': { description: Lista con `active` en cada elemento }
+    post:
+      summary: Crear categoría (FR-033)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                slug: { type: string, description: 'Vacío ⇒ derivado del nombre' }
+                description: { type: string }
+                position: { type: integer, minimum: 0 }
+      responses:
+        '201': { description: Creada }
+        '409': { description: Nombre o posición ya en uso entre las activas }
+
+  /admin/categories/{categoryId}:
+    patch:
+      summary: Editar nombre, descripción u orden
+      parameters:
+        - { name: categoryId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Actualizada }
+        '404': { description: No encontrada }
+    delete:
+      summary: Desactivar (lógico, nunca borrado físico — FR-035)
+      parameters:
+        - { name: categoryId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Desactivada }
+        '409':
+          description: >
+            Tiene artículos publicados. El cuerpo incluye `published_count` para que
+            el mensaje al administrador diga CUÁNTOS, no solo que no se puede (FR-035).
+
+  # ── Sesión de cuestionario (FR-038…FR-042) ────────────────────────────────
+  /quizzes/{quizId}/session:
+    post:
+      summary: Iniciar intento; devuelve las N preguntas servidas (FR-038)
+      parameters:
+        - { name: quizId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: >
+            Sesión creada: `session_id`, `expires_at` y las preguntas YA barajadas y
+            SIN la clave correcta. El cliente no recibe el banco completo en ningún
+            momento, ni siquiera para descartarlo.
+        '404': { description: Cuestionario no publicado }
+
+  # ── Imágenes de artículo (FR-064…FR-067) ──────────────────────────────────
+  /editorial/articles/{articleId}/images:
+    post:
+      summary: Subir una imagen de artículo (rol editor)
+      parameters:
+        - { name: articleId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { description: 'Devuelve `image_id`, que es el SHA-256 del contenido' }
+        '413': { description: Excede 2 MB }
+        '415': { description: Tipo no admitido (solo jpeg, png, webp; se comprueba contra los BYTES, no contra el `Content-Type` declarado) }
+
+  /media/images/{imageId}:
+    get:
+      summary: Servir una imagen
+      security: []
+      parameters:
+        - { name: imageId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: >
+            Bytes de la imagen. `Cache-Control: public, max-age=31536000, immutable` y
+            `ETag: "{imageId}"`. La caché agresiva es correcta precisamente porque el
+            identificador ES el hash del contenido: una imagen distinta tiene otra URL.
+        '404': { description: No encontrada }
+
+  # ── Constructor de calculadoras (FR-043…FR-054) ───────────────────────────
+  /calculators:
+    get:
+      summary: Catálogo de calculadoras publicadas (FR-052)
+      security: []
+      responses:
+        '200': { description: Lista pública; cada elemento lleva su versión publicada }
+    post:
+      summary: Crear una calculadora propia (FR-043)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: 'Definición: entradas, salidas y expresiones. Todo valor numérico viaja como string decimal.' }
+      responses:
+        '201': { description: Creada, en estado `privada` }
+        '422':
+          description: >
+            Definición inválida. El cuerpo lleva `errors[]` con `location`, `code` y
+            `message` por cada problema, no un mensaje único: FR-046 exige señalar el
+            error concreto y dónde está.
+
+  /calculators/validate:
+    post:
+      summary: Validar sin guardar; alimenta el aviso en vivo del constructor
+      responses:
+        '200': { description: Sin problemas }
+        '422': { description: 'Mismo `errors[]` que al crear, sin persistir nada' }
+
+  /calculators/{calculatorId}:
+    get:
+      summary: Obtener la definición
+      parameters:
+        - { name: calculatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Definición con su versión }
+        '404': { description: No encontrada o no visible para quien pregunta }
+    put:
+      summary: Reemplazar la definición (crea una versión nueva; no edita la anterior)
+      parameters:
+        - { name: calculatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Versión nueva }
+        '422': { description: Definición inválida }
+    delete:
+      summary: Eliminar una calculadora propia
+      parameters:
+        - { name: calculatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Eliminada }
+        '403': { description: No es tuya }
+
+  /calculators/{calculatorId}/run:
+    post:
+      summary: Ejecutar (FR-050). Misma saga que `/simulators/{calcType}/run`
+      parameters:
+        - { name: calculatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                inputs:
+                  type: object
+                  description: 'Un valor por nombre de entrada, como string decimal.'
+                  additionalProperties: { type: string }
+      responses:
+        '200':
+          description: >
+            Resultados como `string` decimal, más `calculator_version` e
+            `indicators_used` con el valor con que se calculó (FR-058). La versión y
+            el snapshot viajan EN el resultado: es lo único que permite explicar un
+            número años después sin volver a consultar el catálogo.
+        '422': { description: 'Valor fuera de rango o regla de dominio incumplida (FR-044)' }
+        '400': { description: 'Falta un indicador vigente para una fórmula que lo referencia' }
+
+  /me/calculators:
+    get:
+      summary: Las calculadoras propias del usuario (FR-051)
+      responses:
+        '200': { description: 'Incluye el estado de cada una: privada, en revisión o publicada' }
+
+  /calculators/{calculatorId}/submit:
+    post:
+      summary: Proponer una calculadora para el catálogo público (FR-052)
+      parameters:
+        - { name: calculatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: En revisión }
+        '403': { description: No es tuya }
+
+  /editorial/calculators:
+    get:
+      summary: Bandeja de calculadoras en revisión (rol coordinador_editorial)
+      responses:
+        '200': { description: 'Cada elemento marca `is_mine` si quien pregunta es el autor' }
+
+  /editorial/calculators/{calculatorId}/approve:
+    post:
+      summary: Aprobar una calculadora (FR-053)
+      parameters:
+        - { name: calculatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Publicada en el catálogo, con su versión aprobada }
+        '403':
+          description: >
+            Quien aprueba es el propio autor (FR-053). La comprobación es del servidor:
+            la bandeja marca «Tuya» pero NO oculta el botón, porque una barrera que
+            consiste en no dibujar un botón no es una barrera.
+
+  /editorial/calculators/{calculatorId}/reject:
+    post:
+      summary: Rechazar con motivo (FR-054)
+      parameters:
+        - { name: calculatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: 'Rechazada; el motivo llega al autor en la bandeja de notificaciones' }
+        '403': { description: Quien rechaza es el propio autor }
+
+  # ── Indicadores financieros (FR-059…FR-062) ───────────────────────────────
+  /admin/indicators:
+    get:
+      summary: Listar indicadores y sus vigencias (rol administrador)
+      responses:
+        '200': { description: 'Valores como string decimal; vigencia como rango de fechas' }
+    post:
+      summary: Registrar los indicadores de un período (FR-060)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, value, valid_from, valid_to]
+              properties:
+                name: { type: string, description: 'En mayúsculas; es el nombre que las fórmulas referencian como @NOMBRE' }
+                value: { type: string, description: 'String decimal (Principio VIII)' }
+                valid_from: { type: string, format: date }
+                valid_to: { type: string, format: date }
+      responses:
+        '201': { description: Registrado }
+        '409': { description: 'Vigencia solapada para el mismo indicador (FR-059, `EXCLUDE USING gist`)' }
+
+  /admin/indicators/{indicatorId}:
+    put:
+      summary: Corregir el valor o la vigencia
+      parameters:
+        - { name: indicatorId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Corregido; el solape de vigencia también es 409 }
+        '404': { description: No encontrado }
+
+  /admin/indicators/status:
+    get:
+      summary: Estado del procedimiento anual — faltantes y próximos a vencer (rol administrador)
+      responses:
+        '200': { description: 'Lo que alimenta el correo de FR-061 y la pantalla de administración' }
+
+  /indicators/current:
+    get:
+      summary: Indicadores vigentes hoy. Lo consume el frontend para el aviso de FR-062 antes de ejecutar
+      security: []
+      responses:
+        '200': { description: 'Valores vigentes y `missing_names`: los que una fórmula podría necesitar y no están' }
+
+  # GET /quizzes/{quizId} NO es de esta enmienda: existe desde 001 y se documenta aquí
+  # porque faltaba, y un contrato incompleto se lee como si la ruta no existiera.
+  # Después de 002 es la vista del EDITOR (banco completo, con la clave correcta); el
+  # camino de ejecución es `POST /quizzes/{quizId}/session`.
+  /quizzes/{quizId}:
+    get:
+      summary: Banco completo de un cuestionario (vista del editor; NO es el camino de ejecución)
+      parameters:
+        - { name: quizId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Cuestionario con sus preguntas y opciones }
+        '404': { description: No encontrado }
