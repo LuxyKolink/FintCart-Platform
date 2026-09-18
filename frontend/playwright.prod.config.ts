@@ -23,6 +23,23 @@ if (!baseURL) {
   );
 }
 
+/**
+ * Cámara lenta, para MIRAR las pruebas.
+ *
+ * `--slow-mo` no es una bandera de `playwright test` —no sale en su `--help`, porque es una
+ * opción de configuración, no de línea de órdenes—: pedirla por ahí aborta la ejecución con
+ * «unknown option». Así que se lee del entorno, que sí se puede escribir delante de cualquier
+ * orden:
+ *
+ *     E2E_LENTO=800 npm run e2e:prod:ver
+ *
+ * Sin la variable no hay retardo: la suite corre a velocidad normal. Con ella, cada acción
+ * espera esos milisegundos, que es lo que hace visible lo que el navegador va haciendo.
+ * OJO: el retardo se suma al tiempo de la prueba, así que cámara lenta muy alta pide subir
+ * también el `timeout` de la prueba.
+ */
+const slowMo = Number(process.env['E2E_LENTO'] ?? 0) || undefined;
+
 export default defineConfig({
   /**
    * Fuera de `e2e/` A PROPÓSITO: dentro, la suite de desarrollo (`testDir: './e2e'`) la
@@ -72,6 +89,7 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'retain-on-failure',
+    launchOptions: { slowMo },
     /**
      * El despliegue sirve con la CA propia de Caddy mientras el CTIC no abra 80/443 a
      * Internet (ver `deploy/vps/README.md`), así que el certificado no valida contra las
