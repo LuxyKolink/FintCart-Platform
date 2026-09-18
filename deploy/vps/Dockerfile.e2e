@@ -47,6 +47,13 @@ COPY frontend/playwright.prod.config.ts ./
 COPY frontend/e2e-prod ./e2e-prod
 COPY frontend/e2e/support ./e2e/support
 
+# La carpeta de resultados existe desde la construcción y con permiso de escritura para
+# cualquiera: el contenedor corre con el uid del operador (ver `compose.app.yaml`), que no
+# tiene por qué coincidir con el dueño de `/e2e`, y Playwright necesita escribir ahí sus
+# capturas. Lo que protege esta carpeta no es el permiso: es que vive en el anfitrión y solo
+# el humo escribe en ella.
+RUN mkdir -p /e2e/test-results && chmod 0777 /e2e/test-results
+
 # `E2E_BASE_URL` NO tiene valor por defecto a propósito (ver `playwright.prod.config.ts`):
 # el operador dice explícitamente contra qué lanza el humo, y así no puede pasar en verde
 # contra la máquina equivocada.

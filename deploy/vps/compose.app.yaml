@@ -203,6 +203,12 @@ services:
     build: { context: ../.., dockerfile: deploy/vps/Dockerfile.e2e }
     image: fintcart-humo:local
     networks: [fintcart-app]
+    # NO como root: todo lo que el humo escribe (capturas y rastros) cae en el volumen de
+    # abajo, que es una carpeta del anfitrión. Corriendo como root, esos ficheros quedan
+    # como root y el operador no puede ni leerlos ni borrarlos —le hace falta sudo para
+    # limpiar lo que escribió una prueba—. El uid por defecto es el del usuario de la
+    # máquina (y el usuario `pwuser` de la imagen oficial), y se puede ajustar por entorno.
+    user: "${E2E_UID:-1000}:${E2E_GID:-1000}"
     environment:
       E2E_BASE_URL: "${E2E_BASE_URL:?falta E2E_BASE_URL: di contra qué dominio lanzas el humo}"
       # El despliegue sirve con la CA propia de Caddy mientras el CTIC no abra 80/443: el
