@@ -210,7 +210,15 @@ services:
     # máquina (y el usuario `pwuser` de la imagen oficial), y se puede ajustar por entorno.
     user: "${E2E_UID:-1000}:${E2E_GID:-1000}"
     environment:
-      E2E_BASE_URL: "${E2E_BASE_URL:?falta E2E_BASE_URL: di contra qué dominio lanzas el humo}"
+      # Por defecto, el mismo dominio que sirve Caddy — que es lo que quiere el 99 % de las
+      # veces — y NUNCA `localhost`: un valor heredado haría pasar el humo contra la máquina
+      # equivocada y llamarlo verde.
+      #
+      # OJO CON EXIGIRLA CON `:?` (hallazgo 37): una variable obligatoria en un servicio bajo
+      # perfil bloquea TODOS los comandos del proyecto —`up`, `migrate`, `seed`—, porque Compose
+      # interpola el fichero entero antes de mirar qué perfiles están activos. La exigencia va
+      # en el guion que de verdad la necesita, no aquí.
+      E2E_BASE_URL: "${E2E_BASE_URL:-https://${DOMAIN}}"
       # El despliegue sirve con la CA propia de Caddy mientras el CTIC no abra 80/443: el
       # humo tolera ese certificado salvo que se pida lo contrario (`E2E_TLS_ESTRICTO=true`),
       # que es lo correcto en cuanto haya certificado de verdad.

@@ -1135,3 +1135,50 @@ ejecuta a gusto algo que exige `sudo` para limpiarse.
 oficial usa para `pwuser`; `E2E_UID`/`E2E_GID` lo ajustan) y la carpeta de resultados se crea en la
 construcción con permiso de escritura. Verificado: las capturas nuevas salen con uid 1000 y el
 `rm -rf` funciona sin `sudo`.
+
+---
+
+## Hallazgo 37 — Una variable obligatoria en un servicio bajo perfil bloquea el proyecto entero
+
+**Qué pasaba**: al añadir el servicio `e2e` a `compose.app.yaml` se declaró `E2E_BASE_URL` como
+obligatoria (`${E2E_BASE_URL:?falta E2E_BASE_URL}`), con la idea de que nadie lanzara el humo sin
+decir contra qué. El primer comando que se intentó después —`docker compose up -d --force-recreate
+--no-deps caddy`, que no tiene nada que ver con el humo— respondió:
+
+```
+error while interpolating services.e2e.environment.E2E_BASE_URL: required variable
+E2E_BASE_URL is missing a value: falta E2E_BASE_URL: di contra qué dominio lanzas el humo
+```
+
+**Por qué importa**: Compose interpola **el fichero entero** antes de mirar qué perfiles están
+activos, así que un servicio que no se va a arrancar puede impedir levantar, migrar o sembrar el
+despliegue. La protección de una pieza pasó a ser un cerrojo para todas las demás — y el
+despliegue de producción quedó a un comando de distancia de no poder reiniciarse.
+
+**Arreglo**: el valor por defecto es el dominio de Caddy (`${E2E_BASE_URL:-https://${DOMAIN}}`),
+que es lo que se quiere el 99 % de las veces y nunca `localhost`. La exigencia de decirlo en voz
+alta se queda donde de verdad hace falta: en el guion `deploy/vps/e2e` (que siempre lo fija) y en
+la propia suite, que aborta con su mensaje si llega vacío. Un requisito de una pieza va en la
+pieza, no en el fichero que comparten todas.
+
+---
+
+## Hallazgo 38 — `git checkout` rompe el montaje por bind, y el contenedor sigue leyendo el fichero viejo
+
+**Qué pasaba**: se quitó `tls internal` del `Caddyfile` —en la máquina, el árbol es un clon del
+repositorio— y Caddy seguía sirviendo el certificado de su autoridad interna, además de conservar
+la directiva dentro del contenedor (`grep -c "tls internal" /etc/caddy/Caddyfile` dentro del
+contenedor daba 1, mientras en disco daba 0).
+
+**Por qué**: un montaje por bind ata el contenedor a un **inodo**, no a un nombre. `git checkout`
+no edita el fichero: escribe uno nuevo y lo renombra encima, así que el inodo viejo —con la
+directiva— siguió vivo dentro del contenedor mientras el árbol de fuera ya era otro. Que el
+contenedor y el disco discrepen así no da ningún aviso: los dos «tienen» el fichero, y solo uno es
+el que se aplica.
+
+**Arreglo y regla**: para que un fichero montado entre en vigor hay que **recrear** el contenedor
+(`docker compose up -d --force-recreate --no-deps <servicio>`), y eso conviene saberlo justo
+después de un `git pull`. Los servicios con el código horneado en la imagen no tienen el problema
+—cambia el identificador de la imagen y Compose los recrea solo—, pero los ficheros montados
+(`Caddyfile`, y cualquier otro `:ro`) sí. La trampa es silenciosa: `up -d` dice que todo está
+«up-to-date» mientras el contenedor corre una configuración que ya no está en el repositorio.
