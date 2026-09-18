@@ -463,11 +463,34 @@ error`), así que el dominio no sirve nada por HTTPS aunque todo lo demás esté
 responde con un 308 hacia HTTPS, y ahí se acaba. No es un defecto del despliegue —el
 catálogo y el SPA responden por dentro— sino del acceso desde fuera del campus.
 
-Qué hacer: pedir al CTIC que abra **80 y 443 a Internet** (su propio cuadro de entrega los
-lista como puertos solicitados). Caddy reintenta durante 30 días, así que en cuanto los
-abran el certificado aparece solo, sin tocar nada. Para enseñar la plataforma **antes** de
-eso queda cambiar el `Caddyfile` por un certificado propio (`tls internal`, con aviso del
-navegador) y volver a ponerlo cuando el CTIC abra los puertos.
+**Qué hacer, por orden de preferencia:**
+
+1. **Pedir al CTIC que abra 80 y 443 a Internet** (su propio cuadro de entrega los lista como
+   puertos solicitados). Caddy reintenta durante 30 días, así que en cuanto los abran el
+   certificado aparece solo, sin tocar nada: **quitar primero la línea provisional** del punto
+   2 (`tls internal`) para que Caddy vuelva a pedirlo.
+2. **Mientras tanto, certificado propio de Caddy**: pone la plataforma en pie hoy, a cambio de
+   un aviso del navegador que se puede eliminar. En este despliegue ya está aplicado —la línea
+   `tls internal` dentro del bloque del dominio, guardada al lado como `~/Caddyfile.sin-certificado`:
+
+   ```bash
+   ssh fintcart-app 'grep -n "tls internal" ~/fintcart-platform/deploy/vps/Caddyfile'
+   ssh fintcart-app 'docker restart fintcart-app-caddy-1'   # recarga el Caddyfile montado
+   ```
+
+   Y para quitar el aviso, la CA de Caddy en el portátil del que enseña (Fedora; en Firefox hay
+   que importarla además en su propio almacén, porque no usa el del sistema):
+
+   ```bash
+   scp fintcart-app:~/fintcart-caddy-root.crt ~/
+   sudo cp ~/fintcart-caddy-root.crt /etc/pki/ca-trust/source/anchors/
+   sudo update-ca-trust
+   ```
+
+   Para revertirlo cuando el CTIC abra los puertos: borrar esa línea y reiniciar Caddy.
+
+   Comprobado el 18 de septiembre: con el punto 2, desde fuera del campus y por el dominio
+   público, `/`, `/config.js` y `/api/calculators` responden **200**.
 
 ## Lo que este árbol NO cubre
 
