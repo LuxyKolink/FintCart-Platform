@@ -127,20 +127,29 @@ test('las pantallas del portal son recorribles por teclado y legibles', { tag: '
     // No todos los artículos traen cuestionario (lo mismo que documenta
     // `us1-aprendizaje.spec.ts`), así que se buscan unos pocos. Es barato: solo la
     // primera lectura paga el recorrido por teclado.
+    /**
+     * Se recorre el catálogo ENTERO hasta dar con un artículo que traiga cuestionario.
+     *
+     * Antes esta búsqueda miraba solo los cinco primeros, y el catálogo ordena por fecha de
+     * publicación descendente: cada artículo que crea una prueba —o una demostración— se
+     * publica después, así que el artículo sembrado con cuestionario se iba quedando fuera de
+     * la ventana y la pantalla del cuestionario dejaba de comprobarse SIN DECIRLO: la barrera
+     * cubría 18 pantallas en vez de 19 y el resultado seguía siendo verde. La ventana era el
+     * defecto, no la fixture: un límite fijo sobre una lista que crece hacia arriba convierte
+     * una pérdida de cobertura en un resultado normal.
+     */
     let quizPath: string | null = null;
-    for (let index = 0; index < 5 && quizPath === null; index += 1) {
+    await page.goto('/catalogo');
+    const articulos = page.locator('main a[href^="/articulos/"]');
+    const totalArticulos = await articulos.count();
+    for (let index = 0; index < totalArticulos && quizPath === null; index += 1) {
+      await page.goto('/catalogo');
+      await articulos.nth(index).click();
+      await expect(page.locator('article')).toBeVisible();
       const quizLink = page.getByRole('link', { name: 'Iniciar cuestionario' });
       if ((await quizLink.count()) > 0) {
         quizPath = await quizLink.getAttribute('href');
-        break;
       }
-      await page.goto('/catalogo');
-      const next = page.locator('main a[href^="/articulos/"]').nth(index);
-      if ((await next.count()) === 0) {
-        break;
-      }
-      await next.click();
-      await expect(page.locator('article')).toBeVisible();
     }
 
     if (quizPath === null) {
