@@ -78,10 +78,10 @@ MSYS_NO_PATHCONV=1 docker exec -i "$sim_cid" /usr/local/bin/fintcart-seed
 # flujo si difieren. Por eso se deriva aquí y no se copia de `dev/seed`, que registra la de
 # `localhost:4200`.
 log "registrando el cliente OAuth de la SPA (fintcart-spa) para el dominio del despliegue"
-DOMINIO="$(sed -n 's/^DOMAIN=//p' "$ENV_FILE" | head -1)
+DOMINIO="$(sed -n 's/^DOMAIN=//p' "$ENV_FILE" | head -1)"
+DATA_HOST="$(sed -n 's/^DATA_HOST=//p' "$ENV_FILE" | head -1)"
+PG_PASSWORD="$(sed -n 's/^PG_PASSWORD=//p' "$ENV_FILE" | head -1)"
 [[ -n "$DOMINIO" ]] || die "no hay DOMAIN en $ENV_FILE: no se puede saber qué redirect_uri registrar"
-DATA_HOST="$(sed -n 's/^DATA_HOST=//p' "$ENV_FILE" | head -1)
-PG_PASSWORD="$(sed -n 's/^PG_PASSWORD=//p' "$ENV_FILE" | head -1)
 [[ -n "$DATA_HOST" && -n "$PG_PASSWORD" ]] || die "faltan DATA_HOST o PG_PASSWORD en $ENV_FILE"
 
 # Se usa un contenedor con `psql` y no un cliente del anfitrión: el Principio XII deja claro
