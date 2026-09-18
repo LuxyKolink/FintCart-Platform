@@ -151,9 +151,27 @@ test.describe('administrador con sesión', () => {
 
     await page.goto('/admin/indicadores');
     await expect(page).toHaveURL(/\/admin\/indicadores/);
-    await expect(page.getByRole('heading', { name: 'Indicadores' })).toBeVisible();
-    // El sembrado deja el indicador del año (`@UVT`, entre otros): si la tabla no trae
-    // ninguna fila, o el sembrado no corrió o la pantalla no está leyendo la base.
-    await expect(page.locator('tbody tr').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Indicadores financieros' })).toBeVisible();
+
+    /**
+     * Los cinco del sembrado, POR NOMBRE —que es como los referencian las fórmulas (`@UVT`)
+     * y como los dibuja la pantalla— y no por la forma del marcado.
+     *
+     * La primera versión de esta prueba buscaba `tbody tr`, dando por hecho una tabla. La
+     * pantalla los pinta como tarjetas con encabezado, así que falló contra un despliegue
+     * que estaba perfectamente: los cinco, con su valor y «En curso». Es la misma lección
+     * del hallazgo 32 —una prueba que se inventa el marcado falla por su cuenta y señala al
+     * sitio equivocado—, y se arregla asertando lo que se ve, no cómo está hecho.
+     *
+     * Se comprueban los cinco y no uno: ver uno solo diría que la pantalla responde, no que
+     * el sembrado llegó completo.
+     */
+    for (const nombre of ['IPC', 'SMMLV', 'TASA_USURA', 'UVR', 'UVT']) {
+      await expect(
+        page.getByRole('heading', { name: nombre, exact: true }),
+        `el indicador ${nombre} del sembrado aparece en la administración`,
+      ).toBeVisible();
+    }
+    await expect(page.getByText('En curso').first(), 'y con su vigencia abierta').toBeVisible();
   });
 });
