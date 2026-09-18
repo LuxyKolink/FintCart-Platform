@@ -1093,3 +1093,45 @@ construcción, (1) se comprueba que `npx playwright --version` devuelve la esper
 que el paquete y el navegador de la imagen se entienden, que es justo lo que un desajuste de
 versiones rompe. Construir la imagen en la máquina pasó de «descarga lo que pille» a una
 afirmación comprobada.
+
+---
+
+## Hallazgo 35 — La prueba de solo lectura reinició un servicio de producción
+
+**Qué pasaba**: después de una pasada del humo, `docker ps` mostraba `learning` «Up 19 seconds»
+cuando llevaba once horas en pie. El registro de eventos de Docker lo confirmó sin ambigüedad: en
+el segundo exacto de la ejecución, el contenedor antiguo se renombró (`78cc0718d32d_…`), se mató y
+se creó uno nuevo. La causa estaba en el propio guion: `docker compose run --build` —al
+reconstruir imágenes del proyecto, Compose recrea los servicios cuya imagen cambió—.
+
+**Por qué importa**: el humo promete ser de solo lectura y hasta aquí lo era *en la base de
+datos*; en la máquina, en cambio, estaba reiniciando un servicio del despliegue. En una máquina de
+4 GB con las nueve piezas de pie, un reinicio no pedido no es una anécdota: es una caída durante
+el tiempo de arranque, y el operador no tiene forma de saber que la causó una prueba.
+
+**Arreglo**: la imagen de la suite se construye aparte y **solo ella** (`compose build e2e` no
+toca dependencias; eso exige `--with-dependencies`). Verificado comparando los identificadores de
+los diez contenedores antes y después de una pasada: **idénticos**.
+
+**La lección, que es más general**: «solo lectura» hay que decirlo del sistema entero, no solo de
+los datos. Un comando de prueba que reconstruye, reinicia o reconcilia el despliegue no es un
+comando de prueba.
+
+---
+
+## Hallazgo 36 — Las capturas del humo quedaban como root y su dueño no podía borrarlas
+
+**Qué pasaba**: todo lo que la suite escribe —capturas, rastros, el JSON de la última pasada—
+cae en `deploy/vps/e2e-results/`, una carpeta del anfitrión montada desde el contenedor. El
+contenedor corría como root, así que esos ficheros quedaban como root: al borrar la carpeta, el
+`rm -rf` del operador falló con «Permission denied» sobre el `.last-run.json` que había escrito la
+pasada anterior, y hubo que recurrir a `sudo`.
+
+**Por qué importa**: una prueba que deja basura que su dueño no puede borrar es una prueba que se
+deja de ejecutar —y, peor, la que se ejecuta «un poco sucia» deja de ser reproducible—. Nadie
+ejecuta a gusto algo que exige `sudo` para limpiarse.
+
+**Arreglo**: el contenedor corre con el uid del operador (1000 por defecto, el mismo que la imagen
+oficial usa para `pwuser`; `E2E_UID`/`E2E_GID` lo ajustan) y la carpeta de resultados se crea en la
+construcción con permiso de escritura. Verificado: las capturas nuevas salen con uid 1000 y el
+`rm -rf` funciona sin `sudo`.
