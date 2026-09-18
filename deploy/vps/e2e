@@ -59,8 +59,18 @@ mkdir -p "$SCRIPT_DIR/e2e-results"
 log "humo del despliegue contra ${E2E_BASE_URL}"
 log "las capturas y los rastros de un fallo quedan en deploy/vps/e2e-results"
 
+# La imagen de la suite se construye APARTE, y solo ella (hallazgo 35).
+#
+# NO se usa `run --build`: al reconstruir imágenes del proyecto, Compose recrea los servicios
+# cuya imagen cambió, así que una pasada del humo reinició `learning` en producción —una
+# prueba de solo lectura tocando un servicio por el camino—. `build e2e` construye únicamente
+# ese servicio (las dependencias solo entran con `--with-dependencies`), así que esto no puede
+# salirse del contenedor de pruebas.
+log "imagen de la suite (solo se rehace si sus fuentes cambiaron)"
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" --profile e2e build e2e
+
 # `run --rm` y no `up`: esto es una ejecución de un solo uso, y su contenedor se va con
 # ella. El comando se escribe entero —y no se deja que los argumentos lo sustituyan— para
 # que `deploy/vps/e2e --list` o `--grep` sigan siendo argumentos de Playwright.
 exec docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" --profile e2e \
-  run --rm --build e2e npx playwright test --config=playwright.prod.config.ts "$@"
+  run --rm e2e npx playwright test --config=playwright.prod.config.ts "$@"
