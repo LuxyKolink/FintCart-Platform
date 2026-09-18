@@ -490,6 +490,22 @@ primera se queda como aprendiz; el correo de la segunda va en `BOOTSTRAP_ADMIN_E
 (Ojo: **`restart` no sirve**. Reiniciar un contenedor lo arranca otra vez con las variables que ya tenía, así que no relee `.env.app`: hay que **recrearlo** con `up -d`, que sí las vuelve a leer. Costó media hora y quedó como hallazgo 43. A partir de
 ahí, `autenticado.spec.ts` inicia sesión con ellas y no vuelve a tocar el registro.
 
+**La parte editorial** —borradores, revisión y publicación— necesita además un `editor` y un
+`coordinador_editorial`. Esos dos roles **no se conceden por la API**, y es a propósito: un
+endpoint que permitiera auto-concederse `coordinador_editorial` anularía la separación de
+responsabilidades de FR-008. Se conceden por consola, contra la base de Usuarios, en la máquina
+de datos:
+
+```bash
+deploy/vps/rol usuario+editor@… editor
+deploy/vps/rol usuario+coordinador@… coordinador_editorial
+```
+
+El rol concedido **no va en el token ya emitido**: hay que volver a iniciar sesión para que el SPA
+lo vea. Y el rol `administrador` NO hereda estas atribuciones (FR-082, otra vez a propósito), así
+que para abrir la bandeja de revisión hace falta el `coordinador_editorial`, no el de
+administración.
+
 Esas cuatro credenciales se le pasan al humo por entorno (para el guion, en `.env.app`):
 
 ```bash
@@ -497,9 +513,19 @@ E2E_USUARIO_EMAIL=usuario+aprendiz@…
 E2E_USUARIO_PASSWORD=…
 E2E_ADMIN_EMAIL=usuario+admin@…
 E2E_ADMIN_PASSWORD=…
+E2E_EDITOR_EMAIL=usuario+editor@…
+E2E_EDITOR_PASSWORD=…
+E2E_COORDINADOR_EMAIL=usuario+coordinador@…
+E2E_COORDINADOR_PASSWORD=…
 ```
 
-**Sin ellas no se cae nada**: esas tres pruebas se saltan y lo dicen con todas las letras
+Las cuatro últimas son para `editorial.spec.ts`, que comprueba el camino que va del rol concedido
+a la pantalla que lo exige: que el coordinador abra la bandeja de revisión y que al editor, que sí
+tiene sus borradores, el guard lo devuelva al catálogo cuando escribe `/editorial/revision` a
+mano. Sin esa segunda mitad, «tiene el rol» y «el rol limita algo» serían lo mismo. Esa parte **no
+publica nada**: entra, mira y cierra.
+
+**Sin ellas no se cae nada**: esas pruebas se saltan y lo dicen con todas las letras
 («sin E2E_USUARIO_EMAIL: la parte autenticada NO se comprobó»). Un salto ahí no significa que
 no hiciera falta comprobarlo, significa que no se comprobó — por eso el mensaje nombra la
 variable y este apartado.
@@ -509,8 +535,10 @@ prueba, que es justo lo que hace un usuario de verdad al usar el simulador; la c
 administración solo lee. No registra a nadie, no publica contenido y no borra nada.
 
 **Lo que sigue sin cubrirse desde el despliegue**, para que no se lea como cubierto: los
-recorridos completos de US1–US4 y la limpieza de datos son de `frontend/e2e/` contra la pila
-de desarrollo (59 pruebas). Este humo comprueba que el despliegue está **en pie**, no que la
+recorridos completos de US1–US4 —con sus estados intermedios, la reversión de la saga de
+publicación, la curaduría de calculadoras y la limpieza de datos— son de `frontend/e2e/` contra la
+pila de desarrollo (59 pruebas). El camino editorial que sí está aquí es el de arriba: el rol, el
+guard y la pantalla, no el ciclo de vida entero de un artículo. Este humo comprueba que el despliegue está **en pie**, no que la
 plataforma esté bien: eso lo comprobaron las 59 pruebas antes de subirla.
 
 ## Redesplegar tras un cambio de código

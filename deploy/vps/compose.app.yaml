@@ -229,6 +229,13 @@ services:
       E2E_USUARIO_PASSWORD: "${E2E_USUARIO_PASSWORD:-}"
       E2E_ADMIN_EMAIL: "${E2E_ADMIN_EMAIL:-}"
       E2E_ADMIN_PASSWORD: "${E2E_ADMIN_PASSWORD:-}"
+      # El par editorial, para `editorial.spec.ts`: el rol concedido con `deploy/vps/rol` no
+      # viaja en el token ya emitido, así que esta parte inicia sesión desde cero y comprueba
+      # que el guard deja al coordinador entrar en la revisión y devuelve al editor al catálogo.
+      E2E_EDITOR_EMAIL: "${E2E_EDITOR_EMAIL:-}"
+      E2E_EDITOR_PASSWORD: "${E2E_EDITOR_PASSWORD:-}"
+      E2E_COORDINADOR_EMAIL: "${E2E_COORDINADOR_EMAIL:-}"
+      E2E_COORDINADOR_PASSWORD: "${E2E_COORDINADOR_PASSWORD:-}"
     depends_on:
       frontend: { condition: service_started }
       api-gateway: { condition: service_started }

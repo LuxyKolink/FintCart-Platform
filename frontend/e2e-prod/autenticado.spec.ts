@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { cuenta, entrar } from './support/sesion';
 
 /**
  * Parte AUTENTICADA del humo del despliegue (T173).
@@ -25,31 +26,13 @@ import { expect, test } from '@playwright/test';
  * línea de cada salto nombra la variable y el apartado del README.
  */
 
-const APRENDIZ = {
-  email: process.env['E2E_USUARIO_EMAIL'] ?? '',
-  password: process.env['E2E_USUARIO_PASSWORD'] ?? '',
-};
-
-const ADMIN = {
-  email: process.env['E2E_ADMIN_EMAIL'] ?? '',
-  password: process.env['E2E_ADMIN_PASSWORD'] ?? '',
-};
+const APRENDIZ = cuenta('USUARIO');
+const ADMIN = cuenta('ADMIN');
 
 const FALTA_APRENDIZ =
   'sin E2E_USUARIO_EMAIL / E2E_USUARIO_PASSWORD: la parte autenticada NO se comprobó (ver deploy/vps/README.md §7)';
 const FALTA_ADMIN =
   'sin E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD: la administración NO se comprobó (ver deploy/vps/README.md §7)';
-
-async function entrar(
-  page: import('@playwright/test').Page,
-  cuenta: { email: string; password: string },
-): Promise<void> {
-  await page.goto('/iniciar-sesion');
-  await page.getByLabel('Correo electrónico').fill(cuenta.email);
-  await page.getByLabel('Contraseña').fill(cuenta.password);
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await expect(page).toHaveURL(/\/catalogo/);
-}
 
 test.describe('aprendiz con sesión', () => {
   test.beforeEach(() => {
