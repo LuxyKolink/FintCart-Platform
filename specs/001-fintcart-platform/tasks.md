@@ -270,7 +270,16 @@ notificaciones.
 - El Frontend no puede leer variables de entorno una vez compilado. En lugar de hornear
   `API_BASE_URL` en el build —que daría una imagen distinta por entorno, y entonces lo
   desplegado no sería lo probado—, `frontend/Dockerfile` escribe `config.js` al arrancar
-  el contenedor. `angular.json` todavía no existe, así que la ruta de salida
+  el contenedor.
+  **CORRECCIÓN (hallazgo 39, 2026-09-18)**: esto decía la verdad a medias y se apuntó como
+  hecho completo. Se implementó la mitad del SERVIDOR —el contenedor escribe el fichero y
+  nginx lo sirve, con su `location` propia— y faltaba la del CLIENTE: ni `index.html` lo
+  cargaba ni nada leía `window.__FINTCART_CONFIG__`, así que el bundle usaba el valor
+  compilado (`/v1`) y toda llamada al API acababa en nginx (`405 Not Allowed` a un POST).
+  Apareció al intentar registrar una cuenta en el despliegue del colegio, no en las pruebas:
+  la suite comprobaba que el fichero SE SIRVE, y nadie miraba el cableado. Ahora existe
+  (`frontend/src/config.js`, el `<script>` en `index.html` y la aplicación en `main.ts`) y hay
+  una prueba del humo que navega, envía el formulario y comprueba a dónde va la petición. `angular.json` todavía no existe, así que la ruta de salida
   (`dist/*/browser` en Angular 17+) se resuelve en el build en vez de codificarse.
 
 ### Migraciones base (Principio XI)

@@ -207,9 +207,21 @@ Con los servicios ya levantados, una vez por entorno:
 ./seed
 ```
 
-Siembra las **siete calculadoras por defecto** de FR-019 y los **indicadores del año en
-curso**. No es contenido de adorno: sin las semillas, `GET /calculators` no devuelve nada y
-`gmf` no puede calcular, porque depende del indicador `@UVT`.
+Siembra tres cosas, y ninguna es adorno:
+
+- las **siete calculadoras por defecto** de FR-019 —sin ellas `GET /calculators` no devuelve
+  nada, y `gmf` no puede calcular porque depende del indicador `@UVT`;
+- los **indicadores del año en curso**, con valores de EJEMPLO;
+- el **cliente OAuth de la SPA** (`fintcart-spa`), con la `redirect_uri` de **este** dominio.
+
+Ese tercero se añadió por el **hallazgo 40**: en el primer despliegue la tabla `oauth_clients`
+quedaba vacía, así que una cuenta se podía registrar y verificar, pero **al iniciar sesión el
+servidor de autenticación no reconocía al cliente y era imposible entrar**. La plataforma se veía
+en pie —el SPA cargaba, el catálogo público respondía— y solo fallaba al intentar usarla.
+
+La `redirect_uri` sale del `DOMAIN` de `.env.app` y **tiene que ser la misma** que
+`frontend/Dockerfile` escribe en `config.js`: el servidor compara ambas y rechaza el flujo si
+difieren. Al cambiar de dominio, se vuelve a sembrar (`ON CONFLICT DO UPDATE` la corrige).
 
 Va **después** de `./migrate`, y el orden no es una formalidad: el sembrado escribe en
 tablas que las migraciones crean. Además, a partir de T098 el Simulador resuelve la
@@ -589,6 +601,37 @@ Comprobado el 18 de septiembre: por el dominio público y desde fuera del campus
 `/api/calculators` responden **200**, y el humo del despliegue pasa **7/7 desde casa y 7/7 desde
 la máquina** (ver §7). El certificado que se sirve hoy es el de la autoridad interna de Caddy,
 porque los validadores de Let's Encrypt no pueden entrar.
+
+## Si el SPA se ve pero no funciona nada: `405 Not Allowed` de nginx
+
+Síntoma: la plataforma carga, las pantallas se ven, y cualquier acción que llame al API
+—registrarse, entrar, listar— devuelve `405 Not Allowed` con la firma de nginx.
+
+Significa que el SPA está pidiendo a una ruta que **no pasa por el borde** y Caddy se la entrega
+al frontend, que responde `405` a un POST contra un fichero estático (y `200` con HTML a un GET,
+que es aún más silencioso). La causa es la configuración de tiempo de ejecución: el paquete usa
+el valor compilado (`/v1`) en lugar del que sirve `/config.js`.
+
+Comprobaciones, en orden:
+
+```bash
+# 1) ¿Qué sirve el borde?
+curl -s https://<dominio>/config.js        # debe traer apiBaseUrl y oauth
+
+# 2) ¿Lo carga el SPA? Debe aparecer un <script src="/config.js"> en el índice
+curl -s https://<dominio>/ | grep config.js
+
+# 3) ¿La petición va al API del propio origen? (401 del borde = bien; 405 de nginx = mal)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<dominio>/api/auth/register \
+  -H 'Content-Type: application/json' -d '{}'   # 400 = borde · 405 = nginx · 404 = ruta mal
+```
+
+Lo cubre el humo (`deploy/vps/e2e`), con una prueba que navega y comprueba **a dónde va la
+petición**, no solo el contenido del fichero: ese fue el hueco por el que se escapó este fallo
+(hallazgo 39).
+
+Si se cambia `DOMAIN`, hay que **recrear el frontend**: `config.js` se escribe al arrancar el
+contenedor.
 
 ## El `git pull` de la máquina no basta para los ficheros montados
 

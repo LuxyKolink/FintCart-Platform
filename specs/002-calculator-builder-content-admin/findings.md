@@ -1182,3 +1182,82 @@ después de un `git pull`. Los servicios con el código horneado en la imagen no
 —cambia el identificador de la imagen y Compose los recrea solo—, pero los ficheros montados
 (`Caddyfile`, y cualquier otro `:ro`) sí. La trampa es silenciosa: `up -d` dice que todo está
 «up-to-date» mientras el contenedor corre una configuración que ya no está en el repositorio.
+
+---
+
+## Hallazgo 39 — La configuración de tiempo de ejecución tenía solo la mitad, y la prueba miraba el fichero y no el cableado
+
+**Qué pasaba**: al intentar registrar una cuenta en el despliegue del colegio, la pantalla
+devolvía **`405 Not Allowed` de nginx**. La causa no estaba en el registro: la configuración de
+tiempo de ejecución estaba implementada **a medias**. Existía la mitad del servidor —
+`frontend/Dockerfile` escribía `config.js` al arrancar el contenedor y nginx lo servía, con su
+`location` propia y su comentario explicando por qué vive fuera del árbol estático— y faltaba la
+del cliente: **no había ni una referencia a `window.__FINTCART_CONFIG__` en todo el SPA** y el
+`index.html` no lo cargaba. El bundle usaba el valor compilado, `apiBaseUrl: '/v1'` —un
+marcador en `environment.ts`—, así que cada llamada al API salía hacia `/v1/...`; Caddy no tiene
+nada para esa ruta, caía al `handle` del frontend y nginx respondía `405` a un POST sobre un
+fichero estático (y `200` con HTML a un GET, que es todavía más silencioso).
+
+**Por qué no lo cazó nadie**: la prueba del humo comprobaba que el borde **sirve** `/config.js`
+y que su contenido apunta al API del propio dominio —y eso lo hacía bien, el fichero estaba
+impecable—. Lo que no miraba era el **cableado**: que el SPA lo use. Un fichero de configuración
+correcto que nadie lee es indistinguible de no tenerlo, y la prueba pasaba en verde igual. Se
+descubrió usándolo.
+
+**Arreglo**: `frontend/src/config.js` (valor de desarrollo, servido por el servidor de
+desarrollo), el `<script src="/config.js">` en `index.html` antes del bundle, y la aplicación en
+`main.ts` antes de `bootstrapApplication` —fuera de un `APP_INITIALIZER`, para que ningún
+servicio pueda construirse antes— tolerando que el fichero no exista. El `config.js` del
+contenedor lleva además el cliente OAuth, con la `redirect_uri` derivada del dominio (el
+`environment.ts` compilado apuntaba a `https://app.fintcart.co`, que no es este despliegue).
+
+**La prueba que faltaba** es la que importa: navega, envía el formulario de acceso con una
+cuenta que no existe —no crea nada— y comprueba **a dónde va la petición y quién responde**:
+`POST {origen}/api/oauth/authorize` con `401` del borde. Eso distingue el `405` de nginx (el SPA
+no pasa por el borde), el `404` del borde (ruta equivocada) y el `401` (correcto). Se añade la
+misma comprobación sobre `POST /api/auth/register`, que es por donde salió el fallo.
+
+**Y una errata de nombre que casi lo repite**: el contenedor escribe `__FINTCART_CONFIG__` y el
+código nuevo que escribí leía `__FINTICART_CONFIG__` —un guion bajo de diferencia—. Lo delató el
+editor al no encontrar el texto, no una prueba: con el nombre equivocado el SPA habría arrancado
+igual, con el valor compilado, y el fallo habría sido idéntico al de arriba.
+
+---
+
+## Hallazgo 40 — El despliegue no tenía cliente OAuth: nadie podía iniciar sesión
+
+**Qué pasaba**: la tabla `oauth_clients` de la base desplegada estaba **vacía**. `dev/seed`
+registra el cliente de la SPA (`fintcart-spa`) desde el primer día, y el sembrado del despliegue
+no lo hacía: solo escribía las calculadoras y los indicadores. Se podía registrar una cuenta y
+verificar el correo, pero al iniciar sesión el servidor de autenticación no reconocía al cliente
+y el flujo era imposible.
+
+**Por qué importa**: es el mismo error de diseño que el hallazgo 17 —«El sembrado escribe lo que
+la plataforma necesita para FUNCIONAR»—, repetido en otra tabla. El sembrado del despliegue se
+escribió pensando en «los datos de producto» (calculadoras, indicadores) y dejó fuera un dato de
+infraestructura sin el cual no hay sesión. Y como la plataforma se ve en pie —el SPA carga, el
+catálogo público responde—, no parece roto hasta que alguien intenta entrar.
+
+**Arreglo**: `deploy/vps/seed` registra el cliente con la `redirect_uri` **derivada del dominio**
+del despliegue (`https://<dominio>/auth/callback`), que es exactamente la que
+`frontend/Dockerfile` escribe en `config.js`: el servidor compara ambas y rechaza el flujo si
+difieren, así que las dos salen del mismo sitio. `ON CONFLICT DO UPDATE` sobre `redirect_uris`,
+para que un cambio de dominio se corrija al volver a sembrar.
+
+---
+
+## Hallazgo 41 — `SMTP_PASSWORD` con espacios rompe `source .env.app`
+
+**Qué pasaba**: al cargar el entorno con `set -a && . ./.env.app` para una consulta puntual, la
+shell intentaba ejecutar un trozo de la contraseña: `./.env.app: line 33: qafu: command not
+found`. La contraseña de aplicación de Gmail se pega con espacios —Google los ignora— y en un
+fichero de entorno eso convierte el resto de la línea en una orden.
+
+**Por qué importa poco y por qué se registra igual**: con `docker compose --env-file` no pasa
+nada, porque Compose lee el fichero sin shell y conserva el valor entero —y por eso el correo
+funciona—. Pero cualquiera que haga `source .env.app` para una comprobación manual se encuentra
+un error que no menciona la contraseña ni el fichero. Pasó tres veces en esta sesión.
+
+**Arreglo recomendado** (no aplicado, para no tocar credenciales en caliente): entrecomillar el
+valor (`SMTP_PASSWORD="…"`), que Compose acepta y quita las comillas. O, mejor, pegar la
+contraseña sin espacios: Google los ignora igual.
