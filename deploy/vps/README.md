@@ -433,7 +433,32 @@ verdad y se llenaba de intentos la base de datos de producción.
 
 Por eso hay una segunda suite, la del **despliegue**, que comprueba lo que solo existe una vez
 desplegado (el borde, el paquete construido, el certificado, la redirección de las rutas
-protegidas y el contrato del sembrado) y **no escribe nada**:
+protegidas y el contrato del sembrado) y **no escribe nada**.
+
+**Se puede lanzar de dos maneras, y conviene saber qué comprueba cada una:**
+
+**a) Como pieza del despliegue, dentro de la máquina de aplicación** (lo normal aquí):
+
+```bash
+# En pg_fintcart (aplicación):
+cd ~/fintcart-platform
+deploy/vps/e2e                 # contra el dominio de .env.app
+E2E_BASE_URL=http://frontend:8080 deploy/vps/e2e   # la pila por dentro, sin Caddy de por medio
+```
+
+Es un servicio del `compose.app.yaml` bajo el perfil `e2e` —no arranca con `up`, solo existe
+cuando se pide— con su imagen (`deploy/vps/Dockerfile.e2e`, navegadores incluidos) y sus
+capturas en `deploy/vps/e2e-results/`. La máquina **no** necesita Node ni Playwright
+instalados: nada de eso queda en ella.
+
+Dos detalles que cuestan un rato si no se saben: la imagen oficial de Playwright trae los
+navegadores pero **no** el paquete de Node, así que la versión se instala fija en la imagen y
+se comprueba arrancando un navegador en la construcción (si divergen, se ve al construir, no
+al ejecutar el primer test); y `deploy/vps/e2e` no se construye desde el repositorio de una
+máquina sin red, sino en la propia máquina (tarda ~2 min la primera vez).
+
+**b) Desde cualquier máquina con Node y Playwright** (útil para comprobar el despliegue desde
+fuera, que es el camino real del usuario: DNS, Caddy, certificado, enrutado de `/api/*`):
 
 ```bash
 cd frontend
@@ -451,6 +476,29 @@ primera se queda como aprendiz; el correo de la segunda va en `BOOTSTRAP_ADMIN_E
 `docker compose -f compose.app.yaml restart users` recibe el rol `administrador`. A partir de
 ahí, `autenticado.spec.ts` inicia sesión con ellas y no vuelve a tocar el registro.
 
+Esas cuatro credenciales se le pasan al humo por entorno (para el guion, en `.env.app`):
+
+```bash
+E2E_USUARIO_EMAIL=usuario+aprendiz@…
+E2E_USUARIO_PASSWORD=…
+E2E_ADMIN_EMAIL=usuario+admin@…
+E2E_ADMIN_PASSWORD=…
+```
+
+**Sin ellas no se cae nada**: esas tres pruebas se saltan y lo dicen con todas las letras
+(«sin E2E_USUARIO_EMAIL: la parte autenticada NO se comprobó»). Un salto ahí no significa que
+no hiciera falta comprobarlo, significa que no se comprobó — por eso el mensaje nombra la
+variable y este apartado.
+
+**Lo único que escribe** el humo autenticado es la simulación que ejecuta el usuario de
+prueba, que es justo lo que hace un usuario de verdad al usar el simulador; la cuenta de
+administración solo lee. No registra a nadie, no publica contenido y no borra nada.
+
+**Lo que sigue sin cubrirse desde el despliegue**, para que no se lea como cubierto: los
+recorridos completos de US1–US4 y la limpieza de datos son de `frontend/e2e/` contra la pila
+de desarrollo (59 pruebas). Este humo comprueba que el despliegue está **en pie**, no que la
+plataforma esté bien: eso lo comprobaron las 59 pruebas antes de subirla.
+
 ## Redesplegar tras un cambio de código
 
 ```bash
@@ -463,6 +511,12 @@ docker compose -f compose.app.yaml --env-file .env.app up -d
 
 Las migraciones (`./migrate` en `pg_fintcart2`) solo hace falta repetirlas cuando el
 cambio añade una nueva bajo `services/*/migrations/`.
+
+El árbol de `~/fintcart-platform` es un **clon del repositorio** (público, por HTTPS), no una
+copia suelta: `git pull` funciona, y así lo que corre en la máquina se puede comparar con lo
+que dice el repositorio (`git -C ~/fintcart-platform log --oneline -1`). Los ficheros de
+entorno (`.env.app`, `.env.data`) no están versionados —viven solo aquí— y `git pull` no los
+toca.
 
 El sembrado (`./seed` en `pg_fintcart`) hay que repetirlo cuando el cambio toca las
 **definiciones semilla** de `services/simulator/src/domain/seeds/`. No es por prudencia:

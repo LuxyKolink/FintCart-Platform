@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# deploy/vps/e2e — humo del DESPLIEGUE, ejecutado DENTRO de la máquina de aplicación.
+#
+# Qué es y qué no es
+# ------------------
+# Comprueba que el despliegue está EN PIE: que el borde sirve la configuración del
+# frontend apuntando a su propio dominio, que el paquete construido arranca sin quejarse,
+# que las rutas protegidas redirigen, que el catálogo público trae las siete calculadoras
+# del sembrado, que la taxonomía responde y que la pantalla de acceso es accesible. Todo
+# son lecturas: se puede repetir mil veces sin dejar rastro en la base de datos.
+#
+# NO sustituye a la suite de desarrollo (`frontend/e2e/`, 59 pruebas). Aquella necesita
+# MailHog para leer los correos de verificación —aquí el correo sale por SMTP de verdad— y
+# sus recorridos ESCRIBEN: registrarían usuarios reales y llenarían de intentos la base de
+# producción. Son dos entornos con dos contratos de prueba distintos (ver `README.md` §7).
+#
+# Por qué existe esta pieza (T173)
+# --------------------------------
+# El humo nació lanzándose desde fuera, contra el dominio público, que es la comprobación
+# más honesta que hay —es lo que ve un usuario— pero deja la suite fuera del despliegue:
+# depende de que alguien tenga a mano un portátil con Node y Playwright. Aquí pasa a ser
+# una pieza más del despliegue: un servicio bajo el perfil `e2e` de `compose.app.yaml`, con
+# su imagen (navegadores incluidos) y este guion, para que se pueda ejecutar desde la
+# máquina y sin instalar nada en ella.
+#
+# Los dos caminos son válidos y comprueban cosas distintas:
+#   * por el dominio público (lo que hace este guion por defecto) se prueba de verdad el
+#     camino del usuario: DNS, Caddy, certificado, enrutado de `/api/*`;
+#   * con `E2E_BASE_URL=http://frontend:8080` se prueba la pila por dentro, sin Caddy de
+#     por medio, que es útil para separar un fallo del borde de un fallo del servicio.
+#
+# Uso (en la máquina de APLICACIÓN):
+#   deploy/vps/e2e                    # contra el dominio de .env.app
+#   deploy/vps/e2e --list             # solo lista lo que correría
+#   E2E_BASE_URL=http://frontend:8080 deploy/vps/e2e
+#
+# La parte autenticada (catálogo de artículos, lectura, simulador y administración) se
+# salta sola —diciendo qué falta— si no le pasas cuentas ya verificadas, que se crean una
+# vez por operador (ver `README.md` §7, y las variables E2E_* en el servicio `e2e`).
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env.app"
+COMPOSE_FILE="$SCRIPT_DIR/compose.app.yaml"
+
+log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+die()  { printf '\033[1;31merror\033[0m %s\n' "$*" >&2; exit 1; }
+
+[ -f "$ENV_FILE" ] || die "falta $ENV_FILE (cópialo de .env.app.example y rellénalo)"
+
+# El dominio sale del mismo sitio que para Caddy: si el despliegue cambia de nombre, el
+# humo apunta al nuevo sin que nadie se acuerde de una segunda variable.
+DOMINIO="$(sed -n 's/^DOMAIN=//p' "$ENV_FILE" | head -1)"
+export E2E_BASE_URL="${E2E_BASE_URL:-https://${DOMINIO}}"
+[ -n "${DOMINIO}" ] || [ -n "${E2E_BASE_URL:-}" ] || die "no hay DOMAIN en .env.app ni E2E_BASE_URL en el entorno"
+
+mkdir -p "$SCRIPT_DIR/e2e-results"
+
+log "humo del despliegue contra ${E2E_BASE_URL}"
+log "las capturas y los rastros de un fallo quedan en deploy/vps/e2e-results"
+
+# `run --rm` y no `up`: esto es una ejecución de un solo uso, y su contenedor se va con
+# ella. El comando se escribe entero —y no se deja que los argumentos lo sustituyan— para
+# que `deploy/vps/e2e --list` o `--grep` sigan siendo argumentos de Playwright.
+exec docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" --profile e2e \
+  run --rm --build e2e npx playwright test --config=playwright.prod.config.ts "$@"

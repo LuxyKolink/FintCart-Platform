@@ -1,0 +1,57 @@
+# Suite de humo del DESPLIEGUE, ejecutada dentro de la máquina de aplicación (T173).
+#
+# POR QUÉ UN CONTENEDOR Y NO PLAYWRIGHT INSTALADO EN LA MÁQUINA:
+#
+# 1. Los navegadores. La imagen oficial trae Chromium y sus dependencias del sistema ya
+#    instaladas, y la etiqueta FIJA el binario: la suite no puede empezar a fallar porque
+#    alguien actualizó el navegador de la máquina. Instalarlo a mano exigiría
+#    `playwright install-deps` (paquetes del sistema, con sudo) y quedaría atado a que
+#    alguien lo recuerde en la próxima máquina.
+# 2. El aislamiento. El humo se va con su contenedor: no deja en la máquina de aplicación
+#    ni un Node, ni un navegador, ni una caché de 500 MB compitiendo por 4 GB de RAM.
+# 3. La red. Corriendo dentro de la red de Compose puede comprobar también la pila por
+#    dentro, servicio a servicio, que es algo que desde fuera no se ve.
+#
+# OJO CON LO QUE **NO** TRAE LA IMAGEN (hallazgo 34): los navegadores sí, el paquete de
+# Node NO. `npx playwright` dentro de la imagen se lo descarga de la red —y en la versión
+# más nueva, que no es la que usa el frontend—, así que la versión se instala aquí, fija, y
+# se comprueba arrancando un navegador de verdad. Sin esa comprobación, el humo podría
+# estar corriendo con otro motor que el de las 59 pruebas de desarrollo y nadie lo sabría.
+FROM mcr.microsoft.com/playwright:v1.62.0-jammy
+
+WORKDIR /e2e
+
+# La versión de aquí y la de `frontend/package.json` (`@playwright/test`) son la misma cosa
+# dicha en dos sitios: si se actualiza allí, se actualiza aquí. La etiqueta de la imagen
+# trae los navegadores de esta versión (chromium-1234, el mismo que usa la suite local).
+ARG PLAYWRIGHT_VERSION=1.62.0
+
+# El paquete, en versión fija. Sin `frontend/package.json` ni `npm ci`: el humo no compila
+# Angular —ni falta que le hace— y arrastrar el árbol del frontend entero costaría más de
+# un giga para ejecutar siete comprobaciones. `--no-package-lock` porque este no es el
+# proyecto Angular y un fichero de cierre suelto aquí solo invitaría a confusiones.
+RUN printf '{"name":"fintcart-humo","private":true,"devDependencies":{"@playwright/test":"%s"}}\n' \
+      "${PLAYWRIGHT_VERSION}" > package.json \
+ && npm install --no-audit --no-fund --no-package-lock \
+ && test "$(npx playwright --version | awk '{print $2}')" = "${PLAYWRIGHT_VERSION}" \
+    || { echo "Se esperaba Playwright ${PLAYWRIGHT_VERSION} y hay otro: revisar ARG/etiqueta"; exit 1; }
+
+# Comprobación que vale por sí sola: que el paquete y el navegador de la imagen SE ENTIENDAN.
+# Playwright espera un binario concreto por versión, así que un desajuste entre la etiqueta
+# de la imagen y la versión del paquete no se ve al instalar, sino al lanzar el primer test.
+RUN node -e "require('@playwright/test').chromium.launch().then(b => b.close()).then(() => console.log('chromium: arranca'))"
+
+# Lo que la suite necesita: la configuración de producción, el humo y el soporte compartido
+# (`e2e/support/a11y.ts`, la barrera de accesibilidad de 003 que el humo reutiliza).
+COPY frontend/playwright.prod.config.ts ./
+COPY frontend/e2e-prod ./e2e-prod
+COPY frontend/e2e/support ./e2e/support
+
+# `E2E_BASE_URL` NO tiene valor por defecto a propósito (ver `playwright.prod.config.ts`):
+# el operador dice explícitamente contra qué lanza el humo, y así no puede pasar en verde
+# contra la máquina equivocada.
+ENV E2E_TLS_ESTRICTO=false
+
+# `--config` explícito: dentro del contenedor no hay `playwright.config.ts` de desarrollo,
+# pero dejarlo escrito evita que un día lo haya y la suite corra contra `localhost`.
+CMD ["npx", "playwright", "test", "--config=playwright.prod.config.ts"]

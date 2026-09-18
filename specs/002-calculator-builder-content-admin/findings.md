@@ -1068,3 +1068,28 @@ procedimiento: **la ejecución que demuestra cobertura completa es la de una pil
 (`dev/down --volumes && dev/up && dev/migrate && dev/seed`), que ya está documentada como paso
 previo a cualquier demostración. En una pila limpia el primer artículo del catálogo es el que
 trae cuestionario y el paso se ejecuta.
+
+---
+
+## Hallazgo 34 — La imagen oficial de Playwright trae los navegadores, no el paquete
+
+**Qué pasaba**: al meter la suite del despliegue en un contenedor (`deploy/vps/Dockerfile.e2e`,
+T173) se dio por hecho que la imagen oficial `mcr.microsoft.com/playwright` trae Playwright
+instalado, además de los navegadores. **No lo trae**: `npx playwright --version` dentro de la
+imagen no encontró el paquete y **se lo descargó de la red, en la versión más nueva** (1.63.0,
+cuando el frontend tiene la 1.62.0). El humo habría corrido con otro motor que las 59 pruebas
+de desarrollo, y el desajuste no se habría visto al construir sino al lanzar el primer test,
+con un error de navegador que no dice nada de versiones.
+
+**Por qué importa**: `npx` resolviendo «lo último» dentro de una imagen que se cree fija es la
+forma más silenciosa de perder la reproducibilidad: mismo Dockerfile, mismas capas, y de pronto
+otro motor. Y aquí las dos versiones están relacionadas de verdad —Playwright espera el binario
+`chromium-1234` que trae la etiqueta de la imagen—, así que el desacople se paga en fallos
+raros.
+
+**Arreglo**: la versión se instala **fija** (`@playwright/test@1.62.0`) y, en la misma
+construcción, (1) se comprueba que `npx playwright --version` devuelve la esperada y (2) se
+**arranca un Chromium de verdad** (`chromium.launch()`). Lo segundo vale por sí solo: demuestra
+que el paquete y el navegador de la imagen se entienden, que es justo lo que un desajuste de
+versiones rompe. Construir la imagen en la máquina pasó de «descarga lo que pille» a una
+afirmación comprobada.

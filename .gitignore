@@ -44,6 +44,9 @@ coverage/
 
 # Playwright
 test-results/
+# Capturas y rastros del humo del despliegue: se montan desde el contenedor
+# (`deploy/vps/compose.app.yaml`), y son evidencia de un fallo, no fuente.
+deploy/vps/e2e-results/
 playwright-report/
 blob-report/
 .playwright/

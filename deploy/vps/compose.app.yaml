@@ -183,6 +183,46 @@ services:
     depends_on:
       api-gateway: { condition: service_started }
 
+  # ── Suite de humo del DESPLIEGUE (T173) ────────────────────────────────────────────────
+  #
+  # NO arranca con `up`: vive bajo el perfil `e2e`, así que solo existe cuando se pide. Un
+  # contenedor de pruebas corriendo para siempre en la máquina de aplicación sería una
+  # prueba que nadie ejecuta y un consumo que nadie mira.
+  #
+  # Tampoco hereda `x-service-common`: `restart: unless-stopped` sobre algo que termina en
+  # segundos lo convertiría en un bucle de reinicios.
+  #
+  # Uso, en la máquina de aplicación (el guion `./e2e` hace esto mismo por ti):
+  #   E2E_BASE_URL=https://${DOMAIN} docker compose -f compose.app.yaml --env-file .env.app \
+  #     --profile e2e run --rm e2e
+  #
+  # `E2E_BASE_URL` se exige sin valor por defecto: dejar `localhost` heredado haría pasar el
+  # humo contra la máquina equivocada y llamarlo verde.
+  e2e:
+    profiles: ["e2e"]
+    build: { context: ../.., dockerfile: deploy/vps/Dockerfile.e2e }
+    image: fintcart-humo:local
+    networks: [fintcart-app]
+    environment:
+      E2E_BASE_URL: "${E2E_BASE_URL:?falta E2E_BASE_URL: di contra qué dominio lanzas el humo}"
+      # El despliegue sirve con la CA propia de Caddy mientras el CTIC no abra 80/443: el
+      # humo tolera ese certificado salvo que se pida lo contrario (`E2E_TLS_ESTRICTO=true`),
+      # que es lo correcto en cuanto haya certificado de verdad.
+      E2E_TLS_ESTRICTO: "${E2E_TLS_ESTRICTO:-false}"
+      # Cuentas ya verificadas para la parte autenticada del humo. Sin ellas, esa parte se
+      # salta diciendo qué falta (ver `README.md` §7) — no se inventa una sesión.
+      E2E_USUARIO_EMAIL: "${E2E_USUARIO_EMAIL:-}"
+      E2E_USUARIO_PASSWORD: "${E2E_USUARIO_PASSWORD:-}"
+      E2E_ADMIN_EMAIL: "${E2E_ADMIN_EMAIL:-}"
+      E2E_ADMIN_PASSWORD: "${E2E_ADMIN_PASSWORD:-}"
+    depends_on:
+      frontend: { condition: service_started }
+      api-gateway: { condition: service_started }
+    volumes:
+      # Las capturas y los rastros de un fallo sobreviven al contenedor: sin esto, el humo
+      # falla, el contenedor se va con `--rm` y con él la única prueba de qué se vio.
+      - ./e2e-results:/e2e/test-results
+
   caddy:
     image: caddy:2-alpine
     networks: [fintcart-app]
