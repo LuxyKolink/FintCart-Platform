@@ -31,6 +31,24 @@ export default defineConfig({
    */
   testDir: './e2e-prod',
   timeout: 60_000,
+  /**
+   * La tolerancia de las aserciones describe el camino MÁS LARGO por el que se ejecuta esta
+   * suite, no el más corto.
+   *
+   * Medido el 2026-09-18: ejecutada EN la máquina, la suite entera tarda ~19 s y el servidor
+   * responde en milisegundos —20 inicios de sesión entre 5 y 95 ms, `/catalog/articles` en
+   * 6,3 ms—, así que nunca roza los 5 s por defecto. Ejecutada desde fuera del campus, las
+   * MISMAS pruebas fallaron dos veces en el margen por defecto: la página se quedaba en
+   * `/iniciar-sesion` a los 5 s, con el inicio de sesión ya concedido en el servidor. Los
+   * segundos no los pone la plataforma, los pone el viaje por el perímetro del CTIC y la red
+   * de quien mira.
+   *
+   * Subir el margen NO tapa un fallo: lo que se afirma sigue siendo lo mismo —que tras entrar
+   * se llega al catálogo—, y sin llegar nunca falla. Lo que cambia es cuánto se espera a que
+   * el viaje termine. Un margen que solo valga dentro del campus convierte cada ejecución
+   * desde casa en un falso rojo.
+   */
+  expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 0,
   reporter: 'list',
