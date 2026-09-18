@@ -1032,6 +1032,17 @@ Se quitó la carrera esperando a que el botón estuviera disponible, que **no re
 barrera**: mide la pantalla terminada en vez de una a medio cargar. Un `retry` habría escondido
 el problema. Verificado estable con tres pasadas seguidas (7/7, 7/7, 7/7).
 
+
+**SEGUNDA VEZ, y por lo mismo (2026-09-18)**: la prueba del administrador del humo del despliegue
+buscaba los indicadores en un `tbody tr`, dando por hecho una tabla. La pantalla los pinta como
+tarjetas con encabezado, así que la prueba falló contra un despliegue que estaba perfecto —los
+cinco, con su valor y «En curso»— y el fallo apuntaba a la plataforma. `frontend/e2e-prod/` tuvo
+también dos premisas falsas propias (contenido editorial que no siembra el despliegue, y `items`
+donde el contrato devuelve `categories`). El patrón se repite y conviene tenerlo escrito: **una
+prueba que se inventa el marcado o el contenido falla por su cuenta y señala al sitio equivocado**.
+Se arregla asertando lo que se ve —por rol y por nombre— y comprobando el contrato antes de
+escribir la aserción.
+
 ---
 
 ## Hallazgo 33 — La barrera de accesibilidad perdió una pantalla sin decirlo
