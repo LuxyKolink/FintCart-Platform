@@ -423,6 +423,34 @@ recuperable de ninguna forma; y en ese caso concreto tampoco era calculable, por
 conjunto de preguntas que se sirvió antes de esta enmienda **no se registraba** en ningún
 sitio.
 
+## 7. Humo del despliegue (`frontend/e2e-prod/`)
+
+La suite de `frontend/e2e/` comprueba la **plataforma** contra la pila de desarrollo: obtiene
+su cuenta leyendo el correo de verificación en MailHog y dos de sus specs hablan con el borde
+por `http://localhost:8080`. Ninguna de las dos cosas existe aquí —el correo sale por SMTP
+real y el borde vive detrás de Caddy—, así que contra el despliegue se registraban usuarios de
+verdad y se llenaba de intentos la base de datos de producción.
+
+Por eso hay una segunda suite, la del **despliegue**, que comprueba lo que solo existe una vez
+desplegado (el borde, el paquete construido, el certificado, la redirección de las rutas
+protegidas y el contrato del sembrado) y **no escribe nada**:
+
+```bash
+cd frontend
+E2E_BASE_URL=https://fintcart.bucaramanga.upb.edu.co npm run e2e:prod
+```
+
+Con la CA de Caddy instalada en la máquina que la ejecuta (ver arriba), `E2E_TLS_ESTRICTO=true`
+convierte la tolerancia al certificado propio en una comprobación de verdad.
+
+**La parte autenticada** —catálogo de artículos, lectura, simulador y panel de administración—
+necesita cuentas ya verificadas, porque el registro manda un correo real y el enlace de
+verificación solo lo puede leer quien tiene el buzón. Se crean **una sola vez**, a mano, con
+dos cuentas del mismo buzón (el «+» de Gmail): `usuario+aprendiz@…` y `usuario+admin@…`. La
+primera se queda como aprendiz; el correo de la segunda va en `BOOTSTRAP_ADMIN_EMAIL` y con
+`docker compose -f compose.app.yaml restart users` recibe el rol `administrador`. A partir de
+ahí, `autenticado.spec.ts` inicia sesión con ellas y no vuelve a tocar el registro.
+
 ## Redesplegar tras un cambio de código
 
 ```bash

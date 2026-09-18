@@ -1001,3 +1001,33 @@ como «puertos solicitados para acceso desde internet (fuera del campus)»—. C
 días, así que el certificado aparece solo en cuanto lo hagan. Queda escrito en el README del
 despliegue, junto con la salida provisional (`tls internal`, aviso del navegador) para
 enseñar la plataforma antes de eso.
+
+---
+
+## Hallazgo 32 — El humo del despliegue: dos premisas mías falsas y una carrera
+
+La suite de humo del despliegue (T170, `frontend/e2e/prod/humo.spec.ts`) falló dos veces antes
+de pasar, y las dos veces el defecto era de la prueba, no de la plataforma. Queda anotado
+porque el patrón se repite: **una prueba nueva contra un entorno nuevo casi siempre está mal la
+primera vez, y solo se sabe ejecutándola**.
+
+**Premisa falsa 1 — «lo sembrado incluye el catálogo»**: la prueba exigía categorías activas
+porque en el entorno de desarrollo hay cinco. En el despliegue el catálogo son dos conjuntos
+distintos: la **taxonomía** (categorías) la crean las migraciones de Aprendizaje, y el
+**contenido** (artículos) lo escribe un editor desde la SPA, que no se siembra. La prueba pedía
+contenido editorial donde el contrato promete taxonomía.
+
+**Premisa falsa 2 — la clave de la respuesta**: el borde devuelve `{"categories": […]}`, no
+`{"items": […]}`. La prueba leía `items` con un `?? []` de consuelo, así que la respuesta
+correcta —cinco categorías servidas— se convirtió en «cero categorías» y el fallo apuntaba a la
+plataforma. Arreglado leyendo la clave del contrato: un `?? []` silencioso transforma un cambio
+de forma en «no hay contenido», que es justo el síntoma que se quiere ver.
+
+**Y una carrera, no un problema de accesibilidad**: la comprobación de accesibilidad de la
+pantalla de acceso falló una vez de tres ejecutando la suite completa y pasó siempre en
+solitario. Por Internet, el fragmento perezoso de esa pantalla tarda más que en local: la
+barrera —recorrido por teclado, contraste real medido sobre el color computado— empezaba sobre
+un formulario que aún no existía, y el fallo se leía como de accesibilidad cuando era de reloj.
+Se quitó la carrera esperando a que el botón estuviera disponible, que **no rebaja la
+barrera**: mide la pantalla terminada en vez de una a medio cargar. Un `retry` habría escondido
+el problema. Verificado estable con tres pasadas seguidas (7/7, 7/7, 7/7).
