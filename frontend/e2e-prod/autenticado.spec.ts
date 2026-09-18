@@ -55,6 +55,26 @@ test.describe('aprendiz con sesión', () => {
       // vería como un fallo de la aplicación cuando es una decisión de puesta en marcha—,
       // pero tampoco se hace pasar por bueno.
       const articulos = page.locator('a[href^="/articulos/"]');
+
+      /**
+       * ANTES DE DECIDIR SI EL CATÁLOGO ESTÁ VACÍO, ESPERAR A QUE TERMINE.
+       *
+       * La primera versión contaba los artículos nada más entrar y, si salían cero, se saltaba.
+       * Desde fuera del campus la lista todavía viajaba, así que el salto se disparaba con el
+       * catálogo lleno: una comprobación que SÍ se podía hacer quedaba escondida detrás de un
+       * «no hay contenido». Es el hallazgo 33 —el salto que no distingue «no aplica» de «no lo
+       * he mirado»— cometido esta vez en la prueba en lugar de en el código.
+       *
+       * La pantalla sí distingue: mientras carga pinta esqueletos, y cuando termina o hay
+       * artículos o hay un estado vacío con su título. Se espera a uno de los dos, y solo
+       * entonces el cero significa «el despliegue no tiene artículos publicados».
+       */
+      await expect(page.getByRole('heading', { name: 'Catálogo de aprendizaje' })).toBeVisible();
+      await expect(
+        articulos.first().or(page.locator('fc-empty-state')),
+        'el catálogo terminó de cargar: o hay artículos o hay estado vacío',
+      ).toBeVisible();
+
       test.skip(
         (await articulos.count()) === 0,
         'el despliegue no tiene artículos publicados: lectura NO comprobada (falta sembrar contenido)',

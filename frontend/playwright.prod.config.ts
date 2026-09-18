@@ -49,6 +49,20 @@ export default defineConfig({
    * desde casa en un falso rojo.
    */
   expect: { timeout: 15_000 },
+  /**
+   * EN SERIE, y no por prudencia genérica: en paralelo, desde fuera del campus, se cae.
+   *
+   * Medido el 2026-09-18 desde casa: cuatro navegadores a la vez cruzando un enlace lento
+   * dejaron dos pruebas clavadas en `/iniciar-sesion` a los 15 s, con el inicio de sesión YA
+   * concedido por el servidor —24 peticiones de token en esa ventana, todas 200, entre 5 y 23
+   * ms— y sin una sola petición fallida ni mensaje de error en la pantalla: el formulario ni
+   * siquiera llegó a enviarse. La misma suite, en serie, pasa. Dentro de la máquina el paralelo
+   * no molesta porque no hay viaje que repartir.
+   *
+   * Es un humo, no una prueba de carga: la concurrencia no aporta cobertura aquí, solo ruido.
+   * Para medir concurrencia está `deploy/loadtest/`, que es su sitio.
+   */
+  workers: 1,
   fullyParallel: false,
   retries: 0,
   reporter: 'list',
