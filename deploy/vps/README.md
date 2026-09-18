@@ -538,6 +538,32 @@ Los rojos que aparecen desde fuera son de ahí, no de la plataforma: el mismo in
 200 en el servidor y la prueba se queda esperando el viaje. La suite va en serie a propósito (en
 paralelo desde fuera falla más) y con 30 s de margen por aserción.
 
+### Verlas, no solo leerlas
+
+La ejecución dentro de la máquina es **sin ventana**: el contenedor no tiene pantalla. Para
+mirarlas hay que lanzarlas desde un ordenador con interfaz, y contra el despliegue eso significa
+la dirección pública —que además es el camino que ve un usuario de verdad—:
+
+```bash
+cd frontend
+npm run e2e:prod:ver                      # 400 ms por acción, ventana a la vista
+E2E_LENTO=1500 npm run e2e:prod:ver       # más despacio todavía
+npm run e2e:prod:ui                       # modo UI: elegir una prueba y recorrerla paso a paso
+npm run e2e:prod:pista                    # guarda la traza de todas
+npx playwright show-trace test-results/prod/<carpeta>/trace.zip
+```
+
+Con las ocho variables `E2E_*` en el entorno, como en el apartado anterior. Y las dos de la suite
+de desarrollo: `npm run e2e:ver` y `npm run e2e:ui`.
+
+La cámara lenta se pide con `E2E_LENTO` (milisegundos por acción) porque `--slow-mo` **no es una
+bandera** de `playwright test`: existe en la configuración y no aparece en su `--help`, así que
+intentarlo por línea de órdenes aborta con «unknown option». Sin la variable no hay retardo. El
+retardo se suma al tiempo de la prueba: con valores altos, subir también el `timeout`.
+
+El modo UI es el que más sirve para enseñar algo: deja elegir una prueba, verla avanzar acción por
+acción y **retroceder** con la instantánea del DOM en cada momento, sin volver a ejecutarla.
+
 **Sin ellas no se cae nada**: esas pruebas se saltan y lo dicen con todas las letras
 («sin E2E_USUARIO_EMAIL: la parte autenticada NO se comprobó»). Un salto ahí no significa que
 no hiciera falta comprobarlo, significa que no se comprobó — por eso el mensaje nombra la

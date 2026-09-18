@@ -1345,3 +1345,33 @@ venga de `.env` exige recrear el contenedor.
 **Y de paso**: el despliegue no tenía forma de conceder los roles editoriales —`dev/seed role`
 es de desarrollo y `administrador` no hereda `coordinador_editorial` (FR-082)—, así que la parte
 editorial no se podía enseñar en el despliegue sin escribir SQL a mano. Nace `deploy/vps/rol`.
+
+## Hallazgo 44 — Ocho conexiones SSH seguidas desde la misma IP y el perímetro corta; las variables se leen en UNA
+
+**Qué pasó.** Para ejecutar el humo contra la dirección pública hay que leer ocho variables del
+`.env.app` de la máquina. Escrito de la forma natural —un bucle con una conexión por variable—
+salió esto, ocho veces:
+
+```
+kex_exchange_identification: read: Connection reset by peer
+Connection reset by 207.248.81.119 port 22
+```
+
+Ni credenciales ni host: la conexión se cortaba antes del saludo. Cuarenta y cinco segundos
+después, una sola conexión respondió con normalidad y no ha vuelto a fallar.
+
+**Qué significa.** Algo entre la máquina y quien mira corta las ráfagas de conexiones SSH desde
+un mismo origen. No hace falta saber de quién es el filtro —perímetro del CTIC o la red de casa—
+para sacar la consecuencia: **una ráfaga de conexiones no es una forma fiable de leer un fichero
+remoto**, y el fallo no se parece en nada a su causa: se lee como «la máquina no responde» o «me
+he quedado sin acceso», justo cuando el despliegue está perfecto y las páginas se sirven bien.
+
+**Qué se hace.** Leer todo de una vez:
+
+```bash
+ssh -n fintcart-app "grep '^E2E_' ~/fintcart-platform/deploy/vps/.env.app" > /tmp/e2e-vars
+set -a; . /tmp/e2e-vars; set +a          # solo las líneas E2E_: .env.app entero tiene espacios
+```
+
+Una conexión, ocho variables. Y el aviso para la defensa: si un `ssh` se corta de golpe, mirar
+primero cuántas veces seguidas se ha llamado, antes de tocar nada de la máquina.
