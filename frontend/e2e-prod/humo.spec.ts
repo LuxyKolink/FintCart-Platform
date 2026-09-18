@@ -91,6 +91,15 @@ test('el SPA llama al API por el mismo origen y con la ruta del borde, no contra
    */
   expect(autorizacion.estado, 'responde el borde, no nginx').toBe(401);
   expect(autorizacion.servidor, 'nginx no aparece en la respuesta').not.toContain('nginx');
+
+  /**
+   * Y la ruta concreta por la que apareció el fallo. Con un cuerpo inválido, la respuesta
+   * tiene que ser del BORDE —`400` de validación— y no el `405` de nginx ni un `404` de ruta
+   * desconocida. No crea nada: la validación rechaza antes de tocar la base, así que esta
+   * comprobación se puede repetir sin miedo.
+   */
+  const registro = await page.request.post('/api/auth/register', { data: {} });
+  expect(registro.status(), 'el registro llega al borde, no a nginx').toBe(400);
 });
 
 test('el paquete del SPA arranca en el acceso, sin errores de consola ni respuestas fallidas', async ({ page }) => {
