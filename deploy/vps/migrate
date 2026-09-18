@@ -31,6 +31,23 @@ docker info >/dev/null 2>&1 || die "El demonio de Docker no responde."
 source "$ENV_FILE"
 [[ -n "${PG_PASSWORD:-}" ]] || die "PG_PASSWORD no está en $ENV_FILE"
 
+# La contraseña viaja dentro de una URL (`postgres://fintcart:<esta>@host:puerto/base`),
+# así que los caracteres que tienen significado en una URL la rompen: «/» empieza la
+# ruta, «?» empieza la query, «#» empieza el fragmento y «@» cambia dónde acaba el
+# usuario. El síntoma es un error de resolución de nombres («lookup … server
+# misbehaving») que no menciona la contraseña por ningún lado, y se pierde media hora
+# buscando en el sitio equivocado.
+#
+# Se comprueba AQUÍ, en el primer paso que usa la contraseña, y no en los servicios:
+# aquí se falla con el motivo delante, y los servicios fallarían después con sus
+# propios mensajes de conexión. Si aparece este error y las bases YA están creadas con
+# esa contraseña, hay que rehacer los volúmenes (`compose down -v`) o cambiarla dentro
+# de las 7 instancias: Postgres guarda la suya en su directorio de datos.
+if printf '%s' "$PG_PASSWORD" | grep -q '[/?#@%:&+=]'; then
+  die "PG_PASSWORD contiene caracteres que rompen la URL de conexión (/, ?, #, @, %, :, &, + o =).
+      Generarla con: openssl rand -hex 32  ·  y usar el MISMO valor en .env.app"
+fi
+
 docker network inspect "$NETWORK" >/dev/null 2>&1 \
   || die "la red '$NETWORK' no existe. Ejecutar 'docker compose -f compose.data.yaml up -d' antes."
 

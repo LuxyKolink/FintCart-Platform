@@ -830,3 +830,109 @@ Dos pruebas del esquema de la migración medían así la base entera en lugar de
 acababan de migrar —y una de ellas «veía» la columna eliminada como si siguiera—. Es la misma
 clase de error que el `search_path` sin `public` que el arnés ya usaba para no resolverse
 contra el esquema real: aquí el filtro que falta es el que impide leer el esquema ajeno.
+
+---
+
+## Hallazgo 27 — La contraseña que el README mandaba generar rompía la conexión a la base
+
+**Qué pasaba**: el procedimiento de despliegue decía, para las dos contraseñas:
+
+```bash
+openssl rand -base64 32
+```
+
+Ese alfabeto incluye `/`, `+` y `=`, y `PG_PASSWORD` **viaja dentro de una URL**. En
+`compose.app.yaml` cada servicio recibe su DSN así:
+
+```yaml
+DB_ADDR: "postgres://fintcart:${PG_PASSWORD}@${DATA_HOST}:5433/auth_db?sslmode=disable"
+```
+
+y `deploy/vps/migrate` construye la misma forma. Con un `/` dentro de la contraseña, la URL
+deja de tener un host: el cliente busca… algo. El error que aparece en la primera migración
+en la máquina real fue:
+
+```
+error: dial tcp: lookup fintcart on 127.0.0.11:53: server misbehaving
+```
+
+«lookup **fintcart**»: la mitad de la cadena que había antes del `/`. El mensaje no menciona
+la contraseña, ni la URL, ni la base; menciona un nombre de host que nadie escribió en ningún
+sitio. Es un error que manda a buscar en el sitio equivocado —a la red, a Docker, al DNS— y
+lo encontró el ensayo de despliegue, no una prueba: en local la contraseña es una constante
+de desarrollo (`dev_only_password`) que no tiene caracteres problemáticos, así que el defecto
+**solo existe en el camino de despliegue y solo con secretos generados**.
+
+**Arreglo, en dos capas**:
+
+1. La receta pasa a `openssl rand -hex 32` (64 caracteres de `[0-9a-f]`, seguro en una URL, en
+   una variable de entorno y en un `psql`), en el README y en las dos plantillas.
+2. `deploy/vps/migrate` **se niega a trabajar** con una contraseña que rompa la URL, y lo dice
+   con el motivo:
+
+```
+error PG_PASSWORD contiene caracteres que rompen la URL de conexión (/, ?, #, @, %, :, &, + o =).
+      Generarla con: openssl rand -hex 32  ·  y usar el MISMO valor en .env.app
+```
+
+Fallar en `migrate` y no en los servicios es deliberado: es el primer paso que usa la
+contraseña, y es donde el mensaje puede explicar la causa. En los servicios, el mismo error
+llega como un fallo de conexión propio de cada lenguaje. La comprobación incluye el detalle
+que hace falta para repararlo: si las bases ya se crearon, hay que rehacer los volúmenes o
+cambiar la contraseña dentro de las siete instancias, porque Postgres guarda la suya en su
+directorio de datos.
+
+---
+
+## Hallazgo 28 — Los dos primeros pasos del README no funcionaban en las máquinas del CTIC
+
+Ninguno de los dos se podía saber desde el repositorio, y los dos aparecieron en el primer
+intento de seguir el procedimiento al pie de la letra:
+
+**1. El espejo de Ubuntu no es alcanzable.** Las máquinas salen a Internet —`archive.ubuntu.com`
+responde 200, `download.docker.com` responde 200, `registry-1.docker.io` responde 401— pero
+`co.archive.ubuntu.com`, el espejo colombiano que Ubuntu Server trae configurado, resuelve a
+una IPv6 **sin ruta** y su IPv4 tampoco responde. El primer `apt update` del README falla, y
+con él toda la instalación de Docker. Queda escrito en el paso 1, con el `sed` que apunta apt
+a `archive.ubuntu.com` y una copia del archivo original antes de tocarlo.
+
+**2. `migrate` y `seed` no tenían bit de ejecución.** El README los invoca como `./migrate`
+desde el primer día, y en el repositorio los dos ficheros eran `-rw-r--r--`. El primer intento
+real terminó en `bash: ./migrate: Permission denied` — un error que no dice nada del proyecto
+y que cualquiera que siga la documentación va a encontrar. Corregido en el repositorio (`git`
+versiona ese bit, así que el arreglo viaja con el código y no hay que acordarse de hacer
+`chmod` en cada máquina).
+
+---
+
+## Hallazgo 29 — `golang-migrate` no imprime los `RAISE NOTICE`, así que el «aviso» de la migración de T015 no podía existir
+
+T015 pedía que su migración **emitiera el recuento de cuestionarios cuyo banco cambió tras su
+primer intento**, y T168 pedía revisar ese aviso durante el ensayo. En la ejecución real sobre
+las máquinas del colegio, el aviso no apareció por ningún lado.
+
+Antes de darlo por bueno se comprobó **si el canal existe**, con una migración de prueba en la
+máquina de datos:
+
+```sql
+DO $$ BEGIN RAISE NOTICE 'ESTE AVISO TIENE QUE VERSE: % de algo', 42; END $$;
+```
+
+La migración se aplicó (la tabla de la prueba quedó creada), y el aviso **no se imprimió**.
+`golang-migrate` no conecta el manejador de notificaciones del servidor: un `RAISE NOTICE`
+dentro de una migración no llega al operador. Así que el canal que T015 daba por hecho no
+existe, y añadir el aviso hoy no habría servido para nada.
+
+Y hay una segunda capa, que es la de fondo: para los intentos **anteriores** a esta enmienda el
+recuento **tampoco era calculable**. Lo que se sirvió en cada intento no se registraba en
+ninguna parte —por eso la enmienda añade `served_snapshot`—, y el relleno de la migración usa
+las preguntas ACTUALES del cuestionario. Si el banco cambió después de un intento, el
+`served_snapshot` que se le pone es el banco de hoy, no el que se sirvió: la información se
+perdió cuando no había columna donde ponerla. Lo que sí garantiza la migración, y se verificó
+en la base real del VPS, es que **a partir de ahí** todo intento lleva lo que se sirvió
+(`served_snapshot` `NOT NULL`), y que la nota está acotada a 0–100
+(`CHECK (score >= 0 AND score <= 100)`), con la FK a la sesión en `ON DELETE SET NULL` para que
+el historial siga siendo reconstruible cuando las sesiones se purguen (FR-016).
+
+Queda escrito en el README del despliegue, en la sección de la enmienda, para que nadie más lo
+busque en el registro de `migrate`.

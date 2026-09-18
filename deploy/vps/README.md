@@ -75,6 +75,31 @@ git clone <la URL de este repositorio> fintcart-platform
 cd fintcart-platform
 ```
 
+### Si `apt` falla: el espejo colombiano no es alcanzable
+
+Las dos máquinas del CTIC salen a Internet, pero **no alcanzan `co.archive.ubuntu.com`**, que
+es el espejo que trae Ubuntu por defecto en esta región: resuelve a una IPv6 sin ruta y su
+IPv4 tampoco responde. El síntoma aparece en el primer `apt update`:
+
+```
+W: Fallo al obtener http://co.archive.ubuntu.com/ubuntu/dists/noble/InRelease
+E: Fallo al obtener ... No se puede iniciar la conexión a co.archive.ubuntu.com:80
+```
+
+Comprobado en las máquinas: `archive.ubuntu.com` y `security.ubuntu.com` responden **200**,
+`download.docker.com` responde **200** y `registry-1.docker.io` responde **401** (lo normal
+sin credenciales: el registro está vivo). Solo el espejo colombiano está caído desde ahí.
+Antes de instalar nada:
+
+```bash
+sudo cp /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources.bak
+sudo sed -i 's|co\.archive\.ubuntu\.com|archive.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources
+sudo apt update
+```
+
+La copia de seguridad no es decorativa: esto es un cambio en la máquina, no en el
+repositorio, y así se puede volver atrás.
+
 ## 2. Firewall
 
 Por defecto `ufw` no está activo en Ubuntu Server. Activarlo con una política
@@ -112,12 +137,34 @@ Ningún puerto de los 8 servicios ni del frontend se publica al host en
 `compose.app.yaml` — se hablan entre sí por la red interna de Compose y solo Caddy
 queda expuesto, así que no hace falta abrir nada más aquí.
 
+**Y una advertencia sobre estas reglas, porque no hacen todo lo que parecen**: Docker
+publica los puertos de los contenedores insertando sus propias reglas de `iptables`
+**antes** que las de `ufw`, así que las reglas de `ufw` de arriba **no filtran** el tráfico
+que va a un puerto publicado por un contenedor. Es decir: a los 5433–5439, al 5672 y al 6379
+puede llegar cualquier máquina que tenga ruta hasta `pg_fintcart2`, con independencia de lo
+que diga `ufw`. La contención real de esas bases es que **la máquina no tiene IP pública**:
+solo la alcanza quien esté en la red interna del CTIC.
+
+Si hace falta restringirlas de verdad a la máquina de aplicación, el sitio donde va la regla
+es la cadena que Docker sí respeta (`DOCKER-USER`), no `ufw`:
+
+```bash
+sudo iptables -I DOCKER-USER -i enX0 ! -s 10.154.12.157 -j DROP   # enX0: la interfaz privada
+```
+
+Comprobado en la máquina de datos: con el `ufw` del paso 2 activo, los puertos publicados
+siguen aceptando conexiones de otras direcciones. Se deja escrito aquí porque una regla que
+no hace lo que dice es peor que no tenerla: da una sensación de protección que no existe.
+
 ## 3. Máquina de datos (`pg_fintcart2`): levantar y migrar
 
 ```bash
 cd fintcart-platform/deploy/vps
 cp .env.data.example .env.data
-# Rellenar PG_PASSWORD y RABBITMQ_PASSWORD con:  openssl rand -base64 32
+# Rellenar PG_PASSWORD y RABBITMQ_PASSWORD con:  openssl rand -hex 32
+#   (NO `-base64`: su alfabeto trae «/» y «+», y la contraseña viaja dentro de una URL
+#    `postgres://usuario:contraseña@host`. Un «/» parte la URL y el fallo que aparece
+#    —un error de resolución de nombres— no menciona la contraseña por ningún lado.)
 nano .env.data
 
 docker compose -f compose.data.yaml --env-file .env.data up -d
@@ -242,6 +289,125 @@ bandeja de entrada (no a spam — Gmail SMTP saliente desde una IP de VPS nueva 
 aterriza ahí las primeras veces). Completar el flujo de verificación y login confirma
 que las 8 piezas — Gateway, Auth, Usuarios, Redis, RabbitMQ, Orquestador,
 Notificación, Postgres — están conectadas correctamente entre las dos máquinas.
+
+## 6. Desplegar esta enmienda: el constructor de calculadoras, categorías y administración
+
+La enmienda `002` no añade servicios ni infraestructura: todo cabe en las mismas dos
+máquinas. Lo que sí añade son **18 migraciones** repartidas por cinco de las siete bases, un
+rol nuevo (`administrador`) y siete definiciones de calculadora que viven en la base.
+
+### Orden
+
+El orden no se elige: `migrate` aplica las migraciones **en orden de nombre de fichero**, y
+las que trae esta enmienda van después de las de 001. Lo único que hay que respetar es que
+**primero se migra y después se arranca el código nuevo** — el código de esta enmienda lee
+columnas que antes no existían (`body_doc`, `categories`, `served_snapshot`), así que
+arrancarlo contra el esquema viejo falla; y al revés no falla, porque estas migraciones solo
+añaden y rellenan.
+
+```bash
+# 1) En pg_fintcart2 (datos) — 18 migraciones nuevas
+cd fintcart-platform && git pull
+cd deploy/vps && ./migrate
+
+# 2) En pg_fintcart (aplicación) — reconstruir y levantar
+cd fintcart-platform && git pull
+cd deploy/vps
+docker compose -f compose.app.yaml --env-file .env.app build
+docker compose -f compose.app.yaml --env-file .env.app up -d
+
+# 3) Y sembrar las siete calculadoras y los indicadores del año (una sola vez)
+./seed
+```
+
+**El paso 3 no es opcional en esta enmienda**: las siete definiciones semilla cambian (las
+cinco de FR-019 se reescriben como siete definiciones parametrizadas en un motor de
+fórmulas), y si la base se queda con las viejas el servicio ejecutaría una fórmula que ya no
+está en el código. `deploy/vps/seed` es idempotente y solo añade versiones cuando la
+definición difiere, así que repetirlo no rompe nada.
+
+Y para que exista el cuarto rol hace falta que `BOOTSTRAP_ADMIN_EMAIL` esté puesto en
+`.env.app` antes de levantar `users` (D-21, ver «El administrador inicial» más arriba): el rol
+`administrador` **no se hereda** de `coordinador_editorial` ni se concede por la API.
+
+### Cuánto tarda: medido en las máquinas reales
+
+Ensayo sobre las máquinas del colegio, con las bases vacías (que es como estaban al recibirlas:
+el despliegue inicial no se había hecho):
+
+| | |
+|---|---|
+| Máquinas | `pg_fintcart2` (datos), Ubuntu 24.04.3, 2 vCPU / 4 GB |
+| Migraciones aplicadas | **31 en las 7 bases** (18 de esta enmienda) |
+| Duración total | **3,9 s** de reloj, incluidos los `docker run` de `golang-migrate` |
+| Más lenta | `20260902130000 calculator_published_version` — **233 ms** |
+| Resultado | 7 bases con `schema_migrations` sin marcar sucia, y las versiones idénticas a las de desarrollo |
+
+Las cifras por servicio son de decenas de milisegundos porque las bases estaban vacías: en una
+instalación **con datos**, las migraciones que recorren tablas enteras —la de categorías, la
+del documento de bloques, la del `served_snapshot`— crecen con el número de filas. El «3,9 s»
+no es una promesa; es el piso de lo que se tarda.
+
+### Plan de reversión
+
+**Lo primero, y lo que de verdad importa**: `./migrate down` **no revierte la última
+migración, revierte la cadena entera de las 7 bases** y borra sus datos (pide confirmación
+escribiendo `yes`). No es un botón de deshacer: es un borrado.
+
+Por eso, para una instalación con datos, la reversión empieza **antes** de migrar:
+
+```bash
+# Antes de aplicar nada, en pg_fintcart2:
+docker exec fintcart-data-postgres-learning-1 pg_dump -U fintcart learning_db > learning_db.sql
+# (una por cada base que se quiera poder recuperar)
+```
+
+Si hay que volver atrás **después** de haber migrado, el orden es: (1) restaurar los `pg_dump`
+en las bases, (2) volver al commit anterior del repositorio en las dos máquinas y reconstruir
+la imagen de aplicación (`compose.app.yaml build && up -d`), porque el esquema y el código
+tienen que moverse juntos. Bajar solo el código, o solo el esquema, deja una mitad que no
+entiende a la otra.
+
+Lo que un `migrate down` **pierde** en esta enmienda, en concreto —y por eso no se usa para
+revertir con datos—:
+
+- `20260902150000` **reconstruye** `article_versions.body` a partir del documento de bloques,
+  y la reconstrucción no es el original: los espacios en blanco vuelven normalizados, un
+  encabezado y cada elemento de una lista pasan a ser una línea de texto, y las imágenes y
+  calculadoras incrustadas no aparecen. El texto que el documento dice es el mismo; el texto
+  que había, no.
+- `20260902113000` borra las imágenes (`BYTEA`), y `20260902100000` deja los artículos sin su
+  categoría.
+
+### Dos cosas que encontró este ensayo, y que ya están arregladas
+
+Se escriben aquí porque son la razón de ser de un ensayo, no a pesar de él:
+
+1. **La contraseña que este README mandaba generar no servía.** `openssl rand -base64 32`
+   produce un alfabeto donde entran «/» y «+», y `PG_PASSWORD` viaja **dentro de una URL**
+   (`postgres://fintcart:<contraseña>@host:5433/auth_db`). Un «/» parte la URL y el fallo que
+   aparece es `error: dial tcp: lookup ... server misbehaving`, que no menciona la contraseña
+   por ningún lado. Ahora la receta es `openssl rand -hex 32`, y `./migrate` **se niega** a
+   trabajar con una contraseña que rompa la URL, con el motivo en el mensaje.
+2. **`deploy/vps/migrate` y `deploy/vps/seed` no tenían bit de ejecución**, aunque este README
+   los invoca como `./migrate`. El primer intento en la máquina real terminó en
+   `Permission denied`. Ya son ejecutables en el repositorio (`git` versiona ese bit).
+
+### Lo que esta enmienda NO trae
+
+El **bloque de baja de cuentas** (plazo de gracia de 30 días, aviso de purga, barrido de
+cuentas) se descartó: no existe `pending_deletion`, no hay barrido de purgas y no hay variable
+`PURGE_SWEEP_INTERVAL` (el archivo de plantilla la anunciaba y se quitó). La eliminación de
+una cuenta la cubre la anonimización de 001 (FR-030).
+
+Y una nota sobre los avisos de migración, por si alguien los espera: **`golang-migrate` no
+imprime los `RAISE NOTICE` de las migraciones**. Comprobado en la máquina de datos con una
+migración de prueba: la migración se aplica, el aviso no se ve. Un mensaje de este tipo no es
+un canal para el operador, así que la información de las migraciones que solo viajaba ahí
+—como el recuento que el plan pedía para la migración de `served_snapshot`— no era
+recuperable de ninguna forma; y en ese caso concreto tampoco era calculable, porque el
+conjunto de preguntas que se sirvió antes de esta enmienda **no se registraba** en ningún
+sitio.
 
 ## Redesplegar tras un cambio de código
 
