@@ -1261,3 +1261,43 @@ un error que no menciona la contraseña ni el fichero. Pasó tres veces en esta 
 **Arreglo recomendado** (no aplicado, para no tocar credenciales en caliente): entrecomillar el
 valor (`SMTP_PASSWORD="…"`), que Compose acepta y quita las comillas. O, mejor, pegar la
 contraseña sin espacios: Google los ignora igual.
+
+---
+
+## Hallazgo 42 — El borde acepta un registro que la capa de dominio va a rechazar, y el fallo llega tarde y sin motivo
+
+**Qué pasaba**: `POST /api/auth/register` con una contraseña de cinco caracteres devuelve **`202`
+con su `saga_id`** —«aceptado»— y el rechazo aparece después, en el orquestador, como una saga
+`failed` en el paso 0:
+
+```
+paso 0 (auth.create_credential): crear credencial de …: rpc error: code = InvalidArgument
+desc = server: la contraseña no cumple la política: mínimo 12 caracteres
+```
+
+**Lo que está bien, y conviene decirlo primero**: la política **sí se aplica**, y se aplica donde
+tiene que aplicarse —en el servicio de autenticación, no en el borde—. La prueba de que la
+validación en profundidad funciona es justamente ese rechazo: con la contraseña corta no se creó
+**nada** (0 credenciales, 0 perfiles, 0 correos), y la saga se compensó sola.
+
+**Lo que está mal es el camino del error**: el borde ya conoce el contrato —valida campos
+obligatorios y rechaza campos desconocidos—, pero no valida la política de contraseña, así que
+acepta una petición que sabe que la capa de dominio va a tirar. El cliente recibe un `202`, se le
+dice «revisa tu correo», y el registro no existe: para saber qué pasó hay que ir a la tabla de
+sagas. Un `400` inmediato con el motivo es la misma decisión de negocio comunicada a tiempo.
+
+En la SPA no se nota, porque el formulario valida el mínimo antes de enviar (y por eso se escapó:
+la validación del cliente tapaba la del borde). Se ve con cualquier cliente que no sea el
+formulario —una consola, un script, una integración—.
+
+**Anotado, no arreglado**: exigir la política en el borde es tocar el contrato del Gateway y sus
+pruebas, y no es un riesgo de seguridad —la contraseña débil NO entra en la base—. Queda como
+mejora de la calidad del error, no como defecto abierto.
+
+**Y la lección operativa, que es de esta sesión**: se descubrió haciendo un sondeo contra
+producción que yo creía de solo lectura («contraseña inválida, luego rechazará»). **No lo era**:
+el borde aceptó, arrancó dos sagas de registro y devolvió `saga_id`. Solo no quedó nada porque la
+validación en profundidad lo impidió. Contra un entorno real, un sondeo solo es inocuo si se
+conoce la validación del servidor hasta el final —y si no se conoce, hay que asumir que escribe—.
+En este caso la comprobación posterior (0 credenciales, 0 perfiles, 0 correos) es la que permitió
+afirmar que no había daño, en vez de suponerlo.
