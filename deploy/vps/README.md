@@ -529,50 +529,81 @@ código.
 ## Si el dominio no responde con HTTPS: falta el certificado, y depende del CTIC
 
 Caddy pide el certificado a Let's Encrypt la primera vez que arranca, y **necesita que los
-validadores de Let's Encrypt lleguen a esta máquina por 80 o 443**. El perímetro del CTIC
-puede dejar pasar el tráfico del campus y no el de fuera: en el despliegue del 18 de
-septiembre, desde la red del campus los tres puertos (22, 80 y 443) estaban abiertos,
-mientras que los validadores recibían `Timeout during connect` en los dos. El síntoma es
-este, en el registro de Caddy:
+validadores de Let's Encrypt lleguen a esta máquina por 80 o 443**. El perímetro del CTIC deja
+pasar el tráfico de Internet —comprobado el 18 de septiembre desde una red doméstica: los tres
+puertos responden y `/` sirve el SPA— pero **filtra a los validadores de Let's Encrypt**, que
+siguen recibiendo `Timeout during connect` en `http-01` (tanto en producción como en su entorno
+de pruebas). El síntoma, en el registro de Caddy:
 
 ```
 challenge failed ... challenge_type":"http-01" ... "detail":"207.248.81.119: Fetching
 http://<dominio>/.well-known/acme-challenge/...: Timeout during connect (likely firewall problem)"
 ```
 
-Y mientras no hay certificado, **Caddy rechaza el handshake TLS** (`tlsv1 alert internal
-error`), así que el dominio no sirve nada por HTTPS aunque todo lo demás esté bien: HTTP
-responde con un 308 hacia HTTPS, y ahí se acaba. No es un defecto del despliegue —el
-catálogo y el SPA responden por dentro— sino del acceso desde fuera del campus.
+**Cómo está resuelto en este despliegue —dos emisores, y no hay nada que revertir:**
 
-**Qué hacer, por orden de preferencia:**
+```caddyfile
+{$DOMAIN} {
+	tls {
+		issuer acme      # primero el certificado de verdad
+		issuer internal  # si no lo consigue, la autoridad propia de Caddy
+	}
+	...
+}
+```
 
-1. **Pedir al CTIC que abra 80 y 443 a Internet** (su propio cuadro de entrega los lista como
-   puertos solicitados). Caddy reintenta durante 30 días, así que en cuanto los abran el
-   certificado aparece solo, sin tocar nada: **quitar primero la línea provisional** del punto
-   2 (`tls internal`) para que Caddy vuelva a pedirlo.
-2. **Mientras tanto, certificado propio de Caddy**: pone la plataforma en pie hoy, a cambio de
-   un aviso del navegador que se puede eliminar. En este despliegue ya está aplicado —la línea
-   `tls internal` dentro del bloque del dominio, guardada al lado como `~/Caddyfile.sin-certificado`:
+Con esto el sitio **nunca se queda sin HTTPS**: Caddy intenta ACME y, mientras el perímetro no
+lo deje pasar, sirve con su autoridad interna. En cada renovación vuelve a intentarlo, así que el
+día que el CTIC abra 80/443 a los validadores **el certificado de verdad entra solo** y el aviso
+del navegador desaparece sin tocar la máquina. La configuración se valida antes de aplicarla:
 
-   ```bash
-   ssh fintcart-app 'grep -n "tls internal" ~/fintcart-platform/deploy/vps/Caddyfile'
-   ssh fintcart-app 'docker restart fintcart-app-caddy-1'   # recarga el Caddyfile montado
-   ```
+```bash
+cd ~/fintcart-platform/deploy/vps
+docker run --rm -e DOMAIN="$(sed -n 's/^DOMAIN=//p' .env.app)" \
+  -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine \
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+```
 
-   Y para quitar el aviso, la CA de Caddy en el portátil del que enseña (Fedora; en Firefox hay
-   que importarla además en su propio almacén, porque no usa el del sistema):
+**Por qué no basta con `tls internal` a secas**, que es lo que hubo que poner a mano el primer
+día: funciona siempre, pero obliga a que alguien se acuerde de quitarlo el día que el perímetro
+se abra, y mientras tanto nadie puede verificar el certificado de verdad. Un despliegue no
+debería depender de que alguien recuerde deshacer un apaño.
 
-   ```bash
-   scp fintcart-app:~/fintcart-caddy-root.crt ~/
-   sudo cp ~/fintcart-caddy-root.crt /etc/pki/ca-trust/source/anchors/
-   sudo update-ca-trust
-   ```
+**Y por qué no basta con solo ACME**, que es lo que decía este apartado al principio: mientras
+Let's Encrypt no pueda validar, **Caddy no tiene ningún certificado que servir y el sitio se
+cae entero** —HTTPS devolvía `tlsv1 alert internal error` y la plataforma quedaba inaccesible
+por más que todo lo demás estuviera bien—. Pasó al intentar recuperar el certificado de verdad
+tras el primer despliegue, y es la razón de que la configuración tenga dos emisores.
 
-   Para revertirlo cuando el CTIC abra los puertos: borrar esa línea y reiniciar Caddy.
+**Para quitar el aviso del navegador mientras tanto** (opcional; la CA propia de Caddy, en el
+portátil del que enseña — Fedora; en Firefox hay que importarla además en su propio almacén,
+porque no usa el del sistema):
 
-   Comprobado el 18 de septiembre: con el punto 2, desde fuera del campus y por el dominio
-   público, `/`, `/config.js` y `/api/calculators` responden **200**.
+```bash
+scp fintcart-app:~/fintcart-caddy-root.crt ~/
+sudo cp ~/fintcart-caddy-root.crt /etc/pki/ca-trust/source/anchors/
+sudo update-ca-trust
+```
+
+Comprobado el 18 de septiembre: por el dominio público y desde fuera del campus, `/` y
+`/api/calculators` responden **200**, y el humo del despliegue pasa **7/7 desde casa y 7/7 desde
+la máquina** (ver §7). El certificado que se sirve hoy es el de la autoridad interna de Caddy,
+porque los validadores de Let's Encrypt no pueden entrar.
+
+## El `git pull` de la máquina no basta para los ficheros montados
+
+El árbol de `~/fintcart-platform` es un clon, así que desplegar empieza por `git pull`. Pero un
+**montaje por bind ata el contenedor a un inodo, no a un nombre**: `git checkout` no edita el
+fichero, escribe uno nuevo y lo renombra encima, de modo que el contenedor sigue viendo el viejo
+—y `up -d` informa de que todo está «up-to-date» mientras corre una configuración que ya no está
+en el repositorio—. Le pasó a `Caddyfile` (hallazgo 38).
+
+Los servicios con el código horneado en la imagen no tienen este problema: cambia el identificador
+de la imagen y Compose los recrea solo. Para los ficheros montados, hay que recrear a mano:
+
+```bash
+docker compose -f compose.app.yaml --env-file .env.app up -d --force-recreate --no-deps caddy
+```
 
 ## Lo que este árbol NO cubre
 
