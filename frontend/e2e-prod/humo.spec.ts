@@ -40,6 +40,59 @@ test('el borde sirve la configuración de tiempo de ejecución y apunta a su pro
   expect(configuracion, 'sin rastro de la pila de desarrollo').not.toContain('localhost');
 });
 
+/**
+ * EL FALLO QUE ESTA PRUEBA EXISTE PARA ATRAPAR (hallazgo 39)
+ * ----------------------------------------------------------
+ * La configuración de tiempo de ejecución tenía solo la mitad del servidor: nginx escribía y
+ * servía `/config.js` —y la prueba de arriba lo comprobaba, con su contenido correcto—, pero
+ * el bundle **no lo leía**: usaba el valor compilado (`/v1`, un marcador). Resultado: el SPA
+ * se veía perfecto y cada llamada al API acababa en nginx, que responde `405 Not Allowed` a
+ * un POST sobre un fichero estático. Se descubrió intentando registrar una cuenta de verdad,
+ * no con la suite: la prueba miraba el fichero, no el cableado.
+ *
+ * Por eso esta prueba no comprueba el fichero, comprueba el CABLEADO: navega, envía el
+ * formulario y mira a dónde va la petición y quién responde. El intento es con una cuenta
+ * que no existe, así que no crea ni modifica nada —`401 invalid_grant` es la respuesta
+ * correcta—, y distingue tres fallos distintos:
+ *
+ *   · `405` de nginx  → el SPA sigue usando una ruta que no pasa por el borde;
+ *   · `404` del borde  → la ruta del API no coincide con la del gateway;
+ *   · `401` del borde  → el cableado está bien y las credenciales son las que fallan. Esta.
+ */
+test('el SPA llama al API por el mismo origen y con la ruta del borde, no contra nginx', async ({ page }) => {
+  const origen = new URL(process.env['E2E_BASE_URL']!).origin;
+  const llamadas: { url: string; estado: number; servidor: string }[] = [];
+
+  page.on('response', async (respuesta) => {
+    if (respuesta.request().method() !== 'POST') return;
+    const cabeceras = await respuesta.allHeaders();
+    llamadas.push({
+      url: respuesta.url(),
+      estado: respuesta.status(),
+      servidor: cabeceras['server'] ?? '',
+    });
+  });
+
+  await page.goto('/iniciar-sesion');
+  await page.getByLabel('Correo electrónico').fill('humo-no-existe@ejemplo.test');
+  await page.getByLabel('Contraseña').fill('no-es-la-contrasena-de-nadie');
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+
+  await expect.poll(() => llamadas.length, 'el SPA envió la petición de autorización').toBeGreaterThan(0);
+
+  const autorizacion = llamadas[0];
+  expect(autorizacion.url, 'la petición va al API del mismo origen, con el prefijo del borde').toBe(
+    `${origen}/api/oauth/authorize`,
+  );
+  /**
+   * `405` es la firma de nginx (un POST contra un fichero estático) y `404` la de una ruta que
+   * el gateway no conoce. Un `401` es lo que devuelve el servidor de autenticación cuando las
+   * credenciales no valen, y es exactamente lo que se espera aquí.
+   */
+  expect(autorizacion.estado, 'responde el borde, no nginx').toBe(401);
+  expect(autorizacion.servidor, 'nginx no aparece en la respuesta').not.toContain('nginx');
+});
+
 test('el paquete del SPA arranca en el acceso, sin errores de consola ni respuestas fallidas', async ({ page }) => {
   const errores: string[] = [];
   page.on('console', (mensaje) => {

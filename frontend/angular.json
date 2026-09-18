@@ -24,7 +24,8 @@
                 "glob": "**/*",
                 "input": "src/assets",
                 "output": "assets"
-              }
+              },
+              "src/config.js"
             ],
             "styles": [
               "node_modules/@fontsource/ibm-plex-mono/400.css",

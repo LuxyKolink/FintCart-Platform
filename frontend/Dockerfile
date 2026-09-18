@@ -96,8 +96,18 @@ COPY <<'ENTRYPOINT_SH' /docker-entrypoint.d/40-fintcart-config.sh
 #!/bin/sh
 set -eu
 : "${API_BASE_URL:?falta la variable de entorno API_BASE_URL}"
+# El origen del sitio se deriva de la URL del API (`https://dominio/api` → `https://dominio`)
+# en vez de pedirse aparte: una variable menos que pueda contradecir a la otra.
+origin="$(printf '%s' "$API_BASE_URL" | sed 's#/api/*$##')"
+
+# La `redirect_uri` no se NAVEGA —el SPA pide el código por `POST /oauth/authorize` y lo
+# canjea acto seguido—, pero el flujo OAuth2 la exige y el servidor la compara con las
+# registradas para el cliente: tiene que ser EXACTAMENTE la que siembre `deploy/vps/seed`.
 cat > /var/lib/fintcart-config/config.js <<EOF
-window.__FINTCART_CONFIG__ = { apiBaseUrl: "${API_BASE_URL}" };
+window.__FINTCART_CONFIG__ = {
+  apiBaseUrl: "${API_BASE_URL}",
+  oauth: { clientId: "fintcart-spa", redirectUri: "${origin}/auth/callback" },
+};
 EOF
 ENTRYPOINT_SH
 RUN chmod +x /docker-entrypoint.d/40-fintcart-config.sh

@@ -65,10 +65,47 @@ sim_cid="$(compose ps -q simulator 2>/dev/null || true)"
 log "sembrando las 7 definiciones de calculadora y los indicadores del año"
 MSYS_NO_PATHCONV=1 docker exec -i "$sim_cid" /usr/local/bin/fintcart-seed
 
+# ── Cliente OAuth de la SPA (sin esto NADIE puede iniciar sesión) ────────────────────────
+#
+# El cliente lo siembra `dev/seed` en desarrollo, y en el despliegue no lo sembraba nadie:
+# la base llegaba con la tabla `oauth_clients` vacía, así que el SPA podía registrarse y
+# verificar el correo, pero al iniciar sesión el servidor de autenticación no reconocía a
+# `fintcart-spa` y el login era imposible. Se descubrió al montar el humo autenticado
+# (hallazgo 40).
+#
+# La `redirect_uri` sale del DOMINIO del despliegue, y tiene que ser EXACTAMENTE la misma
+# que `frontend/Dockerfile` escribe en `config.js`: el servidor compara ambas y rechaza el
+# flujo si difieren. Por eso se deriva aquí y no se copia de `dev/seed`, que registra la de
+# `localhost:4200`.
+log "registrando el cliente OAuth de la SPA (fintcart-spa) para el dominio del despliegue"
+DOMINIO="$(sed -n 's/^DOMAIN=//p' "$ENV_FILE" | head -1)
+[[ -n "$DOMINIO" ]] || die "no hay DOMAIN en $ENV_FILE: no se puede saber qué redirect_uri registrar"
+DATA_HOST="$(sed -n 's/^DATA_HOST=//p' "$ENV_FILE" | head -1)
+PG_PASSWORD="$(sed -n 's/^PG_PASSWORD=//p' "$ENV_FILE" | head -1)
+[[ -n "$DATA_HOST" && -n "$PG_PASSWORD" ]] || die "faltan DATA_HOST o PG_PASSWORD en $ENV_FILE"
+
+# Se usa un contenedor con `psql` y no un cliente del anfitrión: el Principio XII deja claro
+# que Docker es lo único que hace falta instalado en estas máquinas.
+docker run --rm -i -e PGPASSWORD="$PG_PASSWORD" postgres:16-alpine \
+  psql -v ON_ERROR_STOP=1 -q -h "$DATA_HOST" -p 5433 -U fintcart -d auth_db <<SQL
+INSERT INTO oauth_clients (id, client_id, client_secret_hash, grant_types, redirect_uris, scopes, is_public)
+VALUES (
+  '00000000-0000-4000-8000-00000000c1e1',
+  'fintcart-spa',
+  NULL,
+  ARRAY['authorization_code', 'refresh_token'],
+  ARRAY['https://${DOMINIO}/auth/callback'],
+  ARRAY['perfil', 'catalogo', 'simulador', 'progreso'],
+  TRUE
+)
+ON CONFLICT (client_id) DO UPDATE SET redirect_uris = EXCLUDED.redirect_uris;
+SQL
+
 log "OK — datos sembrados en producción"
 cat <<'EOF'
     Calculadoras   las 7 semillas de FR-019, con su primera versión
     Indicadores    5 para el año en curso, con valores de EJEMPLO (no oficiales)
+    Cliente OAuth  fintcart-spa, con la redirect_uri de este dominio (sin él no hay login)
 
     Los indicadores sembrados son cifras redondas a propósito: son relleno para que una
     base recién sembrada sea utilizable, NO los valores oficiales de cada año. La fuente

@@ -6,6 +6,15 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="assets/logo/fintcart-mark.svg" />
+    <!--
+      Configuración de tiempo de ejecución (URL del API y cliente OAuth).
+
+      Va en `head` y ANTES del bundle a propósito: `main.ts` la lee al arrancar para
+      sobrescribir lo compilado, y un script clásico en `head` se ejecuta antes que los
+      módulos del bundle (que van diferidos). Sirve el mismo fichero tanto el servidor de
+      desarrollo como nginx en el despliegue.
+    -->
+    <script src="/config.js"></script>
   </head>
   <body>
     <fc-root></fc-root>
