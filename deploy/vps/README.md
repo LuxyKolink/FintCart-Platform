@@ -485,7 +485,9 @@ necesita cuentas ya verificadas, porque el registro manda un correo real y el en
 verificación solo lo puede leer quien tiene el buzón. Se crean **una sola vez**, a mano, con
 dos cuentas del mismo buzón (el «+» de Gmail): `usuario+aprendiz@…` y `usuario+admin@…`. La
 primera se queda como aprendiz; el correo de la segunda va en `BOOTSTRAP_ADMIN_EMAIL` y con
-`docker compose -f compose.app.yaml restart users` recibe el rol `administrador`. A partir de
+`docker compose -f compose.app.yaml --env-file .env.app up -d users` recibe el rol `administrador`.
+
+(Ojo: **`restart` no sirve**. Reiniciar un contenedor lo arranca otra vez con las variables que ya tenía, así que no relee `.env.app`: hay que **recrearlo** con `up -d`, que sí las vuelve a leer. Costó media hora y quedó como hallazgo 43. A partir de
 ahí, `autenticado.spec.ts` inicia sesión con ellas y no vuelve a tocar el registro.
 
 Esas cuatro credenciales se le pasan al humo por entorno (para el guion, en `.env.app`):

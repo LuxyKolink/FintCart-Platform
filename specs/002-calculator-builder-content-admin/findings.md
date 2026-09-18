@@ -1301,3 +1301,36 @@ validación en profundidad lo impidió. Contra un entorno real, un sondeo solo e
 conoce la validación del servidor hasta el final —y si no se conoce, hay que asumir que escribe—.
 En este caso la comprobación posterior (0 credenciales, 0 perfiles, 0 correos) es la que permitió
 afirmar que no había daño, en vez de suponerlo.
+
+---
+
+## Hallazgo 43 — `docker compose restart` no relee el fichero de entorno, así que el paso documentado para conceder el rol de administrador no funcionaba
+
+**Qué pasaba**: el procedimiento documentado para que exista un administrador era poner el
+correo en `BOOTSTRAP_ADMIN_EMAIL` y **reiniciar** `users`:
+
+```bash
+docker compose -f compose.app.yaml --env-file .env.app restart users
+```
+
+Se hizo exactamente eso, en el orden documentado, y el rol no apareció: la cuenta seguía con
+`usuario_final`. Un `up -d` en su lugar lo arregló en diez segundos.
+
+**Por qué**: `restart` no vuelve a crear el contenedor —lo para y lo arranca—, así que conserva
+el entorno con el que se creó. Las variables nuevas de `.env.app` no llegan: `--env-file` se lee
+al **crear**, no al reiniciar. Para aplicar variables hay que recrear (`up -d`) o forzarlo
+(`--force-recreate`).
+
+**Por qué importa más de lo que parece**: la instrucción era la única vía a un administrador en
+el despliegue —el rol no se concede por API (FR-008) ni se siembra en una migración (D-21)—, y
+fallaba **en silencio**: no hay error, simplemente el rol nunca aparece y la conclusión natural
+es «BOOTSTRAP_ADMIN_EMAIL no funciona» o «lo he puesto mal». El README, el mensaje final de
+`deploy/vps/seed` y el propio hallazgo 40 daban la orden equivocada.
+
+**Arreglo**: las dos instrucciones dicen ahora `up -d users`, con el porqué escrito al lado. La
+lección general: `restart` reinicia un proceso, no redefine su configuración; cualquier cosa que
+venga de `.env` exige recrear el contenedor.
+
+**Y de paso**: el despliegue no tenía forma de conceder los roles editoriales —`dev/seed role`
+es de desarrollo y `administrador` no hereda `coordinador_editorial` (FR-082)—, así que la parte
+editorial no se podía enseñar en el despliegue sin escribir SQL a mano. Nace `deploy/vps/rol`.

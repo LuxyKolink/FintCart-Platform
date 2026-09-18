@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# deploy/vps/rol — concede un rol a una cuenta YA REGISTRADA en el despliegue del colegio.
+#
+# Uso, en la máquina de DATOS (donde vive el Postgres de Usuarios):
+#   deploy/vps/rol <correo> <rol>
+#   deploy/vps/rol garciasanti440+editor@gmail.com editor
+#
+# LOS ROLES EDITORIALES NO SE PUEDEN PEDIR POR LA API, y es una decisión, no un hueco
+# -----------------------------------------------------------------------------------
+# Un endpoint capaz de conceder `editor` o `coordinador_editorial` serviría para que
+# cualquiera se diera a sí mismo la capacidad de publicar contenido: anularía la
+# separación de responsabilidades de FR-008. Se conceden por consola, con acceso a la
+# máquina, y así queda registrado quién podía hacerlo.
+#
+# POR QUÉ NO EXISTÍA ESTE GUION HASTA AHORA
+# -----------------------------------------
+# `dev/seed role` cubría el entorno de desarrollo, y en el despliegue la única vía era
+# `BOOTSTRAP_ADMIN_EMAIL`, que concede **solo** `administrador`. Como `administrador` NO
+# hereda las atribuciones de `coordinador_editorial` (FR-082: es una separación
+# deliberada, no un olvido), en el despliegue **no había forma de enseñar el flujo
+# editorial** —borrador, revisión, publicación, versiones— sin escribir SQL a mano.
+#
+# OJO CON EL `restart` DE `users` (hallazgo 43): recrear el contenedor sirve para que
+# relea `BOOTSTRAP_ADMIN_EMAIL`, pero **este guion no lo necesita** — escribe
+# directamente en la base— y tampoco basta con reiniciar el servicio para que un rol
+# concedido surta efecto: el token ya emitido no lo lleva, así que el usuario tiene que
+# **volver a iniciar sesión**.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env.data"
+COMPOSE_FILE="$SCRIPT_DIR/compose.data.yaml"
+
+log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+die() { printf '\033[1;31merror\033[0m %s\n' "$*" >&2; exit 1; }
+
+email="${1:-}"
+role="${2:-}"
+[[ -n "$email" && -n "$role" ]] || die "uso: deploy/vps/rol <correo> <rol>"
+
+# La lista es la del CHECK de `roles_assignment_role_valid`, y se mantiene a mano porque
+# este guion no consulta el esquema: si el CHECK crece y esta línea no, el síntoma es que
+# se rechaza un rol que la base SÍ admitiría — lo que ya pasó al añadirse `administrador`
+# en FR-080. Un rol inválido se rechaza con el motivo delante, no con un error de Postgres.
+case "$role" in
+  usuario_final | editor | coordinador_editorial | administrador) ;;
+  *) die "rol inválido: '$role' (usuario_final, editor, coordinador_editorial o administrador)" ;;
+esac
+
+command -v docker >/dev/null 2>&1 || die "Docker no está instalado."
+docker info >/dev/null 2>&1 || die "El demonio de Docker no responde."
+[[ -f "$ENV_FILE" ]] || die "falta $ENV_FILE — copiar .env.data.example y rellenarlo."
+
+# El contenedor se resuelve por Compose y se le pasa el entorno con `--env-file`: Compose
+# interpola en el proceso hijo, así que hacer `source` no basta (hallazgo 37).
+cid="$(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q postgres-users 2>/dev/null || true)"
+[[ -n "$cid" ]] || die "'postgres-users' no está en marcha."
+
+log "concediendo '$role' a $email"
+
+# La comprobación va en SQL y no en bash: si el correo no está registrado, un
+# `INSERT ... SELECT` no insertaría nada y el guion terminaría diciendo OK sobre un rol
+# que nadie tiene. El correo entra como LITERAL porque `psql -c` no admite parámetros;
+# se escapan las comillas simples para que un correo con apóstrofo no rompa la consulta.
+email_sql="${email//\'/\'\'}"
+
+docker exec -i "$cid" psql -v ON_ERROR_STOP=1 -q -U fintcart -d users_db <<SQL
+DO \$\$
+DECLARE target UUID;
+BEGIN
+  SELECT id INTO target FROM profiles
+   WHERE email = '${email_sql}' AND account_status = 'active';
+  IF target IS NULL THEN
+    RAISE EXCEPTION 'no hay ninguna cuenta activa con el correo %', '${email_sql}';
+  END IF;
+  INSERT INTO roles_assignment (user_id, role) VALUES (target, '${role}')
+  ON CONFLICT DO NOTHING;
+END
+\$\$;
+SQL
+
+log "OK — rol concedido"
+cat <<'FIN'
+    El token ya emitido NO lleva el rol nuevo: hay que **volver a iniciar sesión** para
+    que el SPA lo vea. Los roles son acumulativos y `administrador` no hereda las
+    atribuciones de `coordinador_editorial` (FR-082): quien tenga que aprobar contenido
+    necesita el segundo, no el primero.
+FIN

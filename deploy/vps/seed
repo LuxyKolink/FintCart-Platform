@@ -113,5 +113,9 @@ cat <<'EOF'
 
     Si esta es la primera puesta en marcha, falta además el administrador inicial:
     registrar la cuenta desde la SPA, poner su correo en BOOTSTRAP_ADMIN_EMAIL y
-    reiniciar `users` (ver README.md §4).
+    recrear `users` con `up -d` —NO `restart`: no relee el entorno— (ver README.md §4).
+
+    Para enseñar el flujo editorial hacen falta los roles `editor` y `coordinador_editorial`,
+    que el administrador NO hereda (FR-082) y que no se conceden por la API:
+      deploy/vps/rol <correo> editor
 EOF
