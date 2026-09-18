@@ -64,7 +64,12 @@ source "$ENV_FILE"
 
 # El contenedor se resuelve por Compose y no por nombre fijo: si el proyecto se renombra, el
 # guion sigue apuntando al mismo Postgres en vez de a un nombre que ya no existe.
-cid="$(docker compose -f "$COMPOSE_FILE" ps -q postgres-learning 2>/dev/null || true)"
+#
+# `--env-file` es obligatorio aquí, y no basta con haber hecho `source`: Compose interpola en
+# el proceso HIJO, así que las variables de la shell no le llegan salvo que se exporten. Sin
+# esto, `ps -q` falla con «required variable PG_PASSWORD is missing» y el guion diría que el
+# Postgres no está en marcha cuando sí lo está (la lección costó un rato).
+cid="$(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q postgres-learning 2>/dev/null || true)"
 [[ -n "$cid" ]] || die "'postgres-learning' no está en marcha. Ejecutar 'docker compose -f compose.data.yaml up -d' antes."
 
 psql_learning() {
