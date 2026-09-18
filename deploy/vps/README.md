@@ -525,6 +525,19 @@ tiene sus borradores, el guard lo devuelva al catálogo cuando escribe `/editori
 mano. Sin esa segunda mitad, «tiene el rol» y «el rol limita algo» serían lo mismo. Esa parte **no
 publica nada**: entra, mira y cierra.
 
+**DÓNDE SE EJECUTA, Y CUÁL DE LAS DOS EJECUCIONES MANDA.** Hay dos formas y no dan lo mismo:
+
+| | Dentro de la máquina (`deploy/vps/e2e`) | Desde fuera (`npm run e2e:prod`) |
+|---|---|---|
+| Para qué | **es la que manda**: determinista, ~19 s | comprobar el camino real de un usuario, con el perímetro y la red de por medio |
+| Color | verde o rojo de verdad | verde o rojo *del enlace*: cada prueba abre un contexto sin caché y vuelve a bajarse el paquete por el perímetro |
+
+Medido el 2026-09-18: el servidor responde en **milisegundos** —20 inicios de sesión entre 5 y 95
+ms, `/catalog/articles` en 6,3 ms—, y un navegador limpio desde casa completa el acceso en **3 s**.
+Los rojos que aparecen desde fuera son de ahí, no de la plataforma: el mismo inicio de sesión sale
+200 en el servidor y la prueba se queda esperando el viaje. La suite va en serie a propósito (en
+paralelo desde fuera falla más) y con 30 s de margen por aserción.
+
 **Sin ellas no se cae nada**: esas pruebas se saltan y lo dicen con todas las letras
 («sin E2E_USUARIO_EMAIL: la parte autenticada NO se comprobó»). Un salto ahí no significa que
 no hiciera falta comprobarlo, significa que no se comprobó — por eso el mensaje nombra la
