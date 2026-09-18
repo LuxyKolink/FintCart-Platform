@@ -13,7 +13,12 @@
     "format": "prettier --write \"src/**/*.{ts,html,scss}\"",
     "test": "ng test --watch=false --browsers=ChromeHeadless",
     "e2e": "playwright test",
-    "e2e:prod": "playwright test --config=playwright.prod.config.ts"
+    "e2e:prod": "playwright test --config=playwright.prod.config.ts",
+    "e2e:ver": "playwright test --headed --slow-mo=400",
+    "e2e:ui": "playwright test --ui",
+    "e2e:prod:ver": "playwright test --config=playwright.prod.config.ts --headed --slow-mo=400",
+    "e2e:prod:ui": "playwright test --config=playwright.prod.config.ts --ui",
+    "e2e:prod:pista": "playwright test --config=playwright.prod.config.ts --trace on"
   },
   "dependencies": {
     "@angular/animations": "^19.0.0",
