@@ -12,6 +12,25 @@
 # pública de ESTA máquina antes de arrancar Caddy, o la validación ACME falla.
 
 {$DOMAIN} {
+	# DOS EMISORES, y esto arregla un problema de verdad (hallazgo 31).
+	#
+	# Con solo ACME —lo que había—, mientras Let's Encrypt no pueda validar el dominio el sitio
+	# se queda SIN certificado y HTTPS no responde: el borde entero depende de un tercero que
+	# hoy no puede entrar (sus validadores reciben `Timeout during connect`, mientras que desde
+	# una red doméstica 80 y 443 responden). Con solo `internal` —el apaño que hubo que poner a
+	# mano para poder enseñar la plataforma— el sitio funciona siempre, pero hay que acordarse de
+	# revertirlo el día que el perímetro se abra.
+	#
+	# Con los dos, Caddy intenta primero el certificado de verdad y, si no lo consigue, sirve con
+	# su autoridad interna para no dejar el sitio sin HTTPS. No hay nada que revertir: en la
+	# siguiente renovación vuelve a intentar ACME, así que el día que el CTIC abra 80/443 a los
+	# validadores el certificado de verdad entra solo y el aviso del navegador desaparece sin que
+	# nadie toque la máquina.
+	tls {
+		issuer acme
+		issuer internal
+	}
+
 	handle_path /api/* {
 		reverse_proxy api-gateway:8080
 	}
