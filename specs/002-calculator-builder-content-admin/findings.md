@@ -936,3 +936,68 @@ el historial siga siendo reconstruible cuando las sesiones se purguen (FR-016).
 
 Queda escrito en el README del despliegue, en la sección de la enmienda, para que nadie más lo
 busque en el registro de `migrate`.
+
+---
+
+## Hallazgo 30 — La imagen de producción del frontend no podía escribir su configuración
+
+**Qué pasaba**: al levantar la plataforma en la máquina del CTIC, el contenedor del
+frontend entraba en bucle de reinicio:
+
+```
+/docker-entrypoint.d/40-fintcart-config.sh: line 4:
+  can't create /usr/share/nginx/html/config.js: Permission denied
+```
+
+El Dockerfile hace `COPY --from=build /out /usr/share/nginx/html` — que deja el árbol como
+`root` — y después baja a `USER 101` (el `nginx` sin privilegios de la imagen). El script de
+arranque escribe `config.js` en ese mismo directorio, así que el usuario sin privilegios no
+podía crear el fichero, el contenedor se reiniciaba, y el SPA se habría quedado sin saber a
+qué API apuntar.
+
+**Por qué no se veía en ninguna prueba**: el entorno de desarrollo usa **otro Dockerfile**
+(`frontend/Dockerfile.dev`). La ruta de escritura de la imagen de producción no se ejecutaba
+en ningún sitio hasta que alguien la desplegó de verdad. Es el mismo patrón que el hallazgo
+27 y que el `HEALTH_PORT`: **el camino de despliegue es el que nadie recorre hasta el final**,
+así que los defectos se acumulan justo ahí.
+
+**Arreglo, sin dar permisos de escritura sobre lo que se sirve**: `config.js` pasa a vivir en
+`/var/lib/fintcart-config`, un directorio propio con dueño el usuario `101`
+(`RUN install -d -m 0755 -o 101 -g 101 /var/lib/fintcart-config`), y nginx lo sirve con
+`location = /config.js { root /var/lib/fintcart-config; }`. La alternativa —`chown` del
+directorio que se sirve— habría funcionado igual y se descartó a propósito: dejaría al
+proceso que sirve los ficheros con permiso para reescribirlos, que es exactamente la
+diferencia entre «este contenedor no necesita privilegios» y «este contenedor, si lo
+comprometen, no puede cambiar lo que entrega».
+
+---
+
+## Hallazgo 31 — El certificado depende de que el CTIC abra 80/443 a Internet, no solo al campus
+
+**Qué pasó**: con la plataforma entera levantada y funcionando —el catálogo de calculadoras
+respondía por dentro de la red de la aplicación, el SPA se servía, las bases migradas—, el
+dominio no servía nada por HTTPS:
+
+```
+tls: handshake ... "TLS alert, internal error"      (desde la propia máquina)
+challenge failed ... http-01 ... "Timeout during connect (likely firewall problem)"
+```
+
+Caddy no tenía certificado, y sin certificado rechaza el handshake. La petición a Let's
+Encrypt fallaba, pero **desde la red del campus los tres puertos estaban abiertos**: 22, 80 y
+443 respondían desde el portátil del autor. Es decir, el perímetro del CTIC filtraba por
+origen: dejaba pasar el tráfico del campus y no el de los validadores de Let's Encrypt, que
+vienen de fuera.
+
+**Cómo se distingue esto de un defecto propio**, que es lo que importa: se comprobaron los
+puertos **desde fuera de la máquina** (22/80/443 abiertos), se verificó que Caddy escucha en
+80 y 443 (`ss -ltn`), y se comprobó que el resto de la plataforma responde por dentro
+(`docker run --network … http://api-gateway:8080/calculators` devuelve las siete calculadoras
+sembradas). Con esas tres cosas, lo único que queda en pie es el filtrado por origen del
+perímetro.
+
+**Qué hacer**: pedir al CTIC que abra 80 y 443 a Internet —su cuadro de entrega ya los lista
+como «puertos solicitados para acceso desde internet (fuera del campus)»—. Caddy reintenta 30
+días, así que el certificado aparece solo en cuanto lo hagan. Queda escrito en el README del
+despliegue, junto con la salida provisional (`tls internal`, aviso del navegador) para
+enseñar la plataforma antes de eso.

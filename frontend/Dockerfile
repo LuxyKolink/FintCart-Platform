@@ -71,7 +71,11 @@ server {
         add_header Cache-Control "no-cache";
     }
 
+    # `config.js` se escribe en tiempo de EJECUCIÓN, así que vive fuera del árbol
+    # estático: ver `40-fintcart-config.sh` más abajo y el comentario de por qué no se
+    # le dan permisos de escritura al directorio que se sirve.
     location = /config.js {
+        root /var/lib/fintcart-config;
         add_header Cache-Control "no-cache";
     }
 
@@ -92,11 +96,23 @@ COPY <<'ENTRYPOINT_SH' /docker-entrypoint.d/40-fintcart-config.sh
 #!/bin/sh
 set -eu
 : "${API_BASE_URL:?falta la variable de entorno API_BASE_URL}"
-cat > /usr/share/nginx/html/config.js <<EOF
+cat > /var/lib/fintcart-config/config.js <<EOF
 window.__FINTCART_CONFIG__ = { apiBaseUrl: "${API_BASE_URL}" };
 EOF
 ENTRYPOINT_SH
 RUN chmod +x /docker-entrypoint.d/40-fintcart-config.sh
+
+# El único directorio que el contenedor escribe cuando arranca, con dueño el usuario que
+# ejecuta nginx (`101`). NO se le dan permisos sobre `/usr/share/nginx/html`: el árbol que
+# se sirve queda de solo lectura para el proceso que lo sirve, y esa es la diferencia
+# entre «este contenedor no requiere privilegios» y «este contenedor, si lo comprometen,
+# no puede reescribir lo que entrega a los usuarios».
+#
+# Se descubrió en el despliegue real: `COPY` deja el árbol como root y el arranque fallaba
+# con «can't create /usr/share/nginx/html/config.js: Permission denied». En desarrollo no
+# se veía porque ese entorno usa OTRO Dockerfile (`Dockerfile.dev`), así que esta ruta de
+# escritura no se ejecutaba en ninguna prueba.
+RUN install -d -m 0755 -o 101 -g 101 /var/lib/fintcart-config
 
 COPY --from=build /out /usr/share/nginx/html
 

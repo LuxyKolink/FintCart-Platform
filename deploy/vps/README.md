@@ -280,7 +280,21 @@ dentro de una sesión.
 ## 5. Verificación de punta a punta
 
 ```bash
-curl -s https://fintcart.bucaramanga.upb.edu.co/api/healthz
+# El catálogo de calculadoras es la comprobación más corta que toca TODAS las piezas:
+# entra por Caddy, el borde enruta a Aprendizaje por gRPC, y la respuesta sale de la
+# base de datos de la otra máquina.
+curl -s https://fintcart.bucaramanga.upb.edu.co/api/calculators | head -c 200
+```
+
+Las **sondas de salud no se comprueban por aquí**: viven en un puerto aparte
+(`HEALTH_PORT`, 8081 en este despliegue y 9090 en los manifiestos de Kubernetes) que
+**no se publica** al exterior a propósito —por ahí no se llega a ninguna ruta de
+negocio—, así que `/api/healthz` responde 404 y no es un síntoma de nada. Para mirarlas,
+desde dentro de la red de la aplicación:
+
+```bash
+docker run --rm --network fintcart-app_fintcart-app curlimages/curl:latest \
+  -s http://api-gateway:8081/healthz
 ```
 
 Luego, desde un navegador: entrar a `https://fintcart.bucaramanga.upb.edu.co`,
@@ -429,6 +443,31 @@ fila no, el servicio ejecutaría la fórmula vieja mientras el binario tiene la 
 fallaría. El binario compara y añade una versión nueva cuando difieren, de modo que
 repetirlo es seguro y **no** repetirlo deja la base sirviendo algo que ya no está en el
 código.
+
+## Si el dominio no responde con HTTPS: falta el certificado, y depende del CTIC
+
+Caddy pide el certificado a Let's Encrypt la primera vez que arranca, y **necesita que los
+validadores de Let's Encrypt lleguen a esta máquina por 80 o 443**. El perímetro del CTIC
+puede dejar pasar el tráfico del campus y no el de fuera: en el despliegue del 18 de
+septiembre, desde la red del campus los tres puertos (22, 80 y 443) estaban abiertos,
+mientras que los validadores recibían `Timeout during connect` en los dos. El síntoma es
+este, en el registro de Caddy:
+
+```
+challenge failed ... challenge_type":"http-01" ... "detail":"207.248.81.119: Fetching
+http://<dominio>/.well-known/acme-challenge/...: Timeout during connect (likely firewall problem)"
+```
+
+Y mientras no hay certificado, **Caddy rechaza el handshake TLS** (`tlsv1 alert internal
+error`), así que el dominio no sirve nada por HTTPS aunque todo lo demás esté bien: HTTP
+responde con un 308 hacia HTTPS, y ahí se acaba. No es un defecto del despliegue —el
+catálogo y el SPA responden por dentro— sino del acceso desde fuera del campus.
+
+Qué hacer: pedir al CTIC que abra **80 y 443 a Internet** (su propio cuadro de entrega los
+lista como puertos solicitados). Caddy reintenta durante 30 días, así que en cuanto los
+abran el certificado aparece solo, sin tocar nada. Para enseñar la plataforma **antes** de
+eso queda cambiar el `Caddyfile` por un certificado propio (`tls internal`, con aviso del
+navegador) y volver a ponerlo cuando el CTIC abra los puertos.
 
 ## Lo que este árbol NO cubre
 
