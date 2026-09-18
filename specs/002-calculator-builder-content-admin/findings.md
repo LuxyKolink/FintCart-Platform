@@ -1031,3 +1031,40 @@ un formulario que aún no existía, y el fallo se leía como de accesibilidad cu
 Se quitó la carrera esperando a que el botón estuviera disponible, que **no rebaja la
 barrera**: mide la pantalla terminada en vez de una a medio cargar. Un `retry` habría escondido
 el problema. Verificado estable con tres pasadas seguidas (7/7, 7/7, 7/7).
+
+---
+
+## Hallazgo 33 — La barrera de accesibilidad perdió una pantalla sin decirlo
+
+*(La barrera es de 003 —FR-093…FR-096—, pero el hallazgo es de la misma familia que el 10
+—pruebas que dejan residuos—, así que se registra aquí, con el resto de defectos.)*
+
+**Qué pasaba**: la comprobación de accesibilidad de la pantalla del cuestionario busca un
+artículo que traiga cuestionario recorriendo el catálogo, y miraba **solo los cinco primeros**.
+El catálogo se sirve `ORDER BY a.created_at DESC` (`articles.repository.ts`), así que cada
+artículo publicado después —el que crea `us4` en cada pasada de la suite, o cualquiera de
+demostración— se coloca delante y empuja hacia abajo el artículo sembrado que sí tiene
+cuestionario. Cuando pasa del quinto puesto, la prueba se salta la pantalla con `test.skip`, la
+suite termina **en verde** y la barrera cubre 18 pantallas en vez de 19.
+
+Se vio al ejecutar la suite completa después de publicar un artículo de demostración: `58 passed
+· 1 skipped`. No se había tocado nada de accesibilidad; lo que cambió fue el contenido.
+
+**Por qué importa más de lo que parece**: un `test.skip` condicionado por el orden de los datos
+es una pérdida de cobertura disfrazada de resultado normal. Un límite fijo sobre una lista que
+crece hacia arriba garantiza que algún día se pierda — y no avisa el día que ocurre, sino que
+llevaba perdiéndose desde la primera pasada con contenido nuevo—.
+
+**Arreglo**: se recorre el catálogo **entero** hasta encontrar el artículo con cuestionario. El
+`test.skip` se queda, pero ahora significa lo que dice —que ningún artículo de la fixture trae
+cuestionario— y no «que el artículo cayó fuera de la ventana». Verificado: la barrera pasa 5/5
+sin ningún salto.
+
+**Lo que NO se toca, y por qué**: el mismo patrón existe en `e2e/us1-aprendizaje.spec.ts`, que
+mira **solo el primer artículo** y se salta el paso del cuestionario en cuanto hay un artículo
+más reciente. Esa spec está protegida por N-13 —sus aserciones son la garantía dura del feature
+y ajustarlas destruye justo lo que protegen—, así que ahí el arreglo no es de la prueba sino del
+procedimiento: **la ejecución que demuestra cobertura completa es la de una pila recién sembrada**
+(`dev/down --volumes && dev/up && dev/migrate && dev/seed`), que ya está documentada como paso
+previo a cualquier demostración. En una pila limpia el primer artículo del catálogo es el que
+trae cuestionario y el paso se ejecuta.
