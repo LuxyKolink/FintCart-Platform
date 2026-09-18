@@ -56,7 +56,14 @@ test.describe('aprendiz con sesión', () => {
     test.skip(!APRENDIZ.email || !APRENDIZ.password, FALTA_APRENDIZ);
   });
 
-  test('lee un artículo, ejecuta una calculadora y ve la simulación en su historial', async ({ page }) => {
+  /**
+   * DOS PRUEBAS Y NO UNA, a propósito. Estaban juntas, y el `test.skip` de la primera parte
+   * —«el despliegue no tiene artículos publicados», que es una premisa legítimamente ausente—
+   * se llevaba por delante también la comprobación del simulador, que no depende de que haya
+   * contenido. Una premisa que falta no puede esconder una comprobación que sí se puede hacer:
+   * es la misma lección del hallazgo 33.
+   */
+  test('lee un artículo del catálogo', async ({ page }) => {
     await entrar(page, APRENDIZ);
 
     await test.step('el catálogo de artículos tiene contenido', async () => {
@@ -75,6 +82,11 @@ test.describe('aprendiz con sesión', () => {
       // saldría con título y nada más.
       await expect(page.locator('article h2, article p').first()).toBeVisible();
     });
+
+  });
+
+  test('ejecuta una calculadora y ve la simulación en su historial', async ({ page }) => {
+    await entrar(page, APRENDIZ);
 
     await test.step('el simulador calcula contra la base de producción', async () => {
       await page.getByRole('link', { name: 'Simuladores' }).click();
