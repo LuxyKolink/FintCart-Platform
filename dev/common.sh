@@ -34,6 +34,9 @@ die()  { printf '\033[1;31merror\033[0m %s\n' "$*" >&2; exit 1; }
 require_docker() {
   command -v docker >/dev/null 2>&1 \
     || die "Docker no está instalado. Es el único prerrequisito para levantar Fintcart."
+  # Docker aquí va SIN ROOT: el demonio es un servicio de usuario, y el mensaje tiene que
+  # nombrar la orden que lo arregla. «¿Está Docker Desktop en ejecución?» manda a un programa
+  # que en esta máquina no existe (hallazgo 45).
   docker info >/dev/null 2>&1 \
-    || die "El demonio de Docker no responde. ¿Está Docker Desktop en ejecución?"
+    || die "El demonio de Docker no responde. Se arranca con: systemctl --user start docker"
 }

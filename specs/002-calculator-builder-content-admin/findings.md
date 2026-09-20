@@ -1375,3 +1375,24 @@ set -a; . /tmp/e2e-vars; set +a          # solo las líneas E2E_: .env.app enter
 
 Una conexión, ocho variables. Y el aviso para la defensa: si un `ssh` se corta de golpe, mirar
 primero cuántas veces seguidas se ha llamado, antes de tocar nada de la máquina.
+
+## Hallazgo 45 — El mensaje que avisa de que Docker está apagado mandaba a Docker Desktop
+
+**Qué pasó.** Al desactivar el arranque automático del demonio (a petición de quien usa la
+máquina, que prefiere arrancarlo a mano) se leyó la comprobación previa de `dev/up`:
+
+```
+El demonio de Docker no responde. ¿Está Docker Desktop en ejecución?
+```
+
+**Qué significa.** Docker Desktop no existe en esta máquina: el proyecto usa Docker **sin root**,
+donde el demonio es un servicio de usuario. El mensaje estaba escrito para un portátil con
+interfaz gráfica, y quien lo leyera tras reiniciar buscaría un programa que no está instalado en
+lugar de escribir una orden que sí funciona. Es el mismo error de familia que el hallazgo 32
+—señalar al sitio equivocado— cometido en un mensaje de error, donde cuesta más, porque quien lo
+lee ya está atascado.
+
+**Qué se hace.** El mensaje nombra la orden: `systemctl --user start docker`. Y se documenta lo
+que no estaba en ninguna parte del repositorio: cómo se arranca, cómo se apaga y cómo se desactiva
+el arranque automático, además del motivo de que viniera activado —el instalador de Docker sin
+root ejecuta `enable --now` por su cuenta, y el proyecto solo hablaba de arrancarlo—.

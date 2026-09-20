@@ -72,7 +72,23 @@ dev/demo       # recorre el sistema de punta a punta y enseña qué mirar
 dev/token      # token de acceso real para probar el borde a mano
 ```
 
-Cero pasos manuales adicionales (Principio XII). Para detener y limpiar: `dev/down`. La guía completa — health checks, herramientas de inspección (Swagger UI, Mailhog, RabbitMQ, Adminer), regeneración de contratos, migraciones, verificación paso a paso del flujo principal y gates de cumplimiento — está en [`specs/001-fintcart-platform/quickstart.md`](specs/001-fintcart-platform/quickstart.md), que estos mismos comandos deben coincidir exactamente con los scripts de `dev/` (verificado en CI).
+Cero pasos manuales adicionales (Principio XII). Para detener y limpiar: `dev/down`.
+
+Docker va **sin root** —demonio de usuario, socket en `/run/user/1000/docker.sock`—, así que el
+demonio no lo arranca el sistema sino tú, si así lo prefieres:
+
+```bash
+systemctl --user start docker     # arrancarlo
+systemctl --user stop docker      # apagarlo
+systemctl --user disable docker   # que NO arranque solo al iniciar sesión
+```
+
+Si está apagado, `dev/up` lo dice con esa misma orden en vez de fallar con un error genérico. Y
+conviene saber **por qué viene activado**: el instalador de Docker sin root
+(`dockerd-rootless-setuptool.sh install`) hace `enable --now` por su cuenta, de modo que el
+demonio está en marcha cada vez que inicias sesión y con él vuelven los contenedores
+(`restart: unless-stopped`). El proyecto solo documentaba el arranque: para tenerlo manual, basta
+el `disable`. La guía completa — health checks, herramientas de inspección (Swagger UI, Mailhog, RabbitMQ, Adminer), regeneración de contratos, migraciones, verificación paso a paso del flujo principal y gates de cumplimiento — está en [`specs/001-fintcart-platform/quickstart.md`](specs/001-fintcart-platform/quickstart.md), que estos mismos comandos deben coincidir exactamente con los scripts de `dev/` (verificado en CI).
 
 ## Estructura del repositorio
 
