@@ -442,7 +442,7 @@ async fn cambiar_un_indicador_no_altera_las_simulaciones_que_ya_lo_usaron() {
 
 // ── Semillas por nombre ─────────────────────────────────────────────────────
 
-/// `builtin_version` encuentra las siete semillas y solo esas.
+/// `builtin_version` encuentra las diez semillas y solo esas.
 ///
 /// Es la consulta con la que el camino de compatibilidad atribuye una simulación a la
 /// definición que la reproduce (FR-050). Si devolviera `None` para una semilla real, toda
@@ -451,7 +451,7 @@ async fn cambiar_un_indicador_no_altera_las_simulaciones_que_ya_lo_usaron() {
 /// distintas— y nada fallaría.
 #[tokio::test]
 #[ignore = "necesita la base de desarrollo; ver la nota del módulo"]
-async fn las_siete_semillas_se_encuentran_por_su_nombre() {
+async fn las_diez_semillas_se_encuentran_por_su_nombre() {
     let pool = pool().await;
     let repo = PgCalculators::new(pool);
 
@@ -463,6 +463,9 @@ async fn las_siete_semillas_se_encuentran_por_su_nombre() {
         "ea_a_mv",
         "mv_a_ea",
         "gmf",
+        "fondo_emergencia",
+        "meta_ahorro",
+        "cdt_dias",
     ] {
         let encontrada = repo
             .builtin_version(name)

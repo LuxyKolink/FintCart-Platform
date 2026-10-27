@@ -1,10 +1,16 @@
-//! Las tres semillas del contexto financiero colombiano: `ea_a_mv`, `mv_a_ea` y `gmf`
-//! (T094; FR-019; research D-16).
+//! Las cuatro semillas del contexto financiero colombiano: `ea_a_mv`, `mv_a_ea`, `gmf` y
+//! `cdt_dias` (T094; FR-019; research D-16).
 //!
-//! Eran UNA calculadora con un parámetro de texto `operacion` (`calculators::colombia`).
-//! Separarlas es lo que elimina la última entrada de texto del sistema y deja el lenguaje de
-//! fórmulas puramente numérico: un valor que no se puede comparar ni elevar no tiene sitio en
-//! un motor aritmético, y mantenerlo «por si acaso» reabriría esa puerta.
+//! Las tres primeras eran UNA calculadora con un parámetro de texto `operacion`
+//! (`calculators::colombia`). Separarlas es lo que elimina la última entrada de texto del
+//! sistema y deja el lenguaje de fórmulas puramente numérico: un valor que no se puede comparar
+//! ni elevar no tiene sitio en un motor aritmético, y mantenerlo «por si acaso» reabriría esa
+//! puerta.
+//!
+//! `cdt_dias` no viene de ninguna de ellas: es diseño nuevo (D-31,
+//! `docs/calculadoras-fundamentos.md` §4.3), y vive aquí porque su unidad de plazo son DÍAS y
+//! su retención es la de la fuente colombiana — dos cosas que una semilla «general» no puede
+//! dar por supuestas.
 //!
 //! ## Por qué estas tres
 //!
@@ -14,7 +20,10 @@
 //! lectura más común de un crédito de consumo, y la diferencia no es menor: una E.A. del 24 %
 //! equivale a un 1,809 % mensual, no al 2 % que sugiere dividir entre doce.
 //!
-//! La tercera porque el GMF grava cada retiro y casi nadie lo tiene en cuenta al proyectar.
+//! La tercera porque el GMF grava cada retiro y casi nadie lo tiene en cuenta al proyectar. Y
+//! la cuarta porque un CDT se pacta a días y se ofrece en E.A.: la cuenta que hace todo el
+//! mundo —`capital * tasa_ea * dias / 365`— es interés SIMPLE y sobreestima el rendimiento en un
+//! plazo largo.
 //!
 //! ## La única diferencia deliberada con el código nativo
 //!
@@ -36,7 +45,7 @@
 
 use uuid::Uuid;
 
-use super::{entero_opcional, monto, regla, salida, tasa, Seed};
+use super::{entero, entero_opcional, entero_opcional_por_defecto, monto, regla, salida, tasa, Seed};
 use crate::domain::definition::Draft;
 
 /// Escala de una tasa: la de `NUMERIC(9,6)`.
@@ -44,6 +53,13 @@ const ESCALA_TASA: u32 = 6;
 
 /// Escala de un importe monetario: la de `NUMERIC(19,2)`.
 const ESCALA_MONETARIA: u32 = 2;
+
+/// Tope del plazo de un CDT, en días: cinco años.
+///
+/// Es una barrera de representabilidad —el exponente `dias / 365` acota lo que `potd` puede
+/// elevar sin desbordar— y también de cordura: un CDT a más de cinco años no existe en el
+/// mercado colombiano, así que un plazo mayor casi siempre es un cero de más.
+const DIAS_MAX: u32 = 1825;
 
 /// Tarifa del GMF: cuatro por mil.
 ///
@@ -69,6 +85,31 @@ macro_rules! tarifa_gmf {
 macro_rules! exencion_uvt {
     () => {
         "350"
+    };
+}
+
+/// Días del año en la convención de un CDT: 365.
+///
+/// Es un literal y no un indicador, por la misma razón que la tarifa del GMF: es la convención
+/// de cómputo del plazo, no un dato que cambie cada año. Ignora el 29 de febrero, y el error
+/// máximo es de un día sobre 365 — menos de tres milésimas del rendimiento—, que es la misma
+/// convención que usa `ea_a_mv` con `1 / 12`. Si algún día se necesita la base 360 del mes
+/// comercial, cambia ESTE literal y nada más. Macro porque [`concat!`] solo acepta literales y
+/// la cifra aparece en las cinco salidas.
+macro_rules! dias_por_anio {
+    () => {
+        "365"
+    };
+}
+
+/// Retención en la fuente de un rendimiento financiero: el 7 %.
+///
+/// Literal por la misma razón que [`tarifa_gmf`]: es la tarifa legal, no una convención de
+/// mercado que varíe con el emisor ni con el monto. Macro porque aparece en dos salidas y dos
+/// copias de una tarifa legal son una que se queda atrás.
+macro_rules! tarifa_retencion {
+    () => {
+        "0.07"
     };
 }
 
@@ -229,6 +270,137 @@ pub fn gmf(id: Uuid) -> Seed {
                     "neto_recibido",
                     "Neto recibido",
                     concat!("monto - ", gravamen!()),
+                    ESCALA_MONETARIA,
+                ),
+            ],
+        },
+    }
+}
+
+/// Lo que rinde un CDT en `d` días, con retención en la fuente.
+///
+/// Diseño nuevo (D-31, `docs/calculadoras-fundamentos.md` §4.3), sin código nativo que
+/// reproducir. Un CDT colombiano se pacta a **días** y se ofrece en **efectiva anual**, y la
+/// cuenta que hace todo el mundo —`capital * tasa_ea * dias / 365`— es interés simple, que
+/// sobreestima el rendimiento en un plazo largo. Esta calculadora existe para mostrar la cifra
+/// correcta, con interés compuesto y la retención que de verdad se paga.
+///
+/// ## Por qué el exponente va por `potd` y no por `pot`
+///
+/// Porque `dias / 365` es una expresión CALCULADA y decimal. `pot` la rechazaría al guardar con
+/// `exponente_no_entero`, que es exactamente la separación que D-16 señala como condición para
+/// que FR-049 se mantenga cerrado: `pot` es exacta y `potd` aproximada, y fundirlas perdería en
+/// silencio la exactitud del Principio VIII.
+///
+/// ## Por qué el `si` está en la retención y no en la tasa
+///
+/// El caso `tasa_ea = 0` NO rompe nada aquí: `potd(1, x) = 1` exacto, intereses cero, y no hay
+/// ninguna división por la tasa. El `si` protege otra cosa —que la retención sea cero cuando no
+/// aplica— y por eso su condición compara un entero `0`/`1`. **No todos los `si` son la guarda
+/// del cero**: poner uno donde no hace falta es tan malo como omitirlo donde sí.
+#[must_use]
+pub fn cdt_dias(id: Uuid) -> Seed {
+    // El valor al vencimiento SIN redondear, compartido por tres salidas. Se escribe una vez
+    // porque `neto_recibido` resta la retención del MISMO importe que `valor_final` presenta:
+    // dos copias que se separaran darían un neto que no cuadra con el valor de al lado.
+    macro_rules! valor_final {
+        () => {
+            concat!("(capital * potd(1 + tasa_ea, dias / ", dias_por_anio!(), "))")
+        };
+    }
+    // Los intereses brutos, que son la base de la retención. Se redondean UNA vez, en la salida;
+    // redondear aquí y seguir operando desviaría la retención en un centavo.
+    //
+    // Los paréntesis EXTERIORES no son decorativos y esta macro los necesitó de verdad: sin
+    // ellos, `intereses * 0.07` se analiza como `(capital * potd(…)) - (capital * 0.07)` por
+    // precedencia, y la retención sale del orden de un millón en vez de un 7 % de los intereses.
+    // Es exactamente el fallo que la nota del módulo padre describe para las sub-expresiones
+    // compartidas: el resultado es plausible y no se parece a un error.
+    macro_rules! intereses {
+        () => {
+            concat!("(", valor_final!(), " - capital)")
+        };
+    }
+    // La retención YA redondeada a la escala monetaria, y esto no es cosmético: se resta del
+    // valor final, así que `neto_recibido` cuadra con el extracto al centavo. Es la misma razón
+    // por la que `gmf` resta el gravamen redondeado (`colombia.rs:186-196`).
+    macro_rules! retencion {
+        () => {
+            concat!(
+                "si(aplica_retencion == 1, redondear_dinero(",
+                intereses!(),
+                " * ",
+                tarifa_retencion!(),
+                "), 0)"
+            )
+        };
+    }
+
+    Seed {
+        id,
+        name: "cdt_dias",
+        description: "Cuánto rinde un CDT pactado a días, con la retención en la fuente.",
+        draft: Draft {
+            inputs: vec![
+                monto("capital", "Capital invertido"),
+                tasa("tasa_ea", "Tasa efectiva anual"),
+                // `entero` y no un decimal por una razón técnica: es lo que permite usar un día
+                // como exponente de `pot` si algún día se necesita el plazo en años enteros.
+                entero("dias", "Plazo en días", "días", DIAS_MAX),
+                // Entero `0`/`1` y no una casilla de texto: el rango hace que un valor distinto
+                // se RECHACE en lugar de leerse como «no», igual que `exento` en `gmf`.
+                entero_opcional_por_defecto(
+                    "aplica_retencion",
+                    "Retención del 7 %",
+                    "1 = sí",
+                    0,
+                    1,
+                    1,
+                ),
+            ],
+            validations: vec![
+                regla(
+                    "capital > 0",
+                    "el capital invertido debe ser mayor que cero",
+                ),
+                // Regla del autor y no rango declarado, porque `tasa` no lleva `min` en estas
+                // semillas. Y no es opcional: con `tasa_ea < -1` la base `1 + tasa_ea` queda en
+                // cero o negativa, `potd` no es representable y el usuario leería un error del
+                // motor en vez de un mensaje sobre su dato.
+                regla(
+                    "tasa_ea >= 0",
+                    "la tasa efectiva anual de un CDT no puede ser negativa",
+                ),
+            ],
+            outputs: vec![
+                salida(
+                    "valor_final",
+                    "Valor al vencimiento",
+                    valor_final!(),
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "intereses",
+                    "Intereses brutos",
+                    intereses!(),
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "tasa_periodo",
+                    "Tasa del periodo",
+                    concat!("potd(1 + tasa_ea, dias / ", dias_por_anio!(), ") - 1"),
+                    ESCALA_TASA,
+                ),
+                salida(
+                    "retencion",
+                    "Retención en la fuente",
+                    retencion!(),
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "neto_recibido",
+                    "Neto recibido",
+                    concat!(valor_final!(), " - ", retencion!()),
                     ESCALA_MONETARIA,
                 ),
             ],

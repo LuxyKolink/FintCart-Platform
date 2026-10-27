@@ -30,7 +30,7 @@ use fintcart_simulator::repo::seeds as siembra;
 
 /// Conexiones del pool de siembra.
 ///
-/// Una y no las del servidor: este proceso escribe siete definiciones y cinco indicadores, en
+/// Una y no las del servidor: este proceso escribe diez definiciones y cinco indicadores, en
 /// serie, y una sola conexión basta. Pedir más sería reservar recursos para trabajo que no
 /// existe.
 const CONNECTIONS: u32 = 1;
@@ -55,10 +55,10 @@ async fn run() -> anyhow::Result<()> {
         .filter(|value| !value.is_empty())
         .ok_or_else(|| anyhow::anyhow!("falta DB_ADDR"))?;
 
-    // `compile()` es la comprobación de que las siete semillas pasan por el MISMO analizador
+    // `compile()` es la comprobación de que las diez semillas pasan por el MISMO analizador
     // que la definición de un usuario. Un fallo aquí no es una entrada inválida: es un defecto
     // del binario, y por eso se aborta entero en vez de sembrar las que sí compilaron. Una base
-    // con seis calculadoras de siete estaría peor que una sin ninguna, porque el catálogo
+    // con nueve calculadoras de diez estaría peor que una sin ninguna, porque el catálogo
     // parecería completo.
     let compiled = seeds::compile().map_err(|fallos| {
         let detalle: Vec<String> = fallos

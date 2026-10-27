@@ -58,19 +58,32 @@ pub fn stored_to_proto(value: &str) -> Result<CalcType> {
     Ok(Kind::from_db(value)?.as_proto())
 }
 
-/// Las siete definiciones semilla y el tipo NATIVO que cada una reproduce (D-16).
+/// Las diez definiciones semilla y el tipo con el que se registra cada una (D-16, D-29).
 ///
 /// Es la tabla que relaciona los dos vocabularios, y existe porque **no son el mismo**:
 /// `colombia_especifica` era UNA calculadora nativa con un discriminador de texto, y D-16
-/// la separó en tres definiciones. Las otras cuatro van una a una, y por eso el nombre de
-/// la semilla y `Kind::as_db` coinciden en ellas — lo que hace tentador saltarse la tabla
-/// para esas cuatro, y es justo lo que no hay que hacer: una regla partida en dos sitios
-/// es una regla que se desincroniza en uno.
+/// la separó en tres definiciones. Las cuatro que sí tienen un nativo uno a uno dejan nombre y
+/// `Kind::as_db` coincidentes — lo que hace tentador saltarse la tabla para ellas, y es justo lo
+/// que no hay que hacer: una regla partida en dos sitios es una regla que se desincroniza en uno.
 ///
-/// Que las siete sean ESTAS siete lo comprueba `seed_regression` contra `seeds::drafts()`,
-/// que es la lista de verdad. Igual que `INDICATORS` frente a los indicadores sembrados:
-/// la duplicación se admite porque hay una prueba que la hace imposible de divergir.
-pub const SEEDS: [(&str, Kind); 7] = [
+/// ## `calc_type` es una CATEGORÍA, no la identidad de la semilla
+///
+/// Las tres semillas nuevas (`fondo_emergencia`, `meta_ahorro`, `cdt_dias`) **no sustituyen a
+/// ninguna calculadora nativa**: son diseño nuevo y no tienen `Kind` propio. Se registran con la
+/// categoría que describe su dominio —las dos de ahorro con `ahorro`, la de inversión a plazo con
+/// `inversion`—, y eso no es una atribución falsa: lo que la columna afirma es «esta simulación
+/// es de la familia ahorro», no «la calculó `ahorro.rs`». La identidad exacta de qué definición
+/// la produjo la lleva `simulations.calculator_id` con su versión, y ahí no hay ambigüedad.
+///
+/// Que la tabla se pueda recorrer en las dos direcciones lo comprueba `seed_regression` contra
+/// `seeds::drafts()`, que es la lista de verdad. La vuelta NO es inyectiva —tres nombres comparten
+/// el tipo `ahorro`— y por eso [`seed_name`] devuelve siempre el nombre canónico del tipo: quien
+/// pide por `calc_type` pide la calculadora HISTÓRICA de esa categoría, no una de las nuevas, que
+/// solo se alcanzan por `calculator_id`.
+///
+/// Igual que `INDICATORS` frente a los indicadores sembrados: la duplicación se admite porque hay
+/// una prueba que la hace imposible de divergir.
+pub const SEEDS: [(&str, Kind); 10] = [
     ("ahorro", Kind::Ahorro),
     ("credito", Kind::Credito),
     ("presupuesto", Kind::Presupuesto),
@@ -78,6 +91,10 @@ pub const SEEDS: [(&str, Kind); 7] = [
     ("ea_a_mv", Kind::ColombiaEspecifica),
     ("mv_a_ea", Kind::ColombiaEspecifica),
     ("gmf", Kind::ColombiaEspecifica),
+    // Las tres nuevas: categoría del dominio, no equivalencia nativa.
+    ("fondo_emergencia", Kind::Ahorro),
+    ("meta_ahorro", Kind::Ahorro),
+    ("cdt_dias", Kind::Inversion),
 ];
 
 /// Nombre de la semilla que reproduce una ejecución nativa.
@@ -113,8 +130,12 @@ pub fn seed_name(kind: Kind, raw_inputs: &HashMap<String, String>) -> Result<&'s
 /// Tipo nativo al que corresponde una definición semilla, si corresponde a alguno.
 ///
 /// La inversa de [`seed_name`] para el caso en que las entradas no hacen falta: dado el
-/// NOMBRE de una semilla, qué calculadora nativa reproduce. Devuelve `None` para cualquier
+/// NOMBRE de una semilla, qué tipo de cálculo la registra. Devuelve `None` para cualquier
 /// otro nombre, incluidas las calculadoras de usuario.
+///
+/// No es inyectiva: varias semillas pueden compartir categoría (ver [`SEEDS`]). Lo que sí
+/// garantiza es que el tipo devuelto es uno que el `CHECK` de `simulations.calc_type` acepta,
+/// porque sale de [`Kind::as_db`].
 #[must_use]
 pub fn kind_of_seed(name: &str) -> Option<Kind> {
     SEEDS
@@ -134,16 +155,22 @@ pub fn kind_of_seed(name: &str) -> Option<Kind> {
 /// cuando las define el repositorio. La columna diría algo falso sobre siete calculadoras
 /// que existen desde antes que la columna.
 ///
-/// Así que una semilla se registra con el tipo nativo que reproduce —`gmf` como
+/// Así que una semilla se registra con el tipo de su CATEGORÍA —`gmf` como
 /// `colombia_especifica`, igual que las 13.493 filas históricas que la migración de T020
-/// atribuyó a esa misma semilla— y `'usuario'` queda para lo que de verdad no tiene
-/// equivalente nativo.
+/// atribuyó a esa misma semilla, y las semillas nuevas que no tienen nativo con la categoría de
+/// su dominio (ver [`SEEDS`])— y `'usuario'` queda para lo que de verdad no tiene equivalente
+/// nativo: una definición escrita en el constructor.
+///
+/// Que el tipo sea de la categoría y no de la definición no pierde información: el nombre deja
+/// de ser único en el sentido inverso, pero `simulations.calculator_id` y `calculator_version`
+/// dicen exactamente qué definición se ejecutó, y eso no lo puede decir un vocabulario de seis
+/// valores fijado antes de que existiera el constructor.
 ///
 /// # Errores
 ///
 /// [`Error::Storage`] con `RowNotFound` si una fila marcada `is_builtin` tiene un nombre
-/// que no es ninguna de las siete. Hoy es inalcanzable —solo `dev/seed` y
-/// [`crate::repo::seeds`] crean semillas, y las dos escriben esos siete nombres—, y no se
+/// que no es ninguna de las diez. Hoy es inalcanzable —solo `dev/seed` y
+/// [`crate::repo::seeds`] crean semillas, y las dos escriben esos diez nombres—, y no se
 /// elige un valor por defecto porque cualquier valor sería una afirmación falsa sobre la
 /// procedencia de la fila.
 pub fn stored_calc_type(is_builtin: bool, name: &str) -> Result<&'static str> {

@@ -1,4 +1,4 @@
-//! Regresión de las siete definiciones semilla contra el código nativo (T092; SC-015,
+//! Regresión de las diez definiciones semilla contra el código nativo (T092; SC-015,
 //! FR-049).
 //!
 //! ## Qué sostiene esta suite
@@ -63,6 +63,14 @@
 //! conserva 3 casos en los que solo aborta el NATIVO —el `ahorro.rs` congelado en `tests/nativo/`
 //! sigue multiplicando con `*`, porque se conserva tal como servía tráfico— y **cero** en los que
 //! abortan los dos. Los otros seis no tienen ninguno.
+//!
+//! ## Las tres semillas que no tienen oráculo
+//!
+//! `fondo_emergencia`, `meta_ahorro` y `cdt_dias` son diseño nuevo
+//! (`docs/calculadoras-fundamentos.md` §4): no traducen ninguna calculadora nativa, así que no
+//! hay contra qué compararlas. Lo que las sostiene es la sección «Las tres semillas de diseño
+//! nuevo» —los ejemplos trabajados del documento, cifra a cifra— más las líneas que aportan al
+//! fichero de valores congelados.
 
 use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
@@ -117,7 +125,7 @@ use nativo::{ahorro, credito, inversion, presupuesto};
 // Andamiaje
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Las siete semillas, ya analizadas.
+/// Las diez semillas, ya analizadas.
 ///
 /// Falla aquí, y no en cada prueba, si alguna no analiza: `compile()` es la comprobación de
 /// que las semillas pasan por el MISMO analizador que la definición de un usuario, y una
@@ -427,14 +435,14 @@ fn exige(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Las siete semillas existen y analizan
+// Las diez semillas existen y analizan
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Los nombres son el contrato con `dev/seed` y con el despacho por `calculator_id`: una
 /// semilla que se renombre deja de ser alcanzable por su nombre, y sin esta lista el renombrado
 /// no rompería nada hasta que alguien pidiera esa calculadora.
 #[test]
-fn las_siete_semillas_existen_con_su_nombre() {
+fn las_diez_semillas_existen_con_su_nombre() {
     let nombres: Vec<&str> = semillas().iter().map(|seed| seed.name).collect();
     assert_eq!(
         nombres,
@@ -446,15 +454,18 @@ fn las_siete_semillas_existen_con_su_nombre() {
             "ea_a_mv",
             "mv_a_ea",
             "gmf",
+            "fondo_emergencia",
+            "meta_ahorro",
+            "cdt_dias",
         ]
     );
 }
 
-/// Los siete identificadores son distintos y viven en el bloque reservado (T095).
+/// Los diez identificadores son distintos y viven en el bloque reservado (T095).
 ///
 /// Es la invariante de la que depende el sembrado: si dos semillas compartieran identificador,
-/// la segunda no se insertaría —la primera ya está— y `dev/seed` diría «7 semillas» sobre una
-/// base con seis. Y si una se saliera del bloque `…e0NN`, dejaría de ser reconocible como
+/// la segunda no se insertaría —la primera ya está— y `dev/seed` diría «10 semillas» sobre una
+/// base con nueve. Y si una se saliera del bloque `…e0NN`, dejaría de ser reconocible como
 /// semilla en la base, que es la única señal de que esa fila no la creó nadie.
 #[test]
 fn cada_semilla_tiene_un_identificador_estable_y_distinto() {
@@ -521,7 +532,7 @@ fn los_valores_sembrados_caben_en_su_columna() {
 /// Solo `gmf` depende de un indicador.
 ///
 /// Es la información con la que `dev/seed` decide qué indicadores tiene que crear (T095): sin
-/// `UVT`, `gmf` no se puede ejecutar. Que las otras seis no dependan de ninguno es igual de
+/// `UVT`, `gmf` no se puede ejecutar. Que las otras nueve no dependan de ninguno es igual de
 /// importante — si una empezara a hacerlo, el sembrado tendría que crecer y nadie lo notaría—.
 #[test]
 fn solo_gmf_depende_de_un_indicador() {
@@ -1292,7 +1303,7 @@ fn el_plazo_maximo_de_las_semillas_es_el_del_codigo_nativo() {
 fn la_tabla_de_semillas_corresponde_a_las_semillas_de_verdad() {
     use fintcart_simulator::domain::dispatch::{kind_of_seed, seed_name, Kind, SEEDS};
 
-    // Los nombres son EXACTAMENTE los de las siete definiciones, ni uno más ni uno menos.
+    // Los nombres son EXACTAMENTE los de las diez definiciones, ni uno más ni uno menos.
     let declarados: Vec<&str> = SEEDS.iter().map(|(name, _)| *name).collect();
     let reales: Vec<&str> = semillas().iter().map(|seed| seed.name).collect();
     assert_eq!(
@@ -1310,9 +1321,19 @@ fn la_tabla_de_semillas_corresponde_a_las_semillas_de_verdad() {
 
         // Vuelta: del tipo a la semilla. Las tres colombianas necesitan el discriminador
         // —`colombia_especifica` era UNA calculadora que D-16 separó en tres, así que su
-        // tipo no basta para saber cuál— y las otras cuatro no. Escribirlo como parte del
-        // caso es lo que hace que esta prueba afirme la simetría EXACTA y no una aproximada:
-        // si alguien diera por total la vuelta, la primera semilla colombiana lo delataría.
+        // tipo no basta para saber cuál— y por eso su vuelta es EXACTA.
+        //
+        // Las demás categorías NO son inyectivas desde que existen las semillas de diseño
+        // nuevo: `ahorro` agrupa tres definiciones (`ahorro`, `fondo_emergencia` y
+        // `meta_ahorro`) e `inversion` agrupa dos. La tabla relaciona VOCABULARIOS, y el de
+        // `calc_type` es una categoría de seis valores fijada antes de que existiera el
+        // constructor; la identidad exacta de la definición ejecutada la lleva
+        // `simulations.calculator_id`. Así que para esas categorías lo que se exige es que la
+        // vuelta caiga en una semilla registrada con el MISMO tipo —y que sea el nombre
+        // canónico, que es lo que `seed_name` documenta: quien manda `calc_type` pide la
+        // calculadora HISTÓRICA de la categoría, no una de las nuevas, que solo se alcanzan
+        // por `calculator_id`—. La igualdad estricta de los diez nombres, que es la que impide
+        // que las dos tablas deriven, está al principio de esta prueba y no se relaja.
         let entradas = match kind {
             Kind::ColombiaEspecifica => HashMap::from([("operacion".to_owned(), name.to_owned())]),
             _ => HashMap::new(),
@@ -1320,12 +1341,24 @@ fn la_tabla_de_semillas_corresponde_a_las_semillas_de_verdad() {
 
         // `seed_name` devuelve `Result`, y [`Error`] no es `PartialEq` —envuelve un
         // `sqlx::Error`—, así que se compara el valor ya desenvolvido.
-        assert_eq!(
-            seed_name(kind, &entradas)
-                .unwrap_or_else(|err| panic!("«{name}» no se resuelve por su tipo: {err}")),
-            name,
-            "«{name}» no es el nombre que devuelve su tipo"
-        );
+        let resuelto = seed_name(kind, &entradas)
+            .unwrap_or_else(|err| panic!("«{name}» no se resuelve por su tipo: {err}"));
+
+        if kind == Kind::ColombiaEspecifica {
+            assert_eq!(resuelto, name, "«{name}» no es el nombre que devuelve su tipo");
+        } else {
+            assert_eq!(
+                kind_of_seed(resuelto),
+                Some(kind),
+                "«{name}» resuelve a «{resuelto}», que no es de su tipo"
+            );
+            assert!(
+                SEEDS
+                    .iter()
+                    .any(|(seed, seed_kind)| *seed == name && *seed_kind == kind),
+                "«{name}» no está registrada con el tipo {kind:?}"
+            );
+        }
     }
 
     // Y un `colombia_especifica` sin discriminador reconocible NO se atribuye a ninguna,
@@ -1363,10 +1396,450 @@ fn un_nombre_desconocido_no_corresponde_a_ningun_tipo() {
         "las tres semillas colombianas comparten el tipo nativo del que salieron"
     );
 
-    // Una fila marcada `is_builtin` con un nombre que no es de las siete no se atribuye a
+    // Una fila marcada `is_builtin` con un nombre que no es de las diez no se atribuye a
     // ningún tipo: el `CHECK` de la columna no tiene un valor que decir de ella, y elegir
     // uno por defecto sería afirmar algo falso sobre su procedencia.
     assert!(stored_calc_type(true, "inventada").is_err());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Las tres semillas de diseño nuevo
+// ─────────────────────────────────────────────────────────────────────────────
+
+// `fondo_emergencia`, `meta_ahorro` y `cdt_dias` NO traducen ninguna calculadora nativa: su
+// diseño vive en `docs/calculadoras-fundamentos.md` §4 y no tienen oráculo contra el que
+// compararse. Compararlas contra el código nativo habría comparado el motor consigo mismo.
+//
+// Por eso el oráculo aquí es el DISEÑO, y se usa dos veces: los ejemplos trabajados que el
+// documento da cifra a cifra se afirman aquí tal como están escritos —si el motor y el
+// documento discrepan, uno de los dos está mal y hay que saber cuál—, y el resto de escenarios
+// de cada tabla de casos se congela en `tests/fixtures/seed_golden.txt` para que una edición
+// futura de la fórmula mueva una línea visible en el diff en vez de una cifra en silencio.
+
+/// El valor de una salida concreta, por su clave.
+///
+/// Falla si la clave no está: una salida que desaparece es tan grave como una cifra que se
+/// mueve, y buscarla por nombre lo dice en vez de dejar que un `zip` la empareje con otra.
+fn salida_de(salidas: &[(String, Decimal)], clave: &str) -> Decimal {
+    salidas
+        .iter()
+        .find(|(key, _)| key == clave)
+        .map(|(_, value)| *value)
+        .unwrap_or_else(|| panic!("la definición no produjo la salida «{clave}»"))
+}
+
+/// Exige el valor que el diseño documenta para una salida.
+fn exige_valor(salidas: &[(String, Decimal)], clave: &str, esperado: &str) {
+    let esperado = Decimal::from_str(esperado).expect("el valor esperado no es decimal");
+    let obtenido = salida_de(salidas, clave);
+    assert_eq!(
+        obtenido, esperado,
+        "«{clave}»: el diseño dice {esperado} y el motor da {obtenido}"
+    );
+}
+
+/// Ejecuta la semilla con una fila de entradas.
+fn ejecuta(
+    seed: &Compiled,
+    fila: &[(&'static str, Option<&'static str>)],
+) -> Vec<(String, Decimal)> {
+    let caso = Caso::iguales(describe(fila), fila);
+    seed.definition
+        .run(&caso.motor, &caso.indicadores)
+        .unwrap_or_else(|err| panic!("«{}» debe calcular: {err}", seed.name))
+}
+
+/// Aprueba una fila del diseño como escenario congelado.
+fn escenario(fila: &[(&'static str, Option<&'static str>)]) -> Caso {
+    Caso::iguales(describe(fila), fila)
+}
+
+/// Los escenarios de `fondo_emergencia` que se congelan.
+fn casos_fondo_emergencia() -> Vec<Caso> {
+    vec![
+        // E1 del diseño: caso típico.
+        escenario(&[
+            ("gasto_mensual", Some("2500000")),
+            ("meses_cobertura", Some("6")),
+            ("ahorro_inicial", Some("3000000")),
+            ("aporte_mensual", Some("400000")),
+            ("tasa_anual", Some("0.06")),
+        ]),
+        // E2: tasa cero, el caso que demuestra que `vf_serie` resuelve el tipo cero.
+        escenario(&[
+            ("gasto_mensual", Some("1800000")),
+            ("meses_cobertura", Some("3")),
+            ("ahorro_inicial", Some("0")),
+            ("aporte_mensual", Some("300000")),
+            ("tasa_anual", Some("0")),
+        ]),
+        // E3: ya cubierto, así que los dos faltantes los recorta `max`.
+        escenario(&[
+            ("gasto_mensual", Some("2000000")),
+            ("meses_cobertura", Some("6")),
+            ("ahorro_inicial", Some("13000000")),
+            ("aporte_mensual", Some("0")),
+            ("tasa_anual", Some("0.02")),
+        ]),
+        // Solo lo obligatorio: los tres opcionales toman su valor por defecto, que es cero
+        // EXPLÍCITO en el caso de la tasa.
+        escenario(&[
+            ("gasto_mensual", Some("1000000")),
+            ("meses_cobertura", Some("60")),
+        ]),
+        // El tope de meses superado por uno: lo rechaza el RANGO declarado, antes de evaluar.
+        escenario(&[
+            ("gasto_mensual", Some("1000000")),
+            ("meses_cobertura", Some("61")),
+        ]),
+    ]
+}
+
+/// Los escenarios de `meta_ahorro` que se congelan.
+fn casos_meta_ahorro() -> Vec<Caso> {
+    vec![
+        // E1 del diseño: caso típico con rendimiento.
+        escenario(&[
+            ("meta", Some("20000000")),
+            ("ahorro_inicial", Some("2000000")),
+            ("meses", Some("24")),
+            ("tasa_anual", Some("0.09")),
+        ]),
+        // E2: tasa cero, la rama del `si` que evita la división por cero exacta.
+        escenario(&[
+            ("meta", Some("20000000")),
+            ("ahorro_inicial", Some("2000000")),
+            ("meses", Some("24")),
+            ("tasa_anual", Some("0")),
+        ]),
+        // E3: meta corta con tasa alta.
+        escenario(&[
+            ("meta", Some("5000000")),
+            ("ahorro_inicial", Some("0")),
+            ("meses", Some("18")),
+            ("tasa_anual", Some("0.12")),
+        ]),
+        // El ahorro ya cubre la meta: RECHAZADO, que es lo que garantiza
+        // `meta - ahorro_inicial > 0` en las dos ramas del `si`.
+        escenario(&[
+            ("meta", Some("5000000")),
+            ("ahorro_inicial", Some("5000000")),
+            ("meses", Some("12")),
+        ]),
+        // Un plazo de un mes: el despeje no necesita ninguna serie.
+        escenario(&[("meta", Some("300000")), ("meses", Some("1"))]),
+    ]
+}
+
+/// Los escenarios de `cdt_dias` que se congelan.
+fn casos_cdt_dias() -> Vec<Caso> {
+    vec![
+        // E1 del diseño: 90 días al 11 % E.A. con retención.
+        escenario(&[
+            ("capital", Some("10000000")),
+            ("tasa_ea", Some("0.11")),
+            ("dias", Some("90")),
+            ("aplica_retencion", Some("1")),
+        ]),
+        // E2: 30 días al 7,5 %.
+        escenario(&[
+            ("capital", Some("5000000")),
+            ("tasa_ea", Some("0.075")),
+            ("dias", Some("30")),
+            ("aplica_retencion", Some("1")),
+        ]),
+        // E3: 360 días al 13 % sin retención.
+        escenario(&[
+            ("capital", Some("20000000")),
+            ("tasa_ea", Some("0.13")),
+            ("dias", Some("360")),
+            ("aplica_retencion", Some("0")),
+        ]),
+        // Sin la entrada de retención: el defecto es 1, así que se retiene.
+        escenario(&[
+            ("capital", Some("1000000")),
+            ("tasa_ea", Some("0.1")),
+            ("dias", Some("365")),
+        ]),
+        // Un día: la tasa del periodo es diminuta pero no cero.
+        escenario(&[
+            ("capital", Some("1000000")),
+            ("tasa_ea", Some("0.1")),
+            ("dias", Some("1")),
+        ]),
+        // El tope de días superado por uno: lo rechaza el RANGO declarado.
+        escenario(&[
+            ("capital", Some("1000000")),
+            ("tasa_ea", Some("0.1")),
+            ("dias", Some("1826")),
+        ]),
+    ]
+}
+
+/// `fondo_emergencia` reproduce los ejemplos de §4.1 cifra a cifra.
+#[test]
+fn fondo_emergencia_cumple_los_ejemplos_del_diseno() {
+    let seed = semilla("fondo_emergencia");
+
+    // E1 — caso típico.
+    let e1 = ejecuta(
+        &seed,
+        &[
+            ("gasto_mensual", Some("2500000")),
+            ("meses_cobertura", Some("6")),
+            ("ahorro_inicial", Some("3000000")),
+            ("aporte_mensual", Some("400000")),
+            ("tasa_anual", Some("0.06")),
+        ],
+    );
+    exige_valor(&e1, "fondo_objetivo", "15000000");
+    exige_valor(&e1, "cobertura_actual", "1.2");
+    exige_valor(&e1, "faltante_inicial", "12000000");
+    exige_valor(&e1, "proyeccion_12_meses", "7934224.95");
+    exige_valor(&e1, "brecha_12_meses", "7065775.05");
+    exige_valor(&e1, "rendimiento_12_meses", "134224.95");
+
+    // El orden de las salidas es el que declara la definición, y es lo que el usuario ve.
+    let claves: Vec<&str> = e1.iter().map(|(key, _)| key.as_str()).collect();
+    assert_eq!(
+        claves,
+        vec![
+            "fondo_objetivo",
+            "cobertura_actual",
+            "faltante_inicial",
+            "proyeccion_12_meses",
+            "brecha_12_meses",
+            "rendimiento_12_meses",
+        ]
+    );
+
+    // E2 — tasa cero: sin la rama de `annuity`, aquí habría una división por cero.
+    let e2 = ejecuta(
+        &seed,
+        &[
+            ("gasto_mensual", Some("1800000")),
+            ("meses_cobertura", Some("3")),
+            ("ahorro_inicial", Some("0")),
+            ("aporte_mensual", Some("300000")),
+            ("tasa_anual", Some("0")),
+        ],
+    );
+    exige_valor(&e2, "fondo_objetivo", "5400000");
+    exige_valor(&e2, "cobertura_actual", "0");
+    exige_valor(&e2, "faltante_inicial", "5400000");
+    exige_valor(&e2, "proyeccion_12_meses", "3600000");
+    exige_valor(&e2, "brecha_12_meses", "1800000");
+    exige_valor(&e2, "rendimiento_12_meses", "0");
+
+    // E3 — ya cubierto: los dos faltantes los recorta `max`, no los recorta un cero de más.
+    let e3 = ejecuta(
+        &seed,
+        &[
+            ("gasto_mensual", Some("2000000")),
+            ("meses_cobertura", Some("6")),
+            ("ahorro_inicial", Some("13000000")),
+            ("aporte_mensual", Some("0")),
+            ("tasa_anual", Some("0.02")),
+        ],
+    );
+    exige_valor(&e3, "fondo_objetivo", "12000000");
+    exige_valor(&e3, "cobertura_actual", "6.5");
+    exige_valor(&e3, "faltante_inicial", "0");
+    exige_valor(&e3, "brecha_12_meses", "0");
+}
+
+/// `meta_ahorro` reproduce los ejemplos de §4.2 cifra a cifra.
+#[test]
+fn meta_ahorro_cumple_los_ejemplos_del_diseno() {
+    let seed = semilla("meta_ahorro");
+
+    // E1 — caso típico: el rendimiento cubre 1 504 191,34 de los 18 millones.
+    let e1 = ejecuta(
+        &seed,
+        &[
+            ("meta", Some("20000000")),
+            ("ahorro_inicial", Some("2000000")),
+            ("meses", Some("24")),
+            ("tasa_anual", Some("0.09")),
+        ],
+    );
+    exige_valor(&e1, "monto_pendiente", "18000000");
+    exige_valor(&e1, "aporte_mensual_requerido", "687325.36");
+    exige_valor(&e1, "aporte_mensual_sin_rendimiento", "750000");
+    exige_valor(&e1, "total_aportado", "16495808.66");
+    exige_valor(&e1, "aportado_por_el_rendimiento", "1504191.34");
+
+    // E2 — tasa cero: sin el `si`, el motor devolvería un error de división.
+    let e2 = ejecuta(
+        &seed,
+        &[
+            ("meta", Some("20000000")),
+            ("ahorro_inicial", Some("2000000")),
+            ("meses", Some("24")),
+            ("tasa_anual", Some("0")),
+        ],
+    );
+    exige_valor(&e2, "monto_pendiente", "18000000");
+    exige_valor(&e2, "aporte_mensual_requerido", "750000");
+    exige_valor(&e2, "aporte_mensual_sin_rendimiento", "750000");
+    exige_valor(&e2, "total_aportado", "18000000");
+    exige_valor(&e2, "aportado_por_el_rendimiento", "0");
+
+    // E3 — meta corta con tasa alta: el aporte necesario baja del reparto lineal.
+    let e3 = ejecuta(
+        &seed,
+        &[
+            ("meta", Some("5000000")),
+            ("ahorro_inicial", Some("0")),
+            ("meses", Some("18")),
+            ("tasa_anual", Some("0.12")),
+        ],
+    );
+    exige_valor(&e3, "aporte_mensual_requerido", "254910.24");
+    exige_valor(&e3, "aporte_mensual_sin_rendimiento", "277777.78");
+    exige_valor(&e3, "total_aportado", "4588384.31");
+    exige_valor(&e3, "aportado_por_el_rendimiento", "411615.69");
+
+    // La coherencia que sostiene la utilidad de la calculadora: lo aportado más lo que pone
+    // el rendimiento es exactamente lo que falta, sin un centavo de diferencia. Se comprueba
+    // sobre E1 porque es el único ejemplo con las tres cifras no triviales.
+    let aportado = salida_de(&e1, "total_aportado");
+    let rendimiento = salida_de(&e1, "aportado_por_el_rendimiento");
+    assert_eq!(
+        aportado + rendimiento,
+        salida_de(&e1, "monto_pendiente"),
+        "lo aportado más el rendimiento debe dar exactamente lo que falta"
+    );
+}
+
+/// `cdt_dias` reproduce los ejemplos de §4.3 cifra a cifra.
+#[test]
+fn cdt_dias_cumple_los_ejemplos_del_diseno() {
+    let seed = semilla("cdt_dias");
+
+    // E1 — 90 días al 11 % E.A. con retención.
+    let e1 = ejecuta(
+        &seed,
+        &[
+            ("capital", Some("10000000")),
+            ("tasa_ea", Some("0.11")),
+            ("dias", Some("90")),
+            ("aplica_retencion", Some("1")),
+        ],
+    );
+    exige_valor(&e1, "valor_final", "10260665.48");
+    exige_valor(&e1, "intereses", "260665.48");
+    exige_valor(&e1, "tasa_periodo", "0.026067");
+    exige_valor(&e1, "retencion", "18246.58");
+    exige_valor(&e1, "neto_recibido", "10242418.90");
+
+    // E2 — 30 días al 7,5 %.
+    let e2 = ejecuta(
+        &seed,
+        &[
+            ("capital", Some("5000000")),
+            ("tasa_ea", Some("0.075")),
+            ("dias", Some("30")),
+            ("aplica_retencion", Some("1")),
+        ],
+    );
+    exige_valor(&e2, "valor_final", "5029809.33");
+    exige_valor(&e2, "intereses", "29809.33");
+    exige_valor(&e2, "tasa_periodo", "0.005962");
+    exige_valor(&e2, "retencion", "2086.65");
+    exige_valor(&e2, "neto_recibido", "5027722.68");
+
+    // E3 — 360 días al 13 % sin retención: el `si` devuelve cero y el neto es el valor final.
+    let e3 = ejecuta(
+        &seed,
+        &[
+            ("capital", Some("20000000")),
+            ("tasa_ea", Some("0.13")),
+            ("dias", Some("360")),
+            ("aplica_retencion", Some("0")),
+        ],
+    );
+    exige_valor(&e3, "valor_final", "22562194.42");
+    exige_valor(&e3, "intereses", "2562194.42");
+    exige_valor(&e3, "tasa_periodo", "0.128110");
+    exige_valor(&e3, "retencion", "0");
+    exige_valor(&e3, "neto_recibido", "22562194.42");
+    assert_eq!(
+        salida_de(&e3, "neto_recibido"),
+        salida_de(&e3, "valor_final"),
+        "sin retención el neto ES el valor al vencimiento"
+    );
+
+    // La diferencia con el interés simple que hace todo el mundo —20 000 000 × 0,13 × 360/365
+    // = 2 564 383,56— no es un error de redondeo: es la razón de que la calculadora exista.
+    let simple = Decimal::from_str("2564383.56").expect("valor decimal");
+    assert!(
+        salida_de(&e3, "intereses") < simple,
+        "el interés compuesto de 360 días debe quedar por debajo del simple"
+    );
+}
+
+/// Las tres validaciones que el diseño escribe para las semillas nuevas.
+///
+/// Un mensaje del autor se pierde en cuanto la regla se omite y la guarda la hace otra cosa: el
+/// usuario leería un error del motor sobre una división, un rango o una base no representable,
+/// y ninguna comparación de resultados lo notaría porque el caso se rechaza igual. Se comprueba
+/// el TEXTO, que es lo único que distingue «lo rechacé por la razón correcta» de «lo rechacé».
+#[test]
+fn las_semillas_nuevas_rechazan_con_el_mensaje_del_autor() {
+    let casos: [(&str, Compiled, Vec<(&'static str, Option<&'static str>)>, &str); 4] = [
+        (
+            "fondo_emergencia",
+            semilla("fondo_emergencia"),
+            vec![
+                ("gasto_mensual", Some("0")),
+                ("meses_cobertura", Some("6")),
+            ],
+            "el gasto mensual debe ser mayor que cero",
+        ),
+        (
+            "meta_ahorro",
+            semilla("meta_ahorro"),
+            vec![
+                ("meta", Some("5000000")),
+                ("ahorro_inicial", Some("6000000")),
+                ("meses", Some("12")),
+            ],
+            "el ahorro disponible ya cubre la meta: no hay nada que aportar",
+        ),
+        (
+            "cdt_dias",
+            semilla("cdt_dias"),
+            vec![
+                ("capital", Some("1000000")),
+                ("tasa_ea", Some("-0.05")),
+                ("dias", Some("90")),
+            ],
+            "la tasa efectiva anual de un CDT no puede ser negativa",
+        ),
+        (
+            "cdt_dias",
+            semilla("cdt_dias"),
+            vec![
+                ("capital", Some("0")),
+                ("tasa_ea", Some("0.11")),
+                ("dias", Some("90")),
+            ],
+            "el capital invertido debe ser mayor que cero",
+        ),
+    ];
+
+    for (nombre, seed, fila, esperado) in casos {
+        let caso = Caso::iguales(describe(&fila), &fila);
+        let error = seed
+            .definition
+            .run(&caso.motor, &caso.indicadores)
+            .expect_err("el diseño dice que este caso se rechaza");
+        assert!(
+            matches!(&error, Error::InvalidInput(msg) if msg == esperado),
+            "«{nombre}» debía decir «{esperado}» y dijo: {error}"
+        );
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1383,11 +1856,14 @@ const RUTA_CONGELADOS: &str = concat!(
     "/tests/fixtures/seed_golden.txt"
 );
 
-/// Las siete semillas con SUS tablas de casos.
+/// Las diez semillas con SUS tablas de casos.
 ///
 /// Existe para que la comparación contra el código nativo y los valores congelados hablen
 /// de los MISMOS casos: una tabla por consumidor se desincronizaría, y las dos afirmarían
 /// cosas distintas sobre lo mismo.
+///
+/// Las tres últimas no tienen contraparte nativa: su tabla es la de los escenarios del diseño
+/// (`docs/calculadoras-fundamentos.md` §4) y su único consumidor es el fichero congelado.
 fn todas_las_tablas() -> Vec<(&'static str, Vec<Caso>)> {
     vec![
         ("ahorro", casos_ahorro()),
@@ -1397,6 +1873,9 @@ fn todas_las_tablas() -> Vec<(&'static str, Vec<Caso>)> {
         ("ea_a_mv", casos_ea_a_mv()),
         ("mv_a_ea", casos_mv_a_ea()),
         ("gmf", casos_gmf()),
+        ("fondo_emergencia", casos_fondo_emergencia()),
+        ("meta_ahorro", casos_meta_ahorro()),
+        ("cdt_dias", casos_cdt_dias()),
     ]
 }
 

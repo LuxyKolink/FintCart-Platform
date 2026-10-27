@@ -659,8 +659,8 @@ impl<S: Simulations, C: Calculators, I: Indicators> Service<S, C, I> {
         let snapshot = self.snapshot_for(&calculator.definition).await?;
         let outputs = calculator.definition.run(raw_inputs, snapshot.values())?;
 
-        // El `calc_type` NO es `'usuario'` por venir por identificador: las siete semillas
-        // también se ejecutan así, y sobre ellas esa palabra sería falsa. Ver
+        // El `calc_type` NO es `'usuario'` por venir por identificador: las semillas también
+        // se ejecutan así, y sobre ellas esa palabra sería falsa. Ver
         // [`dispatch::stored_calc_type`].
         let calc_type = dispatch::stored_calc_type(calculator.is_builtin, &calculator.name)?;
 

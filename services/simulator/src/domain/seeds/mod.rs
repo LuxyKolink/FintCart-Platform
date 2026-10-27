@@ -1,7 +1,6 @@
-//! Las **siete definiciones semilla** que sustituyen a las cinco calculadoras nativas
-//! (FR-019, FR-049; research D-16).
+//! Las **diez definiciones semilla** de la plataforma (FR-019, FR-049; research D-16).
 //!
-//! ## Por qué siete y no cinco
+//! ## Por qué siete de ellas no son cinco
 //!
 //! Las cinco de FR-019 se resiembran como siete porque la quinta —«específicas del contexto
 //! colombiano»— no era una calculadora sino tres, seleccionadas por el parámetro de texto
@@ -9,6 +8,15 @@
 //! elimina **la única entrada de texto del sistema** y deja el lenguaje de fórmulas
 //! puramente numérico (D-16, hallazgo 4). No es una desviación del alcance: FR-019 dice
 //! «calculadoras», en plural.
+//!
+//! ## Las tres últimas no sustituyen a nada
+//!
+//! `fondo_emergencia`, `meta_ahorro` y `cdt_dias` (diseño en
+//! `docs/calculadoras-fundamentos.md` §4) son contenido NUEVO, no la traducción de una
+//! calculadora nativa. Por eso no tienen oráculo contra el que compararse en
+//! `tests/seed_regression.rs`: lo que allí las sostiene son los ejemplos trabajados del
+//! diseño, cifra a cifra, y los valores congelados del resto de su tabla de casos — que es
+//! exactamente lo que impide que una edición futura mueva una cifra en silencio.
 //!
 //! ## Por qué son DATOS y no código
 //!
@@ -55,7 +63,7 @@ pub mod generales;
 
 /// Identificador estable de una semilla, en `calculators.id` (T095).
 ///
-/// Las siete viven en un bloque fijo y consecutivo —`…-00000000e001` a `…-00000000e007`— en
+/// Las diez viven en un bloque fijo y consecutivo —`…-00000000e001` a `…-00000000e00a`— en
 /// lugar de recibir un `gen_random_uuid()` como cualquier calculadora. La razón no es la
 /// comodidad: `dev/seed` es idempotente y el relleno del historial de T020 empareja las
 /// simulaciones viejas con las semillas **por nombre**, así que un identificador aleatorio
@@ -80,7 +88,8 @@ const fn seed_id(posicion: u16) -> Uuid {
 /// errata (`@UV` por `@UVT`) sería aceptada por el catálogo que la errata acaba de definir.
 ///
 /// Los cinco nombres son los del catálogo de indicadores (`data-model.md`); de momento solo
-/// `gmf` usa uno, pero la lista es del catálogo entero y no de lo que hoy se consume.
+/// `gmf` usa uno, pero la lista es del catálogo entero y no de lo que hoy se consume. Las tres
+/// semillas nuevas no dependen de ninguno: sus datos son del usuario, no de una norma.
 pub const INDICATORS: [&str; 5] = ["IPC", "SMMLV", "TASA_USURA", "UVR", "UVT"];
 
 /// Una semilla todavía en texto, antes de analizarse.
@@ -112,7 +121,7 @@ pub struct Compiled {
 /// Los problemas de UNA semilla.
 ///
 /// Lleva el nombre de la semilla porque un `Issue` dice `outputs[1].expression` y, sin el
-/// nombre, un fallo en el arranque no diría **cuál de las siete** definiciones está mal.
+/// nombre, un fallo en el arranque no diría **cuál de las diez** definiciones está mal.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SeedError {
     /// Semilla que no analizó.
@@ -121,11 +130,15 @@ pub struct SeedError {
     pub issues: Vec<Issue>,
 }
 
-/// Las siete semillas en texto, en el orden en que se listan al usuario.
+/// Las diez semillas en texto, en el orden en que se listan al usuario.
 ///
 /// El identificador se pasa en la MISMA línea que el constructor y no se asigna después: así
 /// no existe una semilla sin identificador, ni un identificador sin semilla, ni una lista
 /// paralela de la que alguien pueda olvidarse.
+///
+/// Las tres últimas se AÑADEN al final y no se intercalan: un `calculators.id` que cambia de
+/// posición seguiría siendo el mismo bloque, pero el orden es lo único que hace legible el
+/// catálogo y mover una semilla publicada reordena lo que el usuario ya conoce.
 #[must_use]
 pub fn drafts() -> Vec<Seed> {
     vec![
@@ -136,14 +149,17 @@ pub fn drafts() -> Vec<Seed> {
         colombia::ea_a_mv(seed_id(5)),
         colombia::mv_a_ea(seed_id(6)),
         colombia::gmf(seed_id(7)),
+        generales::fondo_emergencia(seed_id(8)),
+        generales::meta_ahorro(seed_id(9)),
+        colombia::cdt_dias(seed_id(10)),
     ]
 }
 
-/// Analiza las siete semillas contra el catálogo de [`INDICATORS`].
+/// Analiza las diez semillas contra el catálogo de [`INDICATORS`].
 ///
 /// Devuelve **todas** las semillas que fallan, no la primera: un cambio en el lenguaje de
 /// fórmulas que rompiera una construcción rompería las que la usan, y descubrirlas de una en
-/// una convertiría una tarde de trabajo en siete.
+/// una convertiría una tarde de trabajo en diez.
 ///
 /// # Errores
 ///
@@ -236,6 +252,17 @@ fn tasa_opcional(key: &str, label: &str) -> InputField {
     campo(key, label, InputKind::Tasa, "fracción", false)
 }
 
+/// Tasa opcional que vale CERO cuando no se envía, con el cero explícito en el formulario.
+///
+/// `fondo_emergencia` y `meta_ahorro` usan la tasa sin `si`, así que ausente y cero dan el
+/// mismo número; el defecto EXPLÍCITO es lo que hace que el formulario prerrellenado lo diga en
+/// vez de dejar que el usuario descubra que un campo vacío era una tasa del 0 %.
+fn tasa_opcional_cero(key: &str, label: &str) -> InputField {
+    let mut field = tasa_opcional(key, label);
+    field.default = Some(Decimal::ZERO);
+    field
+}
+
 /// Entero obligatorio acotado.
 ///
 /// La cota superior es una barrera de representabilidad, no una regla de negocio: más allá
@@ -257,6 +284,25 @@ fn entero_opcional(key: &str, label: &str, unit: &str, min: u32, max: u32) -> In
     field.min = Some(Decimal::from(min));
     field.max = Some(Decimal::from(max));
     field.default = Some(Decimal::from(min));
+    field
+}
+
+/// Entero opcional acotado cuyo valor por defecto NO es el mínimo.
+///
+/// Existe por la retención de `cdt_dias`: el rango es `[0, 1]`, pero el defecto es `1` —el 7 %
+/// se retiene salvo que el usuario diga lo contrario— y [`entero_opcional`] pone el mínimo.
+/// Escribirlo aquí y no en la semilla mantiene el `vec!` de entradas como una tabla, que es lo
+/// que hace que una definición se lea.
+fn entero_opcional_por_defecto(
+    key: &str,
+    label: &str,
+    unit: &str,
+    min: u32,
+    max: u32,
+    default: u32,
+) -> InputField {
+    let mut field = entero_opcional(key, label, unit, min, max);
+    field.default = Some(Decimal::from(default));
     field
 }
 

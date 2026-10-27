@@ -1,11 +1,16 @@
-//! Las cuatro semillas sin acento local: `ahorro`, `credito`, `presupuesto` e `inversion`
-//! (T093; FR-019; research D-16).
+//! Las seis semillas sin acento local: `ahorro`, `credito`, `presupuesto`, `inversion`,
+//! `fondo_emergencia` y `meta_ahorro` (T093; FR-019; research D-16).
 //!
-//! Traducen a fórmulas lo que hoy hacen `crate::calculators::{ahorro, credito, presupuesto,
-//! inversion}`. La regla que gobierna la traducción está en la nota del módulo padre: **la
-//! misma función y el mismo orden de operaciones** que el código nativo, porque en decimal
-//! reagrupar mueve el último dígito y un resultado plausible es indistinguible de uno
-//! correcto.
+//! Las cuatro primeras traducen a fórmulas lo que hoy hacen `crate::calculators::{ahorro,
+//! credito, presupuesto, inversion}`. La regla que gobierna la traducción está en la nota del
+//! módulo padre: **la misma función y el mismo orden de operaciones** que el código nativo,
+//! porque en decimal reagrupar mueve el último dígito y un resultado plausible es
+//! indistinguible de uno correcto.
+//!
+//! Las dos últimas —`fondo_emergencia` y `meta_ahorro`— NO traducen nada: son diseño nuevo
+//! (`docs/calculadoras-fundamentos.md` §4.1 y §4.2). No tienen oráculo nativo, así que lo que
+//! las fija es el ejemplo trabajado del diseño en `tests/seed_regression.rs`. Y la regla de
+//! estilo sigue siendo la misma: la sub-expresión compartida se escribe una vez, como macro.
 //!
 //! ## Lo que las fórmulas NO repiten del código nativo
 //!
@@ -28,7 +33,8 @@
 use uuid::Uuid;
 
 use super::{
-    entero, monto, monto_opcional, regla, salida, salida_condicional, tasa, tasa_opcional, Seed,
+    entero, monto, monto_opcional, regla, salida, salida_condicional, tasa, tasa_opcional,
+    tasa_opcional_cero, Seed,
 };
 use crate::domain::definition::Draft;
 use crate::domain::inputs::MAX_PERIODS;
@@ -38,6 +44,21 @@ const ESCALA_TASA: u32 = 6;
 
 /// Escala de un importe monetario: la de `NUMERIC(19,2)`.
 const ESCALA_MONETARIA: u32 = 2;
+
+/// Tope de la cobertura de un fondo de emergencia, en meses.
+///
+/// No es una regla de negocio: es la misma barrera de representabilidad que [`MAX_PERIODS`],
+/// porque cinco años de gastos ya es una cobertura extrema y un tope más alto solo invita a
+/// teclear un cero de más.
+const MESES_COBERTURA_MAX: u32 = 60;
+
+/// Tope del plazo de una meta de ahorro, en meses: treinta años.
+///
+/// Es más estrecho que [`MAX_PERIODS`] —ciento veinte años, la barrera del exponente de
+/// `pot`— porque una meta de ahorro personal no vive más allá de una vida laboral: admitir
+/// mil doscientos meses solo invita a teclear un cero de más y produce una cifra que nadie va
+/// a mirar. La barrera del motor sigue estando detrás, así que el tope no lo sustituye.
+const MESES_META_MAX: u32 = 360;
 
 /// Proyección de ahorro con aportes al final de cada mes.
 ///
@@ -321,6 +342,259 @@ pub fn inversion(id: Uuid) -> Seed {
                     concat!(valor_futuro!(), " / pot(1 + inflacion_anual, anios)"),
                     ESCALA_MONETARIA,
                     "presente(inflacion_anual)",
+                ),
+            ],
+        },
+    }
+}
+
+/// Fondo de emergencia: cuánto hace falta para dejar de depender de un sueldo.
+///
+/// Diseño nuevo (D-31, `docs/calculadoras-fundamentos.md` §4.1), sin código nativo que
+/// reproducir. La pregunta que responde no es «cuánto ahorro» sino **«cuánto me falta»**, que es
+/// la única que cambia una decisión — de ahí que tres de sus seis salidas sean una distancia al
+/// objetivo y no un saldo.
+///
+/// ## Por qué no lleva `si`
+///
+/// El caso `tasa_anual = 0` no rompe nada: `vf_serie` lo resuelve DENTRO de la primitiva como
+/// `A · n` (`annuity.rs:94-101`) y `pot` ni siquiera se usa. Un `si` aquí duplicaría una guarda
+/// que ya vive en el módulo que sabe hacerla, y una guarda duplicada es una que se puede
+/// desincronizar.
+///
+/// ## Por qué `max(…, 0)` y no `si`
+///
+/// Un faltante negativo no es información útil —«me sobran 300 000» ya lo dice
+/// `proyeccion_12_meses`— y devolverlo restado de un tope sería peor que recortarlo a cero. No
+/// todos los `si` son la guarda del cero: poner uno donde `max` basta oscurece la fórmula.
+#[must_use]
+pub fn fondo_emergencia(id: Uuid) -> Seed {
+    // El objetivo aparece en tres salidas y la proyección en dos: se escriben como macros para
+    // que las apariciones sean literalmente el mismo texto. Dos copias que se separaran darían
+    // una brecha que no cuadra con el objetivo sin que nada fallara.
+    macro_rules! objetivo {
+        () => {
+            "(gasto_mensual * meses_cobertura)"
+        };
+    }
+    // El valor futuro de los doce aportes del año. Doce periodos son DOCE, y no un año: la
+    // proyección es mensual porque el aporte lo es.
+    macro_rules! serie_12 {
+        () => {
+            "vf_serie(aporte_mensual, tasa_periodica(tasa_anual, 12), 12)"
+        };
+    }
+    // El saldo a doce meses SIN redondear: el redondeo ocurre una sola vez, en la salida.
+    macro_rules! proyeccion {
+        () => {
+            concat!("(ahorro_inicial + ", serie_12!(), ")")
+        };
+    }
+
+    Seed {
+        id,
+        name: "fondo_emergencia",
+        description: "Cuánto necesitas tener guardado para cubrir tus gastos sin un sueldo.",
+        draft: Draft {
+            inputs: vec![
+                monto("gasto_mensual", "Gasto mensual"),
+                entero(
+                    "meses_cobertura",
+                    "Meses de cobertura",
+                    "meses",
+                    MESES_COBERTURA_MAX,
+                ),
+                monto_opcional("ahorro_inicial", "Ahorro disponible hoy"),
+                monto_opcional("aporte_mensual", "Aporte mensual previsto"),
+                tasa_opcional_cero("tasa_anual", "Rendimiento anual de la cuenta"),
+            ],
+            validations: vec![
+                regla(
+                    "gasto_mensual > 0",
+                    "el gasto mensual debe ser mayor que cero",
+                ),
+                regla(
+                    "ahorro_inicial >= 0",
+                    "el ahorro disponible no puede ser negativo",
+                ),
+                regla(
+                    "aporte_mensual >= 0",
+                    "el aporte mensual no puede ser negativo",
+                ),
+                // Una cuenta de ahorro no da rendimiento negativo, y admitirlo aquí restaría
+                // al saldo proyectado sin que el usuario hubiera pedido un escenario de pérdida.
+                regla(
+                    "tasa_anual >= 0",
+                    "el rendimiento de una cuenta de ahorro no puede ser negativo",
+                ),
+            ],
+            outputs: vec![
+                salida(
+                    "fondo_objetivo",
+                    "Fondo objetivo",
+                    objetivo!(),
+                    ESCALA_MONETARIA,
+                ),
+                // La escala es la de un importe aunque la cifra sean MESES de cobertura: dos
+                // decimales son los que el usuario lee, y el diseño los fija así.
+                salida(
+                    "cobertura_actual",
+                    "Cobertura actual",
+                    "ahorro_inicial / gasto_mensual",
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "faltante_inicial",
+                    "Falta hoy",
+                    concat!("max(", objetivo!(), " - ahorro_inicial, 0)"),
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "proyeccion_12_meses",
+                    "Saldo en 12 meses",
+                    proyeccion!(),
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "brecha_12_meses",
+                    "Falta en 12 meses",
+                    concat!("max(", objetivo!(), " - ", proyeccion!(), ", 0)"),
+                    ESCALA_MONETARIA,
+                ),
+                // El rendimiento es lo que rinde la SERIE, no el saldo: el ahorro inicial no
+                // genera estos intereses en el diseño, y sumárselos prometería una cifra que la
+                // proyección no respalda.
+                salida(
+                    "rendimiento_12_meses",
+                    "Rendimiento en 12 meses",
+                    concat!(serie_12!(), " - aporte_mensual * 12"),
+                    ESCALA_MONETARIA,
+                ),
+            ],
+        },
+    }
+}
+
+/// Meta de ahorro: cuánto hay que apartar cada mes para llegar.
+///
+/// Diseño nuevo (D-31, `docs/calculadoras-fundamentos.md` §4.2), sin código nativo que
+/// reproducir. Es la INVERSA de `ahorro`: dado un objetivo y un plazo, el aporte necesario. La
+/// pregunta que de verdad se hace el usuario («¿cuánto tengo que guardar?») y no la que suele
+/// responder una calculadora de ahorro.
+///
+/// ## El único `si` imprescindible de las tres semillas nuevas
+///
+/// `vf_serie` resuelve `i = 0` dentro de la primitiva, pero **no existe la primitiva inversa**:
+/// el despeje del fondo de amortización se escribe a mano y se topa con el mismo cero. Con
+/// `tasa_anual = 0` el denominador `pot(1 + i, meses) - 1` es exactamente cero, y «ahorro sin
+/// rendimiento» no es un caso raro —es quien guarda en efectivo—. El `si` funciona porque es
+/// PEREZOSO: `eval.rs` solo evalúa la rama elegida, así que la que divide por cero no llega a
+/// ejecutarse.
+#[must_use]
+pub fn meta_ahorro(id: Uuid) -> Seed {
+    // Lo que falta por acumular: el numerador de las dos ramas y el minuendo del rendimiento.
+    macro_rules! pendiente {
+        () => {
+            "(meta - ahorro_inicial)"
+        };
+    }
+    // La tasa periódica mensual NOMINAL —la que el usuario declara—, que aparece cuatro veces
+    // dentro de la expresión. Escribirla a mano en cada sitio es la forma de que una se quede
+    // atrás y el despeje deje de despejar.
+    macro_rules! periodo {
+        () => {
+            "tasa_periodica(tasa_anual, 12)"
+        };
+    }
+    // El fondo de amortización: A = VP·i / ((1+i)^n − 1), con el caso i = 0 resuelto aparte.
+    //
+    // `pot` y no `potd` porque el exponente es `meses`, que es un campo ENTERO: elevar a un
+    // entero es multiplicación repetida y exacta, y es lo que el analizador exige de `pot`.
+    macro_rules! aporte {
+        () => {
+            concat!(
+                "si(",
+                periodo!(),
+                " == 0, ",
+                pendiente!(),
+                " / meses, ",
+                pendiente!(),
+                " * ",
+                periodo!(),
+                " / (pot(1 + ",
+                periodo!(),
+                ", meses) - 1))"
+            )
+        };
+    }
+    // Lo aportado por el usuario en todo el plazo, sin redondear.
+    macro_rules! total {
+        () => {
+            concat!("(", aporte!(), " * meses)")
+        };
+    }
+
+    Seed {
+        id,
+        name: "meta_ahorro",
+        description: "Cuánto tienes que apartar cada mes para llegar a tu meta.",
+        draft: Draft {
+            inputs: vec![
+                monto("meta", "Meta de ahorro"),
+                monto_opcional("ahorro_inicial", "Ahorro ya disponible"),
+                entero("meses", "Plazo en meses", "meses", MESES_META_MAX),
+                tasa_opcional_cero("tasa_anual", "Rendimiento anual esperado"),
+            ],
+            validations: vec![
+                regla("meta > 0", "la meta de ahorro debe ser mayor que cero"),
+                regla(
+                    "ahorro_inicial >= 0",
+                    "el ahorro disponible no puede ser negativo",
+                ),
+                // No es cosmética: garantiza `meta - ahorro_inicial > 0`. Sin ella, la rama de
+                // tasa cero dividiría entre `meses` un importe nulo o negativo y devolvería un
+                // aporte de signo contrario al pedido, presentado como si fuera válido.
+                regla(
+                    "ahorro_inicial < meta",
+                    "el ahorro disponible ya cubre la meta: no hay nada que aportar",
+                ),
+                regla("tasa_anual >= 0", "el rendimiento no puede ser negativo"),
+            ],
+            outputs: vec![
+                salida(
+                    "monto_pendiente",
+                    "Falta por acumular",
+                    pendiente!(),
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "aporte_mensual_requerido",
+                    "Aporte mensual necesario",
+                    aporte!(),
+                    ESCALA_MONETARIA,
+                ),
+                // Sin rendimiento es el reparto lineal, y se calcula aparte en vez de restarle
+                // la parte del rendimiento: es la cifra que el usuario puede comprobar de
+                // cabeza, y derivarla la haría depender de dos redondeos.
+                salida(
+                    "aporte_mensual_sin_rendimiento",
+                    "Aporte sin rendimiento",
+                    concat!(pendiente!(), " / meses"),
+                    ESCALA_MONETARIA,
+                ),
+                salida(
+                    "total_aportado",
+                    "Total aportado",
+                    total!(),
+                    ESCALA_MONETARIA,
+                ),
+                // Lo que pone el rendimiento y no el bolsillo. Es la cifra que hace visible por
+                // qué el plazo importa más que el esfuerzo.
+                salida(
+                    "aportado_por_el_rendimiento",
+                    "Lo que aporta el rendimiento",
+                    concat!(pendiente!(), " - ", total!()),
+                    ESCALA_MONETARIA,
                 ),
             ],
         },

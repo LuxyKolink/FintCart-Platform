@@ -1185,3 +1185,19 @@ gmf	monto=Some("99999999.99") exento=Some("0") uvt=1000000	gravamen=400000 base_
 gmf	monto=Some("99999999.99") exento=Some("1") uvt=1	gravamen=399998.6 base_gravable=99999649.99 monto_exento=350 tope_exencion=350 neto_recibido=99600001.39
 gmf	monto=Some("99999999.99") exento=Some("1") uvt=47065	gravamen=334109 base_gravable=83527249.99 monto_exento=16472750 tope_exencion=16472750 neto_recibido=99665890.99
 gmf	monto=Some("99999999.99") exento=Some("1") uvt=1000000	gravamen=0 base_gravable=0 monto_exento=99999999.99 tope_exencion=350000000 neto_recibido=99999999.99
+fondo_emergencia	gasto_mensual=2500000 meses_cobertura=6 ahorro_inicial=3000000 aporte_mensual=400000 tasa_anual=0.06	fondo_objetivo=15000000 cobertura_actual=1.2 faltante_inicial=12000000 proyeccion_12_meses=7934224.95 brecha_12_meses=7065775.05 rendimiento_12_meses=134224.95
+fondo_emergencia	gasto_mensual=1800000 meses_cobertura=3 ahorro_inicial=0 aporte_mensual=300000 tasa_anual=0	fondo_objetivo=5400000 cobertura_actual=0 faltante_inicial=5400000 proyeccion_12_meses=3600000 brecha_12_meses=1800000 rendimiento_12_meses=0
+fondo_emergencia	gasto_mensual=2000000 meses_cobertura=6 ahorro_inicial=13000000 aporte_mensual=0 tasa_anual=0.02	fondo_objetivo=12000000 cobertura_actual=6.5 faltante_inicial=0 proyeccion_12_meses=13000000 brecha_12_meses=0 rendimiento_12_meses=0
+fondo_emergencia	gasto_mensual=1000000 meses_cobertura=60	fondo_objetivo=60000000 cobertura_actual=0 faltante_inicial=60000000 proyeccion_12_meses=0 brecha_12_meses=60000000 rendimiento_12_meses=0
+fondo_emergencia	gasto_mensual=1000000 meses_cobertura=61	RECHAZADO
+meta_ahorro	meta=20000000 ahorro_inicial=2000000 meses=24 tasa_anual=0.09	monto_pendiente=18000000 aporte_mensual_requerido=687325.36 aporte_mensual_sin_rendimiento=750000 total_aportado=16495808.66 aportado_por_el_rendimiento=1504191.34
+meta_ahorro	meta=20000000 ahorro_inicial=2000000 meses=24 tasa_anual=0	monto_pendiente=18000000 aporte_mensual_requerido=750000 aporte_mensual_sin_rendimiento=750000 total_aportado=18000000 aportado_por_el_rendimiento=0
+meta_ahorro	meta=5000000 ahorro_inicial=0 meses=18 tasa_anual=0.12	monto_pendiente=5000000 aporte_mensual_requerido=254910.24 aporte_mensual_sin_rendimiento=277777.78 total_aportado=4588384.31 aportado_por_el_rendimiento=411615.69
+meta_ahorro	meta=5000000 ahorro_inicial=5000000 meses=12	RECHAZADO
+meta_ahorro	meta=300000 meses=1	monto_pendiente=300000 aporte_mensual_requerido=300000 aporte_mensual_sin_rendimiento=300000 total_aportado=300000 aportado_por_el_rendimiento=0
+cdt_dias	capital=10000000 tasa_ea=0.11 dias=90 aplica_retencion=1	valor_final=10260665.48 intereses=260665.48 tasa_periodo=0.026067 retencion=18246.58 neto_recibido=10242418.9
+cdt_dias	capital=5000000 tasa_ea=0.075 dias=30 aplica_retencion=1	valor_final=5029809.33 intereses=29809.33 tasa_periodo=0.005962 retencion=2086.65 neto_recibido=5027722.68
+cdt_dias	capital=20000000 tasa_ea=0.13 dias=360 aplica_retencion=0	valor_final=22562194.42 intereses=2562194.42 tasa_periodo=0.12811 retencion=0 neto_recibido=22562194.42
+cdt_dias	capital=1000000 tasa_ea=0.1 dias=365	valor_final=1100000 intereses=100000 tasa_periodo=0.1 retencion=7000 neto_recibido=1093000
+cdt_dias	capital=1000000 tasa_ea=0.1 dias=1	valor_final=1000261.16 intereses=261.16 tasa_periodo=0.000261 retencion=18.28 neto_recibido=1000242.88
+cdt_dias	capital=1000000 tasa_ea=0.1 dias=1826	RECHAZADO

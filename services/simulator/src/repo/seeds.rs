@@ -104,13 +104,18 @@ pub const YEAR_INDICATORS: [(&str, &str); 5] = [
     ("UVT", "50000"),
 ];
 
-/// Siembra las siete definiciones semilla.
+/// Siembra las diez definiciones semilla.
 ///
 /// # Errores
 ///
 /// [`Error::Storage`] si falla la escritura. Una transacción por semilla y no una para las
-/// siete: que la cuarta falle no debe deshacer las tres anteriores, porque el estado que deja
+/// diez: que la cuarta falle no debe deshacer las tres anteriores, porque el estado que deja
 /// es correcto —cada semilla es independiente— y repetir la siembra la retoma donde quedó.
+///
+/// La idempotencia NO la da un `ON CONFLICT`: cada semilla tiene un identificador estable
+/// (`seeds::seed_id`) y la versión vigente se compara con la compilada, así que una segunda
+/// ejecución dice «igual» en vez de duplicar — y si la definición cambió, inserta una versión
+/// nueva por el mismo camino que una edición de usuario.
 pub async fn seed_builtins(pool: &PgPool, compiled: &[Compiled]) -> Result<Resumen> {
     let mut resumen = Resumen::default();
     for seed in compiled {

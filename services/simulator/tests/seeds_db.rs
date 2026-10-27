@@ -129,7 +129,11 @@ async fn una_base_vacia_se_siembra_entera_y_repetirlo_no_duplica() {
     .await
     .expect("leer el estado sembrado");
 
-    assert_eq!(filas.len(), 7, "tienen que quedar siete calculadoras semilla");
+    assert_eq!(
+        filas.len(),
+        compiled.len(),
+        "tienen que quedar las diez calculadoras semilla"
+    );
     for (id, estado, publicada, definiciones) in &filas {
         assert_eq!(estado, "publicada", "la semilla {id} tiene que nacer publicada");
         // Es la comprobación que faltaba: `calculators_published_has_version` exige que una
@@ -164,21 +168,26 @@ async fn una_base_vacia_se_siembra_entera_y_repetirlo_no_duplica() {
             actualizadas: 0,
             iguales: compiled.len(),
         },
-        "como el código no cambió, las siete tienen que quedar iguales"
+        "como el código no cambió, las diez tienen que quedar iguales"
     );
 
     let total: i64 = sqlx::query_scalar("SELECT count(*) FROM calculators WHERE is_builtin")
         .fetch_one(&pool)
         .await
         .expect("contar tras la segunda siembra");
-    assert_eq!(total, 7, "repetir la siembra no puede duplicar nada");
+    assert_eq!(
+        total,
+        compiled.len() as i64,
+        "repetir la siembra no puede duplicar nada"
+    );
 
     let versiones: i64 = sqlx::query_scalar("SELECT count(*) FROM calculator_definitions")
         .fetch_one(&pool)
         .await
         .expect("contar definiciones");
     assert_eq!(
-        versiones, 7,
+        versiones,
+        compiled.len() as i64,
         "repetir la siembra no puede crear versiones nuevas: la definición es la misma"
     );
 }
