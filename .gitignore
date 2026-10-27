@@ -60,3 +60,6 @@ kubeconfig*
 # NOTA: los stubs gRPC generados (services/*/gen, services/*/src/pb,
 # frontend/src/app/pb) SÍ se versionan a propósito — compilar un servicio no
 # debe exigir tener buf ni protoc instalados (§Definición de Contratos).
+
+# agent memory
+.memory/

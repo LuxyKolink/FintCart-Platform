@@ -1,0 +1,18 @@
+% TRANSLATION UNIT: translate this file only.
+% ===========================================================================
+%  15 — Referencias
+%  The \section title is the canonical (Spanish) chapter name.
+% ===========================================================================
+
+\section{Referencias}
+
+% DRAFTING: while chapters are still stubs nothing is cited yet, so biblatex would
+% print an empty list. \nocite{*} renders every entry in refs/referencias.bib so the
+% bibliography can be proofread. It is harmless once real citations exist (cited
+% works are printed anyway) — but remove it before delivery if a reviewer objects
+% to uncited entries appearing in the list.
+\nocite{*}
+
+% Prints the bibliography from refs/referencias.bib (APA 7 via biblatex).
+% heading=none avoids a second "References" heading under the section title.
+\printbibliography[heading=none]

@@ -1,0 +1,111 @@
+% ---------------------------------------------------------------------------
+%  commands.tex — Shared macros (layout logic only).
+%  Institutional *strings* live in preamble/upb-strings.tex — never here.
+% ---------------------------------------------------------------------------
+
+% --- Optional lists of tables/figures ---------------------------------------
+% Flip to \printliststrue once the document has at least one table/figure.
+% Empty lists are never printed (and never error).
+\newif\ifprintlists
+\printlistsfalse
+
+% --- Monospace for figures / money / code -----------------------------------
+% N-15: a monetary figure must never be truncated — mono keeps digits stable.
+\newcommand{\fcnum}[1]{\texttt{#1}}   % money / numeric literals (may switch to siunitx later)
+\newcommand{\code}[1]{\texttt{#1}}    % inline code / identifiers
+
+% --- Page style: page number top-right on every page -------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% --- Depth of the table of contents ------------------------------------------
+\setcounter{tocdepth}{2}
+
+% --- Portada (cover page) -----------------------------------------------------
+% #1 = optional director block (empty on cover page 1).
+\newcommand{\fcportada}[1]{%
+  \null\vfill
+  \begin{center}
+    {\Large\bfseries\fcTitleEs}\par
+    \vspace{1.6cm}
+    {\Large\fcAuthor}\par
+    \vspace{1.6cm}
+    {\normalsize\fcTrabajoGrado}\par
+    {\normalsize\bfseries\fcTituloOtorgado}\par
+    \vspace{1.6cm}
+    #1
+    \vspace{1.6cm}
+    {\normalsize\fcUniversidad}\par
+    {\normalsize\fcEscuela}\par
+    {\normalsize\fcPrograma}\par
+    {\normalsize\fcCiudad}\par
+    {\normalsize\fcAnio}\par
+  \end{center}
+  \vfill\null
+  \clearpage
+}
+
+% Director block for cover page 2.
+\newcommand{\fcDirectorBlock}{%
+  {\normalsize\fcDirectorLabel}\par
+  {\normalsize\fcDirectorName}\par
+}
+
+% --- Resumen general de trabajo de grado (Spanish) ----------------------------
+\newcommand{\fcresumenes}{%
+  \begin{center}
+    {\large\bfseries\fcResumenGeneralEs}\par
+  \end{center}
+  \vspace{1em}
+  \noindent
+  \begin{tabular}{@{}l@{\hspace{2em}}p{11.5cm}@{}}
+    \fcTituloLabel:     & \fcTitleEs \\
+    \fcAutorLabel:      & \fcAuthor \\
+    \fcProgramaLabel:   & \fcProgramaResumen \\
+    \fcDirectorLabelEs: & \fcDirectorName \\
+  \end{tabular}
+
+  \vspace{2em}
+  \begin{center}{\large\bfseries\fcResumenLabel}\end{center}
+  \noindent \fcResumenEsTexto
+
+  \vspace{1.5em}
+  \noindent \fcPalabrasClaveLabel:\par
+  \vspace{0.5em}
+  \noindent \fcPalabrasClaveEsTexto
+
+  \vspace{2em}
+  \noindent \fcVoBoEs
+  \clearpage
+}
+
+% --- General summary of work of grade (English) -------------------------------
+\newcommand{\fcsummaryen}{%
+  \begin{center}
+    {\large\bfseries\fcSummaryGeneralEn}\par
+  \end{center}
+  \vspace{1em}
+  \noindent
+  \begin{tabular}{@{}l@{\hspace{2em}}p{11.5cm}@{}}
+    \fcTitleLabelEn:    & \fcTitleEn \\
+    \fcAuthorLabelEn:   & \fcAuthor \\
+    \fcFacultyLabelEn:  & \fcFacultyResumen \\
+    \fcDirectorLabelEn: & \fcDirectorName \\
+  \end{tabular}
+
+  \vspace{2em}
+  \begin{center}{\large\bfseries\fcAbstractLabelEn}\end{center}
+  \noindent \fcAbstractEnTexto
+
+  \vspace{1.5em}
+  \noindent \fcKeywordsLabelEn:\par
+  \vspace{0.5em}
+  \noindent \fcKeywordsEnTexto
+
+  \vspace{2em}
+  \noindent \fcVoBoEn
+  \clearpage
+}

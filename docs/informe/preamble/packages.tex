@@ -1,0 +1,35 @@
+% ---------------------------------------------------------------------------
+%  packages.tex — Shared packages for the UPB report template.
+%  Load order matters: babel -> csquotes -> biblatex -> hyperref (hyperref last).
+% ---------------------------------------------------------------------------
+
+% --- Encoding & fonts -----------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tgtermes}             % TeX Gyre Termes — Times-like serif
+
+% --- Page geometry: US Letter (612x792pt), ~2.5 cm margins ----------------
+\usepackage[letterpaper, margin=2.5cm, headheight=14pt]{geometry}
+
+% --- Languages -------------------------------------------------------------
+% Spanish = front matter / institutional strings; English = body chapters.
+% "main=english" makes English the default language of the document.
+% es-noshorthands: disable babel-spanish's active `"`, `~`, `...` shorthands,
+% which otherwise clash with biblatex-apa's \AddToHook{cmd/@makecaption/before}.
+\usepackage[spanish, es-noshorthands, main=english]{babel}
+\usepackage{csquotes}             % required by biblatex-apa
+
+% --- Typography ------------------------------------------------------------
+\usepackage{setspace}
+\setstretch{1.15}                 % ~1.15 line spacing (justified is the default)
+\usepackage{fancyhdr}             % page number top-right
+
+% --- Figures ---------------------------------------------------------------
+\usepackage{graphicx}
+\graphicspath{{figures/}}         % look for PDF/PNG figures in figures/
+
+% --- References: APA 7 via biblatex/biber ----------------------------------
+\usepackage[style=apa, backend=biber]{biblatex}
+
+% --- Hyperlinks (load last) -------------------------------------------------
+\usepackage[hidelinks]{hyperref}

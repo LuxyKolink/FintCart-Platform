@@ -1,0 +1,81 @@
+% !TEX program = latexmk
+% !TEX options = -pdf -interaction=nonstopmode -halt-on-error
+% ---------------------------------------------------------------------------
+%  main.tex — Informe final de trabajo de grado (UPB).
+%  Plantilla/esqueleto. Compile with:  ./build.sh
+%
+%  Language strategy:
+%    • Front matter (portadas, contenido, resúmenes) is SPANISH and institutional.
+%    • Body chapters are written in ENGLISH and translated to Spanish later.
+%    • Institutional Spanish strings live ONLY in preamble/upb-strings.tex.
+% ---------------------------------------------------------------------------
+
+\documentclass[11pt, letterpaper]{article}
+
+\input{preamble/packages}
+\input{preamble/upb-strings}
+\input{preamble/commands}
+
+\addbibresource{refs/referencias.bib}
+
+% Compile only a subset of chapters (fast iteration). Uncomment and list the
+% files you want; all others are skipped but keep their section numbers:
+% \includeonly{chapters/03-objetivos}
+
+\begin{document}
+
+% ============================ FRONT MATTER (Spanish) ============================
+\selectlanguage{spanish}
+\renewcommand{\contentsname}{\fcContenido}
+\renewcommand{\listtablename}{\fcListaTablas}
+\renewcommand{\listfigurename}{\fcListaFiguras}
+
+% --- 1. Portada (cover page 1) ---
+\fcportada{}
+
+% --- 2. Portada (cover page 2, with director) ---
+\fcportada{\fcDirectorBlock}
+
+% --- 3. Contenido (table of contents) ---
+\tableofcontents
+\clearpage
+
+% --- 4. Resumen general de trabajo de grado en español ---
+\fcresumenes
+
+% --- 5. General summary of work of grade (English) ---
+\fcsummaryen
+
+% --- 6. Lists of tables and figures (only if non-empty) ---
+\ifprintlists
+  \listoftables
+  \clearpage
+  \listoffigures
+  \clearpage
+\fi
+
+% ============================ BODY (English) ============================
+\selectlanguage{english}
+
+\include{chapters/01-planteamiento}
+\include{chapters/02-justificacion}
+\include{chapters/03-objetivos}
+\include{chapters/04-marco-referencial}
+\include{chapters/05-metodologia}
+\include{chapters/06-requerimientos}
+\include{chapters/07-arquitectura}
+\include{chapters/08-modelo-datos}
+\include{chapters/09-diseno-ui-ux}
+\include{chapters/10-implementacion}
+\include{chapters/11-pruebas}
+\include{chapters/12-despliegue}
+\include{chapters/13-evaluacion}
+\include{chapters/14-conclusiones}
+\include{chapters/15-referencias}
+
+% ============================ APPENDICES ============================
+% \appendix is issued inside 16-anexos.tex; everything after is lettered A, B, …
+
+\include{chapters/16-anexos}
+
+\end{document}
