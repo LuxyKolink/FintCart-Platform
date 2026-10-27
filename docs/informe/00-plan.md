@@ -31,6 +31,19 @@
 | 4 | Calculadoras | **4–5 semillas nuevas**, colombianas, expresables con el DSL actual |
 | 5 | Idioma | **Fuente completa en inglés**, traducción posterior del autor; boilerplate en español fijo |
 | 6 | Validación | Encuesta + **5–8 sesiones moderadas**, SUS + tasa de éxito de tarea |
+| 7 | Ramas | `staging` = implementación actual congelada (`104b41d`); todo el trabajo nuevo en `development` |
+| 8 | Modelos | Confirmado 2026-10-27: `deepseek-flash` + `high` para todo el trabajo vivo; `v4-pro` solo para prosa, si el endpoint deja de caerse |
+
+### 1.1 Topología de ramas (verificada 2026-10-27)
+
+| Ref | Commit | Estado |
+|---|---|---|
+| `staging` | `104b41d` | implementación 001+002+003, congelada; empujada a `origin` |
+| `development` | `6871848` | `staging` + documentación del informe; aquí se trabaja |
+| `main` | `78dd0e7` | 187 commits atrás, sin tocar |
+| `origin/development` | era `a9d4cd0` | ancestro directo de `staging`; el avance fue fast-forward sin pérdida |
+
+Supuesto no verificado: que la VPS corre exactamente `104b41d`. Sin acceso a la VPS no se puede confirmar, y si corre otra cosa, `staging` es una aproximación.
 
 ---
 
@@ -274,6 +287,19 @@ Pro cuesta **4.4×** la entrada y **3.3×** la salida. La regla: **Pro donde un 
 | Auditoría final de APA y consistencia entre capítulos | `v4-pro` | `high` | cruza 10 capítulos a la vez |
 
 **Cómo se aplica:** yo corro en `deepseek-flash` + `high`. Los subagentes aceptan override por tarea (`model`), así que el gasto se concentra en las cinco filas de `v4-pro` y todo lo demás queda en Flash. Si quieres cambiar el modelo de esta sesión: comando `/model`.
+
+### 8.1 Asignación confirmada para el trabajo actual
+
+El 2026-10-27 el autor aprobó **Flash + `high` en todo el trabajo vivo**, no la matriz ideal de arriba. Motivo medible: `v4-pro` perdió dos conexiones seguidas ese mismo día (`Connection error` y luego `terminated`), mientras que los workstreams en Flash sobrevivieron; y el orquestador debe leer capturas de pantalla, cosa que Pro no puede hacer.
+
+| Workstream en curso | Modelo | Thinking |
+|---|---|---|
+| Baseline e2e y puesta en marcha del stack | `deepseek-flash` | `high` |
+| Implementación de las 3 semillas | `deepseek-flash` | `high` |
+| Rediseño: tokens → primitivas → shell | `deepseek-flash` | `high` |
+| Prosa de capítulos (cuando llegue) | `deepseek-v4-pro` | `high` |
+
+**Regla de repliegue:** dos caídas consecutivas de `v4-pro` y la prosa también se queda en Flash de forma permanente.
 
 ---
 
