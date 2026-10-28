@@ -254,9 +254,12 @@ fn tasa_opcional(key: &str, label: &str) -> InputField {
 
 /// Tasa opcional que vale CERO cuando no se envía, con el cero explícito en el formulario.
 ///
-/// `fondo_emergencia` y `meta_ahorro` usan la tasa sin `si`, así que ausente y cero dan el
-/// mismo número; el defecto EXPLÍCITO es lo que hace que el formulario prerrellenado lo diga en
-/// vez de dejar que el usuario descubra que un campo vacío era una tasa del 0 %.
+/// `fondo_emergencia` y `meta_ahorro` usan la tasa sin preguntar si vino, así que ausente y
+/// cero dan el mismo número. Que ese cero sea EXACTO importa: `meta_ahorro` ramifica con
+/// `si(tasa == 0, …)` y `vf_serie` con `rate.is_zero()`, y la rama se alcanza porque
+/// `potd(1, x)` devuelve `1` exacto (`generales.rs`, nota de la tasa mensual). El defecto
+/// EXPLÍCITO es lo que hace que el formulario prerrellenado lo diga en vez de dejar que el
+/// usuario descubra que un campo vacío era una tasa del 0 %.
 fn tasa_opcional_cero(key: &str, label: &str) -> InputField {
     let mut field = tasa_opcional(key, label);
     field.default = Some(Decimal::ZERO);

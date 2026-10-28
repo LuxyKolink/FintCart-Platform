@@ -1595,9 +1595,14 @@ fn fondo_emergencia_cumple_los_ejemplos_del_diseno() {
     exige_valor(&e1, "fondo_objetivo", "15000000");
     exige_valor(&e1, "cobertura_actual", "1.2");
     exige_valor(&e1, "faltante_inicial", "12000000");
-    exige_valor(&e1, "proyeccion_12_meses", "7934224.95");
-    exige_valor(&e1, "brecha_12_meses", "7065775.05");
-    exige_valor(&e1, "rendimiento_12_meses", "134224.95");
+    // 7 934 224,95 era el doble defecto: tasa NOMINAL dividida entre doce (3 613,61 de más)
+    // y saldo inicial congelado (180 000 de menos). El diseño corregido da esta cifra.
+    exige_valor(&e1, "proyeccion_12_meses", "8110611.34");
+    exige_valor(&e1, "brecha_12_meses", "6889388.66");
+    // Los 310 611,34 son 180 000,00 exactos del saldo inicial (`3 000 000 × 0,06`, porque
+    // `(1+i)^12` devuelve la E.A.) más 130 611,34 de los doce aportes. Desde que el saldo
+    // capitaliza, su rendimiento entra en esta salida.
+    exige_valor(&e1, "rendimiento_12_meses", "310611.34");
 
     // El orden de las salidas es el que declara la definición, y es lo que el usuario ve.
     let claves: Vec<&str> = e1.iter().map(|(key, _)| key.as_str()).collect();
@@ -1645,7 +1650,11 @@ fn fondo_emergencia_cumple_los_ejemplos_del_diseno() {
     exige_valor(&e3, "fondo_objetivo", "12000000");
     exige_valor(&e3, "cobertura_actual", "6.5");
     exige_valor(&e3, "faltante_inicial", "0");
+    // Sin aportes, todo el movimiento del año viene del saldo inicial: 13 000 000 × 1,02. Con
+    // el saldo congelado estas dos salidas decían 13 000 000 y 0, y el año entero rendía nada.
+    exige_valor(&e3, "proyeccion_12_meses", "13260000");
     exige_valor(&e3, "brecha_12_meses", "0");
+    exige_valor(&e3, "rendimiento_12_meses", "260000");
 }
 
 /// `meta_ahorro` reproduce los ejemplos de §4.2 cifra a cifra.
@@ -1664,10 +1673,11 @@ fn meta_ahorro_cumple_los_ejemplos_del_diseno() {
         ],
     );
     exige_valor(&e1, "monto_pendiente", "18000000");
-    exige_valor(&e1, "aporte_mensual_requerido", "687325.36");
+    // 687 325,36 era la tasa nominal; 689 696,01 es la E.A. del 9 % llevada a mensual.
+    exige_valor(&e1, "aporte_mensual_requerido", "689696.01");
     exige_valor(&e1, "aporte_mensual_sin_rendimiento", "750000");
-    exige_valor(&e1, "total_aportado", "16495808.66");
-    exige_valor(&e1, "aportado_por_el_rendimiento", "1504191.34");
+    exige_valor(&e1, "total_aportado", "16552704.27");
+    exige_valor(&e1, "aportado_por_el_rendimiento", "1447295.73");
 
     // E2 — tasa cero: sin el `si`, el motor devolvería un error de división.
     let e2 = ejecuta(
@@ -1695,10 +1705,10 @@ fn meta_ahorro_cumple_los_ejemplos_del_diseno() {
             ("tasa_anual", Some("0.12")),
         ],
     );
-    exige_valor(&e3, "aporte_mensual_requerido", "254910.24");
+    exige_valor(&e3, "aporte_mensual_requerido", "256043.38");
     exige_valor(&e3, "aporte_mensual_sin_rendimiento", "277777.78");
-    exige_valor(&e3, "total_aportado", "4588384.31");
-    exige_valor(&e3, "aportado_por_el_rendimiento", "411615.69");
+    exige_valor(&e3, "total_aportado", "4608780.85");
+    exige_valor(&e3, "aportado_por_el_rendimiento", "391219.15");
 
     // La coherencia que sostiene la utilidad de la calculadora: lo aportado más lo que pone
     // el rendimiento es exactamente lo que falta, sin un centavo de diferencia. Se comprueba

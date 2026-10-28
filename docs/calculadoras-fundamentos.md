@@ -73,6 +73,15 @@ pot(1 + tasa_periodica(tasa_nominal_anual, 12), 12) - 1
 Esa es la efectiva anual a partir de la nominal (exacta, exponente entero); la semilla
 `mv_a_ea` es exactamente esta fórmula. El sentido contrario **no** es exacto y está en 1.4.
 
+**Consecuencia para las semillas de §4.** `fondo_emergencia` y `meta_ahorro` reciben una
+**efectiva anual** —lo que un banco colombiano cotiza— así que **no** usan `tasa_periodica`:
+convierten con `potd(1 + tasa_anual, 1 / 12) - 1`, igual que `cdt_dias` y `ea_a_mv`.
+`tasa_periodica` sigue siendo la conversión correcta para `ahorro`, `credito` e `inversion`,
+cuya tasa de entrada es nominal por contrato (FR-049). La distinción no es de estilo: sobre
+una E.A., la división nominal devuelve una tasa periódica MAYOR, y con ella
+`fondo_emergencia` promete un saldo que la cuenta no va a alcanzar y `meta_ahorro` pide un
+aporte MENOR que el necesario.
+
 ### 1.4 Efectiva anual ↔ nominal mes vencido
 
 $$i_{mv} = (1+EA)^{1/12} - 1 \qquad EA = (1+i_{mv})^{12} - 1$$
@@ -217,9 +226,19 @@ INDICATORS = ["IPC", "SMMLV", "TASA_USURA", "UVR", "UVT"]
 |---|---|---|---|---|
 | `UVT` | **sí** | pesos, `49799.000000` | anual (enero) | `gmf` — tope de exención `@UVT * 350` |
 | `IPC` | **sí** | **fracción** anual, `0.055300` | anual (enero, variación 12 meses) | nadie todavía; lo pide 4.4 |
-| `TASA_USURA` | **sí** | **fracción** efectiva anual, `0.286500` | **mensual** (Superfinanciera certifica cada mes) | nadie todavía; lo pide 4.8 de la matriz |
+| `TASA_USURA` | **sí** | **fracción** efectiva anual, `0.286500` | **mensual** (Superfinanciera certifica cada mes) | nadie todavía; lo pide 3.7 de la matriz |
 | `SMMLV` | **sí** | pesos, `1423500.000000` | anual (enero) | nadie todavía |
 | `UVR` | **sí** | pesos, `392.400000` | diaria (Banco de la República) | nadie todavía |
+
+> **El valor sembrado de `TASA_USURA` es de RELLENO y no es un certificado.**
+> `services/simulator/src/repo/seeds.rs` (`YEAR_INDICATORS`) carga `0.25` —un 25 % E.A.,
+> redondo y reconocible como ficticio—, mientras que los valores certificados recientes
+> rondan el 28–30 % E.A. y cambian **cada mes**. Hoy no hay ninguna fórmula que consuma el
+> indicador, así que el relleno es inocuo; **antes de la primera que lo consuma** hay que
+> reemplazarlo por el valor certificado del mes (o cargarlo por `UpsertIndicator`, FR-060).
+> El código no elige una cifra plausible a propósito: una tasa de usura inventada con
+> apariencia de real se citaría como real, que es el fallo que la plataforma existe para
+> evitar.
 
 Los cinco nombres están ya en el catálogo **antes** de que exista una calculadora que los use,
 y eso es deliberado: la lista es la del catálogo y no la de lo que hoy se consume
@@ -331,6 +350,12 @@ una necesita una reescritura algebraica para no usar exponentes negativos. Las q
 no fallan por un detalle de sintaxis: piden una operación que el lenguaje no tiene (una
 inversa con logaritmo, o una sumatoria de longitud variable).
 
+> **Nota sobre la tasa de 3.1 y 3.2.** Las dos filas se implementaron (4.1 y 4.2) con la tasa
+> **efectiva anual** —`potd(1 + tasa_anual, 1 / 12) - 1`— y no con la división nominal que
+> aparece en la matriz, porque el banco colombiano cotiza E.A. y sobre una E.A. la nominal pide
+> un aporte menor que el necesario. La matriz responde «¿es expresable?», y la respuesta no
+> cambia; la fórmula que se entrega es la de §4.
+
 ### 3.1 y 3.2 — por qué el `si` del caso `i = 0`
 
 `vf_serie` y `cuota` resuelven el tipo cero **dentro de la primitiva** (`annuity.rs:95` y
@@ -431,6 +456,20 @@ todo lo demás y una semilla con dos campos homónimos se guardaría por la puer
 Escalas que se usan: `2` para dinero (`NUMERIC(19,2)`, la de `round_money`) y `6` para tasas
 (`NUMERIC(9,6)`, la que usan las semillas existentes).
 
+**Convención de tasa: las tres trabajan en EFECTIVA ANUAL.** La tasa que el usuario teclea es
+la que su banco le cotiza (E.A.) y se lleva a la tasa del periodo con
+`potd(1 + tasa_anual, 1 / 12) - 1` —la ecuación de 1.4, aproximada y declarada—, **nunca**
+dividiendo entre doce: `tasa_periodica(anual, 12)` es una división **nominal** (1.3) y sobre
+una E.A. devuelve una tasa mayor, con lo que el saldo prometido queda por encima del real y
+el aporte necesario por debajo. Es la misma convención que `cdt_dias` usa desde el principio
+con `dias / 365`.
+
+**Simplificaciones conocidas.** Una sola: la **retención en la fuente** de `cdt_dias` se
+modela como el 7 % del rendimiento ÍNTEGRO, sin excluir el componente inflacionario, así que
+la retención queda ligeramente **sobrerestimada** y el neto por debajo del que paga el banco.
+Es deliberado: excluir la parte inflacionaria exige el IPC del periodo, que es un indicador
+anual y no el del plazo, y un dato inventado sería peor que un centavo de más.
+
 > **Sobre los nombres de las claves.** Todas las claves son `[a-z][a-z0-9_]*`: el léxico de
 > identificadores solo admite alfanumérico y guion bajo (`lexer.rs:222-228`), así que un campo
 > llamado `tasa-anual` no se podría escribir dentro de una fórmula.
@@ -454,7 +493,7 @@ la única que cambia una decisión.
 | `meses_cobertura` | Meses de cobertura | `entero` | meses | `1` | `60` | — | `true` |
 | `ahorro_inicial` | Ahorro disponible hoy | `monto` | COP | `0` | — | `0` | `false` |
 | `aporte_mensual` | Aporte mensual previsto | `monto` | COP | `0` | — | `0` | `false` |
-| `tasa_anual` | Rendimiento anual de la cuenta | `tasa` | fracción | `0` | — | `0` | `false` |
+| `tasa_anual` | Rendimiento anual efectivo (E.A.) | `tasa` | fracción | `0` | — | `0` | `false` |
 
 El tope de `60` meses no es una regla de negocio: es una barrera de representabilidad, igual
 que el `MAX_PERIODS` de las semillas existentes. Cinco años de gastos ya es una cobertura
@@ -463,6 +502,9 @@ extrema y un tope más alto solo invita a teclear un cero de más.
 `tasa_anual` **opcional con default `0`** y no opcional «ausente»: la fórmula la usa sin
 `si`, y ausente significaría cero implícito — que es exactamente lo que el default hace, pero
 visible en el formulario prerrellenado.
+
+La etiqueta dice **(E.A.)** porque lo es: el banco cotiza efectiva anual y el campo la recibe
+tal cual. La conversión a mensual está en la fórmula, no en el dedo del usuario.
 
 #### Validaciones
 
@@ -480,9 +522,26 @@ visible en el formulario prerrellenado.
 | `fondo_objetivo` | Fondo objetivo | 2 | `gasto_mensual * meses_cobertura` |
 | `cobertura_actual` | Cobertura actual | 2 | `ahorro_inicial / gasto_mensual` |
 | `faltante_inicial` | Falta hoy | 2 | `max(gasto_mensual * meses_cobertura - ahorro_inicial, 0)` |
-| `proyeccion_12_meses` | Saldo en 12 meses | 2 | `ahorro_inicial + vf_serie(aporte_mensual, tasa_periodica(tasa_anual, 12), 12)` |
-| `brecha_12_meses` | Falta en 12 meses | 2 | `max(gasto_mensual * meses_cobertura - (ahorro_inicial + vf_serie(aporte_mensual, tasa_periodica(tasa_anual, 12), 12)), 0)` |
-| `rendimiento_12_meses` | Rendimiento en 12 meses | 2 | `vf_serie(aporte_mensual, tasa_periodica(tasa_anual, 12), 12) - aporte_mensual * 12` |
+| `proyeccion_12_meses` | Saldo en 12 meses | 2 | `(ahorro_inicial * pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), 12) + vf_serie(aporte_mensual, (potd(1 + tasa_anual, 1 / 12) - 1), 12))` |
+| `brecha_12_meses` | Falta en 12 meses | 2 | `max((gasto_mensual * meses_cobertura) - (ahorro_inicial * pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), 12) + vf_serie(aporte_mensual, (potd(1 + tasa_anual, 1 / 12) - 1), 12)), 0)` |
+| `rendimiento_12_meses` | Rendimiento en 12 meses | 2 | `(ahorro_inicial * pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), 12) + vf_serie(aporte_mensual, (potd(1 + tasa_anual, 1 / 12) - 1), 12)) - (ahorro_inicial + aporte_mensual * 12)` |
+
+Dos cosas que hace la proyección y antes no hacía:
+
+- **La tasa es la equivalente, no la doceava.** `potd(1 + tasa_anual, 1 / 12) - 1` es la
+tasa mensual que compone a la E.A. declarada (1.4). Dividir entre doce —lo que hacía la
+primera versión— es una tasa NOMINAL, más alta, y producía una proyección que la cuenta no
+iba a pagar: en E1, 3 613,61 pesos de más.
+- **El ahorro inicial capitaliza.** `ahorro_inicial * pot(1 + i, 12)` y no `ahorro_inicial`
+a secas: el saldo ya está en la misma cuenta que los aportes y devenga la misma tasa. Como
+`(1+i)^12` es la E.A. salvo el residual de `potd`, el factor es el anual y no hace falta
+escribir `(1 + tasa_anual)` a mano — que además se desincronizaría si la convención cambiara.
+Dejarlo congelado subestimaba la proyección en `ahorro_inicial · E.A.` (180 000 pesos en E1)
+y con ella la brecha.
+
+`rendimiento_12_meses` resta **lo aportado**, saldo inicial incluido, y no solo los doce
+aportes: desde que el saldo rinde, su rendimiento está dentro de `proyeccion_12_meses` y
+omitirlo daría una cifra que no cuadra con el saldo que el usuario tiene al lado.
 
 `brecha_12_meses` usa `max(…, 0)` y no un `si`: un faltante negativo no es información útil
 —«me sobran 300 000» ya lo dice `proyeccion_12_meses`— y devolverlo restado de un tope sería
@@ -497,7 +556,7 @@ peor que recortarlo a cero.
     { "clave": "meses_cobertura", "etiqueta": "Meses de cobertura",   "tipo": "entero", "unidad": "meses",   "min": "1", "max": "60", "requerido": true },
     { "clave": "ahorro_inicial",  "etiqueta": "Ahorro disponible hoy", "tipo": "monto",  "unidad": "COP",     "min": "0", "default": "0", "requerido": false },
     { "clave": "aporte_mensual",  "etiqueta": "Aporte mensual previsto", "tipo": "monto", "unidad": "COP",    "min": "0", "default": "0", "requerido": false },
-    { "clave": "tasa_anual",      "etiqueta": "Rendimiento anual de la cuenta", "tipo": "tasa", "unidad": "fracción", "min": "0", "default": "0", "requerido": false }
+    { "clave": "tasa_anual",      "etiqueta": "Rendimiento anual efectivo (E.A.)", "tipo": "tasa", "unidad": "fracción", "min": "0", "default": "0", "requerido": false }
   ],
   "validations": [
     { "ast": {"op":"gt","left":{"op":"field","key":"gasto_mensual"},"right":{"op":"num","value":"0"}},
@@ -519,42 +578,66 @@ que impide que un cliente con `f64` los redondee al leer.)
 
 #### Comprobación token a token
 
-`proyeccion_12_meses` = `ahorro_inicial + vf_serie(aporte_mensual, tasa_periodica(tasa_anual, 12), 12)`
+`proyeccion_12_meses` = `(ahorro_inicial * pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), 12) + vf_serie(aporte_mensual, (potd(1 + tasa_anual, 1 / 12) - 1), 12))`
 
 | Tokens | Lectura | Resultado |
 |---|---|---|
 | `ahorro_inicial` | `campo` declarado, `monto` | número |
+| `*` | multiplicativa | — |
+| `pot` | `funcion_numerica` de la tabla, aridad **2**; posición 1 es `Exponent` | — |
+| `( 1 + ( potd ( 1 + tasa_anual , 1 / 12 ) - 1 )` | base del factor: literal más la tasa mensual equivalente | número |
+| `, 12 )` | exponente de `pot` = literal entero no negativo (`parser.rs:721`) | `12` |
 | `+` | aditiva | — |
-| `vf_serie` | `funcion_numerica` de la tabla, aridad **3** (`functions.rs:150-165`) | — |
+| `vf_serie` | aridad **3**; posición 2 es `Periods` | — |
 | `( aporte_mensual ,` | argumento 0 y coma | `Any` → campo `monto` |
-| `tasa_periodica ( tasa_anual , 12 )` | aridad **2**; posición 1 es `Periods` | `12` es literal entero no negativo (`parser.rs:721`) |
+| `( potd ( 1 + tasa_anual , 1 / 12 ) - 1 )` | argumento 1: una EXPRESIÓN, no un literal | número |
 | `, 12 )` | argumento 2 = `Periods` | literal entero |
+| `)` | cierra el paréntesis exterior de la suma | — |
 
-Nodos: `Add`(1) + `ahorro_inicial`(1) + `vf_serie`(1) + `aporte_mensual`(1) +
-`tasa_periodica`(1) + `tasa_anual`(1) + `12`(1) + `12`(1) = **8** de 64. Profundidad **4** de
-16. `brecha_12_meses` es la más grande de las seis: **14 nodos**, profundidad **6**.
+**Por qué `potd` en un sitio y `pot` en el otro.** Los exponentes son distintos: el de `potd`
+es `1 / 12`, una **división de literales** que no es entera; el de `pot` es `12`, un literal
+entero. `pot` rechaza el primero al guardar con `exponente_no_entero` (`parser.rs`) y acepta el
+segundo, que es exactamente la separación de D-16: `pot` es exacta —multiplicación repetida—
+para el exponente entero, `potd` es aproximada para el decimal. Lo que hace posible la
+expresión es que **`potd` no declara `ArgConstraint` en la posición 1** (`functions.rs:172-181`),
+así que su exponente admite cualquier expresión numérica; `vf_serie` sí acota su tercer
+argumento a `Periods`, y por eso ahí va el literal `12`.
 
-**Por qué no lleva `si`.** El caso `tasa_anual = 0` no rompe nada: `vf_serie` lo resuelve
-dentro de la primitiva como `A · n` (`annuity.rs:95-101`) y `pot` ni siquiera se usa. Añadir
-un `si` aquí duplicaría una guarda que ya existe en el módulo que sabe hacerla, y una guarda
-duplicada es una que se puede desincronizar.
+**Nodos por salida.** `proyeccion_12_meses` **28** de 64 · `brecha_12_meses` **34** ·
+`rendimiento_12_meses` **34**. Profundidad máxima **10** de 16 (en `brecha_12_meses`: `max` →
+`-` → `+` → `*` → `pot` → `+` → `-` → `potd` → `+` → `tasa_anual`). La conversión de tasa se
+escribe tres veces en la salida más larga y el árbol sigue cabiendo con holgura: es el precio
+de que no existan variables (5.3), y el mismo que paga `meta_ahorro`.
+
+**Por qué no lleva `si`.** El caso `tasa_anual = 0` no rompe nada: `potd(1, x)` es exactamente
+`1`, así que la tasa mensual es exactamente `0` y `vf_serie` lo resuelve dentro de la primitiva
+como `A · n` (`annuity.rs:95-101`) sin que `pot` llegue a usarse. Añadir un `si` aquí
+duplicaría una guarda que ya existe en el módulo que sabe hacerla, y una guarda duplicada es
+una que se puede desincronizar.
 
 #### Ejemplos
 
 **E1 — caso típico.** `gasto_mensual` 2 500 000 · `meses_cobertura` 6 · `ahorro_inicial`
-3 000 000 · `aporte_mensual` 400 000 · `tasa_anual` 0.06
+3 000 000 · `aporte_mensual` 400 000 · `tasa_anual` 0.06 (E.A.)
 
-`i = 0.06/12 = 0.005`; `(1.005)^12 = 1.061677811864499568789707617431640625` (exacto: 12
-multiplicaciones, sin una sola función trascendente).
+`i = potd(1.06, 1/12) - 1 = 0.00486755056534303754119894558…`;
+`(1+i)^12 = 1.0599999999999999999999999999752…` — doce multiplicaciones exactas sobre una base
+aproximada, así que el factor devuelve la E.A. salvo el residual de `potd`, del orden de
+10⁻²⁹.
 
 | Salida | Valor sin redondear | Presentado |
 |---|---|---|
 | `fondo_objetivo` | `15000000` | **15 000 000.00** |
 | `cobertura_actual` | `1.2` | **1.20** |
 | `faltante_inicial` | `12000000` | **12 000 000.00** |
-| `proyeccion_12_meses` | `7934224.94915996550317660939453125` | **7 934 224.95** |
-| `brecha_12_meses` | `7065775.05084003449682339060546875` | **7 065 775.05** |
-| `rendimiento_12_meses` | `134224.94915996550317660939453125` | **134 224.95** |
+| `proyeccion_12_meses` | `8110611.336814867830841194681…` | **8 110 611.34** |
+| `brecha_12_meses` | `6889388.663185132169158805318…` | **6 889 388.66** |
+| `rendimiento_12_meses` | `310611.336814867830841194681…` | **310 611.34** |
+
+Los 310 611,34 de rendimiento son 180 000 del saldo inicial (`3 000 000 × 0,06`, exacto porque
+`(1+i)^12 = 1,06`) más 130 611,34 de los doce aportes. La versión anterior de esta tabla decía
+**7 934 224,95**, y era un error doble que casi se cancelaba: 3 613,61 de MÁS por dividir la
+E.A. entre doce y 180 000 de MENOS por dejar el saldo congelado. Por eso el fallo no se veía.
 
 Ningún valor cae en un empate de medio centavo, así que el redondeo *half-even* y el «hacia
 arriba» darían lo mismo aquí; la razón de usar *half-even* se ve en series largas, no en un
@@ -573,13 +656,21 @@ caso suelto.
 | `rendimiento_12_meses` | `0` | **0.00** |
 
 Es el caso que demuestra que la primitiva resuelve el tipo cero: sin la rama de
-`annuity.rs:95`, aquí habría una división por cero.
+`annuity.rs:95`, aquí habría una división por cero. Con la tasa equivalente el cero es
+EXACTO —`potd(1, 1/12) = 1` y no `1.0000000000000000000000000001`—, que es lo que hace que la
+rama se alcance de verdad.
 
 **E3 — ya cubierto.** `gasto_mensual` 2 000 000 · `meses_cobertura` 6 · `ahorro_inicial`
 13 000 000 · `aporte_mensual` 0 · `tasa_anual` 0.02
 
 `fondo_objetivo` **12 000 000.00** · `cobertura_actual` **6.50** · `faltante_inicial`
-**0.00** (`max` recorta) · `brecha_12_meses` **0.00** (la proyección supera el objetivo).
+**0.00** (`max` recorta) · `proyeccion_12_meses` **13 260 000.00** (el saldo solo, un año al
+2 %) · `brecha_12_meses` **0.00** (la proyección supera el objetivo) · `rendimiento_12_meses`
+**260 000.00**.
+
+Es el caso que muestra el defecto corregido sin ninguna serie de por medio: sin aportes, todo
+el rendimiento del año es del saldo inicial, y con la versión anterior esta salida decía
+**0.00**.
 
 ### 4.2 `meta_ahorro` — cuánto hay que apartar cada mes para llegar
 
@@ -598,7 +689,7 @@ escribe a mano y se topa con el mismo cero.
 | `meta` | Meta de ahorro | `monto` | COP | `1` | — | — | `true` |
 | `ahorro_inicial` | Ahorro ya disponible | `monto` | COP | `0` | — | `0` | `false` |
 | `meses` | Plazo en meses | `entero` | meses | `1` | `360` | — | `true` |
-| `tasa_anual` | Rendimiento anual esperado | `tasa` | fracción | `0` | — | `0` | `false` |
+| `tasa_anual` | Rendimiento anual esperado (E.A.) | `tasa` | fracción | `0` | — | `0` | `false` |
 
 #### Validaciones
 
@@ -626,41 +717,49 @@ aporte de signo contrario al que se pidió, presentado como si fuera válido.
 #### 4.2.1 La expresión, completa
 
 ```formula
-si(tasa_periodica(tasa_anual, 12) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial) * tasa_periodica(tasa_anual, 12) / (pot(1 + tasa_periodica(tasa_anual, 12), meses) - 1))
+si((potd(1 + tasa_anual, 1 / 12) - 1) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial) * (potd(1 + tasa_anual, 1 / 12) - 1) / (pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), meses) - 1))
 ```
 
 Es el fondo de amortización: $A = VP\cdot i\big/\bigl((1+i)^n-1\bigr)$, con `i` periódica
-mensual **nominal**, que es la que el usuario declara.
+mensual **efectiva**, es decir la EQUIVALENTE de la E.A. que el usuario declara
+(`potd(1 + tasa_anual, 1 / 12) - 1`, ecuación 1.4). La primera versión usaba la división
+nominal `tasa_anual / 12`, que es una tasa MAYOR: el despeje pedía entonces un aporte menor y
+el usuario que lo seguía no llegaba a la meta. En E1 la diferencia es de 2 370,65 al mes.
 
 | Tokens | Lectura | Resultado |
 |---|---|---|
 | `si` | palabra del lenguaje, no puede ser campo (`parser.rs:109`) | — |
-| `( tasa_periodica ( tasa_anual , 12 ) == 0` | comparación entre dos expresiones aditivas | condición, tipo `condición` |
+| `( potd ( 1 + tasa_anual , 1 / 12 ) - 1 ) == 0` | comparación entre dos expresiones aditivas | condición, tipo `condición` |
 | `,` | separador del primer argumento | — |
 | `( meta - ahorro_inicial ) / meses` | rama del caso `i = 0` | número |
 | `,` | separador del segundo argumento | — |
-| `( meta - ahorro_inicial ) * tasa_periodica(tasa_anual, 12)` | multiplicativa izquierda | número |
+| `( meta - ahorro_inicial ) * ( potd ( 1 + tasa_anual , 1 / 12 ) - 1 )` | multiplicativa izquierda | número |
 | `/` | división, asociativa por la izquierda | — |
-| `( pot ( 1 + tasa_periodica ( tasa_anual , 12 ) , meses ) - 1 )` | paréntesis → `pot` con exponente `meses`, que es un campo **`entero`** (`parser.rs:723`) | número |
+| `( pot ( 1 + ( potd (…) - 1 ) , meses ) - 1 )` | paréntesis → `pot` con exponente `meses`, que es un campo **`entero`** | número |
 | `)` | cierra `si` | — |
 
 **Tipos.** `si` exige que las dos ramas devuelvan el mismo tipo (`parser.rs:558-580`): las dos
 son número, y la condición es de tipo condición. Si una rama fuera una comparación, el
 guardado fallaría con `tipo_incompatible`.
 
-**Nodos.** `si`(1) + condición(5) + rama cero(5) + rama general(17) = **28** de 64.
-Profundidad **7** de 16 (`si` → `/` → `-` → `pot` → `+` → `tasa_periodica` → `tasa_anual`).
-Repetir esta expresión en `total_aportado` da 30 nodos, y en `aportado_por_el_rendimiento` 34:
-las dos caben, y es el precio de que no existan variables (5.3).
+**Nodos.** `si`(1) + condición(11) + rama cero(5) + rama general(29) = **46** de 64.
+Profundidad **9** de 16 (`si` → `/` → `-` → `pot` → `+` → `-` → `potd` → `+` → `tasa_anual`).
+Repetir esta expresión en `total_aportado` da 48 nodos, y en `aportado_por_el_rendimiento` 52
+(profundidad 11): las dos caben, y es el precio de que no existan variables (5.3). La
+conversión de tasa es lo que se lleva los nodos —se escribe tres veces dentro de la misma
+expresión, la última anidada dentro de `pot`— y es la razón de que esta semilla esté 12 nodos
+por debajo del tope.
 
-**Aridades.** `si` 3 (exacta, `parser.rs:631-640`); `tasa_periodica` 2; `pot` 2. Un
-`tasa_periodica(tasa_anual, 12, 12)` fallaría al guardar con `expresion_mal_formada`.
+**Aridades.** `si` 3 (exacta, `parser.rs:631-640`); `potd` 2; `pot` 2. Un
+`tasa_periodica(tasa_anual, 12, 12)` fallaría al guardar con `expresion_mal_formada`, y un
+`pot(1 + …, 1 / 12)` fallaría con `exponente_no_entero`.
 
 **Por qué el `si` es imprescindible y no defensivo.** Con `tasa_anual = 0` el denominador es
-`pot(1 + 0, meses) - 1 = 1 - 1 = 0`: la rama general divide por cero **exactamente**. No es un
-caso raro — «ahorro sin rendimiento» es el escenario de quien guarda en efectivo. Y el `si`
-funciona porque es **perezoso**: `eval.rs:227-237` evalúa solo la rama elegida, así que la que
-divide por cero no llega a ejecutarse.
+`pot(1 + 0, meses) - 1 = 1 - 1 = 0`: la rama general divide por cero **exactamente**. Y el cero
+es exacto en las dos puntas de la cadena —`potd(1, 1/12) = 1` y `pot(1, n) = 1`—, así que la
+rama se alcanza de verdad. No es un caso raro — «ahorro sin rendimiento» es el escenario de
+quien guarda en efectivo. Y el `si` funciona porque es **perezoso**: `eval.rs:227-237` evalúa
+solo la rama elegida, así que la que divide por cero no llega a ejecutarse.
 
 #### Forma almacenada (fragmento de `outputs`)
 
@@ -671,26 +770,41 @@ divide por cero no llega a ejecutarse.
   "ast": {
     "op": "if",
     "cond": {"op":"eq",
-      "left":{"op":"call","func":"tasa_periodica","args":[
-        {"op":"field","key":"tasa_anual"},{"op":"num","value":"12"}]},
+      "left":{"op":"sub",
+        "left":{"op":"call","func":"potd","args":[
+          {"op":"add","left":{"op":"num","value":"1"},
+            "right":{"op":"field","key":"tasa_anual"}},
+          {"op":"div","left":{"op":"num","value":"1"},
+            "right":{"op":"num","value":"12"}}]},
+        "right":{"op":"num","value":"1"}},
       "right":{"op":"num","value":"0"}},
-    "then_branch": {"op":"div",
+    "then": {"op":"div",
       "left":{"op":"sub","left":{"op":"field","key":"meta"},"right":{"op":"field","key":"ahorro_inicial"}},
       "right":{"op":"field","key":"meses"}},
-    "else_branch": {"op":"div",
+    "else": {"op":"div",
       "left":{"op":"mul",
         "left":{"op":"sub","left":{"op":"field","key":"meta"},"right":{"op":"field","key":"ahorro_inicial"}},
-        "right":{"op":"call","func":"tasa_periodica","args":[
-          {"op":"field","key":"tasa_anual"},{"op":"num","value":"12"}]}},
+        "right":{"op":"sub",
+          "left":{"op":"call","func":"potd","args":[
+            {"op":"add","left":{"op":"num","value":"1"},
+              "right":{"op":"field","key":"tasa_anual"}},
+            {"op":"div","left":{"op":"num","value":"1"},
+              "right":{"op":"num","value":"12"}}]},
+          "right":{"op":"num","value":"1"}}},
       "right":{"op":"sub",
         "left":{"op":"call","func":"pot","args":[
           {"op":"add","left":{"op":"num","value":"1"},
-            "right":{"op":"call","func":"tasa_periodica","args":[
-              {"op":"field","key":"tasa_anual"},{"op":"num","value":"12"}]}},
+            "right":{"op":"sub",
+              "left":{"op":"call","func":"potd","args":[
+                {"op":"add","left":{"op":"num","value":"1"},
+                  "right":{"op":"field","key":"tasa_anual"}},
+                {"op":"div","left":{"op":"num","value":"1"},
+                  "right":{"op":"num","value":"12"}}]},
+              "right":{"op":"num","value":"1"}}},
           {"op":"field","key":"meses"}]},
         "right":{"op":"num","value":"1"}}}
   },
-  "texto": "si(tasa_periodica(tasa_anual, 12) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial) * tasa_periodica(tasa_anual, 12) / (pot(1 + tasa_periodica(tasa_anual, 12), meses) - 1))",
+  "texto": "si((potd(1 + tasa_anual, 1 / 12) - 1) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial) * (potd(1 + tasa_anual, 1 / 12) - 1) / (pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), meses) - 1))",
   "escala": 2
 }
 ```
@@ -702,20 +816,23 @@ escribió, para que el constructor reabra la calculadora con la fórmula origina
 #### Ejemplos
 
 **E1 — caso típico.** `meta` 20 000 000 · `ahorro_inicial` 2 000 000 · `meses` 24 ·
-`tasa_anual` 0.09
+`tasa_anual` 0.09 (E.A.)
 
-`i = 0.0075`; `(1.0075)^24 = 1.1964135293926204135338193743690550768…`
+`i = potd(1.09, 1/12) - 1 = 0.0072073233161366904855292224…`;
+`(1+i)^24 = 1.18809999999999999999999999991…` — la E.A. al cuadrado (1.1881), como debe ser
+para 24 meses, salvo el residual de `potd`.
 
 | Salida | Valor sin redondear | Presentado |
 |---|---|---|
 | `monto_pendiente` | `18000000` | **18 000 000.00** |
-| `aporte_mensual_requerido` | `687325.3610251157012816432608346669326…` | **687 325.36** |
+| `aporte_mensual_requerido` | `689696.0111135588981367677010…` | **689 696.01** |
 | `aporte_mensual_sin_rendimiento` | `750000` | **750 000.00** |
-| `total_aportado` | `16495808.6646027768307594382600320063…` | **16 495 808.66** |
-| `aportado_por_el_rendimiento` | `1504191.3353972231692405617399679936…` | **1 504 191.34** |
+| `total_aportado` | `16552704.2667254135552824248259…` | **16 552 704.27** |
+| `aportado_por_el_rendimiento` | `1447295.7332745864447175751740…` | **1 447 295.73** |
 
-El rendimiento cubre 1 504 191.34 de los 18 millones: el 8.4 %. Es la cifra que hace visible
-por qué el plazo importa más que el esfuerzo.
+El rendimiento cubre 1 447 295,73 de los 18 millones: el 8.0 %. La primera versión de esta
+tabla decía **687 325.36** y **1 504 191.34**, con la tasa dividida entre doce: 2 370,65 al mes
+—28 447,80 al año— de menos, y el usuario que seguía esa cifra no llegaba a la meta.
 
 **E2 — tasa cero (la rama del `si`).** mismos datos con `tasa_anual` 0
 
@@ -730,13 +847,14 @@ por qué el plazo importa más que el esfuerzo.
 Sin el `si`, aquí el motor devolvería un error de división en lugar de esta tabla.
 
 **E3 — meta corta con tasa alta.** `meta` 5 000 000 · `ahorro_inicial` 0 · `meses` 18 ·
-`tasa_anual` 0.12
+`tasa_anual` 0.12 (E.A.)
 
-`i = 0.01`; `(1.01)^18 = 1.196147475686664860781049986817531801`
+`i = potd(1.12, 1/12) - 1 = 0.0094887929345829741263550691…`;
+`(1+i)^18 = 1.1852965873569365845447238575…`, que es `1.12^1.5`, como debe ser para 18 meses.
 
-`aporte_mensual_requerido` **254 910.24** (sin redondear `254910.2394765066228775081980…`) ·
-`aporte_mensual_sin_rendimiento` **277 777.78** · `total_aportado` **4 588 384.31** ·
-`aportado_por_el_rendimiento` **411 615.69**.
+`aporte_mensual_requerido` **256 043.38** (sin redondear `256043.3807748634938576141163…`) ·
+`aporte_mensual_sin_rendimiento` **277 777.78** · `total_aportado` **4 608 780.85** ·
+`aportado_por_el_rendimiento` **391 219.15**.
 
 Nótese que `277 777.78` es un cociente no finito: se guarda sin redondear y se presenta con la
 escala de la salida, que es la única razón por la que `aporte_mensual_sin_rendimiento` y
@@ -754,6 +872,11 @@ modela porque depende de la entidad y el monto, no de una norma; si algún día 
 publicar una referencia, el nombre correcto sería `TASA_CDT_90` con vigencia mensual, y no
 un indicador «general». Lo que **sí** es un literal y no un indicador es la tarifa de
 retención del 7 %, por la misma razón que la del GMF (2.2).
+
+> **Simplificación conocida.** La retención se calcula sobre el rendimiento **íntegro**, sin
+excluir el componente inflacionario, así que queda ligeramente **sobrerestimada** y el neto
+por debajo del que paga el banco. Es deliberado: la exclusión exige el IPC del plazo, que no
+es el indicador anual del catálogo, y un dato inventado sería peor que un centavo de más.
 
 #### Entradas
 

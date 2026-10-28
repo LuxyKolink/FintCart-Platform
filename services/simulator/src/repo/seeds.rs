@@ -96,6 +96,17 @@ const FIXTURE_ADMIN: Uuid = Uuid::from_u128(0x0000_0000_0000_4000_8000_0000_0000
 /// catálogo contra el que se analizan las semillas; hay una prueba que lo comprueba, porque un
 /// indicador sembrado con un nombre que ninguna fórmula puede referenciar sería una fila
 /// invisible.
+///
+/// ## `TASA_USURA` es un RELLENO, no un certificado
+///
+/// El `0.25` de la lista **no es la tasa de usura**: es un 25 % E.A. redondo, elegido para que
+/// se reconozca como ficticio. La Superfinanciera certifica la tasa de usura **cada mes** y los
+/// valores recientes rondan el 28–30 % E.A. Ninguna semilla consume el indicador todavía, así
+/// que hoy el relleno es inocuo — pero **antes de que una fórmula lo consuma** hay que
+/// reemplazarlo por el valor certificado del mes en curso, o cargarlo por `UpsertIndicator`
+/// (FR-060), que es la fuente de verdad. Una cifra plausible inventada se citaría como si
+/// fuera real, y un tope de usura equivocado presentado como bueno es exactamente el fallo que
+/// la plataforma existe para evitar.
 pub const YEAR_INDICATORS: [(&str, &str); 5] = [
     ("IPC", "0.05"),
     ("SMMLV", "1600000"),

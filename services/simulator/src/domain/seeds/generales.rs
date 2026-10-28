@@ -12,6 +12,12 @@
 //! las fija es el ejemplo trabajado del diseño en `tests/seed_regression.rs`. Y la regla de
 //! estilo sigue siendo la misma: la sub-expresión compartida se escribe una vez, como macro.
 //!
+//! La tasa de entrada de esas dos es **efectiva anual** —lo que un banco colombiano cotiza— y
+//! se lleva a mensual con `potd(1 + tasa_anual, 1 / 12) - 1`, igual que `cdt_dias` con
+//! `dias / 365`. NO se usa `tasa_periodica`, que es una división NOMINAL: sobre una E.A.
+//! devuelve una tasa periódica mayor y con ella el saldo prometido queda por encima del real y
+//! el aporte necesario por debajo.
+//!
 //! ## Lo que las fórmulas NO repiten del código nativo
 //!
 //! Los topes y las guardas de dominio no se escriben dentro de las expresiones. Los topes son
@@ -355,11 +361,20 @@ pub fn inversion(id: Uuid) -> Seed {
 /// la única que cambia una decisión — de ahí que tres de sus seis salidas sean una distancia al
 /// objetivo y no un saldo.
 ///
+/// ## La tasa es EFECTIVA ANUAL, como la cotiza el banco
+///
+/// `tasa_anual` es una E.A. y se convierte a mensual con `(1 + EA)^(1/12) − 1`, no dividiendo
+/// entre doce. La división entre doce es una tasa NOMINAL (`tasa_periodica`), y en Colombia una
+/// cuenta de ahorro se cotiza efectiva: con la nominal el usuario que teclea el 6 % que ve en
+/// su extracto recibía una proyección más alta que la que su banco le va a pagar, y una brecha
+/// más corta que la real. Es la misma convención que `cdt_dias` (`colombia.rs:302`).
+///
 /// ## Por qué no lleva `si`
 ///
-/// El caso `tasa_anual = 0` no rompe nada: `vf_serie` lo resuelve DENTRO de la primitiva como
-/// `A · n` (`annuity.rs:94-101`) y `pot` ni siquiera se usa. Un `si` aquí duplicaría una guarda
-/// que ya vive en el módulo que sabe hacerla, y una guarda duplicada es una que se puede
+/// El caso `tasa_anual = 0` no rompe nada: `potd(1, x)` es exactamente `1`, así que la tasa
+/// mensual es exactamente `0` y `vf_serie` lo resuelve DENTRO de la primitiva como `A · n`
+/// (`annuity.rs:94-101`) sin que `pot` llegue a usarse. Un `si` aquí duplicaría una guarda que
+/// ya vive en el módulo que sabe hacerla, y una guarda duplicada es una que se puede
 /// desincronizar.
 ///
 /// ## Por qué `max(…, 0)` y no `si`
@@ -377,17 +392,52 @@ pub fn fondo_emergencia(id: Uuid) -> Seed {
             "(gasto_mensual * meses_cobertura)"
         };
     }
+    // La tasa mensual EQUIVALENTE a la efectiva anual: `i = (1 + EA)^(1/12) − 1`.
+    //
+    // `potd` y no `pot` porque `1 / 12` es decimal y no entero: `pot` lo rechazaría al guardar
+    // con `exponente_no_entero`, que es exactamente la separación de D-16. Y `potd` y no
+    // `tasa_periodica(tasa_anual, 12)` porque esa es una división NOMINAL: el banco colombiano
+    // cotiza E.A., así que dividir entre doce le daría al usuario una proyección más alta que
+    // la que va a cobrar y le diría que ahorre menos de lo que necesita.
+    //
+    // El exponente `1 / 12` no es exacto en decimal —la división lo deja en la escala máxima
+    // de `Decimal`— así que el residual se midió ANTES de aceptarlo con el oráculo de 60
+    // dígitos (`/tmp/seeds-recompute.py`): `i` difiere de `exp(ln(1+EA)/12) − 1` en ~2·10⁻³⁰
+    // y la proyección más grande del diseño en ~10⁻²² pesos. No hay centavo que perder.
+    macro_rules! tasa_mensual {
+        () => {
+            "(potd(1 + tasa_anual, 1 / 12) - 1)"
+        };
+    }
+    // El factor de capitalización de doce meses. `pot` con exponente entero: la docena de
+    // multiplicaciones es EXACTA y `(1+i)^12` devuelve la E.A. salvo el residual de `potd`.
+    macro_rules! factor_12 {
+        () => {
+            concat!("pot(1 + ", tasa_mensual!(), ", 12)")
+        };
+    }
     // El valor futuro de los doce aportes del año. Doce periodos son DOCE, y no un año: la
     // proyección es mensual porque el aporte lo es.
     macro_rules! serie_12 {
         () => {
-            "vf_serie(aporte_mensual, tasa_periodica(tasa_anual, 12), 12)"
+            concat!("vf_serie(aporte_mensual, ", tasa_mensual!(), ", 12)")
         };
     }
     // El saldo a doce meses SIN redondear: el redondeo ocurre una sola vez, en la salida.
+    //
+    // El ahorro inicial CAPITALIZA. El saldo ya está en la misma cuenta que los aportes y
+    // devenga la misma tasa que ellos; dejarlo congelado —como hacía la primera versión—
+    // subestimaba la proyección en `ahorro_inicial · EA` al año (180 000 pesos en el ejemplo
+    // E1) y con ella la brecha, que es la cifra que el usuario lee para decidir.
     macro_rules! proyeccion {
         () => {
-            concat!("(ahorro_inicial + ", serie_12!(), ")")
+            concat!("(ahorro_inicial * ", factor_12!(), " + ", serie_12!(), ")")
+        };
+    }
+    // Lo que puso el bolsillo: el saldo que ya estaba más los doce aportes.
+    macro_rules! aportado_12 {
+        () => {
+            "(ahorro_inicial + aporte_mensual * 12)"
         };
     }
 
@@ -406,7 +456,7 @@ pub fn fondo_emergencia(id: Uuid) -> Seed {
                 ),
                 monto_opcional("ahorro_inicial", "Ahorro disponible hoy"),
                 monto_opcional("aporte_mensual", "Aporte mensual previsto"),
-                tasa_opcional_cero("tasa_anual", "Rendimiento anual de la cuenta"),
+                tasa_opcional_cero("tasa_anual", "Rendimiento anual efectivo (E.A.)"),
             ],
             validations: vec![
                 regla(
@@ -461,13 +511,14 @@ pub fn fondo_emergencia(id: Uuid) -> Seed {
                     concat!("max(", objetivo!(), " - ", proyeccion!(), ", 0)"),
                     ESCALA_MONETARIA,
                 ),
-                // El rendimiento es lo que rinde la SERIE, no el saldo: el ahorro inicial no
-                // genera estos intereses en el diseño, y sumárselos prometería una cifra que la
-                // proyección no respalda.
+                // El rendimiento es lo que la PROYECCIÓN rinde por encima de lo aportado, y
+                // por eso resta también el saldo inicial: desde que ese saldo capitaliza, su
+                // rendimiento forma parte de `proyeccion_12_meses` y omitirlo daría una cifra
+                // que no cuadra con el saldo que el usuario tiene al lado.
                 salida(
                     "rendimiento_12_meses",
                     "Rendimiento en 12 meses",
-                    concat!(serie_12!(), " - aporte_mensual * 12"),
+                    concat!(proyeccion!(), " - ", aportado_12!()),
                     ESCALA_MONETARIA,
                 ),
             ],
@@ -481,6 +532,11 @@ pub fn fondo_emergencia(id: Uuid) -> Seed {
 /// reproducir. Es la INVERSA de `ahorro`: dado un objetivo y un plazo, el aporte necesario. La
 /// pregunta que de verdad se hace el usuario («¿cuánto tengo que guardar?») y no la que suele
 /// responder una calculadora de ahorro.
+///
+/// `tasa_anual` es una E.A. y se convierte a mensual como en `cdt_dias` y `fondo_emergencia`:
+/// `(1 + EA)^(1/12) − 1`, no la división nominal entre doce. El signo del error importa: la
+/// nominal sobreestima la tasa periódica, el despeje pide un aporte MENOR y el usuario que
+/// confía en él no llega a la meta.
 ///
 /// ## El único `si` imprescindible de las tres semillas nuevas
 ///
@@ -498,12 +554,17 @@ pub fn meta_ahorro(id: Uuid) -> Seed {
             "(meta - ahorro_inicial)"
         };
     }
-    // La tasa periódica mensual NOMINAL —la que el usuario declara—, que aparece cuatro veces
-    // dentro de la expresión. Escribirla a mano en cada sitio es la forma de que una se quede
-    // atrás y el despeje deje de despejar.
+    // La tasa mensual EQUIVALENTE a la efectiva anual —la que el usuario declara y la que el
+    // banco cotiza—, que aparece tres veces dentro de la expresión. Escribirla a mano en cada
+    // sitio es la forma de que una se quede atrás y el despeje deje de despejar.
+    //
+    // Es la MISMA conversión que `fondo_emergencia` y `cdt_dias` y por la misma razón: dividir
+    // entre doce es una tasa NOMINAL, y con ella el despeje devolvía un aporte menor del que la
+    // meta exige (687 325,36 en el ejemplo E1 frente a los 689 696,01 correctos). El residual
+    // del exponente `1 / 12` está medido en la nota de `fondo_emergencia`.
     macro_rules! periodo {
         () => {
-            "tasa_periodica(tasa_anual, 12)"
+            "(potd(1 + tasa_anual, 1 / 12) - 1)"
         };
     }
     // El fondo de amortización: A = VP·i / ((1+i)^n − 1), con el caso i = 0 resuelto aparte.
@@ -543,7 +604,7 @@ pub fn meta_ahorro(id: Uuid) -> Seed {
                 monto("meta", "Meta de ahorro"),
                 monto_opcional("ahorro_inicial", "Ahorro ya disponible"),
                 entero("meses", "Plazo en meses", "meses", MESES_META_MAX),
-                tasa_opcional_cero("tasa_anual", "Rendimiento anual esperado"),
+                tasa_opcional_cero("tasa_anual", "Rendimiento anual esperado (E.A.)"),
             ],
             validations: vec![
                 regla("meta > 0", "la meta de ahorro debe ser mayor que cero"),
