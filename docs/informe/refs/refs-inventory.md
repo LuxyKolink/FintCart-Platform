@@ -13,7 +13,8 @@ Fecha de verificación de red: **2026-10-27** (todos los DOI y URL se probaron c
 | `mr.md` | `docs/anteproyecto/marco-referencial.md` | **6** citas autor-año en prosa |
 | `pdf` | `docs/anteproyecto/Propuesta Proyecto FintCart.pdf`, pp. 25-26 | **11** entradas en formato APA de gestor |
 
-Total de citas de origen: **63**. Trabajos únicos tras deduplicar: **49**.
+Total de citas de origen: **63**. Trabajos únicos tras deduplicar: **49**, de los cuales **43**
+permanecen en `referencias.bib` y **6** se descartaron por no ser citables (ver §Recuento final).
 
 ## Política de verificación y de clasificación
 
@@ -28,11 +29,16 @@ Total de citas de origen: **63**. Trabajos únicos tras deduplicar: **49**.
 4. **`duplicate`** — la entrada aparecía en ≥2 archivos; se conservó **la versión más completa**
    y el conflicto se registra en §Conflictos. La columna `source file(s)` lista todos los
    archivos donde apareció.
-5. **`academic?`** — `yes` = arbitrado o research paper institucional (banco central, working
+5. **`descartada`** — la obra no sostiene una entrada de bibliografía: **`descartada: sin
+   localizador`** (ni DOI, ni URL, ni dirección editorial: nada contra qué citar) o
+   **`descartada: existencia no confirmada`** (ausente de Crossref y OpenAlex, sin localizador
+   que abra). Estas filas **se conservan** en el inventario como rastro de auditoría, pero no
+   tienen entrada en el `.bib`.
+6. **`academic?`** — `yes` = arbitrado o research paper institucional (banco central, working
    paper). `weak` = informe/estadística oficial o catálogo de patrones de autor: citable, no
    arbitrado. `no` = página de producto, blog de proveedor, Medium, repositorio de ejemplo:
    **nunca** al marco teórico.
-6. **`target chapter`** — `marco-referencial` (teoría y contexto), `marco-tecnologico`
+7. **`target chapter`** — `marco-referencial` (teoría y contexto), `marco-tecnologico`
    (decisiones de tecnología), `metodologia` (diseño), `evaluacion` (métricas y benchmarks).
 
 ## Inventario
@@ -61,14 +67,14 @@ Total de citas de origen: **63**. Trabajos únicos tras deduplicar: **49**.
 | banrep2024financial | Banco de la República | 2024 | Financial literacy and Financial Wellbeing: evidence from Colombia in a high inflation environment | Borradores de Economía (working paper), Banco de la República | — | https://www.banrep.gov.co/en/borradores-economia-financial-literacy-and-financial-wellbeing-evidence-colombia-high-inflation | ref.md, mr.md, pdf | yes | marco-referencial | incomplete | La página confirma publicación 2024-02-29 y el dato del 16.4 %, pero el campo "AUTHOR OR EDITOR" está vacío y no se pudo determinar la autoría individual ni el número de Borrador. |
 | ustreasuryndfinancial | U.S. Department of the Treasury | n.d. | Financial Literacy and Education Commission | home.treasury.gov | — | https://home.treasury.gov/policy-issues/consumer-policy/financial-literacy-and-education-commission | ref.md | weak | marco-referencial | verified | `ref.md` fechaba "updated 2 weeks ago" → sin año determinable. |
 | nefefoundationndnational | National Endowment for Financial Education | n.d. | National Endowment for Financial Education (NEFE) | nefe.org | — | https://www.nefe.org/ | ref.md | weak | marco-referencial | verified | Página institucional; el ítem de `ref.md` no da año. |
-| nefefoundation2024grant | National Endowment for Financial Education | 2024 | NEFE Grant Program (cerca de US$410 000 en subvenciones) | nefe.org | — | — | ref.md | weak | marco-referencial | incomplete | `ref.md` no da URL ni ruta del programa: dato único (monto) pero no citable sin localizador. |
+| nefefoundation2024grant | National Endowment for Financial Education | 2024 | NEFE Grant Program (cerca de US$410 000 en subvenciones) | nefe.org | — | — | ref.md | weak | marco-referencial | **descartada: sin localizador** | `ref.md` no da URL ni ruta del programa: dato único (monto) pero no citable sin localizador. Eliminada del `.bib` el 2026-10-28. |
 | finrafoundation2022financial | FINRA Investor Education Foundation | 2022 | Financial Education Matters: Testing the Effectiveness of Financial Education Across 76 Randomized Experiments | FINRA Foundation, *Insights: Financial Capability* (marzo 2022) | — | https://www.finrafoundation.org/sites/finrafoundation/files/Financial-Education-Matters-Testing-Effectiveness-Financial-Education_1.pdf | ref.md | weak | marco-referencial | verified | `ref.md` no daba año ni el título completo: ambos se leyeron del PDF (marzo 2022). |
 | gao2025financial | U.S. Government Accountability Office | 2025 | Financial Literacy in the Digital Age (GAO-25-107168) | gao.gov | — | https://www.gao.gov/products/gao-25-107168 | ref.md | weak | marco-referencial | unreachable (403) | `gao.gov` rechaza clientes automatizados (403 incluso en `/assets/...pdf` con UA de navegador). Comprobar en navegador antes de citar. |
 | koefer2024addressing | Koefer, F.; Bokkens, A.; Preziuso, M.; Ehrenhard, M. | 2024 | Addressing Financial and Digital Literacy Challenges for Inclusive Finance: Insights from Microfinance Institutions and FinTech Organisations | EIF Working Paper 2024/97, European Investment Fund | — | https://www.eif.org/news_centre/publications/eif_working_paper_2024_97.pdf | ref.md | weak | marco-referencial | verified | Autores y título leídos del PDF. `ref.md` no daba autoría. |
-| occndfinancial | Office of the Comptroller of the Currency | 2024 | Financial Literacy Update (Q4 2024) | occ.gov | — | — | ref.md | weak | marco-referencial | incomplete | Boletín trimestral sin URL ni localizador en `ref.md`; no verificable. |
-| wef2024financial | World Economic Forum | 2024 | Financial Literacy Statistics (reportes del WEF) | weforum.org | — | — | ref.md | weak | marco-referencial | incomplete | `ref.md` no da título de informe ni URL: no es citable tal cual. |
-| nfec2025national | National Financial Educators Council | 2025 | Cost of Financial Illiteracy Study | financialeducatorscouncil.org | — | — | ref.md | weak | marco-referencial | incomplete | Sin URL ni título exacto del estudio. |
-| inquiro2025filipino | Inquiro (research) | 2025 | Filipino Financial Literacy Study | — | — | — | ref.md | weak | marco-referencial | incomplete | Sin URL y con editor no identificable ("Inquiro research"); revisar si conviene descartar. |
+| occndfinancial | Office of the Comptroller of the Currency | 2024 | Financial Literacy Update (Q4 2024) | occ.gov | — | — | ref.md | weak | marco-referencial | **descartada: sin localizador** | Boletín trimestral sin URL ni localizador en `ref.md`; no verificable. Eliminada del `.bib` el 2026-10-28. |
+| wef2024financial | World Economic Forum | 2024 | Financial Literacy Statistics (reportes del WEF) | weforum.org | — | — | ref.md | weak | marco-referencial | **descartada: sin localizador** | `ref.md` no da título de informe ni URL: no es citable tal cual. Eliminada del `.bib` el 2026-10-28. |
+| nfec2025national | National Financial Educators Council | 2025 | Cost of Financial Illiteracy Study | financialeducatorscouncil.org | — | — | ref.md | weak | marco-referencial | **descartada: sin localizador** | Sin URL ni título exacto del estudio. Eliminada del `.bib` el 2026-10-28. |
+| inquiro2025filipino | Inquiro (research) | 2025 | Filipino Financial Literacy Study | — | — | — | ref.md | weak | marco-referencial | **descartada: sin localizador** | Sin URL y con editor no identificable ("Inquiro research"). Eliminada del `.bib` el 2026-10-28. |
 | atlassian2024what | Atlassian | 2024 | What is Docker? Your Guide to Containerization | atlassian.com | — | https://www.atlassian.com/microservices/microservices-architecture/docker | pdf | no | marco-tecnologico | verified | Solo en el PDF. Página de producto. |
 | encore2024go | Encore | 2024 | Go Microservices Frameworks in 2024 | encore.cloud | — | https://encore.cloud/resources/go-frameworks | pdf | no | marco-tecnologico | verified | Solo en el PDF. Blog de proveedor. |
 | kodali2023nestjs | Kodali, S. | 2023 | NestJS microservices using gRPC as transporter | Medium | — | https://medium.com/@souravkodali/nestjs-microservices-using-grpc-as-transporter-cd3d90e54eb5 | pdf | no | marco-tecnologico | unreachable (403) | Solo en el PDF (Medium bloquea `curl`). Los demás campos provienen del PDF. |
@@ -87,7 +93,7 @@ Total de citas de origen: **63**. Trabajos únicos tras deduplicar: **49**.
 | undpndgamified | United Nations Development Programme | n.d. | Gamified Financial Education | undp.org | — | https://www.undp.org/latin-america/digitalhub4/projects/gamified-financial-education | ref.md | no | marco-tecnologico | unreachable (403) | Portal de proyecto (no arbitrado); `undp.org` rechaza `curl`. Sin año. |
 | mogaland2023empowering | Mogaland | 2023 | Empowering Financial Freedom: How Gamified Learning Shapes Financial Education | Medium | — | https://medium.com/@Mogaland/empowering-financial-freedom-159f70266f94 | ref.md | no | marco-tecnologico | unreachable (403) | Medium bloquea `curl`. |
 | straitsresearchndmicroservices | Straits Research | n.d. | Microservices Architecture Market Size, Share, Growth, Analysis, 2034 | straitsresearch.com | — | https://straitsresearch.com/report/microservices-architecture-market | ref.md | no | marco-tecnologico | verified | Estudio de mercado de proveedor; sin año en `ref.md`. |
-| improvement2018existing | (autor no identificado) | 2018 | Improvement of an Existing Microservices Architecture for an E-learning Platform in STEM Education | ResearchGate | — | https://www.researchgate.net/publication/327018933_Improvement_of_an_Existing_Microservices_Architecture_for_an_E-learning_Platform_in_STEM_Education | ref.md | yes | marco-tecnologico | unreachable (403) | ResearchGate bloquea `curl` (403) y ni Crossref ni OpenAlex registran la obra: **autoría no determinada** y existencia no confirmada. Candidata a descarte. |
+| improvement2018existing | (autor no identificado) | 2018 | Improvement of an Existing Microservices Architecture for an E-learning Platform in STEM Education | ResearchGate | — | https://www.researchgate.net/publication/327018933_Improvement_of_an_Existing_Microservices_Architecture_for_an_E-learning_Platform_in_STEM_Education | ref.md | yes | marco-tecnologico | **descartada: existencia no confirmada** | ResearchGate bloquea `curl` (403) y ni Crossref ni OpenAlex registran la obra: **autoría no determinada** y existencia no confirmada. Eliminada del `.bib` el 2026-10-28. |
 
 ## Deduplicación
 
@@ -169,10 +175,12 @@ Total de URL distintas probadas: 44 (25 × `2xx` + 18 × `403` + 1 × `404`).
 |---|---|
 | Citas de origen (3 archivos) | 63 |
 | Ítems de `ref.md` que no son fuentes (excluidos) | 5 |
-| Trabajos únicos | **49** |
+| Trabajos únicos identificados | **49** |
+| Descartados por no ser citables | **6** (5 sin localizador + 1 existencia no confirmada) |
+| **Entradas en `referencias.bib`** | **43** |
 | `verified` | **35** |
-| `unreachable` | **8** (todos `403` anti-bot: 5 Medium, ResearchGate, GAO, UNDP; 0 enlaces muertos) |
-| `incomplete` | **6** |
+| `unreachable` | **7** (todos `403` anti-bot: 5 Medium, GAO, UNDP; 0 enlaces muertos) |
+| `incomplete` | **1** (`banrep2024financial`: sin autoría individual) |
 | Duplicados absorbidos | **14** |
 | Académicos `yes` | 20 |
 | Académicos `weak` | 11 |
@@ -180,6 +188,9 @@ Total de URL distintas probadas: 44 (25 × `2xx` + 18 × `403` + 1 × `404`).
 | Aportación única de `ref.md` | 46 |
 | Aportación única de `mr.md` | 0 (6 citas, 6 duplicadas; solo añade atribuciones erróneas) |
 | Aportación única del `pdf` | 3 (atlassian2024what, encore2024go, kodali2023nestjs) |
+
+Verificación de paridad: el conjunto de claves del §Inventario con estado distinto de
+`descartada` es **exactamente** el conjunto de entradas de `refs/referencias.bib` (43 = 43).
 
 ## Excluidos (no son fuentes)
 
@@ -190,6 +201,6 @@ método, sin obra ni localizador), `#50` "Research Paper Database Access" (lista
 datos: IEEE Xplore, ScienceDirect, ResearchGate, SAGE, SpringerLink) y `#51` "Government and
 Institutional Resources" (OECD, Superfinanciera, UN, Banco Mundial — sin documento concreto).
 
-`#39`-`#43` **sí** se conservan porque citan un dato concreto, pero quedan `incomplete` al no
-tener localizador; los cinco son candidatos naturales a descarte si el capítulo 1 se reescribe
-con las fuentes del Banco de la República y el WEF que sí tienen URL.
+`#39`-`#43` se descartaron el 2026-10-28: citaban un dato concreto pero sin localizador —ni DOI,
+ni URL, ni dirección editorial—, de modo que no había nada contra qué citar. A ellas se sumó
+`improvement2018existing`, cuya existencia no pudo confirmarse (ausente de Crossref y OpenAlex).

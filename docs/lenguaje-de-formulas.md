@@ -123,7 +123,7 @@ propio espacio de nombres, separado del de los campos (T085): añadir un indicad
 no puede cambiar el significado de una fórmula que use el campo `uvt`.
 
 ```formula
-@UVT * 20
+@UVT * 350
 ```
 
 Un indicador sin catálogo es `indicador_desconocido`. Y **cada simulación guarda los valores de
@@ -261,7 +261,7 @@ cuota(monto, tasa_periodica(tasa_anual, 12), meses) * meses
 entre dos ramas del mismo tipo:
 
 ```formula
-si(exento == 1, min(monto, @UVT * 20), 0)
+si(exento == 1, min(monto, @UVT * 350), 0)
 ```
 
 **Tasa mes vencido** — una salida que no es dinero y por eso declara otra escala:
