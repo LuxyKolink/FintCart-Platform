@@ -363,8 +363,10 @@ inversa con logaritmo, o una sumatoria de longitud variable).
 `si` aparece cuando la fórmula **no** es una primitiva:
 
 - el **aporte** de una meta es la inversa de `vf_serie`, y no hay primitiva inversa, así que
-  hay que escribirla: $A = VP\cdot i/\bigl((1+i)^n-1\bigr)$. Con `i = 0` el denominador es
-  exactamente cero (`pot(1, n) = 1`) y la evaluación falla;
+  hay que escribirla: $A = VF\cdot i/\bigl((1+i)^n-1\bigr)$, donde `VF` es lo que hay que
+  acumular **al final** del plazo —`meta − ahorro_inicial·(1+i)^n`, con el saldo inicial ya
+  capitalizado (4.2)—. Con `i = 0` el denominador es exactamente cero (`pot(1, n) = 1`) y la
+  evaluación falla;
 - la **capacidad de endeudamiento** despeja el capital, y le pasa lo mismo.
 
 El `si` es **perezoso**: `eval.rs:227-237` evalúa solo la rama elegida, así que la rama que
@@ -717,49 +719,88 @@ aporte de signo contrario al que se pidió, presentado como si fuera válido.
 #### 4.2.1 La expresión, completa
 
 ```formula
-si((potd(1 + tasa_anual, 1 / 12) - 1) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial) * (potd(1 + tasa_anual, 1 / 12) - 1) / (pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), meses) - 1))
+si((potd(1 + tasa_anual, 1 / 12) - 1) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial * pot(potd(1 + tasa_anual, 1 / 12), meses)) * (potd(1 + tasa_anual, 1 / 12) - 1) / (pot(potd(1 + tasa_anual, 1 / 12), meses) - 1))
 ```
 
-Es el fondo de amortización: $A = VP\cdot i\big/\bigl((1+i)^n-1\bigr)$, con `i` periódica
+Es el fondo de amortización: $A = VF\cdot i\big/\bigl((1+i)^n-1\bigr)$, con `i` periódica
 mensual **efectiva**, es decir la EQUIVALENTE de la E.A. que el usuario declara
-(`potd(1 + tasa_anual, 1 / 12) - 1`, ecuación 1.4). La primera versión usaba la división
-nominal `tasa_anual / 12`, que es una tasa MAYOR: el despeje pedía entonces un aporte menor y
-el usuario que lo seguía no llegaba a la meta. En E1 la diferencia es de 2 370,65 al mes.
+(`potd(1 + tasa_anual, 1 / 12) - 1`, ecuación 1.4).
+
+**`VF` es un valor FUTURO y ése es el punto entero de la fórmula.** Lo que hay que acumular
+con los aportes es `meta − ahorro_inicial·(1+i)^n`, **no** `meta − ahorro_inicial`: `meta` es
+un importe en t = meses y `ahorro_inicial` uno en t = 0, así que restarlos sin capitalizar
+mezcla épocas y le regala al saldo inicial el rendimiento que sí devenga. La confusión es
+fácil porque la identidad en valor PRESENTE —
+$A = \bigl(meta/(1+i)^n - ahorro_{inicial}\bigr)\cdot i\big/\bigl(1-(1+i)^{-n}\bigr)$— es la
+misma fórmula: allí el saldo inicial tampoco aparece capitalizado, pero porque el descuento ya
+está aplicado a la meta. El lenguaje no tiene exponentes negativos (5.1), así que la forma
+implementada es la de valor futuro, y en ella el saldo tiene que crecer. Llamar «VP» al
+numerador de la forma implementada es lo que hacía invisible el error: `VP` es un importe de
+hoy, y lo que se despeja aquí es un importe de dentro de `n` meses.
+
+La expresión tuvo dos correcciones, y conviene no confundirlas porque la segunda escondía a la
+primera:
+
+| versión | numerador | E1 (`aporte_mensual_requerido`) |
+|---|---|---|
+| tasa nominal y saldo congelado | `meta - ahorro_inicial` con `tasa_anual / 12` | 687 325,36 |
+| tasa efectiva y saldo congelado | `meta - ahorro_inicial` | 689 696,01 |
+| **tasa efectiva y saldo capitalizado** | `meta - ahorro_inicial * pot((1+i), meses)` | **675 281,36** |
+
+La segunda fila era peor que la primera en el sentido que importa: arreglar la tasa sin
+arreglar el saldo dejó el aporte 14 414,65 MÁS alto cada mes, y un plan que termina 376 200
+pesos por ENCIMA de la meta es tan inútil como uno que no llega. La prueba
+`el_aporte_de_meta_ahorro_lleva_exactamente_a_la_meta` cierra esa puerta: proyecta hacia
+adelante el aporte que la semilla publica y exige que el saldo final sea la meta, sin oráculo
+alguno.
 
 | Tokens | Lectura | Resultado |
 |---|---|---|
 | `si` | palabra del lenguaje, no puede ser campo (`parser.rs:109`) | — |
 | `( potd ( 1 + tasa_anual , 1 / 12 ) - 1 ) == 0` | comparación entre dos expresiones aditivas | condición, tipo `condición` |
 | `,` | separador del primer argumento | — |
-| `( meta - ahorro_inicial ) / meses` | rama del caso `i = 0` | número |
+| `( meta - ahorro_inicial ) / meses` | rama del caso `i = 0`, donde el factor es `1` y el hueco se reduce al de hoy | número |
 | `,` | separador del segundo argumento | — |
-| `( meta - ahorro_inicial ) * ( potd ( 1 + tasa_anual , 1 / 12 ) - 1 )` | multiplicativa izquierda | número |
+| `( meta - ahorro_inicial * pot ( … ) )` | el hueco EN t = meses: la meta menos el saldo inicial ya capitalizado | número |
+| `* ( potd ( 1 + tasa_anual , 1 / 12 ) - 1 )` | multiplicativa por la tasa periódica | número |
 | `/` | división, asociativa por la izquierda | — |
-| `( pot ( 1 + ( potd (…) - 1 ) , meses ) - 1 )` | paréntesis → `pot` con exponente `meses`, que es un campo **`entero`** | número |
+| `( pot ( potd (…) , meses ) - 1 )` | paréntesis → `pot` con exponente `meses`, que es un campo **`entero`** | número |
 | `)` | cierra `si` | — |
+
+`pot(potd(…), meses)` y no `pot(1 + (potd(…) - 1), meses)`: es el mismo factor —`1 + (x - 1)`
+devuelve `x` exactamente en `Decimal`— y cuesta 9 nodos en vez de 13, que es la diferencia
+entre caber en el presupuesto de FR-046 y no caber, porque el factor aparece dos veces en la
+rama general. La tasa `i` sí se escribe como `(base - 1)` donde hace falta compararla con cero
+o multiplicar por ella.
 
 **Tipos.** `si` exige que las dos ramas devuelvan el mismo tipo (`parser.rs:558-580`): las dos
 son número, y la condición es de tipo condición. Si una rama fuera una comparación, el
 guardado fallaría con `tipo_incompatible`.
 
-**Nodos.** `si`(1) + condición(11) + rama cero(5) + rama general(29) = **46** de 64.
-Profundidad **9** de 16 (`si` → `/` → `-` → `pot` → `+` → `-` → `potd` → `+` → `tasa_anual`).
-Repetir esta expresión en `total_aportado` da 48 nodos, y en `aportado_por_el_rendimiento` 52
-(profundidad 11): las dos caben, y es el precio de que no existan variables (5.3). La
-conversión de tasa es lo que se lleva los nodos —se escribe tres veces dentro de la misma
-expresión, la última anidada dentro de `pot`— y es la razón de que esta semilla esté 12 nodos
-por debajo del tope.
+**Nodos.** `si`(1) + condición(11) + rama cero(5) + rama general(35) = **52** de 64.
+Profundidad **9** de 16 (`si` → `/` → `-` → `pot` → `potd` → `+` → `tasa_anual`). Repetir esta
+expresión en `total_aportado` da 54 nodos, y en `aportado_por_el_rendimiento` 58 (profundidad
+11): las dos caben, y es el precio de que no existan variables (5.3). El factor de
+capitalización es lo que se lleva los nodos —aparece dos veces en la rama general, una anidada
+dentro de la otra— y es la razón de que la semilla esté 6 nodos por debajo del tope.
 
 **Aridades.** `si` 3 (exacta, `parser.rs:631-640`); `potd` 2; `pot` 2. Un
 `tasa_periodica(tasa_anual, 12, 12)` fallaría al guardar con `expresion_mal_formada`, y un
 `pot(1 + …, 1 / 12)` fallaría con `exponente_no_entero`.
 
 **Por qué el `si` es imprescindible y no defensivo.** Con `tasa_anual = 0` el denominador es
-`pot(1 + 0, meses) - 1 = 1 - 1 = 0`: la rama general divide por cero **exactamente**. Y el cero
-es exacto en las dos puntas de la cadena —`potd(1, 1/12) = 1` y `pot(1, n) = 1`—, así que la
-rama se alcanza de verdad. No es un caso raro — «ahorro sin rendimiento» es el escenario de
-quien guarda en efectivo. Y el `si` funciona porque es **perezoso**: `eval.rs:227-237` evalúa
-solo la rama elegida, así que la que divide por cero no llega a ejecutarse.
+`pot(potd(1, 1/12), meses) - 1 = pot(1, meses) - 1 = 0`: la rama general divide por cero
+**exactamente**. Y el cero es exacto en las dos puntas de la cadena —`potd(1, x) = 1` y
+`pot(1, n) = 1`—, así que la rama se alcanza de verdad. No es un caso raro — «ahorro sin
+rendimiento» es el escenario de quien guarda en efectivo. Y el `si` funciona porque es
+**perezoso**: `eval.rs:227-237` evalúa solo la rama elegida, así que la que divide por cero no
+llega a ejecutarse.
+
+La rama del cero escribe `(meta - ahorro_inicial) / meses` y no el hueco capitalizado, y **no
+es una inconsistencia**: si `i = 0` el factor es `1^meses = 1` exacto, así que
+`meta - ahorro_inicial·1` **es** `meta - ahorro_inicial`. Escribir la forma capitalizada costaría
+diez de los 64 nodos para decir lo mismo, y el presupuesto de FR-046 es de la expresión
+completa.
 
 #### Forma almacenada (fragmento de `outputs`)
 
@@ -783,7 +824,15 @@ solo la rama elegida, así que la que divide por cero no llega a ejecutarse.
       "right":{"op":"field","key":"meses"}},
     "else": {"op":"div",
       "left":{"op":"mul",
-        "left":{"op":"sub","left":{"op":"field","key":"meta"},"right":{"op":"field","key":"ahorro_inicial"}},
+        "left":{"op":"sub","left":{"op":"field","key":"meta"},"right":{"op":"mul",
+          "left":{"op":"field","key":"ahorro_inicial"},
+          "right":{"op":"call","func":"pot","args":[
+            {"op":"call","func":"potd","args":[
+              {"op":"add","left":{"op":"num","value":"1"},
+                "right":{"op":"field","key":"tasa_anual"}},
+              {"op":"div","left":{"op":"num","value":"1"},
+                "right":{"op":"num","value":"12"}}]},
+            {"op":"field","key":"meses"}]}}},
         "right":{"op":"sub",
           "left":{"op":"call","func":"potd","args":[
             {"op":"add","left":{"op":"num","value":"1"},
@@ -793,18 +842,15 @@ solo la rama elegida, así que la que divide por cero no llega a ejecutarse.
           "right":{"op":"num","value":"1"}}},
       "right":{"op":"sub",
         "left":{"op":"call","func":"pot","args":[
-          {"op":"add","left":{"op":"num","value":"1"},
-            "right":{"op":"sub",
-              "left":{"op":"call","func":"potd","args":[
-                {"op":"add","left":{"op":"num","value":"1"},
-                  "right":{"op":"field","key":"tasa_anual"}},
-                {"op":"div","left":{"op":"num","value":"1"},
-                  "right":{"op":"num","value":"12"}}]},
-              "right":{"op":"num","value":"1"}}},
+          {"op":"call","func":"potd","args":[
+            {"op":"add","left":{"op":"num","value":"1"},
+              "right":{"op":"field","key":"tasa_anual"}},
+            {"op":"div","left":{"op":"num","value":"1"},
+              "right":{"op":"num","value":"12"}}]},
           {"op":"field","key":"meses"}]},
         "right":{"op":"num","value":"1"}}}
   },
-  "texto": "si((potd(1 + tasa_anual, 1 / 12) - 1) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial) * (potd(1 + tasa_anual, 1 / 12) - 1) / (pot(1 + (potd(1 + tasa_anual, 1 / 12) - 1), meses) - 1))",
+  "texto": "si((potd(1 + tasa_anual, 1 / 12) - 1) == 0, (meta - ahorro_inicial) / meses, (meta - ahorro_inicial * pot(potd(1 + tasa_anual, 1 / 12), meses)) * (potd(1 + tasa_anual, 1 / 12) - 1) / (pot(potd(1 + tasa_anual, 1 / 12), meses) - 1))",
   "escala": 2
 }
 ```
@@ -825,14 +871,16 @@ para 24 meses, salvo el residual de `potd`.
 | Salida | Valor sin redondear | Presentado |
 |---|---|---|
 | `monto_pendiente` | `18000000` | **18 000 000.00** |
-| `aporte_mensual_requerido` | `689696.0111135588981367677010…` | **689 696.01** |
+| `aporte_mensual_requerido` | `675281.3644812855171657092561…` | **675 281.36** |
 | `aporte_mensual_sin_rendimiento` | `750000` | **750 000.00** |
-| `total_aportado` | `16552704.2667254135552824248259…` | **16 552 704.27** |
-| `aportado_por_el_rendimiento` | `1447295.7332745864447175751740…` | **1 447 295.73** |
+| `total_aportado` | `16206752.7475508524119770221472…` | **16 206 752.75** |
+| `aportado_por_el_rendimiento` | `1793247.2524491475880229778528…` | **1 793 247.25** |
 
-El rendimiento cubre 1 447 295,73 de los 18 millones: el 8.0 %. La primera versión de esta
-tabla decía **687 325.36** y **1 504 191.34**, con la tasa dividida entre doce: 2 370,65 al mes
-—28 447,80 al año— de menos, y el usuario que seguía esa cifra no llegaba a la meta.
+El rendimiento cubre 1 793 247,25 de los 18 millones: el 10.0 % del hueco. Y la comprobación
+que importa: `2 000 000 × (1+i)^24 + 675 281,36… × ((1+i)^24 − 1)/i = 20 000 000` — el plan
+llega, ni un peso de más. Con el aporte de la versión anterior (689 696,01) el mismo plan
+terminaba en **20 376 200,00**, es decir `2 000 000 × ((1,09)² − 1) = 376 200,00` por encima de
+la meta: exactamente el rendimiento del saldo inicial que aquel numerador olvidaba.
 
 **E2 — tasa cero (la rama del `si`).** mismos datos con `tasa_anual` 0
 
@@ -1106,7 +1154,8 @@ necesita un vigilante de tiempo de ejecución.
 
 **Cuenta cada nodo, incluidos los literales y los campos** (`limits.rs:26-30`): `meses` es un
 nodo. En la práctica el límite no aprieta a una calculadora de una pregunta —la más larga de
-este documento usa 34 de 64— pero sí acota un VPN: cada flujo son ~6 nodos más, así que el
+este documento usa 58 de 64 (`aportado_por_el_rendimiento` de 4.2, que repite el despeje
+entero)— pero sí acota un VPN: cada flujo son ~6 nodos más, así que el
 tope práctico son cinco o seis flujos por salida, y por eso el VPN de horizonte fijo entra
 (3.9) y el general no.
 

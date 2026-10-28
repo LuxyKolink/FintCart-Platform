@@ -538,53 +538,99 @@ pub fn fondo_emergencia(id: Uuid) -> Seed {
 /// nominal sobreestima la tasa periódica, el despeje pide un aporte MENOR y el usuario que
 /// confía en él no llega a la meta.
 ///
+/// ## El despeje se hace en t = meses, no en t = 0
+///
+/// Lo que hay que acumular con los aportes es `meta − ahorro_inicial·(1+i)^meses`, y **no**
+/// `meta − ahorro_inicial`: la meta es un importe en t = meses y el ahorro inicial uno en
+/// t = 0, así que restarlos sin capitalizar mezcla épocas y le regala al saldo inicial el
+/// rendimiento que sí devenga. Con el numerador corto, el aporte sale alto y el plan termina
+/// por ENCIMA de la meta en exactamente `ahorro_inicial · ((1+i)^meses − 1)`.
+///
+/// La identidad en valor presente —`A = (meta/(1+i)^n − ahorro_inicial)·i/(1 − (1+i)^-n)`—
+/// es la MISMA fórmula y es donde el error se esconde: allí `ahorro_inicial` tampoco se
+/// capitaliza, pero porque el descuento ya está aplicado a la meta. Escribir el despeje en
+/// valor presente exige el exponente negativo, que el lenguaje no tiene (5.1), así que la
+/// forma implementada es la de valor futuro, y en ella el saldo tiene que crecer.
+///
 /// ## El único `si` imprescindible de las tres semillas nuevas
 ///
 /// `vf_serie` resuelve `i = 0` dentro de la primitiva, pero **no existe la primitiva inversa**:
 /// el despeje del fondo de amortización se escribe a mano y se topa con el mismo cero. Con
-/// `tasa_anual = 0` el denominador `pot(1 + i, meses) - 1` es exactamente cero, y «ahorro sin
+/// `tasa_anual = 0` el denominador `pot(base, meses) - 1` es exactamente cero, y «ahorro sin
 /// rendimiento» no es un caso raro —es quien guarda en efectivo—. El `si` funciona porque es
 /// PEREZOSO: `eval.rs` solo evalúa la rama elegida, así que la que divide por cero no llega a
-/// ejecutarse.
+/// ejecutarse. Y la rama del cero es consistente con el numerador capitalizado: con `i = 0`
+/// el factor es `1`, así que el hueco se reduce a `meta - ahorro_inicial` sin ningún caso
+/// especial.
 #[must_use]
 pub fn meta_ahorro(id: Uuid) -> Seed {
-    // Lo que falta por acumular: el numerador de las dos ramas y el minuendo del rendimiento.
-    macro_rules! pendiente {
+    // Lo que falta HOY, en t = 0: la meta menos el saldo que ya existe. Es lo que el usuario
+    // lee como distancia a la meta, y NO es el numerador del despeje (ver `hueco_al_plazo`).
+    macro_rules! hueco_hoy {
         () => {
             "(meta - ahorro_inicial)"
         };
     }
-    // La tasa mensual EQUIVALENTE a la efectiva anual —la que el usuario declara y la que el
-    // banco cotiza—, que aparece tres veces dentro de la expresión. Escribirla a mano en cada
-    // sitio es la forma de que una se quede atrás y el despeje deje de despejar.
+    // La BASE mensual, `1 + i`: el factor que compone a la E.A. declarada. `potd` y no `pot`
+    // porque `1 / 12` es decimal (`pot` lo rechazaría al guardar con `exponente_no_entero`), y
+    // `potd` y no `tasa_periodica` porque esa es una división NOMINAL: el banco cotiza E.A.
     //
-    // Es la MISMA conversión que `fondo_emergencia` y `cdt_dias` y por la misma razón: dividir
-    // entre doce es una tasa NOMINAL, y con ella el despeje devolvía un aporte menor del que la
-    // meta exige (687 325,36 en el ejemplo E1 frente a los 689 696,01 correctos). El residual
-    // del exponente `1 / 12` está medido en la nota de `fondo_emergencia`.
-    macro_rules! periodo {
+    // Se escribe la BASE y no la tasa `i = base - 1` por dos razones. La primera es el
+    // presupuesto de nodos: `pot(base, meses)` cuesta 9 y `pot(1 + (base - 1), meses)` cuesta
+    // 13, y el factor aparece dos veces en el despeje (FR-046). La segunda es que el viaje
+    // `- 1` / `+ 1` no aporta nada: en `Decimal`, `1 + (x - 1)` devuelve `x` exactamente para
+    // `x ∈ [1, 2)`, que es el dominio de una E.A. no negativa.
+    macro_rules! base_mensual {
         () => {
-            "(potd(1 + tasa_anual, 1 / 12) - 1)"
+            "potd(1 + tasa_anual, 1 / 12)"
         };
     }
-    // El fondo de amortización: A = VP·i / ((1+i)^n − 1), con el caso i = 0 resuelto aparte.
+    // La tasa periódica `i`, que es lo único que se puede comparar con cero.
+    macro_rules! periodo {
+        () => {
+            concat!("(", base_mensual!(), " - 1)")
+        };
+    }
+    // El factor de capitalización del plazo, `(1 + i)^meses`. `pot` y no `potd` porque el
+    // exponente es `meses`, que es un campo ENTERO: elevar a un entero es multiplicación
+    // repetida y exacta, y es lo que el analizador exige de `pot`.
+    macro_rules! factor {
+        () => {
+            concat!("pot(", base_mensual!(), ", meses)")
+        };
+    }
+    // Lo que hay que ACUMULAR, en t = meses: la meta menos lo que el saldo inicial llegará a
+    // ser. El saldo capitaliza aquí igual que en `fondo_emergencia`, y por la misma razón:
+    // está en la misma cuenta y devenga la misma tasa. Restarle el saldo SIN capitalizar
+    // (`meta - ahorro_inicial`) es el error que hacía que el plan terminara 376 200 pesos por
+    // encima de la meta en el ejemplo E1 — exactamente el rendimiento que se olvidaba.
+    macro_rules! hueco_al_plazo {
+        () => {
+            concat!("(meta - ahorro_inicial * ", factor!(), ")")
+        };
+    }
+    // El fondo de amortización: A = VF·i / ((1+i)^n − 1), con el caso i = 0 resuelto aparte.
+    // Aquí `VF` es `hueco_al_plazo`, NO `hueco_hoy`.
     //
-    // `pot` y no `potd` porque el exponente es `meses`, que es un campo ENTERO: elevar a un
-    // entero es multiplicación repetida y exacta, y es lo que el analizador exige de `pot`.
+    // La rama del cero sí usa `hueco_hoy`, y no es un atajo: la condición `i == 0` implica
+    // `base == 1`, y entonces el factor es `1^meses = 1` EXACTO, así que
+    // `meta - ahorro_inicial·1` es literalmente `meta - ahorro_inicial`. Escribir el hueco
+    // capitalizado en esa rama costaría diez nodos para decir lo mismo, y el presupuesto de
+    // FR-046 es de 64 para la suma de la expresión completa.
     macro_rules! aporte {
         () => {
             concat!(
                 "si(",
                 periodo!(),
                 " == 0, ",
-                pendiente!(),
+                hueco_hoy!(),
                 " / meses, ",
-                pendiente!(),
+                hueco_al_plazo!(),
                 " * ",
                 periodo!(),
-                " / (pot(1 + ",
-                periodo!(),
-                ", meses) - 1))"
+                " / (",
+                factor!(),
+                " - 1))"
             )
         };
     }
@@ -622,10 +668,13 @@ pub fn meta_ahorro(id: Uuid) -> Seed {
                 regla("tasa_anual >= 0", "el rendimiento no puede ser negativo"),
             ],
             outputs: vec![
+                // La distancia en t = 0, que es la que el usuario reconoce de cabeza. NO es
+                // el numerador del despeje: el despeje trabaja en t = meses y allí el saldo
+                // inicial ya ha crecido (ver `hueco_al_plazo`).
                 salida(
                     "monto_pendiente",
                     "Falta por acumular",
-                    pendiente!(),
+                    hueco_hoy!(),
                     ESCALA_MONETARIA,
                 ),
                 salida(
@@ -640,7 +689,7 @@ pub fn meta_ahorro(id: Uuid) -> Seed {
                 salida(
                     "aporte_mensual_sin_rendimiento",
                     "Aporte sin rendimiento",
-                    concat!(pendiente!(), " / meses"),
+                    concat!(hueco_hoy!(), " / meses"),
                     ESCALA_MONETARIA,
                 ),
                 salida(
@@ -649,12 +698,13 @@ pub fn meta_ahorro(id: Uuid) -> Seed {
                     total!(),
                     ESCALA_MONETARIA,
                 ),
-                // Lo que pone el rendimiento y no el bolsillo. Es la cifra que hace visible por
-                // qué el plazo importa más que el esfuerzo.
+                // Lo que pone el rendimiento y no el bolsillo: la meta menos el saldo inicial
+                // y menos los aportes. Es la cifra que hace visible por qué el plazo importa
+                // más que el esfuerzo.
                 salida(
                     "aportado_por_el_rendimiento",
                     "Lo que aporta el rendimiento",
-                    concat!(pendiente!(), " - ", total!()),
+                    concat!(hueco_hoy!(), " - ", total!()),
                     ESCALA_MONETARIA,
                 ),
             ],

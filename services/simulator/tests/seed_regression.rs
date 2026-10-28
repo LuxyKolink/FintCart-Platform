@@ -77,7 +77,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::str::FromStr;
 
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal::MathematicalOps;
 use uuid::Uuid;
 
 use fintcart_simulator::calculators::colombia;
@@ -1673,11 +1675,12 @@ fn meta_ahorro_cumple_los_ejemplos_del_diseno() {
         ],
     );
     exige_valor(&e1, "monto_pendiente", "18000000");
-    // 687 325,36 era la tasa nominal; 689 696,01 es la E.A. del 9 % llevada a mensual.
-    exige_valor(&e1, "aporte_mensual_requerido", "689696.01");
+    // 687 325,36 era la tasa nominal; 689 696,01 era el saldo inicial restado SIN capitalizar
+    // (el plan terminaba 376 200 por encima de la meta); 675 281,36 es el despeje correcto.
+    exige_valor(&e1, "aporte_mensual_requerido", "675281.36");
     exige_valor(&e1, "aporte_mensual_sin_rendimiento", "750000");
-    exige_valor(&e1, "total_aportado", "16552704.27");
-    exige_valor(&e1, "aportado_por_el_rendimiento", "1447295.73");
+    exige_valor(&e1, "total_aportado", "16206752.75");
+    exige_valor(&e1, "aportado_por_el_rendimiento", "1793247.25");
 
     // E2 — tasa cero: sin el `si`, el motor devolvería un error de división.
     let e2 = ejecuta(
@@ -1720,6 +1723,116 @@ fn meta_ahorro_cumple_los_ejemplos_del_diseno() {
         salida_de(&e1, "monto_pendiente"),
         "lo aportado más el rendimiento debe dar exactamente lo que falta"
     );
+}
+
+/// El aporte que la semilla publica LLEVA a la meta: al proyectar el plan hacia adelante, el
+/// saldo final es la meta, sin sobrar ni faltar.
+///
+/// Es el invariante que **no necesita oráculo**: no compara dos fórmulas —eso es lo que dejó
+/// pasar el error dos veces— sino que comprueba que el número que la herramienta recomienda
+/// cumple lo que la herramienta promete. Y es el único que detecta el despeje hecho sobre el
+/// importe equivocado: `meta` es un valor en t = meses y `ahorro_inicial` uno en t = 0, así que
+/// restarlos sin capitalizar devolvía un aporte 14 414,65 más alto cada mes y el plan terminaba
+/// en 20 376 200,00 —exactamente `2 000 000 · ((1,09)² − 1)` = 376 200,00 por encima de la
+/// meta—, que es el rendimiento del saldo inicial que la fórmula olvidaba. Nótese que el caso
+/// E3 no lo delataría nunca: allí `ahorro_inicial` es cero y las dos fórmulas coinciden.
+///
+/// La comparación es `assert_eq`: igualdad exacta, sin tolerancia. Se redondea solo el saldo
+/// final a la escala monetaria, y no es una concesión: el aporte se proyecta **sin** redondear
+/// —el publicado al centavo deja el plan 0,12 pesos corto, porque un depósito mensual exacto al
+/// centavo no existe— y el viaje de ida y vuelta por `Decimal` deja un residuo de 10⁻²¹ pesos,
+/// que ninguna magnitud de este dominio distingue de cero.
+#[test]
+fn el_aporte_de_meta_ahorro_lleva_exactamente_a_la_meta() {
+    let seed = semilla("meta_ahorro");
+
+    // El aporte SIN redondear: `run` lo lleva al centavo para presentarlo, y lo que se comprueba
+    // aquí es el plan de la fórmula, no el de la cifra de pantalla.
+    let mut sin_redondeo = seed.definition.clone();
+    let salida = sin_redondeo
+        .outputs
+        .iter_mut()
+        .find(|output| output.key == "aporte_mensual_requerido")
+        .expect("la semilla declara el aporte mensual necesario");
+    salida.scale = 28;
+
+    // Una entrada del caso, con el cero de las tres opcionales como defecto —que es el que las
+    // semillas declaran, no una suposición de esta prueba—.
+    let valor = |fila: &[(&'static str, Option<&'static str>)], clave: &str| -> Decimal {
+        fila.iter()
+            .find(|(campo, _)| *campo == clave)
+            .and_then(|(_, valor)| *valor)
+            .map(|valor| Decimal::from_str(valor).expect("el caso no es decimal"))
+            .unwrap_or(Decimal::ZERO)
+    };
+
+    let escenarios: [&[(&'static str, Option<&'static str>)]; 4] = [
+        // E1: el ÚNICO con saldo inicial y rendimiento a la vez, que es donde el error vivía.
+        &[
+            ("meta", Some("20000000")),
+            ("ahorro_inicial", Some("2000000")),
+            ("meses", Some("24")),
+            ("tasa_anual", Some("0.09")),
+        ],
+        // E2: tasa cero, la rama perezosa del `si`.
+        &[
+            ("meta", Some("20000000")),
+            ("ahorro_inicial", Some("2000000")),
+            ("meses", Some("24")),
+            ("tasa_anual", Some("0")),
+        ],
+        // E3: saldo inicial cero — donde las dos fórmulas coinciden y el error no se veía.
+        &[
+            ("meta", Some("5000000")),
+            ("ahorro_inicial", Some("0")),
+            ("meses", Some("18")),
+            ("tasa_anual", Some("0.12")),
+        ],
+        // El plazo mínimo, sin tasa.
+        &[("meta", Some("300000")), ("meses", Some("1"))],
+    ];
+
+    for fila in escenarios {
+        let caso = Caso::iguales(describe(fila), fila);
+        let resultado = sin_redondeo
+            .run(&caso.motor, &caso.indicadores)
+            .unwrap_or_else(|err| panic!("«{}» debe calcular: {err}", seed.name));
+        let aporte = salida_de(&resultado, "aporte_mensual_requerido");
+
+        let meta = valor(fila, "meta");
+        let inicial = valor(fila, "ahorro_inicial");
+        let meses = valor(fila, "meses").to_u32().expect("meses es entero");
+        let ea = valor(fila, "tasa_anual");
+
+        // La tasa mensual equivalente y el factor del plazo, con las mismas primitivas que el
+        // motor: `potd` para la raíz duodécima, `pot` —exponente entero, exacto— para el factor.
+        let doceavo = Decimal::ONE
+            .checked_div(Decimal::from(12))
+            .expect("1/12 es representable");
+        let periodo = (Decimal::ONE + ea)
+            .checked_powd(doceavo)
+            .expect("la E.A. es representable")
+            - Decimal::ONE;
+        let factor = (Decimal::ONE + periodo)
+            .checked_powu(u64::from(meses))
+            .expect("el factor es representable");
+
+        // El plan, hacia adelante: el saldo inicial capitaliza y cada aporte se acumula al
+        // final de su mes. La serie es la de `vf_serie`, con su caso `i = 0` resuelto aparte.
+        let serie = if periodo.is_zero() {
+            aporte * Decimal::from(meses)
+        } else {
+            aporte * (factor - Decimal::ONE) / periodo
+        };
+        let saldo = inicial * factor + serie;
+
+        assert_eq!(
+            decimal_str::round_half_even(saldo, 2),
+            meta,
+            "quien deposita {aporte} al mes durante {meses} meses termina en {saldo}, y la meta \
+             es {meta}"
+        );
+    }
 }
 
 /// `cdt_dias` reproduce los ejemplos de §4.3 cifra a cifra.

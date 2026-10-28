@@ -1190,7 +1190,7 @@ fondo_emergencia	gasto_mensual=1800000 meses_cobertura=3 ahorro_inicial=0 aporte
 fondo_emergencia	gasto_mensual=2000000 meses_cobertura=6 ahorro_inicial=13000000 aporte_mensual=0 tasa_anual=0.02	fondo_objetivo=12000000 cobertura_actual=6.5 faltante_inicial=0 proyeccion_12_meses=13260000 brecha_12_meses=0 rendimiento_12_meses=260000
 fondo_emergencia	gasto_mensual=1000000 meses_cobertura=60	fondo_objetivo=60000000 cobertura_actual=0 faltante_inicial=60000000 proyeccion_12_meses=0 brecha_12_meses=60000000 rendimiento_12_meses=0
 fondo_emergencia	gasto_mensual=1000000 meses_cobertura=61	RECHAZADO
-meta_ahorro	meta=20000000 ahorro_inicial=2000000 meses=24 tasa_anual=0.09	monto_pendiente=18000000 aporte_mensual_requerido=689696.01 aporte_mensual_sin_rendimiento=750000 total_aportado=16552704.27 aportado_por_el_rendimiento=1447295.73
+meta_ahorro	meta=20000000 ahorro_inicial=2000000 meses=24 tasa_anual=0.09	monto_pendiente=18000000 aporte_mensual_requerido=675281.36 aporte_mensual_sin_rendimiento=750000 total_aportado=16206752.75 aportado_por_el_rendimiento=1793247.25
 meta_ahorro	meta=20000000 ahorro_inicial=2000000 meses=24 tasa_anual=0	monto_pendiente=18000000 aporte_mensual_requerido=750000 aporte_mensual_sin_rendimiento=750000 total_aportado=18000000 aportado_por_el_rendimiento=0
 meta_ahorro	meta=5000000 ahorro_inicial=0 meses=18 tasa_anual=0.12	monto_pendiente=5000000 aporte_mensual_requerido=256043.38 aporte_mensual_sin_rendimiento=277777.78 total_aportado=4608780.85 aportado_por_el_rendimiento=391219.15
 meta_ahorro	meta=5000000 ahorro_inicial=5000000 meses=12	RECHAZADO
