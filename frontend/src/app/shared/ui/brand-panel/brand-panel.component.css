@@ -31,10 +31,38 @@
   padding: var(--space-8) var(--space-7);
 }
 
+/* El contenedor interno SÍ es el que reparte la altura: sin esta regla el div se
+   quedaba con la altura de su contenido dentro de un anfitrión estirado a la
+   altura del card, así que el `margin-top: auto` del bloque de titular no tenía
+   ningún eje libre donde empujar y el azul terminaba 257 px por debajo de su
+   propio contenido (medido a 1024). Con el div en columna y `flex: 1`, logotipo
+   arriba / titular abajo: el aire cae ENTRE los dos, no debajo. */
+.fc-brand-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* El logotipo entra como `<img>`: `currentColor` no cruza el límite del documento
    del SVG, así que la marca se vuelve monocroma (blanco) con un filtro. Sin
    literales de color: `brightness(0)` la deja en negro y `invert(1)` la sube a la
-   tinta de marca sobre acento. */
+   tinta de marca sobre acento.
+
+   POR QUÉ ADEMÁS HACE FALTA LA MÁSCARA: el filtro aplana TODOS los píxeles al
+   mismo blanco —el tile del asset y las tres barras del glifo—, así que la marca
+   se dibujaba como un cuadrado blanco vacío. `fintcart-mark-mono.svg` es el
+   mismo dibujo con el tile en contorno y el glifo en `currentColor`, es decir, la
+   silueta exacta: usándolo como máscara se conserva esa silueta y el filtro la
+   pinta de una sola tinta. El `<img>` sigue sirviendo `fintcart-mark.svg` (una
+   prueba de esta primitiva afirma ese archivo).
+
+   LA RUTA VA RELATIVA, Y COMPROBADA EN LOS DOS MODOS. Con `/assets/...` el
+   `npm run build` pasa pero el servidor de desarrollo no: esbuild resuelve los
+   `url()` de esta hoja contra la ruta del ARCHIVO CSS, así que una ruta
+   absoluta de raíz queda sin resolver y la galería se pinta con el overlay de
+   error de Vite encima. Una ruta relativa la resuelve el empaquetador y sirve
+   igual en `build` y en `serve`; se verificó renderizando ambos. */
 .fc-brand-panel__brand {
   display: flex;
   align-items: center;
@@ -43,6 +71,10 @@
 
 .fc-brand-panel__brand fc-brand-logo {
   filter: brightness(0) invert(1);
+  mask-image: url('../../../../assets/logo/fintcart-mark-mono.svg');
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
 }
 
 .fc-brand-panel__wordmark {

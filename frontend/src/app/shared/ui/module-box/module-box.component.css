@@ -8,8 +8,8 @@
    cargan el tipo y el espacio, no el cromo (brief §1). Un módulo se separa del
    siguiente por `--section-gap`, regla que ya vive en `tokens/base.css`.
 
-   EL ENCABEZADO ES TIPOGRÁFICO: toma el escalón de título de sección del brief §3
-   (26 / 1.25 / 500 / -0.01em). El elemento sigue siendo `<h3>` y no `<h2>`: una
+   EL ENCABEZADO ES TIPOGRÁFICO: toma el escalón de título de bloque del brief §3
+   (h3: 19 / 1.35 / 600). El elemento sigue siendo `<h3>` y no `<h2>`: una
    prueba de la primitiva afirma `querySelector('h3')`, y el brief no manda
    cambiar el nivel del documento sino el tratamiento. Lo que el encabezado deja
    de tener es la barra de acento de 3 px y la franja de fondo tintado.
@@ -67,10 +67,14 @@
 .fc-module__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-h2);
-  line-height: var(--lh-h2);
-  font-weight: var(--fw-h2);
-  letter-spacing: var(--ls-h2);
+  /* Escalón de TÍTULO DE BLOQUE (h3: 19 / 1.35 / 600), no el de título de
+     sección. El elemento es `<h3>` y el rol tipográfico tiene que decir lo
+     mismo: con el rol h2 (26 px) dentro de un bloque, el h3 se leía como
+     título de página y su cuerpo quedaba fuera de él. */
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  letter-spacing: var(--ls-h3);
   /* La tinta del título gana a la del estado: el color del encabezado es para el
      icono, no para el texto. */
   color: var(--fc-ink);

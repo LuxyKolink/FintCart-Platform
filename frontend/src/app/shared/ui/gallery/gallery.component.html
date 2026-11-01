@@ -3,7 +3,9 @@
     <h2 class="fc-gallery__title">Marca</h2>
     <div class="fc-gallery__row">
       <fc-brand-logo variant="full" [width]="120" [height]="29" />
-      <fc-brand-logo variant="inverse" [width]="120" [height]="29" />
+      <span class="fc-gallery__logo-chip">
+        <fc-brand-logo variant="inverse" [width]="120" [height]="29" />
+      </span>
       <fc-brand-logo variant="mark" />
       <fc-brand-logo variant="mark-mono" />
       <fc-brand-logo variant="eye" [width]="44" [height]="32" />
@@ -71,7 +73,7 @@
 
   <section class="fc-gallery__section">
     <h2 class="fc-gallery__title">Layout</h2>
-    <div class="fc-gallery__row">
+    <div class="fc-gallery__row fc-gallery__row--layout">
       <fc-card [interactive]="true">Tarjeta interactiva</fc-card>
       <fc-module-box title="Progreso reciente" accent="accent">
         <p>Contenido del módulo.</p>

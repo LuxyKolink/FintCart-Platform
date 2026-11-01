@@ -4,18 +4,26 @@
 
 .fc-auth {
   display: grid;
-  place-items: center;
-  min-height: 100vh;
-  padding: var(--space-5);
+  /* El bloque arranca ARRIBA y la altura la pone su contenido. Antes era
+     `place-items: center` sobre `min-height: 100vh`, y esa caja empezaba debajo
+     de la barra superior (46 px) más el relleno del armazón: el documento medía
+     978 px para un viewport de 900 —scroll en una pantalla sin nada que
+     desplazar— y la tarjeta quedaba a 228 px del borde superior con más aire
+     encima que debajo. */
+  justify-items: center;
+  align-content: start;
+  padding: var(--space-6) var(--space-5) var(--space-9);
   background: var(--surface-page);
 }
 
+/* Sin `min-height` fijo: el card mide lo que mide su columna más alta y las dos
+   zonas quedan igual de altas por la rejilla. Un suelo de 540 px lo estiraba
+   por encima de su contenido y alargaba en vano el panel de marca. */
 .fc-auth__card {
   display: grid;
   grid-template-columns: 1fr 1fr;
   width: 100%;
   max-width: 880px;
-  min-height: 540px;
   background: var(--surface-card);
   border: var(--border-hairline) solid var(--border-default);
   border-radius: var(--radius-xl);
@@ -53,18 +61,17 @@
 }
 
 /* Bajo --bp-md el card partido se apila: la banda de marca arriba y el
-   formulario debajo. `align-items: start` evita que la tarjeta se estire a toda
-   la altura y deje el formulario flotando en el centro en un teléfono. Literal
-   768px porque `var()` no se resuelve dentro de `@media` (tokens/breakpoints.css). */
+   formulario debajo. El bloque arranca arriba y NO se centra (`align-content:
+   start`), así que en un teléfono el formulario no queda flotando en el centro
+   de la pantalla. Literal 767.98px porque `var()` no se resuelve dentro de
+   `@media` (tokens/breakpoints.css). */
 @media (max-width: 767.98px) {
   .fc-auth {
-    align-items: start;
-    padding: var(--space-4);
+    padding: var(--space-4) var(--space-4) var(--space-8);
   }
 
   .fc-auth__card {
     grid-template-columns: 1fr;
-    min-height: 0;
   }
 
   .fc-auth__panel {

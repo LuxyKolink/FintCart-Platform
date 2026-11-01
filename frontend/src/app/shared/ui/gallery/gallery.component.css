@@ -26,9 +26,47 @@
 
 .fc-gallery__grid2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* `minmax(0, 1fr)` y no `1fr`: una columna `1fr` conserva su mínimo de
+     contenido (`minmax(auto, 1fr)`), y ahí dentro vive un `input` cuyo ancho
+     mínimo intrínseco no baja de ~215 px. Sin el `0`, la rejilla se niega a
+     encogerse y empuja la página en horizontal. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-4);
   max-width: 540px;
+}
+
+/* --bp-md (768px). Por debajo, dos columnas de formulario no caben: a 360 px
+   el contenedor mide 280 px y cada celda necesita su mínimo de contenido, así
+   que las columnas resolvían a 215 + 296,6 px (+ gap) = 544 px dentro de una
+   caja de 280 — desbordamiento horizontal de +208 px en el suelo declarado.
+   Se apilan: una columna, una etiqueta por fila. Literal 768px porque `var()`
+   no se resuelve dentro de `@media` (ver `tokens/breakpoints.css`). */
+@media (max-width: 767.98px) {
+  .fc-gallery__grid2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Especímenes de "Layout" apilados y alineados arriba, no en fila centrada:
+   `fc-card` ya no tiene borde (superficie sobre papel) y su vecino es un
+   bloque cuyo encabezado es tipográfico, así que en fila el título de 19 px
+   quedaba pegado a la tarjeta y el conjunto se leía como una maqueta rota.
+   Lo que separa es el espacio, no el cromo. */
+.fc-gallery__row--layout {
+  display: grid;
+  align-items: start;
+  gap: var(--space-7);
+  margin-bottom: var(--space-5);
+}
+
+/* El lockup inverso es tinta blanca (existe para fondos oscuros): sobre el
+   papel de la galería no se vería, así que el espécimen se muestrea sobre el
+   acento, que es el fondo para el que está dibujado. */
+.fc-gallery__logo-chip {
+  display: inline-flex;
+  padding: var(--space-2) var(--space-3);
+  background: var(--fc-accent);
+  border-radius: var(--radius-2);
 }
 
 .fc-gallery__icons {

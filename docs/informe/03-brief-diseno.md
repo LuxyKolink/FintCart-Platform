@@ -168,3 +168,64 @@ se elimina la clase.
 3. `node scripts/design-debt.mjs --check` = 0.
 4. Suite visual a 360/480/768/1024/1280: panel de marca visible, acción principal visible, sin desbordamiento.
 5. Revisión de una sola pasada en `/interno/galeria`, con decisión final del autor y la directora.
+
+## 11. Correcciones al brief (2026-10-27, verificadas contra el repositorio)
+
+Este documento se escribió a partir de la descripción del feature 003 que vive en `CLAUDE.md`.
+Al ejecutar el trabajo se midió el repositorio y tres de sus premisas eran falsas. Se anotan aquí
+porque el brief alimenta el capítulo de diseño del informe: una premisa falsa en un documento de
+trabajo es un error de proceso; en el informe sería un dato falso.
+
+**1. `frontend/src/styles.scss` no existía.** El brief lo describe como «116 líneas, 15 clases
+artesanales» pendientes de vaciar, y lo declara criterio de terminación del feature. En realidad se
+eliminó en `1aeffc5` («el editor escribe bloques, y con él desaparece la última capa artesanal»).
+`scripts/design-debt.mjs --check` ya reportaba 0 pantallas artesanales antes de este trabajo. El
+criterio de terminación del feature 003 estaba cumplido de antemano; lo que faltaba —y es lo que
+este brief hace— es la calidad visual, no la deuda estructural.
+
+**2. Sí existían `@media`.** El brief afirma que «no existe ni un `@media` en todo el frontend» y que
+esta es la primera definición responsive. Medición: 31 ocurrencias de `@media` en
+`frontend/src` en `staging` (`104b41d`), cuatro de ellas en `tokens/breakpoints.css`. Lo que faltaba
+no era el mecanismo responsive sino su coherencia: los puntos de corte no estaban unificados como
+tokens ni había un mínimo declarado de 360 px. La afirmación correcta para el informe es «se
+unificaron cuatro puntos de corte como tokens y se fijó un mínimo de 360 px», no «no había
+responsive».
+
+**3. Los nombres de token del brief no existen.** `--fc-brand`, `--fc-accent-warm` y `--fc-link`
+nunca estuvieron definidos. Los equivalentes reales eran `--brand-primary` (coral),
+`--brand-accent` (marigoldo), `--brand-interactive`, `--text-link` e `--info` (púrpura), más las
+escalas crudas `--coral-*` y los tokens `--cat-*`. El diagnóstico del brief —tres acentos
+compitiendo— era correcto; solo los nombres estaban mal. Se conservaron los valores del brief y
+los nombres del repositorio.
+
+Los valores de la dirección de arte (§2-§5) no se modificaron: se verificaron al implementarlos y
+se mantienen tal cual. Las correcciones afectan a la descripción del estado de partida, no al
+destino.
+
+> **Pendiente para el autor:** `CLAUDE.md` contiene las mismas tres afirmaciones y las repite como
+> contexto del feature 003. Conviene corregirlo allí también, porque es el documento que leen los
+> agentes en cada sesión y describe como pendiente un trabajo ya hecho.
+
+## 12. Marca y acento son dos cosas distintas (decisión del autor, 2026-10-27)
+
+La marca coral **se conserva** sobre la interfaz de acento azul. Decisión del autor, no una
+herencia inadvertida, y conviene que quede escrita porque es justo el tipo de cosa que alguien
+«arregla» más tarde creyendo que es un descuido.
+
+La regla del rediseño no era «un solo color en el producto», sino **«un solo acento en la
+interfaz»**. El coral competía cuando era acento de interfaz: botones, enlaces, fondos de tarjeta,
+colores de categoría. Eso desapareció. Un logotipo no es un acento: es la marca. La separación
+queda como principio declarado y es defendible en la sustentación con ejemplos institucionales
+reales, donde el color de la marca es mucho más saturado que la cromática de la interfaz.
+
+Consecuencias que ya están implementadas y no deben revertirse:
+
+- El coral sobrevive **solo** en el activo de marca. No vuelve a ser token de interfaz, no tiñe
+  controles, no marca estados, no se usa para categorías.
+- Sobre el panel azul del acceso la marca se dibuja en blanco (`variant="inverse"`), que es la
+  aplicación normal de la regla sobre fondo oscuro, no una excepción a ella.
+- Si alguna pantalla futura necesita señalizar la marca con color, se hace con el activo, nunca
+  reintroduciendo un segundo acento en la capa de tokens.
+
+Para el capítulo de diseño del informe, la frase que resume la decisión: *una sola voz en la
+interfaz, una sola firma en la marca*.
