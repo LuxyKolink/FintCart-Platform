@@ -3,88 +3,278 @@
  *
  * Esta hoja NO es una capa artesanal nueva: no define botones, campos ni banners.
  * Solo dispone el marco y lo hace con los tokens del sistema de diseño, igual que
- * cualquier componente de `shared/ui`. Todo lo que antes vivía embebido en el
- * `styles` del componente (y que era la vigésima superficie sin migrar) está aquí.
+ * cualquier componente de `shared/ui`.
+ *
+ * ─── LOS MÁRGENES DE PÁGINA SON UN SOLO TOKEN: `--page-gutter` ──────────────
+ * Cabecera y contenido comparten ancho máximo (`--shell-max`) y margen lateral
+ * (`--page-gutter`: 20 px a 360, 32 a 768, 48 a 1024+). Antes cada mitad escribía
+ * su propio relleno —16 px en la barra, 16 en el armazón— y el token que el
+ * sistema define para esto no tenía ni un consumidor. Al compartir los dos
+ * valores, el logotipo y la primera columna de contenido caen en la misma
+ * vertical a cualquier ancho.
+ *
+ * ─── TRES ESTADOS DE NAVEGACIÓN ─────────────────────────────────────────────
+ * El corte NO depende solo del ancho: depende del número de destinos, que cambia
+ * con el rol (7 enlaces de aprendiz, 10 de coordinador editorial). Estados:
+ *
+ *   · < 1024 px      — «Menú» abre la lista completa en columna.
+ *   · 1024–1279 px   — primarios en línea + desplegable «Más».
+ *   · ≥ 1280 px      — todo en una línea, sin desplegable.
+ *
+ * POR QUÉ EXISTE EL ESTADO INTERMEDIO: once destinos no caben en 1024 px sin que
+ * alguna etiqueta se parta en dos líneas («Mis / calculadoras»), y `nowrap` sin
+ * desplegable solo movería el problema a una segunda fila. El desplegable conserva
+ * todos los destinos y ninguna etiqueta rota.
+ *
+ * Los literales de los `@media` van escritos y el token citado en comentario:
+ * `var()` no se resuelve dentro de una consulta de medios (ver
+ * `tokens/breakpoints.css`).
  */
 
+:host {
+  display: block;
+
+  /* Ancho del marco. No hay token para el armazón: `--content-max` (880 px) es la
+     columna de LECTURA, y las pantallas que la necesitan la aplican ellas mismas.
+     1240 px es lo que pide la fila de navegación completa: once destinos miden
+     967 px a 14 px (medido con la Roboto del repositorio) y la columna útil del
+     marco deja 1240 − 2×48 de margen − 120 del logotipo − 16 de separación = 1008.
+     Con 1120 el último destino se caía a una segunda fila a cualquier ancho. */
+  --shell-max: 1240px;
+}
+
 .fc-topbar {
+  position: relative;
+  z-index: 2;
+  background: var(--surface-card);
+  border-bottom: var(--border-hairline) solid var(--border-default);
+}
+
+/* El relleno lateral va DENTRO del ancho máximo, igual que en `.fc-shell`: si
+   fuera (sobre la barra) el contenido de la cabecera quedaría 48 px a la derecha
+   del contenido de la página, porque `max-width` se aplicaría al caja ya rellena. */
+.fc-topbar__inner {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  background: var(--surface-card);
-  border-bottom: var(--border-hairline) solid var(--border-default);
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  padding: var(--space-3) var(--page-gutter);
 }
 
 .fc-topbar__brand {
   display: inline-flex;
   align-items: center;
+  flex: none;
 }
 
-.fc-topbar__nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-left: auto;
+/* La palabra sustituye al logotipo SOLO en las pantallas de acceso, donde el panel
+   de marca ya dibuja la marca. No es el activo de marca en tinta: es un enlace de
+   texto a casa, y por eso no lleva ni coral ni tracking de wordmark (brief §12). */
+.fc-topbar__wordmark {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  letter-spacing: var(--ls-h3);
+  color: var(--fc-ink);
 }
 
 .fc-topbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding: var(--space-1) var(--space-3);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  color: var(--fc-accent);
+  background: transparent;
+  border: var(--border-hairline) solid var(--border-strong);
+  border-radius: var(--radius-2);
+  cursor: pointer;
+}
+
+/* ─── Estado 1: columna plegada (< 1024 px) ──────────────────────────────── */
+.fc-topbar__nav {
+  display: none;
+  flex-basis: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  margin-left: 0;
+}
+
+.fc-topbar__nav--open {
+  display: flex;
+}
+
+.fc-topbar__nav a {
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-hairline) solid var(--border-default);
+  white-space: nowrap;
+}
+
+/* En columna no hace falta desplegable: los destinos ya están todos visibles, así
+   que el botón «Más» no se dibuja y su panel se despliega como una lista más. */
+.fc-nav-more__toggle {
   display: none;
 }
 
-.fc-shell {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: var(--space-4);
+.fc-nav-more__panel {
+  display: flex;
+  flex-direction: column;
 }
 
-/*
- * Bajo `--bp-lg` (1024px, ver `tokens/breakpoints.css`) la navegación horizontal no
- * cabe y colapsa a un menú desplegable. Las propiedades personalizadas no se
- * resuelven dentro de `@media`, así que el literal va escrito y el token citado:
- * es la regla documentada en el propio archivo de tokens.
- *
- * El corte estaba en `--bp-md` (768px) y subió un punto cuando la navegación creció
- * con las entradas de curaduría (T117–T119): a 768px eran once enlaces en una fila y
- * la barra desbordaba en horizontal —185px medidos por la captura visual, que es
- * justo lo que ese barrido existe para detectar—. La alternativa era que los enlaces
- * se partieran en dos líneas, y un menú desplegable se lee mejor que una barra de dos
- * pisos; el precio es que una tableta de 768 a 1023 px ve el menú.
- *
- * La lección para la próxima entrada: este corte depende del NÚMERO de enlaces, no del
- * ancho, así que añadir navegación es una razón legítima para volver a medirlo.
- */
-@media (max-width: 1023.98px) {
+.fc-nav-more__panel fc-button {
+  display: block;
+  padding-block: var(--space-2);
+}
+
+/* ─── Estado 2: primarios + «Más» (1024–1279 px) ─────────────────────────── */
+@media (min-width: 1024px) {
+  /* --bp-lg (1024px) */
   .fc-topbar__toggle {
-    display: inline-flex;
-    align-items: center;
-    margin-left: auto;
-    padding: var(--space-1) var(--space-3);
-    font: inherit;
-    font-weight: var(--fw-semibold);
-    color: var(--fc-accent);
-    background: transparent;
-    border: var(--border-hairline) solid var(--border-strong);
-    border-radius: var(--radius-md);
-    cursor: pointer;
+    display: none;
   }
 
   .fc-topbar__nav {
-    display: none;
-    flex-basis: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    margin-left: 0;
+    display: flex;
+    flex-direction: row;
+    /* `wrap` es la red de seguridad del zoom al 200 %: con la fuente doblada los
+       destinos no caben en una fila, y sin `wrap` la barra desbordaría la página
+       en horizontal (lo que `e2e/zoom-200.spec.ts` mide y prohíbe). Con `wrap`
+       caen a una segunda fila, pero NINGUNA etiqueta se parte: el `nowrap` de los
+       enlaces se mantiene. */
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    flex-basis: auto;
+    margin-left: auto;
   }
 
-  .fc-topbar__nav--open {
+  /* Un escalón por debajo del cuerpo: es la fila que más destinos acumula (hasta
+     once con el rol de coordinación) y el escalón secundario del brief §3 es el
+     que la hace caber en 1280 sin tocar el interlineado. */
+  .fc-topbar__nav a {
+    padding: 0;
+    border-bottom: 0;
+    font-size: var(--fs-secondary);
+    line-height: var(--lh-secondary);
+  }
+
+  .fc-nav-more {
+    position: static;
+  }
+
+  .fc-nav-more__toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-2);
+    font: inherit;
+    font-size: var(--fs-secondary);
+    line-height: var(--lh-secondary);
+    color: var(--fc-accent);
+    background: transparent;
+    /* Borde transparente siempre, del mismo grosor que el visible: si apareciera
+       solo al desplegar, el texto se movería 1 px y la fila entera con él. */
+    border: var(--border-hairline) solid transparent;
+    border-radius: var(--radius-2);
+    cursor: pointer;
+  }
+
+  .fc-nav-more__toggle:hover,
+  .fc-nav-more__toggle[aria-expanded='true'] {
+    color: var(--fc-accent-hover);
+    border-color: var(--border-default);
+  }
+
+  /* Capa superpuesta real: la ÚNICA sombra del sistema (brief §5).
+
+     Se posiciona contra `.fc-topbar__inner` (de ahí que `.fc-nav-more` sea
+     `static`): contra el botón, `top: 100%` caía a la altura del botón —que está
+     centrado en la banda— y el panel nacía DENTRO de la cabecera, tapando su
+     borde inferior. Y `right: var(--page-gutter)` lo alinea con el borde derecho
+     del contenido, no con el borde de la ventana. */
+  .fc-nav-more__panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: var(--page-gutter);
+    min-width: 220px;
+    padding: var(--space-2);
+    background: var(--surface-card);
+    border: var(--border-hairline) solid var(--border-default);
+    border-radius: var(--radius-2);
+    box-shadow: var(--shadow-overlay);
+    z-index: 3;
+  }
+
+  .fc-nav-more__panel--open {
     display: flex;
   }
 
-  .fc-topbar__nav > a {
-    padding: var(--space-2) 0;
-    border-bottom: var(--border-hairline) solid var(--border-default);
+  .fc-nav-more__panel a {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .fc-nav-more__panel fc-button {
+    /* La acción de salir no es un destino más: se separa de la lista por espacio,
+       no por una regla (brief §6.2: fuera los separadores de la lista de enlaces). */
+    margin-top: var(--space-2);
+    padding-block: var(--space-2);
   }
 }
+
+/* ─── Estado 3: fila completa (≥ 1280 px) ────────────────────────────────── */
+@media (min-width: 1280px) {
+  /* --bp-xl (1280px) */
+  /* El panel se despliega EN LÍNEA y el botón desaparece: por encima de --bp-xl
+     los once destinos caben, así que pedir un clic sería esconder lo que se ve. */
+  .fc-nav-more {
+    position: static;
+  }
+
+  .fc-nav-more__toggle {
+    display: none;
+  }
+  .fc-nav-more__panel,
+  .fc-nav-more__panel--open {
+    display: flex;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .fc-nav-more__panel a {
+    padding: 0;
+  }
+
+  .fc-nav-more__panel fc-button {
+    padding-block: 0;
+  }
+}
+
+/* El contenido comparte el ancho y el margen de la cabecera; lo que cambia es su
+   columna, que cada pantalla define. */
+.fc-shell {
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  padding: var(--space-4) var(--page-gutter);
+}
+
+/*
+ * Suelo de 360 px: con `--page-gutter` de 20 px quedan 320 px útiles, y la
+ * navegación en columna no necesita partir ninguna etiqueta para caber («Mis
+ * calculadoras» mide ~103 px). Por eso el `nowrap` es incondicional: romper la
+ * palabra nunca es la respuesta correcta, ni siquiera por debajo del mínimo
+ * soportado.
+ */

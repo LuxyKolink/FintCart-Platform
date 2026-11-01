@@ -1,17 +1,21 @@
 /*
- * Cuestionario (T034 / FR-104).
+ * Cuestionario — una columna de lectura (dirección de arte v2, brief §3, §5, §8).
  *
  * El control sigue siendo un `<input type="radio">` nativo dentro de su `<label>`: lo
  * que cambia es el dibujo. Nada de `appearance: none` sobre el radio —el indicador
  * nativo es la señal que el sistema operativo ofrece en modo de alto contraste—, y el
- * estado seleccionado se marca además con fondo y borde, no solo con color.
+ * estado seleccionado se marca además con fondo y peso, no solo con color.
+ *
+ * LO QUE SE RETIRÓ: el `h1` a `--fs-xl` (19 px) que hacía que la pantalla se leyera como
+ * un añadido, la tarjeta de cada opción y la caja del resultado. El titular vuelve al
+ * escalón de display y el ritmo pregunta/respuesta se gana con ESPACIO, no con cromo.
  */
 
 .fc-quiz {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-width: 640px;
+  gap: var(--space-6);
+  max-width: var(--reading-max);
   margin: 0 auto;
   min-width: 0;
 }
@@ -20,124 +24,90 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-width: 640px;
+  max-width: var(--reading-max);
   margin: 0 auto;
-}
-
-.fc-quiz--result {
-  max-width: 480px;
-  padding: var(--space-6);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
-  text-align: center;
-  align-items: center;
 }
 
 .fc-quiz__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .fc-quiz__title {
+  /* Escalón de display del brief §3. Antes era `--fs-xl` (19 px): por debajo del `h1`
+     de cualquier otra pantalla, la jerarquía situaba el cuestionario como un apéndice. */
   margin: 0;
-  font-size: var(--fs-xl);
+  font-size: var(--fs-display);
   overflow-wrap: anywhere;
 }
 
 .fc-quiz__meta {
   margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  color: var(--fc-ink-3);
 }
 
-.fc-quiz__score {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.fc-quiz__score .fc-num {
-  font-size: var(--fs-3xl);
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
-}
-
-.fc-quiz__score-unit {
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-}
-
-.fc-quiz__detail {
-  margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-}
-
-.fc-quiz__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2);
-}
+/* ── ritmo pregunta / respuesta ────────────────────────────────────────────── */
 
 .fc-quiz__question {
   /* El `<fieldset>` llega con borde y padding propios del navegador; se limpian para
-     que la tarjeta la ponga la opción y no el grupo. */
+     que la separación entre preguntas la dé el espacio. */
   border: 0;
   padding: 0;
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-9);
   min-width: 0;
 }
 
+.fc-quiz__question:last-of-type {
+  margin-bottom: 0;
+}
+
 .fc-quiz__prompt {
+  /* Título de bloque (19 / 1.35 / 600) y aire debajo: la pregunta es lo primero que el
+     ojo debe encontrar al llegar a ella. */
   padding: 0;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
   font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-h3);
+  line-height: var(--lh-h3);
+  color: var(--fc-ink);
   overflow-wrap: anywhere;
 }
 
 .fc-quiz__option {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  margin-bottom: var(--space-2);
-  font-size: var(--fs-sm);
-  color: var(--text-body);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  color: var(--fc-ink-2);
+  border-bottom: 1px solid var(--fc-line);
   cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+}
+
+.fc-quiz__option:first-of-type {
+  border-top: 1px solid var(--fc-line);
 }
 
 .fc-quiz__option:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-sunken);
+  color: var(--fc-ink);
 }
 
 /*
- * El estado seleccionado no se apoya solo en el color: cambia el fondo, el borde y el
- * peso del texto, así que se distingue también sin percibir el matiz.
+ * El estado seleccionado no se apoya solo en el color: cambia el fondo y el peso del
+ * texto, y el indicador nativo del radio sigue ahí, así que se distingue también sin
+ * percibir el matiz. `--fc-accent-tint` es selección, su uso legítimo (brief §5).
  */
 .fc-quiz__option--checked {
-  border-color: var(--fc-accent);
   background: var(--fc-accent-tint);
 }
 
 .fc-quiz__option--checked .fc-quiz__option-text {
   font-weight: var(--fw-semibold);
-  color: var(--text-strong);
+  color: var(--fc-ink);
 }
 
 .fc-quiz__radio {
@@ -151,6 +121,63 @@
   overflow-wrap: anywhere;
 }
 
+/* ── envío ─────────────────────────────────────────────────────────────────── */
+
+.fc-quiz__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--fc-line);
+}
+
+.fc-quiz__hint {
+  margin: 0;
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink-3);
+}
+
+/* ── calificación ──────────────────────────────────────────────────────────── */
+
+.fc-quiz--result {
+  /* Sin caja: el resultado es contenido de página, no un panel (brief §5). */
+  padding: 0;
+  align-items: flex-start;
+}
+
+.fc-quiz__score {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+}
+
+.fc-quiz__score .fc-num {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink);
+}
+
+.fc-quiz__score-unit {
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink-3);
+}
+
+.fc-quiz__detail {
+  margin: 0;
+  font-size: var(--fs-ui);
+  color: var(--fc-ink-2);
+}
+
+.fc-quiz__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* Acción en línea dentro de un aviso: texto con subrayado, sin caja. */
 .fc-quiz__inline {
   margin-left: var(--space-2);
   padding: 0;
@@ -160,4 +187,23 @@
   border: 0;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.fc-quiz__inline:hover {
+  color: var(--fc-accent-hover);
+}
+
+/*
+ * A 360 px el cuestionario ya es una columna: solo se aprieta el ritmo vertical y el
+ * relleno lateral de la opción, que deja de competir con el radio.
+ * (`--bp-sm` 480px, ver `tokens/breakpoints.css`.)
+ */
+@media (max-width: 479.98px) {
+  .fc-quiz__question {
+    margin-bottom: var(--space-7);
+  }
+
+  .fc-quiz__option {
+    padding: var(--space-3) var(--space-2);
+  }
 }

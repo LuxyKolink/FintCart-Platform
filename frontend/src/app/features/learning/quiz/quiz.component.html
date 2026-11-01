@@ -15,6 +15,11 @@
   }
   @case ('ready') {
     @if (result(); as r) {
+      <!--
+        Calificación (dirección de arte v2): sin tarjeta con borde, radio y sombra. La
+        jerarquía la hace la cifra y el espacio, y el resultado se lee alineado a la
+        izquierda como el resto de la pantalla.
+      -->
       <section class="fc-quiz fc-quiz--result">
         <fc-banner [tone]="r.passed ? 'success' : 'error'">
           {{ r.passed ? '¡Aprobaste!' : 'No alcanzaste el puntaje mínimo esta vez.' }}
@@ -30,9 +35,7 @@
           «Intento n.º» y Playwright exige que la aserción resuelva a UN elemento, así
           que nada de anidar el número en su propio `<span>`.
         -->
-        <p class="fc-quiz__detail">
-          Intento n.º {{ r.attempt_no }} · Puntos acumulados: {{ r.points_after }}
-        </p>
+        <p class="fc-quiz__detail">Intento n.º {{ r.attempt_no }} · Puntos acumulados: {{ r.points_after }}</p>
 
         <div class="fc-quiz__actions">
           <!--
@@ -49,9 +52,7 @@
         <section class="fc-quiz">
           <header class="fc-quiz__head">
             <h1 class="fc-quiz__title">{{ s.title }}</h1>
-            <p class="fc-quiz__meta">
-              Umbral para aprobar: {{ formatScore(s.pass_threshold) }} de 100
-            </p>
+            <p class="fc-quiz__meta">Umbral para aprobar: {{ formatScore(s.pass_threshold) }} de 100</p>
           </header>
 
           @if (resumedFromDraft()) {
@@ -62,15 +63,15 @@
           }
           @if (sessionGone()) {
             <fc-banner tone="error">
-              Este intento ya venció, así que no podemos calificarlo. Tus respuestas siguen guardadas,
-              pero hay que empezar un intento nuevo con preguntas nuevas.
+              Este intento ya venció, así que no podemos calificarlo. Tus respuestas siguen guardadas, pero hay que
+              empezar un intento nuevo con preguntas nuevas.
               <button type="button" class="fc-quiz__inline" (click)="restart()">Empezar un intento nuevo</button>
             </fc-banner>
           }
           @if (submitState() === 'error') {
             <fc-banner tone="error">
-              No pudimos enviar tus respuestas — puede que perdieras la conexión. Tus respuestas siguen
-              guardadas, intenta de nuevo.
+              No pudimos enviar tus respuestas — puede que perdieras la conexión. Tus respuestas siguen guardadas,
+              intenta de nuevo.
             </fc-banner>
           }
 
@@ -80,7 +81,8 @@
             para anunciar «pregunta 3 de 5, opción b de c» al navegar por un grupo de
             opciones excluyentes, y `us1-aprendizaje.spec.ts` los selecciona. Sustituirlos
             por fichas seleccionables rompería a la vez la suite y la accesibilidad; lo
-            que cambia con 003 es solo cómo se ven.
+            que cambia con la dirección de arte v2 es solo cómo se ven: filas separadas
+            por una regla de 1 px, sin caja por opción.
           -->
           @for (question of s.questions; track question.question_id) {
             <fieldset class="fc-quiz__question">
@@ -103,15 +105,25 @@
             </fieldset>
           }
 
-          <fc-button
-            variant="primary"
-            size="lg"
-            [block]="true"
-            [disabled]="!allAnswered || submitState() === 'submitting'"
-            (pressed)="onSubmit()"
-          >
-            {{ submitState() === 'submitting' ? 'Enviando…' : 'Enviar respuestas' }}
-          </fc-button>
+          <footer class="fc-quiz__foot">
+            <!--
+              El botón deshabilitado dejaba de leerse como una caja suelta sin motivo.
+              La pantalla dice POR QUÉ no se puede enviar todavía, y el botón cierra la
+              columna bajo una regla de 1 px.
+            -->
+            @if (!allAnswered) {
+              <p class="fc-quiz__hint">Responde todas las preguntas para enviar el intento.</p>
+            }
+            <fc-button
+              variant="primary"
+              size="lg"
+              [block]="true"
+              [disabled]="!allAnswered || submitState() === 'submitting'"
+              (pressed)="onSubmit()"
+            >
+              {{ submitState() === 'submitting' ? 'Enviando…' : 'Enviar respuestas' }}
+            </fc-button>
+          </footer>
         </section>
       }
     }

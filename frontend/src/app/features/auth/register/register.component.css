@@ -9,6 +9,6 @@
 .fc-auth__alt {
   margin: 0;
   text-align: center;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-secondary);
   color: var(--text-muted);
 }

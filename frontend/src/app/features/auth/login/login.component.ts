@@ -9,11 +9,23 @@ import {
   BannerComponent,
   ButtonComponent,
   CheckboxComponent,
-  IconComponent,
   InputComponent,
 } from '../../../shared/ui';
 import { AuthLayoutComponent } from '../auth-layout/auth-layout.component';
 
+/**
+ * Inicio de sesión.
+ *
+ * UNA SOLA ACCIÓN DE ACCESO. La pantalla llegó a tener dos botones que ejecutaban
+ * el MISMO flujo —el primario y otro rotulado «OAuth2 · PKCE» bajo un separador
+ * «o continúa con»—. Ese segundo botón presentaba al estudiante el nombre del
+ * protocolo como si fuera un proveedor externo: no lo es. El Authorization Server
+ * de la plataforma ES el Gateway (`/oauth/authorize` + `/oauth/token`, Authorization
+ * Code + PKCE) y `AuthService.login` ya lo ejecuta; no hay IdP externo que ofrecer
+ * (la carencia queda como hallazgo, FR-122, no se resuelve aquí). Un botón que
+ * repite la acción y nombra el protocolo no es una alternativa: es ruido con
+ * apariencia de elección.
+ */
 @Component({
   selector: 'fc-login',
   standalone: true,
@@ -24,7 +36,6 @@ import { AuthLayoutComponent } from '../auth-layout/auth-layout.component';
     BannerComponent,
     ButtonComponent,
     CheckboxComponent,
-    IconComponent,
     InputComponent,
   ],
   templateUrl: './login.component.html',
@@ -72,18 +83,6 @@ export class LoginComponent {
     });
   }
 
-  /**
-   * Acceso federado (FR-099). No hay proveedor de identidad externo: el
-   * Authorization Server de la plataforma ES el Gateway (`/oauth/authorize` +
-   * `/oauth/token`, Authorization Code + PKCE), que es justo lo que ejecuta
-   * `AuthService.login`. El botón no es decorativo —dispara el mismo flujo
-   * real— pero tampoco inventa una federación que no existe: la carencia de un
-   * IdP externo queda como hallazgo (FR-122), no se resuelve aquí.
-   */
-  protected onFederated(): void {
-    this.onSubmit();
-  }
-
   private handleError(err: unknown): void {
     if (!(err instanceof HttpErrorResponse)) {
       this.errorMessage.set('No pudimos iniciar sesión. Intenta de nuevo.');
@@ -92,7 +91,9 @@ export class LoginComponent {
     const body = err.error as ErrorBody | undefined;
     if (err.status === 403 && body?.code === 'email_unverified') {
       this.needsVerification.set(true);
-      this.errorMessage.set('Todavía no verificas tu correo. Revisa tu bandeja o pide un nuevo enlace.');
+      this.errorMessage.set(
+        'Todavía no verificas tu correo. Revisa tu bandeja o pide un nuevo enlace.',
+      );
       return;
     }
     if (err.status === 401) {

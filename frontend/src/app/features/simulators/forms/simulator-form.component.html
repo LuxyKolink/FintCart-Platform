@@ -12,7 +12,11 @@
   @case ('ready') {
     @if (definition(); as def) {
       <div class="fc-sim">
-        <!-- El mismo riel que el selector (FR-107): las calculadoras acompañan al formulario. -->
+        <!--
+          El mismo riel que el selector (FR-107), como fila de enlaces por encima del título:
+          es navegación entre calculadoras, no un panel lateral, y así la pantalla queda en
+          una sola columna (brief §4: el índice lateral es opcional y silencioso).
+        -->
         <fc-calculator-rail [active]="def.calcType" />
 
         <div class="fc-sim__center">
@@ -112,57 +116,62 @@
             }
           }
 
+          <!--
+            «Últimas simulaciones» es la antigua zona derecha. El brief §4 retira el riel y
+            manda integrar su contenido en el flujo; va aquí, después del resultado, porque
+            sirve para comparar con lo que se acaba de calcular.
+          -->
+          <aside class="fc-sim__aside">
+            <fc-module-box title="Últimas simulaciones" accent="accent" [padded]="false">
+              <a fcActions class="fc-sim__more" routerLink="/simuladores/historial">Ver todas</a>
+
+              @switch (recentState()) {
+                @case ('loading') {
+                  <div class="fc-sim__pad">
+                    <fc-skeleton [lines]="3" />
+                  </div>
+                }
+                @case ('error') {
+                  <div class="fc-sim__pad">
+                    <p class="fc-sim__note">No pudimos cargar tus últimas simulaciones.</p>
+                  </div>
+                }
+                @case ('ready') {
+                  @if (recent().length === 0) {
+                    <div class="fc-sim__pad">
+                      <p class="fc-sim__note">
+                        Todavía no has guardado ninguna simulación. La primera que ejecutes aparecerá
+                        aquí.
+                      </p>
+                    </div>
+                  } @else {
+                    <ul class="fc-sim__recent">
+                      @for (entry of recent(); track entry.simulation_id) {
+                        <li class="fc-sim__recent-item">
+                          <span class="fc-sim__recent-label">{{ labelOf(entry) }}</span>
+                          <!--
+                            Un `<span>` con `.fc-num`, no un `<dd>`: `us2` busca el primer
+                            `dd.fc-num` de la pantalla y ese tiene que ser el del resultado.
+                          -->
+                          <span class="fc-num fc-sim__recent-value">{{ primaryOf(entry).value }}</span>
+                          <time class="fc-sim__recent-time" [attr.datetime]="entry.created_at">
+                            {{ entry.created_at | date: 'dd/MM/yyyy, HH:mm' }}
+                          </time>
+                        </li>
+                      }
+                    </ul>
+                  }
+                }
+              }
+            </fc-module-box>
+          </aside>
+
           <div class="fc-sim__foot">
             <fc-link-button variant="secondary" to="/simuladores/historial">
               Ver historial
             </fc-link-button>
           </div>
         </div>
-
-        <aside class="fc-sim__aside">
-          <fc-module-box title="Últimas simulaciones" accent="accent" [padded]="false">
-            <a fcActions class="fc-sim__more" routerLink="/simuladores/historial">Ver todas</a>
-
-            @switch (recentState()) {
-              @case ('loading') {
-                <div class="fc-sim__pad">
-                  <fc-skeleton [lines]="3" />
-                </div>
-              }
-              @case ('error') {
-                <div class="fc-sim__pad">
-                  <p class="fc-sim__note">No pudimos cargar tus últimas simulaciones.</p>
-                </div>
-              }
-              @case ('ready') {
-                @if (recent().length === 0) {
-                  <div class="fc-sim__pad">
-                    <p class="fc-sim__note">
-                      Todavía no has guardado ninguna simulación. La primera que ejecutes aparecerá
-                      aquí.
-                    </p>
-                  </div>
-                } @else {
-                  <ul class="fc-sim__recent">
-                    @for (entry of recent(); track entry.simulation_id) {
-                      <li class="fc-sim__recent-item">
-                        <span class="fc-sim__recent-label">{{ labelOf(entry) }}</span>
-                        <!--
-                          Un `<span>` con `.fc-num`, no un `<dd>`: `us2` busca el primer
-                          `dd.fc-num` de la pantalla y ese tiene que ser el del resultado.
-                        -->
-                        <span class="fc-num fc-sim__recent-value">{{ primaryOf(entry).value }}</span>
-                        <time class="fc-sim__recent-time" [attr.datetime]="entry.created_at">
-                          {{ entry.created_at | date: 'short' }}
-                        </time>
-                      </li>
-                    }
-                  </ul>
-                }
-              }
-            }
-          </fc-module-box>
-        </aside>
       </div>
     }
   }

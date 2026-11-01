@@ -4,11 +4,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import {
   BadgeComponent,
   type BadgeTone,
-  CardComponent,
   EmptyStateComponent,
   ErrorStateComponent,
   LinkButtonComponent,
-  ModuleBoxComponent,
   ProgressBarComponent,
   SkeletonComponent,
 } from '../../../shared/ui';
@@ -52,11 +50,9 @@ type LoadState = 'loading' | 'ready' | 'error';
   imports: [
     DatePipe,
     BadgeComponent,
-      LinkButtonComponent,
-    CardComponent,
+    LinkButtonComponent,
     EmptyStateComponent,
     ErrorStateComponent,
-    ModuleBoxComponent,
     ProgressBarComponent,
     SkeletonComponent,
   ],

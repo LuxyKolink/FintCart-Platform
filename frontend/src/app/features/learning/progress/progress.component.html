@@ -1,109 +1,126 @@
+<!--
+  Progreso (dirección de arte v2, brief §3, §5, §8).
+
+  Lo que se retiró:
+    · las TRES etiquetas en mayúsculas espaciadas de las estadísticas («ARTÍCULOS
+      VISTOS», «CUESTIONARIOS RESPONDIDOS», «SIMULACIONES EJECUTADAS»): pasan a ser
+      títulos de bloque en caja normal, porque el eyebrow se retiró del sistema
+      (brief §6.1);
+    · las mayúsculas espaciadas de las cabeceras de la tabla;
+    · las tarjetas de las tres cifras y la caja de la tabla: filas separadas por reglas
+      de 1 px.
+-->
 <div class="fc-progress">
-<h1 class="fc-progress__page-title">Tu progreso</h1>
+  <h1 class="fc-progress__page-title">Tu progreso</h1>
 
-@switch (state()) {
-  @case ('loading') {
-    <fc-skeleton variant="title" />
-    <fc-skeleton [lines]="3" />
-  }
-  @case ('error') {
-    <fc-error-state
-      icon="check-circle"
-      title="No pudimos cargar tu progreso"
-      message="Puede que hayas perdido la conexión. Tus puntos siguen guardados."
-      (retry)="retryProgress()"
-    />
-  }
-  @case ('ready') {
-    @if (progress(); as p) {
-      <fc-module-box title="Puntos acumulados" accent="accent">
-        <!--
-          ESTE es el único `.fc-num` de la pantalla, y su texto incluye la unidad
-          porque `us1-aprendizaje.spec.ts` afirma `/\d+ puntos/` sobre un locator que
-          tiene que resolver a un solo elemento (nota N-13, ver la nota de T035).
-        -->
-        <p class="fc-num fc-progress__points">{{ formatPoints(p.points) }} puntos</p>
-        <fc-progress-bar [value]="withinMilestone(p.points)" [max]="100" />
-        <p class="fc-progress__note">
-          {{ withinMilestone(p.points) }} de 100 hacia los {{ nextMilestone(p.points) }} · hito
-          actual desde los {{ currentMilestone(p.points) }}
-        </p>
-      </fc-module-box>
-    }
-  }
-}
-
-<section class="fc-progress__section">
-  <h2 class="fc-progress__section-title">Tu actividad</h2>
-
-  @switch (reportState()) {
+  @switch (state()) {
     @case ('loading') {
-      <fc-skeleton [lines]="2" />
+      <fc-skeleton variant="title" />
+      <fc-skeleton [lines]="3" />
     }
     @case ('error') {
       <fc-error-state
-        icon="info"
-        title="No pudimos cargar tus estadísticas"
-        message="El resto de la pantalla sigue disponible."
-        (retry)="retryReport()"
+        icon="check-circle"
+        title="No pudimos cargar tu progreso"
+        message="Puede que hayas perdido la conexión. Tus puntos siguen guardados."
+        (retry)="retryProgress()"
       />
     }
     @case ('ready') {
-      @if (report(); as r) {
-        <div class="fc-progress__stats">
-          <fc-card class="fc-progress__stat">
-            <p class="fc-progress__stat-label">Artículos vistos</p>
-            <p class="fc-progress__stat-value">{{ r.articles_viewed }}</p>
-          </fc-card>
-          <fc-card class="fc-progress__stat">
-            <p class="fc-progress__stat-label">Cuestionarios respondidos</p>
-            <p class="fc-progress__stat-value">{{ r.quizzes_attempted }}</p>
-          </fc-card>
-          <fc-card class="fc-progress__stat">
-            <p class="fc-progress__stat-label">Simulaciones ejecutadas</p>
-            <p class="fc-progress__stat-value">{{ r.simulations_run }}</p>
-          </fc-card>
-        </div>
+      @if (progress(); as p) {
+        <section class="fc-progress__section" aria-labelledby="fc-progress-points">
+          <h2 id="fc-progress-points" class="fc-progress__section-title">Puntos acumulados</h2>
+          <!--
+            ESTE es el único `.fc-num` de la pantalla, y su texto incluye la unidad
+            porque `us1-aprendizaje.spec.ts` afirma `/\d+ puntos/` sobre un locator que
+            tiene que resolver a un solo elemento (nota N-13, ver la nota de T035).
+          -->
+          <p class="fc-num fc-progress__points">{{ formatPoints(p.points) }} puntos</p>
+          <div class="fc-progress__bar">
+            <fc-progress-bar [value]="withinMilestone(p.points)" [max]="100" />
+          </div>
+          <p class="fc-progress__note">
+            {{ withinMilestone(p.points) }} de 100 hacia los {{ nextMilestone(p.points) }} · hito actual desde los
+            {{ currentMilestone(p.points) }}
+          </p>
+        </section>
       }
     }
   }
-</section>
 
-<section class="fc-progress__section">
-  <h2 class="fc-progress__section-title">Historial de cuestionarios</h2>
+  <section class="fc-progress__section" aria-labelledby="fc-progress-activity">
+    <h2 id="fc-progress-activity" class="fc-progress__section-title">Tu actividad</h2>
 
-  @switch (historyState()) {
-    @case ('loading') {
-      <fc-skeleton [lines]="4" />
+    @switch (reportState()) {
+      @case ('loading') {
+        <fc-skeleton [lines]="2" />
+      }
+      @case ('error') {
+        <fc-error-state
+          icon="info"
+          title="No pudimos cargar tus estadísticas"
+          message="El resto de la pantalla sigue disponible."
+          (retry)="retryReport()"
+        />
+      }
+      @case ('ready') {
+        @if (report(); as r) {
+          <dl class="fc-progress__stats">
+            <div class="fc-progress__stat">
+              <dt class="fc-progress__stat-label">Artículos vistos</dt>
+              <dd class="fc-progress__stat-value">{{ r.articles_viewed }}</dd>
+            </div>
+            <div class="fc-progress__stat">
+              <dt class="fc-progress__stat-label">Cuestionarios respondidos</dt>
+              <dd class="fc-progress__stat-value">{{ r.quizzes_attempted }}</dd>
+            </div>
+            <div class="fc-progress__stat">
+              <dt class="fc-progress__stat-label">Simulaciones ejecutadas</dt>
+              <dd class="fc-progress__stat-value">{{ r.simulations_run }}</dd>
+            </div>
+          </dl>
+        }
+      }
     }
-    @case ('error') {
-      <fc-error-state
-        icon="clipboard-check"
-        title="No pudimos cargar tu historial"
-        message="Tus intentos siguen registrados. Intenta de nuevo."
-        (retry)="retryHistory()"
-      />
-    }
-    @case ('ready') {
-      @if (recentAttempts().length === 0) {
-        <!--
-          FR-119: el kit dibujó esta pantalla con historial siempre presente, así que el
-          caso vacío —que es el de todo usuario recién registrado— hay que resolverlo
-          aquí, y la salida natural es ir a resolver el primero.
-        -->
-        <fc-empty-state
+  </section>
+
+  <section class="fc-progress__section" aria-labelledby="fc-progress-history">
+    <h2 id="fc-progress-history" class="fc-progress__section-title">Historial de cuestionarios</h2>
+
+    @switch (historyState()) {
+      @case ('loading') {
+        <fc-skeleton [lines]="4" />
+      }
+      @case ('error') {
+        <fc-error-state
           icon="clipboard-check"
-          title="Todavía no has resuelto ningún cuestionario"
-          message="Cada artículo puede traer uno. Al resolverlo, tu intento y tu puntaje aparecen aquí."
-        >
-          <fc-link-button variant="primary" to="/catalogo">Ir al catálogo</fc-link-button>
-        </fc-empty-state>
-      } @else {
-        <!--
-          FR-127: la tabla puede ser más ancha que la pantalla en un móvil, así que se
-          desplaza DENTRO de su contenedor y la página no se mueve.
-        -->
-        <div class="fc-progress__table-scroll">
+          title="No pudimos cargar tu historial"
+          message="Tus intentos siguen registrados. Intenta de nuevo."
+          (retry)="retryHistory()"
+        />
+      }
+      @case ('ready') {
+        @if (recentAttempts().length === 0) {
+          <!--
+            FR-119: el kit dibujó esta pantalla con historial siempre presente, así que el
+            caso vacío —que es el de todo usuario recién registrado— hay que resolverlo
+            aquí, y la salida natural es ir a resolver el primero.
+          -->
+          <fc-empty-state
+            icon="clipboard-check"
+            title="Todavía no has resuelto ningún cuestionario"
+            message="Cada artículo puede traer uno. Al resolverlo, tu intento y tu puntaje aparecen aquí."
+          >
+            <fc-link-button variant="primary" to="/catalogo">Ir al catálogo</fc-link-button>
+          </fc-empty-state>
+        } @else {
+          <!--
+            La tabla ya NO vive en un contenedor con desplazamiento horizontal: sus celdas
+            parten el texto en vez de empujar la página, así que a 360 caben las tres
+            columnas y ninguna cifra —ni ninguna fecha— queda fuera del borde. La cifra
+            conserva `white-space: nowrap` porque un puntaje partido no es un puntaje
+            (nota N-15); lo que se reduce es el relleno, no el número.
+          -->
           <table class="fc-progress__table">
             <caption class="fc-progress__caption">
               Intentos registrados, del más reciente al más antiguo
@@ -119,7 +136,7 @@
               @for (attempt of recentAttempts(); track attempt.attempt_id) {
                 <tr>
                   <th scope="row" class="fc-progress__cell-strong">Intento n.º {{ attempt.attempt_no }}</th>
-                  <td>
+                  <td class="fc-progress__cell-score">
                     <!--
                       El puntaje se pinta con el ayudante de frontera: conserva los
                       decimales del contrato y nunca los trunca (FR-109 / T040).
@@ -131,9 +148,8 @@
               }
             </tbody>
           </table>
-        </div>
+        }
       }
     }
-  }
-</section>
+  </section>
 </div>

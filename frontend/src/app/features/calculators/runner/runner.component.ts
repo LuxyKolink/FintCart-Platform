@@ -19,7 +19,10 @@ import {
   SkeletonComponent,
 } from '../../../shared/ui';
 import * as decimalStr from '../../../shared/decimal-str';
+import { formatMoney, formatRate } from '../../../shared/format-money';
 import { toColombian } from '../../../shared/format-number';
+import { resultKindOf } from '../../simulators/calculators.config';
+import { calculatorTitle } from '../calculator-title';
 import { CalculatorError, CalculatorsApiService } from '../calculators-api.service';
 import { Calculator, CalculatorField, calculatorStateHelp, calculatorStateLabel, calculatorStateTone } from '../calculator.types';
 
@@ -51,6 +54,18 @@ type PanelState = 'idle' | 'running' | 'done' | 'error';
  * borrador, el resto solo la versión publicada (FR-052)—, así que esta pantalla no filtra nada
  * por su cuenta. Una calculadora privada de otra persona responde `NotFound`, y el mensaje lo
  * dice sin confirmar si existe.
+ *
+ * ## Una sola columna, a la medida de formulario (brief §8)
+ *
+ * Los campos ocupaban el ancho entero del contenedor —1090 px en el render—, así que un campo
+ * de «Depósito inicial» medía más que un renglón de lectura. Ahora la entrada se limita a
+ * `--reading-max` (680 px), que es la medida que el brief fija para los formularios de los
+ * simuladores y de las calculadoras. `--form-max` no sirve aquí: vale 400 px porque describe el
+ * formulario de ACCESO.
+ *
+ * El resultado va en una BANDA con regla superior (brief §8), no en un bloque hermano pegado al
+ * botón: el título «Resultado» caía a 0 px de «Calcular» y la salida se leía como una fila más
+ * del formulario.
  */
 @Component({
   selector: 'fc-calculator-runner',
@@ -71,56 +86,144 @@ type PanelState = 'idle' | 'running' | 'done' | 'error';
     :host {
       display: block;
     }
+
+    .fc-run {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-6);
+      min-width: 0;
+      max-width: var(--content-max);
+    }
+
+    .fc-run__entrada {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      /* Medida de entrada: el formulario y su cabecera, juntos. */
+      max-width: var(--reading-max);
+    }
+
+    /* h1 de página: escalón display del brief §3 (38 / 1.15 / 500 / -0.02em). */
+    .fc-run__title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--fs-display);
+      line-height: var(--lh-display);
+      font-weight: var(--fw-display);
+      letter-spacing: var(--ls-display);
+      color: var(--text-strong);
+      overflow-wrap: anywhere;
+    }
+
     .fc-run__cabecera {
       display: flex;
       align-items: center;
       gap: var(--space-2);
       flex-wrap: wrap;
     }
+
+    .fc-run__version {
+      font-size: var(--fs-meta);
+      color: var(--text-muted);
+    }
+
     .fc-run__intro {
-      max-width: 68ch;
+      margin: 0;
+      font-size: var(--fs-ui);
       color: var(--text-body);
     }
+
+    .fc-run__parametros {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      max-width: var(--reading-max);
+    }
+
+    /* Título de sección: escalón h2 del brief §3 (26 / 1.25 / 500 / -0.01em). */
+    .fc-run__section {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--fs-h2);
+      line-height: var(--lh-h2);
+      font-weight: var(--fw-h2);
+      letter-spacing: var(--ls-h2);
+      color: var(--text-strong);
+    }
+
     .fc-run__form {
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
+      gap: var(--space-4);
     }
+
     .fc-run__acciones {
       display: flex;
       gap: var(--space-2);
       flex-wrap: wrap;
     }
+
+    /*
+      La banda de resultado: regla superior de 1 px y espacio. Es el recurso que el brief §5
+      admite para separar dos superficies funcionales, y aquí separa la ENTRADA de la SALIDA.
+    */
+    .fc-run__banda {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      max-width: var(--reading-max);
+      padding-top: var(--space-5);
+      border-top: var(--border-hairline) solid var(--fc-line);
+    }
+
     .fc-run__resultado {
       display: flex;
       flex-direction: column;
-      gap: var(--space-2);
-      margin-top: var(--space-3);
-      padding-top: var(--space-3);
-      border-top: 1px solid var(--border-subtle);
+      gap: var(--space-1);
     }
+
     .fc-run__valor {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      gap: var(--space-3);
+      gap: var(--space-2) var(--space-4);
       flex-wrap: wrap;
+      padding: var(--space-2) 0;
+      border-bottom: var(--border-hairline) solid var(--fc-line);
     }
+
+    .fc-run__valor:last-child {
+      border-bottom: 0;
+    }
+
+    .fc-run__etiqueta {
+      font-size: var(--fs-secondary);
+      color: var(--text-muted);
+    }
+
+    /* La cifra va con la tipografía de datos (.fc-num, ver tokens/base.css) y sin recorte
+       posible (N-15). */
     .fc-run__cifra {
-      font-family: var(--font-mono);
-      font-size: var(--fs-lg);
+      margin-left: auto;
+      font-size: var(--fs-h3);
       font-weight: var(--fw-semibold);
+      color: var(--text-strong);
+      text-align: right;
+      white-space: nowrap;
     }
+
     .fc-run__procedencia {
-      color: var(--text-faint);
-      font-size: var(--fs-sm);
+      margin: 0;
+      color: var(--text-muted);
+      font-size: var(--fs-meta);
     }
+
     .fc-run__indicadores {
       margin: 0;
       padding-left: var(--space-4);
       font-family: var(--font-mono);
-      font-size: var(--fs-sm);
-      color: var(--text-faint);
+      font-size: var(--fs-meta);
+      color: var(--text-muted);
     }
   `,
 })
@@ -211,18 +314,22 @@ export class CalculatorRunnerComponent implements OnInit {
   /**
    * Las salidas del resultado, ya formateadas.
    *
-   * ## Por qué aquí NO hay símbolo de moneda ni de porcentaje
+   * ## Cuándo lleva `$` y cuándo `%`, y por qué no es adivinar
    *
-   * El caso de uso más frecuente de esta plataforma es una cifra en pesos, así que lo
-   * tentador es poner `$` delante de todo. Estaría **inventando un dato**: la definición
-   * declara la etiqueta, la expresión y la ESCALA de redondeo, y nada dice si el resultado son
-   * pesos, una tasa o un número de meses. Un `0,25` presentado como `$0,25` cuando en realidad
-   * es una tasa del 25 % es una cifra falsa con toda la apariencia de ser cierta — el fallo que
-   * el Principio VIII existe para evitar, en su forma presentacional (nota N-15).
+   * La definición NO declara el tipo de una salida: `CalculatorOutput` trae clave, etiqueta,
+   * expresión, escala y condición, y nada más. Por eso el caso general imprime el valor con la
+   * escala que el autor SÍ declaró y sin unidad —`2.469,00`—, que es lo único que la definición
+   * autoriza a afirmar.
    *
-   * Lo que sí se usa es la `escala` que el autor SÍ declaró: redondear a dos decimales cuando
-   * declaró dos no es inventar nada, es respetar lo que decidió. El que lea el resultado tiene
-   * la etiqueta delante —«Cuota mensual», «Equivalente en UVT»—, que es la que dice qué es.
+   * Ahora bien: `17.223.060,60` sin signo de peso no se lee como una cifra en pesos, y una tasa
+   * impresa como `0,010000` no se lee como `1 %`. Las calculadoras de la PLATAFORMA sí tienen
+   * tipo declarado, y lo tienen por la misma razón por la que su historial se lee bien: sus
+   * definiciones semilla reutilizan las claves de salida de las nativas (FR-049), y el espejo de
+   * esas claves y sus tipos vive en `simulators/calculators.config.ts` (`resultKindOf`). Así que
+   * el tipo se resuelve por CLAVE y SOLO para una calculadora `is_builtin`: la de un usuario
+   * lleva claves de su autor, nadie sabe si son pesos o meses, y ahí se mantiene la cifra sin
+   * unidad. Adivinarlo por el tamaño —«si es menor que uno es una tasa»— convertiría un monto en
+   * una tasa: una cifra falsa con apariencia de buena (N-15).
    */
   protected outputs(): { label: string; value: string }[] {
     const calculator = this.calculator();
@@ -234,8 +341,40 @@ export class CalculatorRunnerComponent implements OnInit {
       .filter((output) => result[output.key] !== undefined)
       .map((output) => ({
         label: output.label === '' ? output.key : output.label,
-        value: toColombian(decimalStr.formatFixed(decimalStr.parse(result[output.key]), output.scale)),
+        value: this.present(output.key, result[output.key], output.scale, calculator.is_builtin),
       }));
+  }
+
+  /**
+   * El valor de una salida, en la forma que se muestra.
+   *
+   * `formatMoney` y `formatRate` son de `shared/format-money.ts` y trabajan sobre la cadena
+   * decimal canónica: nada de `Number`, `parseFloat` ni `toFixed` (Principio VIII). El respaldo
+   * —escala declarada, agrupado local— es el formato del caso general; si ni eso se puede, se
+   * enseña la cadena cruda antes que romper el resultado entero.
+   */
+  private present(key: string, raw: string, scale: number, builtin: boolean): string {
+    const kind = builtin ? resultKindOf(key) : undefined;
+    try {
+      if (kind === 'money') {
+        return formatMoney(raw);
+      }
+      if (kind === 'rate') {
+        return formatRate(raw);
+      }
+    } catch {
+      // Un valor que no cumple el formato canónico cae al respaldo: se muestra, no se esconde.
+    }
+    try {
+      return toColombian(decimalStr.formatFixed(decimalStr.parse(raw), scale));
+    } catch {
+      return raw;
+    }
+  }
+
+  /** El nombre legible: el de una semilla es un identificador, no un título. */
+  protected title(calculator: Calculator): string {
+    return calculatorTitle(calculator.name);
   }
 
   /** Los indicadores que se usaron, con su valor del día de la ejecución (FR-058). */

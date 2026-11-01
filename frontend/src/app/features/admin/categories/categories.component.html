@@ -1,5 +1,7 @@
-<section>
-  <h1>Administración de categorías</h1>
+<section class="fc-page">
+  <header class="fc-page__head">
+    <h1 class="fc-page__title">Administración de categorías</h1>
+  </header>
 
   @if (errorMessage()) {
     <fc-banner tone="error">{{ errorMessage() }}</fc-banner>
@@ -16,7 +18,8 @@
       <fc-banner tone="error">No pudimos cargar el catálogo de categorías. Intenta de nuevo.</fc-banner>
     }
     @case ('ready') {
-      <fc-module-box title="Nueva categoría">
+      <fc-module-box>
+        <h2 class="fc-page__subtitle">Nueva categoría</h2>
         <form class="fc-admin-form" [formGroup]="createForm" (ngSubmit)="onCreate()">
           <fc-input
             label="Nombre"
@@ -36,7 +39,8 @@
         </form>
       </fc-module-box>
 
-      <fc-module-box title="Categorías activas">
+      <fc-module-box>
+        <h2 class="fc-page__subtitle">Categorías activas</h2>
         @if (activeCategories().length === 0) {
           <p>No hay categorías activas todavía. Crea la primera más arriba.</p>
         } @else {
@@ -93,7 +97,7 @@
                   </div>
                   <div class="fc-admin-actions">
                     <fc-button
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
                       [disabled]="busy() !== null"
                       (pressed)="startEdit(category)"
@@ -101,7 +105,7 @@
                       Editar
                     </fc-button>
                     <fc-button
-                      variant="danger"
+                      variant="secondary"
                       size="sm"
                       [disabled]="busy() !== null"
                       (pressed)="onDeactivate(category)"
@@ -117,7 +121,8 @@
       </fc-module-box>
 
       @if (inactiveCategories().length > 0) {
-        <fc-module-box title="Desactivadas">
+        <fc-module-box>
+          <h2 class="fc-page__subtitle">Desactivadas</h2>
           <div class="fc-admin-list">
             @for (category of inactiveCategories(); track category.category_id) {
               <div class="fc-admin-row">

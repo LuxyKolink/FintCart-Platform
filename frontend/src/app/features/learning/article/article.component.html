@@ -30,6 +30,14 @@
   }
   @case ('ready') {
     @if (article(); as a) {
+      <!--
+        UNA columna de lectura (dirección de arte v2, brief §4, §8).
+
+        Lo que se retiró: la rejilla `1fr 260px`, el riel derecho con «Tu progreso» y
+        «Relacionados», su `position: sticky`, y la tarjeta con borde, radio y sombra que
+        dejaba el texto terminando a media página. El progreso y los relacionados pasan
+        al flujo, DEBAJO del artículo: no hay columna lateral que dibujar.
+      -->
       <div class="fc-reader">
         <!--
           El ÚNICO `<article>` de la pantalla: `us1-aprendizaje.spec.ts` lo busca por
@@ -38,7 +46,7 @@
         -->
         <article class="fc-reader__doc">
           <header class="fc-reader__head">
-            <fc-badge tone="neutral">{{ a.category }}</fc-badge>
+            <p class="fc-reader__kicker">{{ a.category }}</p>
             <h1 class="fc-reader__title">{{ a.title }}</h1>
             <p class="fc-reader__meta">Versión {{ a.current_version_no }} · contenido vigente</p>
           </header>
@@ -81,50 +89,43 @@
           }
         </article>
 
-        <aside class="fc-reader__aside">
-          <fc-module-box title="Tu progreso" accent="accent">
-            @switch (progressState()) {
-              @case ('loading') {
-                <fc-skeleton [lines]="2" />
+        @if (related().length > 0) {
+          <section class="fc-reader__section" aria-labelledby="fc-reader-related">
+            <h2 id="fc-reader-related" class="fc-reader__section-title">Relacionados</h2>
+            <ul class="fc-reader__related">
+              @for (item of related(); track item.article_id) {
+                <li>
+                  <a class="fc-reader__related-link" [routerLink]="['/articulos', item.article_id]">
+                    {{ item.title }}
+                  </a>
+                </li>
               }
-              @case ('error') {
-                <p class="fc-reader__note">No pudimos cargar tu progreso.</p>
-              }
-              @case ('ready') {
-                @if (progress(); as p) {
-                  <fc-progress-bar
-                    [value]="withinMilestone(p.points)"
-                    [max]="100"
-                    label="Puntos"
-                    [showValue]="true"
-                  />
-                  <p class="fc-reader__note">
-                    Se suman al resolver el cuestionario: hasta {{ nextMilestone(p.points) }} puntos
-                    en este hito.
-                  </p>
-                }
+            </ul>
+          </section>
+        }
+
+        <!-- Progreso al final del flujo, sin riel (brief §4). -->
+        <section class="fc-reader__section" aria-labelledby="fc-reader-progress">
+          <h2 id="fc-reader-progress" class="fc-reader__section-title">Tu progreso</h2>
+          @switch (progressState()) {
+            @case ('loading') {
+              <fc-skeleton [lines]="2" />
+            }
+            @case ('error') {
+              <p class="fc-reader__note">No pudimos cargar tu progreso.</p>
+            }
+            @case ('ready') {
+              @if (progress(); as p) {
+                <div class="fc-reader__progress">
+                  <fc-progress-bar [value]="withinMilestone(p.points)" [max]="100" label="Puntos" [showValue]="true" />
+                </div>
+                <p class="fc-reader__note">
+                  Se suman al resolver el cuestionario: hasta {{ nextMilestone(p.points) }} puntos en este hito.
+                </p>
               }
             }
-          </fc-module-box>
-
-          @if (related().length > 0) {
-            <fc-module-box title="Relacionados" accent="info" [padded]="false">
-              <ul class="fc-reader__related">
-                @for (item of related(); track item.article_id) {
-                  <li>
-                    <a
-                      class="fc-reader__related-link"
-                      [routerLink]="['/articulos', item.article_id]"
-                      [attr.title]="item.title"
-                    >
-                      {{ item.title }}
-                    </a>
-                  </li>
-                }
-              </ul>
-            </fc-module-box>
           }
-        </aside>
+        </section>
       </div>
     }
   }

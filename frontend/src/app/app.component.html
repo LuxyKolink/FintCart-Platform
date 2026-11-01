@@ -1,54 +1,91 @@
-<header class="fc-topbar" (keydown.escape)="closeMenu()">
-  <a class="fc-topbar__brand" routerLink="/catalogo" aria-label="FintCart — ir al catálogo">
-    <fc-brand-logo variant="full" [width]="120" [height]="29" />
-  </a>
-
-  @if (auth.isAuthenticated()) {
-    <button
-      type="button"
-      class="fc-topbar__toggle"
-      [attr.aria-expanded]="menuOpen()"
-      aria-controls="fc-app-nav"
-      (click)="toggleMenu()"
-    >
-      {{ menuOpen() ? 'Cerrar menú' : 'Menú' }}
-    </button>
-
-    <nav
-      id="fc-app-nav"
-      class="fc-topbar__nav"
-      [class.fc-topbar__nav--open]="menuOpen()"
-      (click)="closeMenu()"
-    >
-      <a routerLink="/catalogo">Catálogo</a>
-      <a routerLink="/simuladores">Simuladores</a>
-      <a routerLink="/calculadoras">Calculadoras</a>
-      <a routerLink="/calculadoras/mis">Mis calculadoras</a>
-      <a routerLink="/progreso">Tu progreso</a>
-      <a routerLink="/notificaciones">Notificaciones</a>
-      @if (auth.hasRole('editor', 'coordinador_editorial')) {
-        <a routerLink="/editorial">Editorial</a>
+<header class="fc-topbar" (keydown.escape)="onEscape()">
+  <div class="fc-topbar__inner">
+    <!--
+      El enlace a casa existe SIEMPRE (es la salida al catálogo). Lo que cambia es lo
+      que dibuja dentro: el logotipo en el armazón de producto, y solo la palabra en
+      las pantallas de acceso, donde el panel de marca es el dueño de la marca.
+      El nombre accesible no cambia en ningún caso.
+    -->
+    <a class="fc-topbar__brand" routerLink="/catalogo" aria-label="FintCart — ir al catálogo">
+      @if (showBrandLockup()) {
+        <fc-brand-logo variant="full" [width]="120" [height]="29" />
+      } @else {
+        <span class="fc-topbar__wordmark">FintCart</span>
       }
-      @if (auth.hasRole('coordinador_editorial')) {
-        <a routerLink="/editorial/revision">Revisión</a>
+    </a>
+
+    @if (auth.isAuthenticated()) {
+      <button
+        type="button"
+        class="fc-topbar__toggle"
+        [attr.aria-expanded]="menuOpen()"
+        aria-controls="fc-app-nav"
+        (click)="toggleMenu()"
+      >
+        {{ menuOpen() ? 'Cerrar menú' : 'Menú' }}
+      </button>
+
+      <nav id="fc-app-nav" class="fc-topbar__nav" [class.fc-topbar__nav--open]="menuOpen()" (click)="closeMenus()">
         <!--
-          «Curaduría» y NO «Revisión de calculadoras»: el selector por NOMBRE de un enlace
-          resuelve por subcadena, y «Revisión de calculadoras» contiene «Revisión» —el enlace de
-          la bandeja de artículos—, así que `getByRole('link', { name: 'Revisión' })` pasaba a
-          resolver DOS elementos y rompía las pruebas protegidas de US4 (nota N-13: un nombre,
-          un enlace). Se cambia la etiqueta nueva, no la aserción: las pruebas de US1–US4 son la
-          garantía dura y no se tocan.
+          DESTINOS PRIMARIOS. Son los cinco que un aprendiz usa en un recorrido
+          normal —aprender, simular, calcular, lo propio y el avance— y los únicos que
+          se quedan en línea entre 1024 y 1279 px, donde la fila completa no cabe sin
+          partir etiquetas.
         -->
-        <a routerLink="/editorial/calculadoras">Curaduría</a>
-      }
-      @if (auth.hasRole('administrador')) {
-        <a routerLink="/admin/categorias">Administración</a>
-        <a routerLink="/admin/indicadores">Indicadores</a>
-      }
-      <a routerLink="/perfil">Tu perfil</a>
-      <fc-button variant="ghost" size="sm" (pressed)="onLogout()">Cerrar sesión</fc-button>
-    </nav>
-  }
+        <a routerLink="/catalogo">Catálogo</a>
+        <a routerLink="/simuladores">Simuladores</a>
+        <a routerLink="/calculadoras">Calculadoras</a>
+        <a routerLink="/calculadoras/mis">Mis calculadoras</a>
+        <a routerLink="/progreso">Tu progreso</a>
+
+        <!--
+          EL RESTO, EN UNA DIVULGACIÓN REAL. `aria-expanded` + `aria-controls` en un
+          `<button>` nativo: se abre con Enter y con Espacio, se cierra con Escape
+          —devolviendo el foco al botón— y con un clic fuera. No es un `fc-button`
+          porque los atributos ARIA deben vivir en el `<button>`, no en el anfitrión.
+          Por encima de --bp-xl el botón desaparece y el panel se despliega en línea:
+          todos los destinos vuelven a estar visibles sin interacción.
+        -->
+        <div class="fc-nav-more" #moreWrap>
+          <button
+            #moreToggle
+            type="button"
+            class="fc-nav-more__toggle"
+            [attr.aria-expanded]="moreOpen()"
+            aria-controls="fc-nav-more-panel"
+            (click)="toggleMore($event)"
+          >
+            Más
+          </button>
+
+          <div id="fc-nav-more-panel" class="fc-nav-more__panel" [class.fc-nav-more__panel--open]="moreOpen()">
+            <a routerLink="/notificaciones">Notificaciones</a>
+            @if (auth.hasRole('editor', 'coordinador_editorial')) {
+              <a routerLink="/editorial">Editorial</a>
+            }
+            @if (auth.hasRole('coordinador_editorial')) {
+              <a routerLink="/editorial/revision">Revisión</a>
+              <!--
+                «Curaduría» y NO «Revisión de calculadoras»: el selector por NOMBRE de un enlace
+                resuelve por subcadena, y «Revisión de calculadoras» contiene «Revisión» —el enlace de
+                la bandeja de artículos—, así que `getByRole('link', { name: 'Revisión' })` pasaba a
+                resolver DOS elementos y rompía las pruebas protegidas de US4 (nota N-13: un nombre,
+                un enlace). Se cambia la etiqueta nueva, no la aserción: las pruebas de US1–US4 son la
+                garantía dura y no se tocan.
+              -->
+              <a routerLink="/editorial/calculadoras">Curaduría</a>
+            }
+            @if (auth.hasRole('administrador')) {
+              <a routerLink="/admin/categorias">Administración</a>
+              <a routerLink="/admin/indicadores">Indicadores</a>
+            }
+            <a routerLink="/perfil">Tu perfil</a>
+            <fc-button variant="ghost" size="sm" (pressed)="onLogout()">Cerrar sesión</fc-button>
+          </div>
+        </div>
+      </nav>
+    }
+  </div>
 </header>
 
 <main class="fc-shell">

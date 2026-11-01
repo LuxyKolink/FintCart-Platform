@@ -33,7 +33,12 @@
           <fc-link-button variant="primary" to="/simuladores">Ir a las calculadoras</fc-link-button>
         </fc-empty-state>
       } @else {
-        <div class="fc-history__scroll">
+        <!--
+          Sin contenedor con desplazamiento horizontal: era lo que cortaba las cifras a 360
+          (N-15). La tabla se lee completa por encima de `--bp-md` y como ficha apilada por
+          debajo; el marcado es el mismo para que el rol y el nombre accesible no cambien.
+        -->
+        <div class="fc-history__sheet">
           <table class="fc-history__table">
             <caption class="fc-history__caption">
               Simulaciones ejecutadas, de la más reciente a la más antigua
@@ -63,11 +68,13 @@
                     }
                   </th>
                   <td class="fc-history__when">
+                    <span class="fc-history__cell-label">Fecha</span>
                     <time [attr.datetime]="row.entry.created_at">
-                      {{ row.entry.created_at | date: 'short' }}
+                      {{ row.entry.created_at | date: 'dd/MM/yyyy, HH:mm' }}
                     </time>
                   </td>
                   <td>
+                    <span class="fc-history__cell-label">Resultado</span>
                     <!--
                       `<dl>` con `<dt>`/`<dd>`: es una lista de pares nombre-valor, y ese es
                       el marcado que la suite de extremo a extremo busca (`dt` con «Cuota
@@ -83,6 +90,7 @@
                     </dl>
                   </td>
                   <td>
+                    <span class="fc-history__cell-label">Parámetros</span>
                     <dl class="fc-history__pairs">
                       @for (item of row.inputs; track item.label) {
                         <div class="fc-history__pair">

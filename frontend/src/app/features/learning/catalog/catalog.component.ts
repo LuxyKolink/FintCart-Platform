@@ -3,18 +3,12 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import {
-  BadgeComponent,
   ButtonComponent,
   EmptyStateComponent,
   ErrorStateComponent,
   IconComponent,
-  LinkButtonComponent,
-  ModuleBoxComponent,
   ProgressBarComponent,
   SkeletonComponent,
-  TabsComponent,
-  type BadgeTone,
-  type TabItem,
 } from '../../../shared/ui';
 import { notificationTypeLabel } from '../../notifications/notification-labels';
 import { ProfileService } from '../../profile/profile.service';
@@ -28,36 +22,16 @@ import { Progress } from '../progress/progress.types';
 type LoadState = 'loading' | 'ready' | 'error';
 
 /**
- * Identificador de la pestaña «Todos». NO es un `category_id`: es una clave de
- * presentación que no puede colisionar con un UUID del catálogo.
- */
-const ALL_CATEGORIES = '__todas__';
-
-/**
- * Tono de `fc-badge` por `slug` de categoría (FR-102).
- *
- * El vocabulario del design system es cerrado y la paleta también, pero el catálogo es
- * administrable (FR-081): puede aparecer una categoría que no estaba cuando esto se
- * escribió. Una categoría desconocida cae en `neutral`, que es exactamente lo que dice
- * ser. Lo que NO se hace es inventar un color fuera de la paleta por `slug`.
- */
-const TONE_BY_SLUG: Record<string, BadgeTone> = {
-  ahorro: 'success',
-  credito: 'info',
-  presupuesto: 'accent',
-  inversion: 'brand',
-};
-
-/**
  * Catálogo público de artículos (US1 de 002, FR-102 de 003).
  *
- * Desde 003 es un **portal de tres zonas**: riel de categorías y acceso a simuladores,
- * columna central con el artículo destacado y el catálogo con pestañas, y riel de
- * progreso y notificaciones.
+ * Dirección de arte v2 (brief §4, §8): UNA sola columna de `--content-max`. El portal de
+ * tres zonas de 003 —riel de categorías con borde, columna central, riel derecho de
+ * progreso y avisos— se retiró: las categorías son una fila de enlaces de texto y el
+ * progreso y la bandeja viven en el flujo.
  *
  * DOS COSAS QUE ESTE COMPONENTE NO HACE, A PROPÓSITO:
  *
- * 1. **No inventa cifras.** El riel derecho del kit muestra un ranking semanal, «seguir
+ * 1. **No inventa cifras.** El kit de referencia mostraba un ranking semanal, «seguir
  *    leyendo» y un porcentaje de avance por categoría. Ninguno de los tres existe en los
  *    contratos —no hay endpoint de ranking, ni de «continuar», ni progreso por
  *    categoría—, así que no se pintan. Un ranking inventado no es un texto incompleto:
@@ -72,16 +46,12 @@ const TONE_BY_SLUG: Record<string, BadgeTone> = {
   imports: [
     DatePipe,
     RouterLink,
-    BadgeComponent,
     ButtonComponent,
     EmptyStateComponent,
     ErrorStateComponent,
     IconComponent,
-    LinkButtonComponent,
-    ModuleBoxComponent,
     ProgressBarComponent,
     SkeletonComponent,
-    TabsComponent,
   ],
   templateUrl: './catalog.component.html',
   styleUrl: './catalog.component.css',
@@ -109,13 +79,6 @@ export class CatalogComponent implements OnInit {
   protected readonly inboxState = signal<LoadState>('loading');
   protected readonly inbox = signal<InAppNotification[]>([]);
 
-  protected readonly tabs = computed<TabItem[]>(() => [
-    { id: ALL_CATEGORIES, label: 'Todos' },
-    ...this.categories().map((category) => ({ id: category.category_id, label: category.name })),
-  ]);
-
-  protected readonly activeTab = computed(() => this.activeCategoryId() ?? ALL_CATEGORIES);
-
   /**
    * El artículo destacado es el primero de la lista SIN filtro. Con una categoría
    * activa no hay destacado: la primera tarjeta de la categoría no es «lo destacado del
@@ -125,7 +88,7 @@ export class CatalogComponent implements OnInit {
     this.activeCategoryId() === null ? (this.articles()[0] ?? null) : null,
   );
 
-  /** Cuatro entradas bastan para el riel; la bandeja completa vive en su pantalla. */
+  /** Cuatro entradas bastan para la vista previa; la bandeja completa vive en su pantalla. */
   protected readonly inboxPreview = computed(() => this.inbox().slice(0, 4));
   protected readonly unreadCount = computed(
     () => this.inbox().filter((item) => item.read_state === 'unread').length,
@@ -141,16 +104,6 @@ export class CatalogComponent implements OnInit {
   protected selectCategory(categoryId: string | null): void {
     this.activeCategoryId.set(categoryId);
     this.load(categoryId ?? undefined);
-  }
-
-  protected selectTab(tabId: string): void {
-    this.selectCategory(tabId === ALL_CATEGORIES ? null : tabId);
-  }
-
-  /** Tono de la insignia de categoría; desconocida ⇒ `neutral`. */
-  protected toneOf(article: Article): BadgeTone {
-    const category = this.categories().find((item) => item.category_id === article.category_id);
-    return TONE_BY_SLUG[category?.slug ?? ''] ?? 'neutral';
   }
 
   /** Nombre visible de la tarjeta: el que trae el artículo, o el del catálogo. */

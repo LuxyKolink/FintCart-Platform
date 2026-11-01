@@ -21,6 +21,7 @@ import {
   validateIndicatorValue,
   validateValidity,
 } from './indicator-form';
+import { formatIndicatorValue } from './indicator-format';
 import { CalendarStatus, Indicator } from './indicator.types';
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -67,9 +68,56 @@ type Busy = 'create' | 'update' | null;
     :host {
       display: block;
     }
+
+    /*
+     * EL MARCO: una columna de «--content-max» (880 px) y un solo eje.
+     *
+     * Antes no había contenedor y cada bloque se estiraba hasta el ancho del armazón
+     * (1120 px): la línea de la ayuda llegaba a 1135 px medidos, y pasado cierto punto
+     * una línea así obliga a volver al principio con el ojo —el formulario deja de
+     * leerse como una unidad y la tabla como una tabla—. La medida de lectura la fija
+     * el brief (§4) y aquí se aplica, no se reinventa.
+     *
+     * «gap» con «--section-gap» es lo que separa los tres bloques de la pantalla. El
+     * «fc-module-box» ya no dibuja caja (brief §5), así que sin esta separación el «h2»
+     * de una sección quedaba pegado al botón de la anterior: título, acción y tabla se
+     * leían como un solo bloque amontonado.
+     */
+    .fc-page {
+      display: flex;
+      flex-direction: column;
+      gap: var(--section-gap);
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+
+    .fc-page__head {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .fc-page__title {
+      margin: 0;
+    }
+
+    /* Título de sección dentro de un bloque: h2 del brief §3 y 16 px hasta el cuerpo. */
+    .fc-page__subtitle {
+      margin: 0 0 var(--space-4);
+    }
+
     .fc-ind__intro {
-      max-width: 68ch;
-      color: var(--text-body);
+      margin: 0;
+      max-width: var(--reading-max);
+      color: var(--fc-ink-2);
+    }
+
+    /* La ayuda del formulario no tenía estilo: era un párrafo del cuerpo de la página. */
+    .fc-helper {
+      margin: 0;
+      max-width: var(--reading-max);
+      font-size: var(--fs-secondary);
+      color: var(--fc-ink-3);
     }
     .fc-ind__estado {
       display: flex;
@@ -118,9 +166,8 @@ type Busy = 'create' | 'update' | null;
       display: flex;
       align-items: center;
       gap: var(--space-2);
+      /* El escalón lo pone el «h3» de base (19 / 600, brief §3): aquí solo el aire. */
       margin: 0 0 var(--space-2);
-      font-size: var(--fs-md);
-      font-weight: var(--fw-semibold);
     }
     .fc-ind__vigencia {
       display: flex;
@@ -128,7 +175,7 @@ type Busy = 'create' | 'update' | null;
       gap: var(--space-3);
       flex-wrap: wrap;
       padding: var(--space-2) 0;
-      border-bottom: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--fc-line);
     }
     .fc-ind__vigencia:last-child {
       border-bottom: 0;
@@ -138,19 +185,21 @@ type Busy = 'create' | 'update' | null;
       min-width: 0;
     }
     .fc-ind__vigencia-valor {
-      font-family: var(--font-mono);
+      /* «.fc-num» ya fija la fuente de cifras y «tabular-nums»; aquí solo el peso.
+         Sin ancho fijo y sin recorte: es una cifra monetaria (N-15). */
       font-weight: var(--fw-semibold);
+      color: var(--fc-ink);
     }
     .fc-ind__vigencia-fechas {
-      color: var(--text-faint);
-      font-size: var(--fs-sm);
+      color: var(--fc-ink-3);
+      font-size: var(--fs-meta);
     }
     .fc-ind__edicion {
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
       padding: var(--space-3) 0;
-      border-bottom: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--fc-line);
     }
     .fc-ind__acciones {
       display: flex;
@@ -179,6 +228,18 @@ export class IndicatorsComponent implements OnInit {
   protected readonly solapadas = signal<Indicator[]>([]);
 
   protected readonly today = todayIso();
+
+  /**
+   * El valor de una vigencia listo para la vista (Principio VIII, N-15).
+   *
+   * Se delega en `indicator-format.ts` —donde vive el mapa de unidades— y no se formatea
+   * aquí: el mismo valor se imprime en la lista y en el aviso de solapamiento, y dos
+   * formateos distintos para la misma cifra es la clase de incoherencia que hace dudar
+   * del dato.
+   */
+  protected displayValue(name: string, value: string): string {
+    return formatIndicatorValue(name, value);
+  }
 
   /**
    * Nombres ya registrados, como atajos para rellenar el campo.
@@ -264,8 +325,12 @@ export class IndicatorsComponent implements OnInit {
     this.api.createIndicator(body).subscribe({
       next: (creado) => {
         this.busy.set(null);
+        // La cifra del acuse pasa por el mismo formateador que la lista: si el aviso dijera
+        // `1600000` y la fila `$1.600.000,00`, el administrador leería dos valores distintos
+        // para el dato que acaba de guardar.
+        const valor = formatIndicatorValue(creado.name, creado.value);
         this.successMessage.set(
-          `Vigencia de ${creado.name} cargada: ${creado.value} desde el ${creado.valid_from}.`,
+          `Vigencia de ${creado.name} cargada: ${valor} desde el ${creado.valid_from}.`,
         );
         this.resetForm();
         this.reload();

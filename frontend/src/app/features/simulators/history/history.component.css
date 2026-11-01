@@ -1,32 +1,56 @@
 /*
- * Historial de simulaciones (T047). Una tabla comparable: los valores de la misma
- * naturaleza quedan en la misma columna, y lo que no cabe se desplaza DENTRO de la tabla
- * para que la página no se mueva (FR-127).
+ * Historial de simulaciones (T047) — dirección de arte v2 "institucional sereno"
+ * (brief §5, §6, §8).
+ *
+ * ── EL DEFECTO QUE ESTA HOJA CORRIGE, Y POR QUÉ NO ERA DE ESTILO ─────────────
+ * Antes había `overflow-x: auto` en el contenedor y `min-width: 12rem` en cada lista de
+ * pares. Sumados, la tabla medía 698 px mínimos: a 360 el desplazamiento horizontal dejaba
+ * la cifra a caballo del borde y el render imprimía `$2.181.6:`, `$14.100.(`, `Tasa mensi`.
+ * Una cifra monetaria cortada no es texto incompleto: es un dato FALSO (nota N-15,
+ * Principio VIII). Por eso aquí NO hay desplazamiento horizontal, ni `text-overflow`, ni
+ * `line-clamp`, ni `min-width` sobre una columna de valores.
+ *
+ * LA RESPUESTA ES LA DISPOSICIÓN, NO EL RECORTE:
+ *   · por encima de `--bp-md` (768 px, ver `tokens/breakpoints.css`) una tabla de cuatro
+ *     columnas con ancho fijo repartido, en la que la cifra nunca es el contenido que cede;
+ *   · por debajo, la MISMA tabla se lee como fichas apiladas: la etiqueta encima del valor y
+ *     el valor a ancho completo. El marcado no cambia —sigue siendo `<table>` con `<th
+ *     scope>`, `<dl>` y `<dt>`— porque el rol y el nombre accesible son contrato (N-13), y
+ *     porque una lista de pares nombre-valor es lo que compara dos simulaciones.
  */
 
 .fc-history {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-6);
   min-width: 0;
+  /* Medida de contenido (brief §4): el ancho ya no hace jerarquía. */
+  max-width: var(--content-max);
 }
 
 .fc-history__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
+/* h1 de página: escalón display del brief §3 (38 / 1.15 / 500 / -0.02em). */
 .fc-history__title {
   margin: 0;
-  font-size: var(--fs-2xl);
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--ls-display);
+  color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 
 .fc-history__lead {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  max-width: var(--reading-max);
+  font-size: var(--fs-ui);
+  color: var(--text-body);
 }
 
 .fc-history__skeleton {
@@ -35,64 +59,90 @@
   gap: var(--space-3);
 }
 
-.fc-history__scroll {
-  overflow-x: auto;
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
+/*
+ * Sin `overflow`: la tabla no se desplaza. La regla superior de 1 px es el único borde que
+ * el brief admite para una tabla (§5), y separa dos superficies funcionales.
+ */
+.fc-history__sheet {
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-history__table {
   width: 100%;
+  /* Reparto fijo: las dos columnas de valores se quedan con el 70 % del ancho, así que la
+     cifra nunca es lo primero que cede. Con reparto automático el navegador podía estrechar
+     la columna hasta el borde del recorte. */
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-secondary);
+}
+
+/* Reparto explícito de columnas (Calculadora · Fecha · Resultado · Parámetros). */
+.fc-history__table thead th:nth-child(1) {
+  width: 16%;
+}
+.fc-history__table thead th:nth-child(2) {
+  width: 14%;
+}
+.fc-history__table thead th:nth-child(3),
+.fc-history__table thead th:nth-child(4) {
+  width: 35%;
 }
 
 .fc-history__caption {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--fs-xs);
+  caption-side: top;
+  padding: var(--space-2) 0;
+  font-size: var(--fs-meta);
   color: var(--text-muted);
   text-align: left;
 }
 
 .fc-history__table th,
 .fc-history__table td {
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) 0;
   text-align: left;
   vertical-align: top;
 }
 
+/* Encabezado de columna: tipo, no versalitas. La etiqueta en mayúsculas espaciada es el
+   *eyebrow* que el brief §6.1 retira, y aquí además competía con los nombres de la primera
+   columna. */
 .fc-history__table thead th {
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-hairline) solid var(--fc-line);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-secondary);
   color: var(--text-muted);
-  border-bottom: var(--border-hairline) solid var(--border-default);
   white-space: nowrap;
 }
 
+/* Reglas de 1 px entre filas, no separadores punteados (brief §6.2). */
 .fc-history__table tbody tr + tr > * {
-  border-top: var(--border-hairline) dotted var(--border-default);
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-history__calc {
-  white-space: nowrap;
+  font-weight: var(--fw-regular);
 }
 
 .fc-history__when {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-meta);
   color: var(--text-muted);
-  white-space: nowrap;
 }
 
+/*
+ * Las listas de pares nombre-valor. SIN `min-width`: era la anchura que empujaba la tabla a
+ * 698 px y provocaba el recorte. La columna puede crecer con un nombre largo, y el valor
+ * baja de línea cuando no cabe junto a su etiqueta.
+ */
 .fc-history__pairs {
   margin: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  /* La columna puede crecer con un nombre largo, pero nunca por debajo de esto. */
-  min-width: 12rem;
+  min-width: 0;
 }
 
 .fc-history__pair {
@@ -100,29 +150,40 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-1) var(--space-2);
+  min-width: 0;
 }
 
 .fc-history__key {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-meta);
   color: var(--text-muted);
   /* FR-120: el nombre completo se conserva y se parte antes que desbordar la celda. */
   overflow-wrap: anywhere;
 }
 
 /*
- * N-15: una cifra monetaria NUNCA se recorta. Aquí no hay `text-overflow` ni
- * `line-clamp`; si la cifra no cabe junto a su etiqueta, la fila envuelve y baja la cifra
- * entera a la línea siguiente.
+ * N-15: una cifra monetaria NUNCA se recorta. `nowrap` mantiene la cifra entera en una línea
+ * —partirla por la mitad de los dígitos también la falsearía—, y por eso quien cede es la
+ * etiqueta: la fila envuelve y la cifra baja completa a la línea siguiente.
  */
 .fc-history__value {
   margin: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-secondary);
   color: var(--text-strong);
   white-space: nowrap;
 }
 
 .fc-history__more {
   display: flex;
+}
+
+/* Etiquetas de columna para la lectura apilada. En modo tabla las pone `<thead>`, así que
+   aquí no se dibujan (y no hace falta ocultarlas de la accesibilidad: no existen en el
+   árbol cuando `display` es `none`). */
+.fc-history__cell-label {
+  display: none;
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
 }
 
 /*
@@ -133,7 +194,7 @@
 .fc-history__version {
   display: block;
   margin-top: var(--space-1);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-meta);
   color: var(--text-muted);
 }
 
@@ -145,7 +206,7 @@
 .fc-history__indicadores {
   margin-top: var(--space-2);
   padding-top: var(--space-2);
-  border-top: 1px dashed var(--border-subtle);
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-history__indicador {
@@ -158,6 +219,98 @@
 }
 
 .fc-history__indicador-nombre {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-meta);
   color: var(--text-muted);
+}
+
+/*
+ * ── Fichas apiladas por debajo de --bp-md (768 px) ───────────────────────────────────
+ * Se conserva el marcado de tabla y se cambia su DISPOSICIÓN: cada `<tr>` pasa a ser una
+ * ficha con su nombre arriba, la fecha, el resultado y los parámetros, y cada par
+ * etiqueta/valor se lee a ancho completo. Nada de desplazamiento horizontal: la página
+ * mide 360 px sin desbordar (brief §9) y la cifra se dibuja entera.
+ */
+@media (max-width: 767.98px) {
+  .fc-history__table,
+  .fc-history__table tbody,
+  .fc-history__table tr,
+  .fc-history__table th,
+  .fc-history__table td,
+  .fc-history__caption {
+    display: block;
+  }
+
+  /*
+   * La CABECERA NO SE BORRA: se retira de la vista y se conserva en el árbol de accesibilidad.
+   * Es lo que un lector de pantalla anuncia como encabezado de columna, y es la razón por la que
+   * este bloque conserva el patrón de valores ocultos (`1px` + `clip-path`) en lugar de
+   * `display: none`: ocultarla a los dos públicos convertiría una tabla en cuatro bloques de
+   * texto sin relación entre sí, y de paso el texto seguiría en el DOM sin decir nada.
+   */
+  .fc-history__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .fc-history__table thead tr,
+  .fc-history__table thead th {
+    display: block;
+    padding: 0;
+    border: 0;
+    white-space: nowrap;
+  }
+
+  .fc-history__caption {
+    padding: 0 0 var(--space-3);
+  }
+
+  .fc-history__table tr {
+    padding: var(--space-4) 0;
+  }
+
+  .fc-history__table tbody tr + tr {
+    border-top: var(--border-hairline) solid var(--fc-line);
+  }
+
+  /* Las reglas de celda del modo tabla sobran cuando la fila ya es una ficha. */
+  .fc-history__table tbody tr + tr > * {
+    border-top: 0;
+  }
+
+  .fc-history__table th,
+  .fc-history__table td {
+    padding: 0;
+  }
+
+  .fc-history__table td + td,
+  .fc-history__table th + td {
+    margin-top: var(--space-3);
+  }
+
+  .fc-history__cell-label {
+    display: block;
+    margin-bottom: var(--space-1);
+  }
+
+  /* Etiqueta encima del valor, y el valor a ancho completo. */
+  .fc-history__pair {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-px);
+  }
+
+  .fc-history__value {
+    text-align: left;
+  }
+
+  .fc-history__indicador {
+    margin-right: var(--space-3);
+  }
 }

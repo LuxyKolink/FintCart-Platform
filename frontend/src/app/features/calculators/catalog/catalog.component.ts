@@ -1,15 +1,13 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 
 import {
-  BannerComponent,
-  CardComponent,
   EmptyStateComponent,
   ErrorStateComponent,
   LinkButtonComponent,
-  ModuleBoxComponent,
   SkeletonComponent,
   TagComponent,
 } from '../../../shared/ui';
+import { calculatorTitle } from '../calculator-title';
 import { CalculatorsApiService } from '../calculators-api.service';
 import { Calculator } from '../calculator.types';
 
@@ -33,17 +31,22 @@ type LoadState = 'loading' | 'ready' | 'error';
  * público y devuelve **únicamente** lo aprobado. El filtro vive en la consulta del Simulador, no
  * en esta pantalla — una lista que recibiera todo y escondiera parte estaría a un error de
  * plantilla de enseñar una calculadora privada (FR-051).
+ *
+ * ## Por qué el título no es `calculator.name` tal cual
+ *
+ * En las diez definiciones semilla ese campo es el IDENTIFICADOR (`ahorro`, `cdt_dias`,
+ * `mv_a_ea`): imprimirlo daba títulos en minúsculas con guiones bajos, que a un lector no le
+ * dicen qué calculadora abre. `calculatorTitle` lo convierte en una frase sin inventar
+ * contenido financiero —ver el porqué completo en `calculator-title.ts`— y deja intacto el
+ * nombre que un autor escribió a mano.
  */
 @Component({
   selector: 'fc-calculators-catalog',
   standalone: true,
   imports: [
-    BannerComponent,
-    CardComponent,
     EmptyStateComponent,
     ErrorStateComponent,
     LinkButtonComponent,
-    ModuleBoxComponent,
     SkeletonComponent,
     TagComponent,
   ],
@@ -51,48 +54,90 @@ type LoadState = 'loading' | 'ready' | 'error';
   styles: `
     :host {
       display: block;
+      max-width: var(--content-max);
     }
-    .fc-catc__intro {
-      max-width: 68ch;
-      color: var(--text-body);
-    }
-    .fc-catc__rejilla {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: var(--space-3);
-      margin-top: var(--space-4);
-    }
-    .fc-catc__tarjeta {
+
+    .fc-catc__head {
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
-      height: 100%;
     }
-    .fc-catc__cabecera {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      flex-wrap: wrap;
-    }
-    .fc-catc__nombre {
+
+    /* h1 de página: escalón display del brief §3 (38 / 1.15 / 500 / -0.02em). */
+    .fc-catc__title {
       margin: 0;
-      font-size: var(--fs-md);
-      font-weight: var(--fw-semibold);
+      font-family: var(--font-display);
+      font-size: var(--fs-display);
+      line-height: var(--lh-display);
+      font-weight: var(--fw-display);
+      letter-spacing: var(--ls-display);
+      color: var(--text-strong);
+      overflow-wrap: anywhere;
     }
-    .fc-catc__descripcion {
-      flex: 1 1 auto;
+
+    .fc-catc__intro {
+      margin: 0;
+      max-width: var(--reading-max);
+      font-size: var(--fs-ui);
       color: var(--text-body);
     }
-    .fc-catc__pie {
+
+    .fc-catc__lista {
+      list-style: none;
+      margin: var(--space-6) 0 0;
+      padding: 0;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      border-top: var(--border-hairline) solid var(--fc-line);
+    }
+
+    .fc-catc__fila + .fc-catc__fila {
+      border-top: var(--border-hairline) solid var(--fc-line);
+    }
+
+    .fc-catc__calculadora {
+      display: flex;
+      flex-direction: column;
       gap: var(--space-2);
+      padding: var(--space-5) 0;
+    }
+
+    .fc-catc__cabecera {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
+
+    /* Título de bloque: el escalón h3 del brief §3 (19 / 1.35 / 600). */
+    .fc-catc__nombre {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      line-height: var(--lh-h3);
+      font-weight: var(--fw-h3);
+      letter-spacing: var(--ls-h3);
+      color: var(--text-strong);
+    }
+
+    .fc-catc__descripcion {
+      margin: 0;
+      max-width: var(--reading-max);
+      font-size: var(--fs-ui);
+      color: var(--text-body);
+    }
+
+    .fc-catc__pie {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-2) var(--space-4);
+      flex-wrap: wrap;
+    }
+
     .fc-catc__procedencia {
-      color: var(--text-faint);
-      font-size: var(--fs-sm);
+      color: var(--text-muted);
+      font-size: var(--fs-meta);
     }
   `,
 })
@@ -113,6 +158,11 @@ export class CalculatorsCatalogComponent implements OnInit {
   /** Las de la plataforma y las de usuarios, separadas para poder decirlo. */
   protected isBuiltin(calculator: Calculator): boolean {
     return calculator.is_builtin;
+  }
+
+  /** El nombre legible: el de la semilla es un identificador, no un título. */
+  protected title(calculator: Calculator): string {
+    return calculatorTitle(calculator.name);
   }
 
   private load(): void {

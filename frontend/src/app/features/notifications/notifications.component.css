@@ -1,34 +1,50 @@
 /*
  * Bandeja in-app (T036 / FR-106).
  *
- * Tres señales para lo no leído —barra de acento, fondo y etiqueta— y ninguna
- * dependiente de un matiz que se pueda no percibir. El resto son tarjetas y tokens.
+ * ── UNA COLUMNA, UN EJE ───────────────────────────────────────────────────
+ * La columna tenía `max-width: 760px; margin: 0 auto` dentro de un armazón que ya está
+ * centrado: dos centrados anidados, y encima el estado vacío se centra por su cuenta. El
+ * resultado medido a 1440 era una pantalla descentrada en la que la cabecera arrancaba a
+ * 340 px y el cuerpo se alineaba contra otro eje. Aquí la columna toma la medida del
+ * sistema (`--content-max`) y arranca en el borde izquierdo del armazón: un solo eje, el
+ * mismo de perfil y administración.
+ *
+ * ── FILAS, NO TARJETAS ────────────────────────────────────────────────────
+ * Brief §8: «lista de filas con reglas de 1 px, sin tarjetas». Cada entrada tenía fondo,
+ * borde, radio y barra de acento a la izquierda; eso es cromo que compite con el texto.
+ * La jerarquía de la fila la cargan ahora el título y las reglas.
+ *
+ * ── LO NO LEÍDO SE SEÑALA SIN TINTE ───────────────────────────────────────
+ * El tinte de fondo se retira (brief §5: `--fc-accent-tint` se reserva a selección y
+ * foco). Además tenía un defecto medible: `--fc-ink-3` sobre `--fc-accent-tint` da
+ * 4,39 : 1, por debajo del mínimo AA, así que la hora de una fila sin leer era el único
+ * texto de la pantalla que no cumplía. Queda el título en peso 600 y la marca «sin leer»,
+ * que no dependen de un matiz de color para percibirse.
  */
 
 .fc-inbox {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-width: 760px;
-  margin: 0 auto;
+  gap: var(--section-gap);
+  max-width: var(--content-max);
   min-width: 0;
 }
 
 .fc-inbox__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
+/* El `h1` de base ya fija display 38 / 1.15 / 500 (brief §3). */
 .fc-inbox__title {
   margin: 0;
-  font-size: var(--fs-xl);
 }
 
 .fc-inbox__subtitle {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink-3);
 }
 
 .fc-inbox__list {
@@ -37,63 +53,67 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
+/* Regla de 1 px entre filas y nada más: sin fondo, sin borde completo, sin radio. */
 .fc-inbox__item {
-  padding: var(--space-3);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-left: var(--border-hairline) solid transparent;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-hairline) solid var(--fc-line);
   min-width: 0;
 }
 
-/* Lo no leído: barra de acento + fondo tenue + la etiqueta del encabezado. */
-.fc-inbox__item--unread {
-  border-left-color: var(--fc-accent);
-  background: var(--fc-accent-tint);
+.fc-inbox__item:first-child {
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
+/* El título es lo primero que se lee, y en una fila sin leer pesa más. */
+.fc-inbox__item--unread .fc-inbox__title-line {
+  font-weight: var(--fw-semibold);
+}
+
+/*
+ * Metadatos: tipo, marca de no leído y hora. Van DEBAJO del título y por debajo también en
+ * jerarquía —13 px en tinta terciaria—, porque la hora de un aviso no es el aviso.
+ */
 .fc-inbox__meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
+/*
+ * «sin leer» retira el eyebrow: iba en mayúsculas forzadas con `letter-spacing` y peso
+ * negrita, que es el recurso que el brief retira (§6.1). Se queda el punto de estado y la
+ * palabra en minúscula: la señal es la palabra, no la caja alta.
+ */
 .fc-inbox__flag {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
-  color: var(--fc-accent-hover);
+  font-size: var(--fs-meta);
+  color: var(--fc-accent);
 }
 
 .fc-inbox__time {
-  margin-left: auto;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  color: var(--fc-ink-3);
 }
 
 .fc-inbox__title-line {
-  margin: var(--space-2) 0 0;
-  font-family: var(--font-display);
-  font-size: var(--fs-md);
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
-  /* FR-120: el texto completo permanece en el DOM; solo se acota la caja. */
+  margin: 0;
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink);
+  /* El texto completo permanece en el DOM; solo se acota la caja. */
   overflow-wrap: anywhere;
 }
 
 .fc-inbox__detail {
   margin: var(--space-1) 0 0;
-  font-size: var(--fs-sm);
-  color: var(--text-body);
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink-2);
   overflow-wrap: anywhere;
 }
 
@@ -103,14 +123,5 @@
 
 .fc-inbox__more {
   display: flex;
-  justify-content: center;
-}
-
-@media (max-width: 767.98px) {
-  .fc-inbox__time {
-    /* En un móvil la hora no cabe al lado de la insignia y la etiqueta: baja a su
-       propia línea en vez de empujar el ancho (FR-127). */
-    margin-left: 0;
-    flex-basis: 100%;
-  }
+  justify-content: flex-start;
 }

@@ -2,10 +2,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import {
-  BadgeComponent,
   ErrorStateComponent,
   LinkButtonComponent,
-  ModuleBoxComponent,
   ProgressBarComponent,
   SkeletonComponent,
 } from '../../../shared/ui';
@@ -44,10 +42,8 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
   standalone: true,
   imports: [
     RouterLink,
-    BadgeComponent,
-      LinkButtonComponent,
+    LinkButtonComponent,
     ErrorStateComponent,
-    ModuleBoxComponent,
     ProgressBarComponent,
     SkeletonComponent,
     BodyDocComponent,
@@ -98,7 +94,9 @@ export class ArticleComponent implements OnInit {
    * así no hay ningún índice sobre una lista que puede no venir, y el identificador existe
    * —con su tipo— dentro del bloque donde se usa.
    */
-  protected readonly firstQuizId = computed<string | null>(() => this.article()?.quiz_ids?.[0] ?? null);
+  protected readonly firstQuizId = computed<string | null>(
+    () => this.article()?.quiz_ids?.[0] ?? null,
+  );
 
   public ngOnInit(): void {
     this.load();
@@ -133,7 +131,10 @@ export class ArticleComponent implements OnInit {
       },
       error: (err: unknown) => {
         const notFound =
-          typeof err === 'object' && err !== null && 'status' in err && (err as { status: number }).status === 404;
+          typeof err === 'object' &&
+          err !== null &&
+          'status' in err &&
+          (err as { status: number }).status === 404;
         this.state.set(notFound ? 'not-found' : 'error');
       },
     });

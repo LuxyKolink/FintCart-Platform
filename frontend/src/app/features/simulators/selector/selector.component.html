@@ -1,39 +1,42 @@
 <div class="fc-sims">
+  <!--
+    Una sola columna. El riel de 230 px a la izquierda se retiró (brief §4, §8): las
+    calculadoras se ofrecen como fila de enlaces por encima del título, que es la misma
+    navegación sin ocupar una zona del ancho.
+  -->
   <fc-calculator-rail />
 
-  <div class="fc-sims__center">
-    <header class="fc-sims__head">
-      <h1 class="fc-sims__title">Simuladores financieros</h1>
-      <p class="fc-sims__lead">
-        {{ calculatorCount }} calculadoras para poner tus números en pesos. Elige una en el riel
-        para abrir su formulario.
-      </p>
-    </header>
+  <header class="fc-sims__head">
+    <h1 class="fc-sims__title">Simuladores financieros</h1>
+    <p class="fc-sims__lead">
+      {{ calculatorCount }} calculadoras para poner tus números en pesos. Elige una para abrir su
+      formulario.
+    </p>
+  </header>
 
-    <fc-card>
-      <h2 class="fc-sims__section">Cómo funciona</h2>
-      <ol class="fc-sims__steps">
-        <li>Elige una calculadora del riel.</li>
-        <li>Escribe los parámetros en pesos y tasas, tal como los tienes.</li>
-        <li>
-          El cálculo lo hace el Simulador con aritmética decimal exacta y el resultado queda en tu
-          historial, para que puedas compararlo con el de otra simulación.
-        </li>
-      </ol>
+  <section class="fc-sims__block" aria-labelledby="fc-sims-como">
+    <h2 class="fc-sims__section" id="fc-sims-como">Cómo funciona</h2>
+    <ol class="fc-sims__steps">
+      <li>Elige una calculadora de la lista de arriba.</li>
+      <li>Escribe los parámetros en pesos y tasas, tal como los tienes.</li>
+      <li>
+        El cálculo lo hace el Simulador con aritmética decimal exacta y el resultado queda en tu
+        historial, para que puedas compararlo con el de otra simulación.
+      </li>
+    </ol>
 
-      <p class="fc-sims__note">
-        <fc-icon name="shield-check" [size]="16" />
-        FintCart no almacena datos bancarios reales: solo los parámetros que escribes aquí.
-      </p>
+    <p class="fc-sims__note">
+      <fc-icon name="shield-check" [size]="16" />
+      FintCart no almacena datos bancarios reales: solo los parámetros que escribes aquí.
+    </p>
+  </section>
 
-      <div class="fc-sims__actions">
-        <fc-link-button variant="primary" [to]="['/simuladores', calculators[0].calcType]">
-          Empezar con {{ calculators[0].label }}
-        </fc-link-button>
-        <fc-link-button variant="secondary" to="/simuladores/historial">
-          Ver tu historial
-        </fc-link-button>
-      </div>
-    </fc-card>
+  <div class="fc-sims__actions">
+    <fc-link-button variant="primary" [to]="['/simuladores', calculators[0].calcType]">
+      Empezar con {{ calculators[0].label }}
+    </fc-link-button>
+    <fc-link-button variant="secondary" to="/simuladores/historial">
+      Ver tu historial
+    </fc-link-button>
   </div>
 </div>

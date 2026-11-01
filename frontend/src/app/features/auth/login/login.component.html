@@ -16,12 +16,7 @@
       autocomplete="email"
       placeholder="tu@correo.com"
     />
-    <fc-input
-      label="Contraseña"
-      type="password"
-      formControlName="password"
-      autocomplete="current-password"
-    />
+    <fc-input label="Contraseña" type="password" formControlName="password" autocomplete="current-password" />
 
     <div class="fc-auth__between">
       <fc-checkbox label="Recordarme" formControlName="remember" />
@@ -32,19 +27,6 @@
       {{ submitting() ? 'Entrando…' : 'Iniciar sesión' }}
     </fc-button>
   </form>
-
-  <p class="fc-auth__divider">o continúa con</p>
-
-  <fc-button
-    variant="secondary"
-    size="lg"
-    [block]="true"
-    [disabled]="submitting()"
-    (pressed)="onFederated()"
-  >
-    <fc-icon fcIconLeft name="shield" [size]="16" />
-    OAuth2 · PKCE
-  </fc-button>
 
   <p class="fc-auth__alt">¿No tienes cuenta? <a routerLink="/crear-cuenta">Regístrate</a></p>
 </fc-auth-layout>

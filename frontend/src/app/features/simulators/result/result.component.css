@@ -1,10 +1,41 @@
 /*
- * Resultado de una simulación (T046/T049, FR-108).
+ * Resultado de una simulación (T046/T049, FR-108) — dirección de arte v2 (brief §8).
  *
  * La tipografía de datos la pone `.fc-num` (primitiva de `tokens/base.css`): monoespaciada
  * con cifras tabulares, para que las cifras se alineen entre filas y se distingan de un
  * vistazo del texto corrido. Aquí solo se dispone y se da jerarquía.
+ *
+ * ── POR QUÉ ES UNA BANDA CON REGLA SUPERIOR Y NO UN BLOQUE MÁS ────────────────
+ * El resultado iba en un `fc-module-box` hermano del formulario, y el margen que el brief
+ * reserva entre bloques (`--section-gap`, regla de `tokens/base.css` sobre `.fc-module +
+ * .fc-module`) no llegaba a aplicarse: cada módulo vive DENTRO de su propio componente, así
+ * que el selector de hermanos nunca coincidía. Consecuencia medida en el render: el título
+ * «Resultado» quedaba pegado al botón «Calcular», sin un solo píxel de separación, y la
+ * salida se leía como una cuarta fila del formulario en vez de como su consecuencia.
+ *
+ * La regla superior resuelve las dos cosas: marca dónde acaba la entrada y empieza el
+ * resultado, y lo hace con el recurso que el brief permite (una regla de 1 px), no con una
+ * caja. El espacio lo aporta `--section-gap`, que es la separación que el sistema ya define
+ * entre bloques.
  */
+
+.fc-result-band {
+  margin-top: var(--section-gap);
+  padding-top: var(--space-5);
+  border-top: var(--border-hairline) solid var(--fc-line);
+  /* La salida se lee en la misma medida que el formulario que la produjo. */
+  max-width: var(--reading-max);
+}
+
+.fc-result-band__title {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  letter-spacing: var(--ls-h3);
+  color: var(--text-strong);
+}
 
 .fc-result {
   margin: 0;
@@ -26,7 +57,7 @@
   justify-content: space-between;
   gap: var(--space-1) var(--space-3);
   padding: var(--space-2) 0;
-  border-bottom: var(--border-hairline) dotted var(--border-default);
+  border-bottom: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-result__row:last-child {
@@ -35,26 +66,27 @@
 
 .fc-result__row--primary {
   padding-bottom: var(--space-3);
-  border-bottom: var(--border-hairline) solid var(--border-default);
 }
 
+/*
+ * La fila principal se distingue por TAMAÑO y por una regla de 1 px, no por versalitas: la
+ * etiqueta en mayúsculas espaciadas es el *eyebrow* que el brief §6.1 retira.
+ */
 .fc-result__label {
   min-width: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-secondary);
   color: var(--text-muted);
 }
 
 .fc-result__row--primary .fc-result__label {
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-semibold);
+  color: var(--text-body);
 }
 
 .fc-result__value {
   margin: 0 0 0 auto;
-  font-size: var(--fs-md);
+  font-size: var(--fs-h3);
   font-weight: var(--fw-semibold);
   color: var(--text-strong);
   text-align: right;
@@ -63,17 +95,25 @@
 }
 
 .fc-result__row--primary .fc-result__value {
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
 }
 
 .fc-result__caption {
   margin: var(--space-3) 0 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-meta);
   color: var(--text-muted);
 }
 
+/* Bajo `--bp-md` (768 px, ver `tokens/breakpoints.css`) la cifra principal baja un escalón
+   para seguir cabiendo entera en 320 px de contenido. Se reduce el TIPO, nunca el dato. */
 @media (max-width: 767.98px) {
   .fc-result__row--primary .fc-result__value {
-    font-size: var(--fs-xl);
+    font-size: var(--fs-h3);
+    line-height: var(--lh-h3);
+  }
+
+  .fc-result__value {
+    font-size: var(--fs-ui);
   }
 }

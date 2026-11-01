@@ -1,43 +1,63 @@
 /*
- * Portada de simuladores (T044/T050). Dos zonas: riel de calculadoras y contenido.
- * El formulario vive en su propia ruta y reutiliza el MISMO riel (FR-107).
+ * Portada de simuladores (T044/T050) — dirección de arte v2 (brief §4, §8).
+ *
+ * UNA SOLA COLUMNA a la medida de contenido. Había dos zonas —riel de 230 px y contenido— y
+ * el contenido arrancaba a 427 px con el resto del ancho vacío. El brief §4 deja el índice
+ * lateral como opcional y silencioso; aquí la lista de calculadoras no navega dentro de la
+ * página, así que no se dibuja columna y pasa a ser una fila de enlaces arriba.
+ *
+ * Se retiró también la tarjeta que envolvía «Cómo funciona»: un bloque de contenido dentro
+ * de una página no lleva caja (brief §5, §6.7); lo separa una regla de 1 px y el espacio.
  */
 
 .fc-sims {
-  display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
-  gap: var(--space-4);
-  align-items: start;
-}
-
-.fc-sims__center {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-6);
   min-width: 0;
+  max-width: var(--content-max);
 }
 
 .fc-sims__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
+/* h1 de página: escalón display del brief §3 (38 / 1.15 / 500 / -0.02em). */
 .fc-sims__title {
   margin: 0;
-  font-size: var(--fs-2xl);
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--ls-display);
+  color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 
 .fc-sims__lead {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  max-width: var(--reading-max);
+  font-size: var(--fs-ui);
+  color: var(--text-body);
 }
 
+/* Regla superior de 1 px como separador de bloque, no borde de caja. */
+.fc-sims__block {
+  padding-top: var(--space-5);
+  border-top: var(--border-hairline) solid var(--fc-line);
+}
+
+/* Título de sección: escalón h2 del brief §3 (26 / 1.25 / 500 / -0.01em). */
 .fc-sims__section {
   margin: 0 0 var(--space-3);
-  font-size: var(--fs-md);
+  font-family: var(--font-display);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+  color: var(--text-strong);
 }
 
 .fc-sims__steps {
@@ -46,7 +66,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  font-size: var(--fs-sm);
+  max-width: var(--reading-max);
+  font-size: var(--fs-ui);
   color: var(--text-body);
 }
 
@@ -55,20 +76,27 @@
   align-items: flex-start;
   gap: var(--space-2);
   margin: var(--space-4) 0 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-meta);
   color: var(--text-muted);
 }
 
+/*
+ * Las dos acciones de la portada. Se separan con espacio y una regla superior —el render
+ * anterior las dejaba como dos textos pegados— y se apilan a 360 px para que la acción
+ * principal no compita por la línea con la secundaria.
+ */
 .fc-sims__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
+  align-items: baseline;
+  gap: var(--space-2) var(--space-6);
+  padding-top: var(--space-5);
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
-/* Bajo `--bp-md` el riel (que ya se vuelve horizontal en su propia hoja) pasa arriba. */
-@media (max-width: 767.98px) {
-  .fc-sims {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 479.98px) {
+  .fc-sims__actions {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

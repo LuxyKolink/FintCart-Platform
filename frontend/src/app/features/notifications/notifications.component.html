@@ -26,9 +26,8 @@
     @case ('ready') {
       @if (entries().length === 0) {
         <!--
-          FR-119: el kit no dibuja este caso porque siempre tiene datos. Es el estado de
-          cualquier usuario recién registrado, así que se explica en vez de dejar el
-          hueco en blanco.
+          El kit no dibuja este caso porque siempre tiene datos. Es el estado de cualquier
+          usuario recién registrado, así que se explica en vez de dejar el hueco en blanco.
         -->
         <fc-empty-state
           icon="bell"
@@ -44,6 +43,17 @@
               class="fc-inbox__item"
               [class.fc-inbox__item--unread]="entry.item.read_state === 'unread'"
             >
+              <!--
+                Título, detalle y metadatos EN ESE ORDEN: la hora y el tipo son datos SOBRE
+                el aviso, no su encabezado. Antes abrían la fila, y con la hora empujada al
+                extremo derecho la entrada se leía como la cabecera de una tabla y no como un
+                aviso.
+              -->
+              <p class="fc-inbox__title-line">{{ entry.text.title }}</p>
+              @if (entry.text.detail) {
+                <p class="fc-inbox__detail">{{ entry.text.detail }}</p>
+              }
+
               <div class="fc-inbox__meta">
                 <fc-badge [tone]="toneOf(entry.item.type)">{{ typeLabel(entry.item.type) }}</fc-badge>
                 @if (entry.item.read_state === 'unread') {
@@ -56,11 +66,6 @@
                   {{ entry.item.created_at | date: 'medium' }}
                 </time>
               </div>
-
-              <p class="fc-inbox__title-line">{{ entry.text.title }}</p>
-              @if (entry.text.detail) {
-                <p class="fc-inbox__detail">{{ entry.text.detail }}</p>
-              }
 
               @if (entry.item.read_state === 'unread') {
                 <div class="fc-inbox__action">

@@ -239,3 +239,61 @@ export const CALCULATORS: CalculatorDefinition[] = [
 export function calculatorFor(calcType: CalcType): CalculatorDefinition | undefined {
   return CALCULATORS.find((c) => c.calcType === calcType);
 }
+
+/**
+ * Tipo de resultado que declara este espejo para una CLAVE de salida.
+ *
+ * ── POR QUÉ EXISTE ESTO ─────────────────────────────────────────────────────
+ * El ejecutor de calculadoras por definición (`/calculadoras/:id`) recibe las salidas como
+ * `map<string, string>` y la definición **no declara el tipo**: `CalculatorOutput` tiene
+ * clave, etiqueta, expresión, escala y condición opcional, y nada más. Sin tipo, la pantalla
+ * imprimía el valor ya redondeado y agrupado pero desnudo —`17.223.060,60`, sin signo de
+ * peso— y una tasa como fracción con ceros de relleno —`0,010000` donde se lee `1 %`—.
+ * Inventar el tipo por el tamaño de la cifra («si es menor que uno es una tasa») convertiría
+ * un monto mal capturado en una tasa, que es una cifra falsa con apariencia de buena
+ * (N-15). Y adivinar por la etiqueta es redactar el dominio desde una plantilla.
+ *
+ * Lo que SÍ está declarado es este archivo: el espejo de los resultados de las calculadoras
+ * nativas. Las definiciones semilla REUTILIZAN sus claves de salida —es la premisa de
+ * FR-049, y es lo que permite que el historial de una simulación por definición se lea con
+ * la misma tabla (`history-rows.ts`)—, así que para una calculadora de la PLATAFORMA la
+ * clave identifica el tipo sin ambigüedad. Una calculadora de un usuario no: sus claves son
+ * suyas y su tipo no lo conoce nadie, así que `resultKindOf` devuelve `undefined` y el
+ * ejecutor la muestra sin símbolo de moneda, como hoy.
+ *
+ * Es la MISMA regla que ya aplica `history-rows.ts` a las entradas del historial: una sola
+ * tabla de tipos, no dos que se desincronicen.
+ */
+export function resultKindOf(key: string): ResultKind | undefined {
+  return RESULT_KINDS.get(key);
+}
+
+/**
+ * Clave de salida → tipo, construida una vez a partir de `CALCULATORS`.
+ *
+ * Una clave declarada con DOS tipos distintos se retira del mapa en lugar de elegir una: no
+ * hay forma de saber cuál vale para la definición que se está ejecutando, y elegir la primera
+ * imprimiría una cifra con la unidad de otra calculadora. Hoy no hay ninguna clave así.
+ */
+const RESULT_KINDS: ReadonlyMap<string, ResultKind> = (() => {
+  const kinds = new Map<string, ResultKind | null>();
+  for (const calculator of CALCULATORS) {
+    for (const mode of calculator.modes) {
+      for (const field of mode.resultFields) {
+        const known = kinds.get(field.key);
+        if (known === undefined) {
+          kinds.set(field.key, field.kind);
+        } else if (known !== field.kind) {
+          kinds.set(field.key, null);
+        }
+      }
+    }
+  }
+  const resolved = new Map<string, ResultKind>();
+  for (const [key, kind] of kinds) {
+    if (kind !== null) {
+      resolved.set(key, kind);
+    }
+  }
+  return resolved;
+})();

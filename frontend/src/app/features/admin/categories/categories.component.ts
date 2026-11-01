@@ -44,21 +44,61 @@ type Busy = 'create' | 'update' | 'deactivate' | null;
     :host {
       display: block;
     }
+
+    /*
+     * EL MARCO, igual que en indicadores: una columna de «--content-max» (880 px) y un
+     * solo eje de alineación (brief §4). Sin él, cada fila se estiraba hasta el ancho del
+     * armazón y las acciones de fila quedaban a ~900 px del dato al que pertenecen: el
+     * botón dejaba de estar al lado de lo que modifica.
+     *
+     * «gap» con «--section-gap» separa los tres bloques —alta, activas y desactivadas—.
+     * El «fc-module-box» ya no dibuja caja (brief §5), así que la separación tiene que
+     * venir de aquí: sin ella el «h2» de una sección tocaba el botón de la anterior.
+     */
+    .fc-page {
+      display: flex;
+      flex-direction: column;
+      gap: var(--section-gap);
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+
+    .fc-page__head {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .fc-page__title {
+      margin: 0;
+    }
+
+    /* Título de sección dentro de un bloque: h2 del brief §3 y 16 px hasta el contenido. */
+    .fc-page__subtitle {
+      margin: 0 0 var(--space-4);
+    }
+
     .fc-admin-form {
       display: flex;
       flex-direction: column;
       gap: var(--space-3);
+      max-width: var(--reading-max);
     }
     .fc-admin-list {
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
     }
+    /* Filas con regla de 1 px, sin tarjeta (brief §8): la lista se lee como una tabla. */
     .fc-admin-row {
       display: flex;
       align-items: center;
       gap: var(--space-3);
       flex-wrap: wrap;
+      padding: var(--space-3) 0;
+      border-bottom: 1px solid var(--fc-line);
+    }
+    .fc-admin-row:last-child {
+      border-bottom: 0;
     }
     .fc-admin-row__main {
       flex: 1 1 240px;
@@ -70,15 +110,18 @@ type Busy = 'create' | 'update' | 'deactivate' | null;
     }
     .fc-admin-row__name {
       font-weight: var(--fw-semibold);
+      color: var(--fc-ink);
     }
     .fc-admin-row__meta {
       margin-top: var(--space-1);
-      color: var(--text-faint);
-      font-size: var(--fs-sm);
+      color: var(--fc-ink-3);
+      font-size: var(--fs-meta);
+      overflow-wrap: anywhere;
     }
     .fc-admin-actions {
       display: flex;
       gap: var(--space-2);
+      margin-left: auto;
     }
   `,
 })

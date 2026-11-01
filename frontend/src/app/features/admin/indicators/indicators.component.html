@@ -1,6 +1,5 @@
 <section class="fc-page" aria-labelledby="titulo-indicadores">
   <header class="fc-page__head">
-    <p class="fc-eyebrow">Administración</p>
     <h1 id="titulo-indicadores" class="fc-page__title">Indicadores financieros</h1>
     <p class="fc-ind__intro">
       Cada año cambian el salario mínimo, la UVT, la UVR, el IPC y la tasa de usura, y las
@@ -12,9 +11,9 @@
   </header>
 
   <!--
-    Estado del procedimiento anual (FR-061, FR-062). Va ARRIBA y no al final: es lo
-    único de esta pantalla que pide hacer algo, y lo que el administrador viene a
-    comprobar cuando el barrido del Orquestador le avisa por correo.
+    Estado del procedimiento anual. Va ARRIBA y no al final: es lo único de esta
+    pantalla que pide hacer algo, y lo que el administrador viene a comprobar cuando
+    el barrido del Orquestador le avisa por correo.
   -->
   @if (hayEstadoDelCalendario()) {
     <fc-module-box>
@@ -58,7 +57,8 @@
         <ul class="fc-ind__estado-lista">
           @for (indicador of solapadas(); track indicador.indicator_id) {
             <li>
-              {{ indicador.name }}: <span class="fc-num">{{ indicador.value }}</span> del
+              {{ indicador.name }}:
+              <span class="fc-num">{{ displayValue(indicador.name, indicador.value) }}</span> del
               {{ indicador.valid_from }} al {{ describeValidTo(indicador.valid_to) }}
             </li>
           }
@@ -197,11 +197,14 @@
                   <div class="fc-ind__vigencia">
                     <div class="fc-ind__vigencia-datos">
                       <!--
-                        La cifra va en `.fc-num`: es un valor monetario y nunca se
-                        trunca (N-15). El espacio que sobra lo absorbe el contenedor de
-                        al lado, no la cifra.
+                        La cifra va en `.fc-num` y con símbolo y agrupado: sin ellos no se
+                        lee como dinero, y un monto que el lector no reconoce como monto es
+                        un dato falso. Nunca se trunca —el espacio que sobra lo absorbe el
+                        contenedor de al lado, no la cifra— y no lleva ancho fijo.
                       -->
-                      <span class="fc-ind__vigencia-valor fc-num">{{ indicador.value }}</span>
+                      <span class="fc-ind__vigencia-valor fc-num">{{
+                        displayValue(indicador.name, indicador.value)
+                      }}</span>
                       <div class="fc-ind__vigencia-fechas">
                         del {{ indicador.valid_from }} al {{ describeValidTo(indicador.valid_to) }}
                       </div>

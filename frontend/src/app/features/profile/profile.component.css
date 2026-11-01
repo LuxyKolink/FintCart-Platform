@@ -1,14 +1,21 @@
 /*
  * Perfil (T055 / FR-111). Una sola columna: datos de cuenta, formulario de preferencias y
  * accesos a las otras tres pantallas. Todo lo que se ve son componentes compartidos.
+ *
+ * EL EJE ES UNO. La columna tenía `margin: 0 auto` y eso la centraba DENTRO de un armazón
+ * que ya está centrado: el titular de la pantalla no caía donde cae el del resto —ni donde
+ * caen las tarjetas de su propia columna cuando el ancho cambia—. Aquí la columna arranca
+ * en el borde izquierdo del armazón y conserva su medida corta, que es la de un formulario.
+ *
+ * LAS FILAS DE DATOS SE SEPARAN CON UNA REGLA DE 1 px (brief §8). El punteado es uno de los
+ * cromos que el brief retira (§6.2): separaba por textura lo que ya separa el espacio.
  */
 
 .fc-perfil {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--section-gap);
   max-width: 560px;
-  margin: 0 auto;
   min-width: 0;
 }
 
@@ -17,7 +24,6 @@
   flex-direction: column;
   gap: var(--space-3);
   max-width: 560px;
-  margin: 0 auto;
 }
 
 .fc-perfil__head {
@@ -26,9 +32,10 @@
   gap: var(--space-1);
 }
 
+/* El titular de página toma el escalón de display del brief §3 (38 px) del `h1` de base:
+   la pantalla ya no baja un escalón para no desentonar con el resto. */
 .fc-perfil__title {
   margin: 0;
-  font-size: var(--fs-2xl);
   overflow-wrap: anywhere;
 }
 
@@ -52,7 +59,7 @@
   justify-content: space-between;
   gap: var(--space-1) var(--space-3);
   padding-bottom: var(--space-2);
-  border-bottom: var(--border-hairline) dotted var(--border-default);
+  border-bottom: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-perfil__fact:last-child {
@@ -60,46 +67,44 @@
   border-bottom: 0;
 }
 
+/*
+ * La etiqueta del dato, EN MINÚSCULA. Era el eyebrow de la pantalla —mayúsculas forzadas
+ * más `letter-spacing`— y el brief lo retira (§6.1): las mayúsculas espaciadas no añaden
+ * jerarquía, la gritan, y compiten con el valor que tienen al lado. Lo que distingue la
+ * etiqueta del valor es el color y el peso, no la caja alta.
+ */
 .fc-perfil__key {
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink-3);
 }
 
 .fc-perfil__value {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-strong);
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink);
   /* El correo del titular es la única cadena larga aquí: se parte antes que desbordar. */
   overflow-wrap: anywhere;
 }
 
+/*
+ * El formulario deja de ser una tarjeta. Un grupo de campos dentro de una página no lleva
+ * borde, ni radio, ni fondo (brief §5): si agrupa, lo separa una regla superior de 1 px.
+ */
 .fc-perfil__form {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  padding-top: var(--space-5);
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-perfil__section {
   margin: 0;
-  font-size: var(--fs-md);
 }
 
 .fc-perfil__links {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-@media (max-width: 767.98px) {
-  .fc-perfil__form {
-    padding: var(--space-3);
-  }
 }

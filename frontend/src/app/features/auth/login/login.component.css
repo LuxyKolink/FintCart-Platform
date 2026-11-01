@@ -19,29 +19,15 @@
 }
 
 .fc-auth__inline-link {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-secondary);
 }
 
-.fc-auth__divider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--text-faint);
-}
-
-.fc-auth__divider::before,
-.fc-auth__divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-default);
-}
+/* Se retiraron `.fc-auth__divider` y su regla de 1 px: el separador «o continúa
+   con» ya no existe, porque anunciaba un proveedor alternativo que no hay. */
 
 .fc-auth__alt {
   margin: 0;
   text-align: center;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-secondary);
   color: var(--text-muted);
 }

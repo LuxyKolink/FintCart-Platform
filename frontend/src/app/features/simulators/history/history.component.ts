@@ -35,8 +35,10 @@ interface HistoryRow {
  * resultado de cada simulación se muestran en su fila, ya formateados, así que no hay
  * nada que desplegar para verlos.
  *
- * La tabla se desplaza DENTRO de su contenedor cuando no cabe (FR-127): una comparación
- * pierde su sentido si hay que mover la página entera para leer la última columna.
+ * La tabla NO se desplaza en horizontal (frase que sustituye a la que describía FR-127):
+ * un desplazamiento dejaba las cifras cortadas en el borde a 360 px, y una cifra cortada
+ * es un dato falso (N-15). Por encima de `--bp-md` se lee en cuatro columnas; por debajo,
+ * la misma tabla se dispone como fichas apiladas con la etiqueta encima del valor.
  */
 @Component({
   selector: 'fc-simulation-history',

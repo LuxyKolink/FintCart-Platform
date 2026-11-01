@@ -1,136 +1,182 @@
 /*
- * Progreso (T035 / FR-105).
+ * Progreso — una columna (dirección de arte v2, brief §3, §5, §8).
  *
- * Solo disposición y las dos cifras propias de la pantalla. TODO lo demás —módulo,
- * tarjeta, insignia, barra, estados vacío/error/carga— viene de `shared/ui`.
+ * Solo disposición y las dos cifras propias de la pantalla. Todo lo demás —barra,
+ * insignia, estados vacío/error/carga— viene de `shared/ui`.
+ *
+ * LO QUE SE RETIRÓ:
+ *   · `text-transform: uppercase` en `.fc-progress__stat-label` y en
+ *     `.fc-progress__table thead th`, con su `letter-spacing: var(--ls-meta)`: eran los
+ *     tres eyebrows del inventario («ARTÍCULOS VISTOS», «CUESTIONARIOS RESPONDIDOS»,
+ *     «SIMULACIONES EJECUTADAS») y las cuatro cabeceras de la tabla. Ahora son títulos
+ *     en caja normal (brief §6.1);
+ *   · las tarjetas de las tres cifras y la caja de la tabla: filas separadas por reglas
+ *     de 1 px;
+ *   · el contenedor con `overflow-x: auto` de la tabla, que a 360 dejaba cifras fuera del
+ *     borde. Las celdas parten su texto y el número nunca se recorta (nota N-15).
  */
 
 .fc-progress {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-width: 900px;
+  gap: var(--space-9);
+  max-width: var(--content-max);
   margin: 0 auto;
   min-width: 0;
 }
 
 .fc-progress__page-title {
   margin: 0;
-  font-size: var(--fs-2xl);
-}
-
-/* Único elemento con tipografía de datos de la pantalla (ver la nota de T035). */
-.fc-progress__points {
-  margin: 0 0 var(--space-3);
-  font-size: var(--fs-3xl);
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
-  line-height: 1;
-}
-
-.fc-progress__note {
-  margin: var(--space-2) 0 0;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+  font-size: var(--fs-display);
+  overflow-wrap: anywhere;
 }
 
 .fc-progress__section {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
 }
 
+/* Título de sección: 26 / 1.25 / 500 (brief §3). */
 .fc-progress__section-title {
   margin: 0;
-  font-size: var(--fs-md);
+  padding-bottom: var(--space-2);
+  font-size: var(--fs-h2);
+  border-bottom: 1px solid var(--fc-line);
 }
+
+/* Único elemento con tipografía de datos de la pantalla (ver la nota de T035). */
+.fc-progress__points {
+  margin: 0;
+  font-size: var(--fs-display);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink);
+  line-height: var(--lh-display);
+}
+
+.fc-progress__bar {
+  max-width: 320px;
+}
+
+.fc-progress__note {
+  margin: 0;
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink-3);
+}
+
+/* ── tres cifras: una fila de datos, no tres tarjetas ──────────────────────── */
 
 .fc-progress__stats {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .fc-progress__stat {
-  flex: 1 1 180px;
+  flex: 1 1 200px;
   min-width: 0;
-}
-
-.fc-progress__stat-label {
-  margin: 0 0 var(--space-1);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.fc-progress__stat-value {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
-  line-height: 1;
+  padding: var(--space-3) 0;
 }
 
 /*
- * FR-127: en un móvil la tabla no cabe. El desplazamiento vive DENTRO de este
- * contenedor, así que la página nunca se mueve en horizontal y el resto de la
- * pantalla se sigue leyendo sin hacer scroll lateral.
+ * Aquí estaba el eyebrow: `text-transform: uppercase` + `letter-spacing: var(--ls-meta)`
+ * en `--fs-2xs`. La etiqueta pasa a caja normal en `--fs-secondary` (brief §6.1) y la
+ * separación entre las tres cifras la da una regla de 1 px, no una tarjeta.
  */
-.fc-progress__table-scroll {
-  overflow-x: auto;
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
+.fc-progress__stat-label {
+  margin: 0;
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--ls-normal);
+  color: var(--fc-ink-2);
 }
+
+.fc-progress__stat-value {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink);
+  line-height: var(--lh-h2);
+  /* Una cifra no se recorta ni se parte: si no cabe, la fila envuelve. */
+  white-space: nowrap;
+}
+
+.fc-progress__stat + .fc-progress__stat {
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--fc-line);
+}
+
+/* ── historial ─────────────────────────────────────────────────────────────── */
 
 .fc-progress__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-ui);
 }
 
 .fc-progress__caption {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+  padding: 0 0 var(--space-2);
+  font-size: var(--fs-meta);
+  color: var(--fc-ink-3);
   text-align: left;
 }
 
 .fc-progress__table th,
 .fc-progress__table td {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
   text-align: left;
-  white-space: nowrap;
+  vertical-align: baseline;
+  /* Sin `nowrap` general: un texto largo se parte antes que salirse del borde. */
+  overflow-wrap: anywhere;
 }
 
+/*
+ * Cabeceras de columna en caja normal y a peso medio: eran otro eyebrow en mayúsculas.
+ */
 .fc-progress__table thead th {
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border-bottom: var(--border-hairline) solid var(--border-default);
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-normal);
+  color: var(--fc-ink-2);
+  border-bottom: 1px solid var(--fc-line);
 }
 
 .fc-progress__table tbody tr + tr th,
 .fc-progress__table tbody tr + tr td {
-  border-top: var(--border-hairline) dotted var(--border-default);
+  border-top: 1px solid var(--fc-line);
 }
 
 .fc-progress__cell-strong {
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink);
+}
+
+/* El puntaje es una cifra: no se parte ni se recorta. */
+.fc-progress__cell-score {
+  white-space: nowrap;
 }
 
 .fc-progress__cell-muted {
-  color: var(--text-muted);
+  color: var(--fc-ink-3);
 }
 
-/* FR-120: un título largo se parte antes que desbordar la tarjeta. */
-.fc-progress__stat,
-.fc-progress__page-title {
-  overflow-wrap: anywhere;
+/*
+ * A 360 px las tres cifras siguen en fila, pero la regla que las separa pasa a ser
+ * superior: la columna es una. El ancho lo reparte `flex`; no hay `min-width` que fuerce
+ * desplazamiento horizontal. (`--bp-md` 768px, ver `tokens/breakpoints.css`.)
+ */
+@media (max-width: 767.98px) {
+  .fc-progress__stat {
+    flex: 1 1 100%;
+  }
+
+  .fc-progress__stat + .fc-progress__stat {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--fc-line);
+  }
 }

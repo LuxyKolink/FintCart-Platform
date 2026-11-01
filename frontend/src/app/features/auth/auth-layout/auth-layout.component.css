@@ -12,7 +12,12 @@
      encima que debajo. */
   justify-items: center;
   align-content: start;
-  padding: var(--space-6) var(--space-5) var(--space-9);
+  /* SOLO vertical. El margen lateral de la página lo pone el armazón con
+     `--page-gutter` (20 px a 360, 32 a 768, 48 a 1024+), que es el token que el
+     brief §4 define para eso. Sumarle aquí un relleno propio dejaba 36 px a 360
+     —el margen del brief más un relleno de más— y desalineaba el formulario de la
+     cabecera, que sí usa el token. */
+  padding-block: var(--space-6) var(--space-9);
   background: var(--surface-page);
 }
 
@@ -25,9 +30,12 @@
   width: 100%;
   max-width: 880px;
   background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  /* SIN borde y SIN sombra (brief §5). El bloque ya se separa del papel por el
+     panel de marca azul y por su propia superficie blanca; el borde de 1 px era
+     cromo alrededor de contenido de página, y la sombra una segunda elevación
+     donde no hay capa superpuesta. `--shadow-lg` ya resolvía a `none`; la
+     declaración sobraba. */
+  border-radius: var(--radius-2);
   overflow: hidden;
 }
 
@@ -42,7 +50,10 @@
   flex-direction: column;
   gap: var(--space-4);
   width: 100%;
-  max-width: 372px;
+  /* `--form-max` es la medida de formulario del brief §8 (400 px desde --bp-sm).
+     Aquí solo topa: el panel de 440 px le deja 376 px útiles, así que el valor
+     efectivo es el del contenedor y el formulario nunca desborda su columna. */
+  max-width: var(--form-max);
 }
 
 .fc-auth__head {
@@ -50,12 +61,16 @@
 }
 
 .fc-auth__title {
-  font-size: var(--fs-3xl);
+  /* Sin `font-size`: el titular de la pantalla toma el rol display de `h1` en
+     `tokens/base.css` (38 / 1.15 / 500 / -.02em, brief §3). Escribirlo aquí otra
+     vez era la forma de que una pantalla se quedara fuera del escalón sin que
+     nadie lo notara. */
   margin: 0 0 var(--space-1);
 }
 
 .fc-auth__subtitle {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
   color: var(--text-muted);
   margin: 0;
 }
@@ -67,7 +82,7 @@
    `@media` (tokens/breakpoints.css). */
 @media (max-width: 767.98px) {
   .fc-auth {
-    padding: var(--space-4) var(--space-4) var(--space-8);
+    padding-block: var(--space-4) var(--space-8);
   }
 
   .fc-auth__card {

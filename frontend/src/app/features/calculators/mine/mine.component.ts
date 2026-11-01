@@ -8,10 +8,10 @@ import {
   EmptyStateComponent,
   ErrorStateComponent,
   LinkButtonComponent,
-  ModuleBoxComponent,
   SkeletonComponent,
   TagComponent,
 } from '../../../shared/ui';
+import { calculatorTitle } from '../calculator-title';
 import { CalculatorError, CalculatorsApiService } from '../calculators-api.service';
 import {
   Calculator,
@@ -58,7 +58,6 @@ type LoadState = 'loading' | 'ready' | 'error';
     EmptyStateComponent,
     ErrorStateComponent,
     LinkButtonComponent,
-    ModuleBoxComponent,
     SkeletonComponent,
     TagComponent,
   ],
@@ -66,51 +65,93 @@ type LoadState = 'loading' | 'ready' | 'error';
   styles: `
     :host {
       display: block;
+      /* Medida de contenido (brief §4): la página dejaba el lead a la izquierda y el estado
+         vacío centrado en otro contenedor, así que la pantalla tenía dos ejes de alineación. */
+      max-width: var(--content-max);
     }
+
+    .fc-mine__head {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      align-items: flex-start;
+    }
+
+    /* h1 de página: escalón display del brief §3 (38 / 1.15 / 500 / -0.02em). */
+    .fc-mine__title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--fs-display);
+      line-height: var(--lh-display);
+      font-weight: var(--fw-display);
+      letter-spacing: var(--ls-display);
+      color: var(--text-strong);
+      overflow-wrap: anywhere;
+    }
+
     .fc-mine__intro {
-      max-width: 68ch;
+      margin: 0;
+      max-width: var(--reading-max);
+      font-size: var(--fs-ui);
       color: var(--text-body);
     }
+
+    .fc-mine__acciones {
+      display: flex;
+      gap: var(--space-2) var(--space-4);
+      flex-wrap: wrap;
+      margin-top: var(--space-2);
+    }
+
+    /* Filas separadas por reglas de 1 px: una ficha por calculadora no necesita caja
+       (brief §5, §6.7), y el borde + radio anterior competía con las reglas de la tabla. */
     .fc-mine__lista {
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
-      margin-top: var(--space-4);
+      margin-top: var(--space-6);
+      border-top: var(--border-hairline) solid var(--fc-line);
     }
+
     .fc-mine__item {
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
-      padding: var(--space-3);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
+      padding: var(--space-5) 0;
     }
+
+    .fc-mine__item + .fc-mine__item {
+      border-top: var(--border-hairline) solid var(--fc-line);
+    }
+
     .fc-mine__cabecera {
       display: flex;
-      align-items: center;
-      gap: var(--space-2);
+      align-items: baseline;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
+
+    /* Título de bloque: escalón h3 del brief §3 (19 / 1.35 / 600). */
     .fc-mine__nombre {
       margin: 0;
-      font-size: var(--fs-md);
-      font-weight: var(--fw-semibold);
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      line-height: var(--lh-h3);
+      font-weight: var(--fw-h3);
+      letter-spacing: var(--ls-h3);
+      color: var(--text-strong);
     }
+
     .fc-mine__cuerpo {
       display: flex;
       gap: var(--space-3);
       flex-wrap: wrap;
       align-items: baseline;
-      color: var(--text-faint);
-      font-size: var(--fs-sm);
+      margin: 0;
+      color: var(--text-muted);
+      font-size: var(--fs-meta);
     }
     .fc-mine__indicadores {
       font-family: var(--font-mono);
-    }
-    .fc-mine__acciones {
-      display: flex;
-      gap: var(--space-2);
-      flex-wrap: wrap;
     }
   `,
 })
@@ -153,6 +194,11 @@ export class MyCalculatorsComponent implements OnInit {
     return calculatorStateHelp(state);
   }
 
+  /** El nombre legible: el de la semilla es un identificador, no un título. */
+  protected title(calculator: Calculator): string {
+    return calculatorTitle(calculator.name);
+  }
+
   protected canSubmit(calculator: Calculator): boolean {
     return canBeSubmitted(calculator);
   }
@@ -183,7 +229,9 @@ export class MyCalculatorsComponent implements OnInit {
     this.api.submitForReview(calculator.calculator_id).subscribe({
       next: () => {
         this.submitting.set(null);
-        this.notice.set(`«${calculator.name}» quedó propuesta: un coordinador editorial la revisará.`);
+        this.notice.set(
+          `«${calculatorTitle(calculator.name)}» quedó propuesta: un coordinador editorial la revisará.`,
+        );
         // Se actualiza en memoria en vez de recargar la lista: el cambio es exactamente este y
         // una recarga completa perdería el aviso que se acaba de dar.
         this.items.set(

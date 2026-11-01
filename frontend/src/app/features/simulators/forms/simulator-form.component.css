@@ -1,51 +1,59 @@
 /*
- * Formulario de una calculadora (T045/T050). Tres zonas: riel, formulario con su
- * resultado, y resumen de las últimas simulaciones. Igual que el catálogo, bajo `--bp-md`
- * el riel se vuelve horizontal (en su propia hoja) y el resumen baja.
+ * Formulario de una calculadora (T045/T050) — dirección de arte v2 (brief §4, §8).
+ *
+ * UNA SOLA COLUMNA. Se retiró el riel derecho de 260 px («Últimas simulaciones») y con él la
+ * rejilla de tres zonas `230px 1fr 260px`: el brief §4 prohíbe el riel derecho y manda
+ * integrar su contenido en el flujo, arriba o al final. Aquí va al final, después del
+ * resultado, porque lo que se viene a hacer es calcular y lo de después es contexto.
+ *
+ * LA MEDIDA. El formulario se limita a `--reading-max` (680 px), que es la medida de lectura
+ * del sistema y el ancho que el brief §8 fija para los simuladores. El token `--form-max`
+ * NO sirve para esto: vale 400 px y 100 % porque describe el formulario de ACCESO (brief §8),
+ * y reutilizarlo aquí habría dejado los campos de dinero en 400 px. El ancho de la página no
+ * cambia —lo pone el armazón—; lo que cambia es que la columna de trabajo deja de estirarse a
+ * los 1100 px del contenedor y un campo de «Monto del crédito» deja de medir 1090 px.
+ *
+ * Se conserva el riel IZQUIERDO como fila de enlaces por encima del título: es navegación
+ * entre calculadoras, no un panel lateral, y así la pantalla mantiene una sola columna.
  */
 
 .fc-sim {
-  display: grid;
-  grid-template-columns: 230px minmax(0, 1fr) 260px;
-  grid-template-areas: 'rail center aside';
-  gap: var(--space-4);
-  align-items: start;
-}
-
-.fc-sim > fc-calculator-rail {
-  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
   min-width: 0;
 }
 
 .fc-sim__center {
-  grid-area: center;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
   min-width: 0;
-}
-
-.fc-sim__aside {
-  grid-area: aside;
-  min-width: 0;
+  max-width: var(--reading-max);
 }
 
 .fc-sim__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
+/* h1 de página: escalón display del brief §3. */
 .fc-sim__title {
   margin: 0;
-  font-size: var(--fs-2xl);
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--ls-display);
+  color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 
 .fc-sim__lead {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  font-size: var(--fs-ui);
+  color: var(--text-body);
 }
 
 .fc-sim__modes {
@@ -54,44 +62,47 @@
   gap: var(--space-2);
 }
 
+/*
+ * El formulario no es una caja: es la entrada de la banda de resultado, separada por la
+ * tipografía del título de sección y por el espacio. Fuera el fondo de tarjeta, el borde, el
+ * radio y la sombra (brief §5, §6.7).
+ */
 .fc-sim__form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  gap: var(--space-4);
 }
 
 .fc-sim__fields {
-  display: grid;
-  /* Dos columnas cuando hay ancho; una sola en un móvil. Nunca una columna más estrecha
-     que el propio campo, que es lo que haría que un monto no cupiera. */
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .fc-sim__foot {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-sim__pad {
-  padding: var(--space-3);
+  padding: var(--space-3) 0;
 }
 
 .fc-sim__note {
   margin: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-meta);
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
-.fc-sim__more {
-  font-size: var(--fs-xs);
+/* Enlace «Ver todas» del bloque de últimas simulaciones: es una acción de texto, no una
+   pastilla, y va en la cabecera del bloque. */
+.fc-sim__aside {
+  min-width: 0;
+  max-width: var(--reading-max);
 }
 
 .fc-sim__recent {
@@ -104,17 +115,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--fs-xs);
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  font-size: var(--fs-secondary);
 }
 
+/* Reglas de 1 px entre filas, no puntos suspensivos como separador (brief §6.2). */
 .fc-sim__recent-item + .fc-sim__recent-item {
-  border-top: var(--border-hairline) dotted var(--border-default);
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-sim__recent-label {
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
   color: var(--text-strong);
 }
 
@@ -124,37 +136,22 @@
 
 .fc-sim__recent-time {
   margin-left: auto;
+  font-size: var(--fs-meta);
   color: var(--text-muted);
 }
 
-/* Bajo `--bp-lg` cae primero el resumen; bajo `--bp-md`, el riel pasa arriba y horizontal. */
-@media (max-width: 1023.98px) {
-  .fc-sim {
-    grid-template-columns: 230px minmax(0, 1fr);
-    grid-template-areas:
-      'rail center'
-      'aside aside';
+/*
+ * A 360 px el formulario y su medida son lo mismo: el ancho lo pone la página. Lo que sí
+ * cambia es que la acción de envío y el enlace de historial se apilan en vez de competir por
+ * la misma línea.
+ */
+@media (max-width: 479.98px) {
+  .fc-sim__foot {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .fc-sim__aside {
-    max-width: 460px;
-  }
-}
-
-@media (max-width: 767.98px) {
-  .fc-sim {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'rail'
-      'center'
-      'aside';
-  }
-
-  .fc-sim__aside {
-    max-width: none;
-  }
-
-  .fc-sim__form {
-    padding: var(--space-3);
+  .fc-sim__recent-time {
+    margin-left: 0;
   }
 }

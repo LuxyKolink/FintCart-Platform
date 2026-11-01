@@ -6,11 +6,18 @@ import { CALCULATORS } from '../calculators.config';
 import { CalcType } from '../simulators.types';
 
 /**
- * Riel de calculadoras disponibles (T044, FR-107).
+ * Calculadoras disponibles (T044, FR-107) — dirección de arte v2 (brief §4).
  *
  * Vive en su propio componente porque lo usan DOS pantallas —el selector y el formulario—
- * y FR-107 pide que el riel acompañe al formulario de la calculadora elegida. Duplicar la
- * lista en dos plantillas habría dejado dos sitios donde olvidarse de una calculadora nueva.
+ * y FR-107 pide que las calculadoras disponibles acompañen al formulario de la elegida.
+ * Duplicar la lista en dos plantillas habría dejado dos sitios donde olvidarse de una
+ * calculadora nueva.
+ *
+ * YA NO ES UNA COLUMNA: se retiró la zona izquierda de 230 px (brief §4, §8) y lo que queda
+ * es una fila de enlaces de texto que envuelve. Se mantiene `<nav>` con nombre accesible
+ * —`aria-label="Calculadoras disponibles"`— y un enlace por calculadora con `aria-current`:
+ * el rol y el nombre accesible son lo que el recorrido por teclado y la suite de extremo a
+ * extremo consultan (N-13), y ninguno de los dos cambia al cambiar la disposición.
  *
  * SIN ICONOS, A PROPÓSITO: el riel del kit dibuja uno por calculadora (`wallet`,
  * `trending-up`, `landmark`), y ninguno de los tres está entre los 25 iconos registrados

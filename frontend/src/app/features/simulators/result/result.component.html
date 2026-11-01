@@ -1,4 +1,11 @@
-<fc-module-box title="Resultado" accent="success">
+<!--
+  Banda de resultado (brief §8: «el resultado se ancla en una banda con regla superior»).
+  No es una caja: lo que separa la entrada de la salida es la regla, el espacio y el título,
+  no un borde alrededor del contenido (brief §5, §6.7).
+-->
+<section class="fc-result-band" aria-labelledby="fc-result-title">
+  <h2 class="fc-result-band__title" id="fc-result-title">Resultado</h2>
+
   <dl class="fc-result">
     @for (row of rows(); track row.label; let first = $first) {
       <div class="fc-result__row" [class.fc-result__row--primary]="first">
@@ -9,4 +16,4 @@
   </dl>
 
   <p class="fc-result__caption">Cifras en pesos colombianos ({{ currency() }}).</p>
-</fc-module-box>
+</section>

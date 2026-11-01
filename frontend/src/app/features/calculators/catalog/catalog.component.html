@@ -1,16 +1,17 @@
-<fc-module-box title="Catálogo de calculadoras">
+<header class="fc-catc__head">
+  <h1 class="fc-catc__title">Catálogo de calculadoras</h1>
   <p class="fc-catc__intro">
     Estas son las calculadoras publicadas: las de la plataforma y las que proponen sus usuarios,
     una vez revisadas y aprobadas. Puedes ejecutarlas con tus propios valores.
   </p>
-</fc-module-box>
+</header>
 
 @switch (state()) {
   @case ('loading') {
-    <div class="fc-catc__rejilla">
-      <fc-skeleton height="9rem" />
-      <fc-skeleton height="9rem" />
-      <fc-skeleton height="9rem" />
+    <div class="fc-catc__lista">
+      <fc-skeleton height="6rem" />
+      <fc-skeleton height="6rem" />
+      <fc-skeleton height="6rem" />
     </div>
   }
   @case ('error') {
@@ -29,12 +30,19 @@
         message="Cuando una calculadora se apruebe aparecerá aquí."
       />
     } @else {
-      <div class="fc-catc__rejilla">
+      <!--
+        Filas separadas por reglas de 1 px, no tarjetas con caja: una lista de calculadoras no
+        gana nada con tres superficies compitiendo por el borde (brief §5, §6.7). Cada fila
+        sigue siendo `<article>` y su nombre un `<h3>`: es lo que consultan las pruebas de
+        curaduría (`locator('article', { hasText: nombre })` y `getByRole('heading')`).
+      -->
+      <ul class="fc-catc__lista">
         @for (calculator of items(); track calculator.calculator_id) {
-          <fc-card>
-            <article class="fc-catc__tarjeta">
+          <li class="fc-catc__fila">
+            <article class="fc-catc__calculadora">
               <div class="fc-catc__cabecera">
-                <h3 class="fc-catc__nombre">{{ calculator.name }}</h3>
+                <!-- `calculatorTitle`: el identificador de la semilla no es un título. -->
+                <h3 class="fc-catc__nombre">{{ title(calculator) }}</h3>
                 @if (isBuiltin(calculator)) {
                   <fc-tag category="neutral">De la plataforma</fc-tag>
                 } @else {
@@ -62,9 +70,9 @@
                 </fc-link-button>
               </div>
             </article>
-          </fc-card>
+          </li>
         }
-      </div>
+      </ul>
     }
   }
 }

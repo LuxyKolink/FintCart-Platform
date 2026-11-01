@@ -1,34 +1,51 @@
 /*
  * Reporte de actividad (T057 / FR-113). Las cifras van con la tipografía de datos —cifras
- * tabulares, monoespaciadas— para que se lean como datos y no como prosa, y en columnas que
- * se reparten el ancho hasta el mínimo, donde pasan a una sola.
+ * tabulares, monoespaciadas— para que se lean como datos y no como prosa.
+ *
+ * DOS COSAS CAMBIAN, y las dos son de la dirección de arte v2:
+ *
+ * 1. **La etiqueta deja de ser un eyebrow.** Iba en mayúsculas forzadas con
+ *    `letter-spacing`; el brief retira ese recurso (§6.1). Con «CUESTIONARIOS RESPONDIDOS»
+ *    en caja alta, la etiqueta partía en dos líneas y descolocaba la cifra de su fila. En
+ *    minúscula, a 14 px y en tinta terciaria, la jerarquía la hace el TAMAÑO de la cifra y
+ *    no el grito de la etiqueta.
+ * 2. **El bloque deja de ser una tarjeta.** Un grupo de cifras dentro de una página no lleva
+ *    borde, radio ni sombra (brief §5): lo separa una regla superior de 1 px. Cuatro cajas
+ *    con borde en fila eran exactamente la densidad de intranet que el brief retira.
+ *
+ * Las cifras se alinean al pie de su celda (`margin-top: auto`): si una etiqueta parte en
+ * dos líneas, los cuatro números siguen compartiendo línea base en vez de escalonarse. Eso
+ * es lo que se veía mal en el render y no era un problema de tamaño de fuente.
  */
 
 .fc-report {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-width: 900px;
-  margin: 0 auto;
+  gap: var(--section-gap);
+  /* La medida de contenido del sistema (brief §4). El 900 px de antes era un contenedor
+     inventado: no era la lectura de nada ni el ancho de nadie. Y sin `margin: auto`: la
+     columna arranca en el eje del armazón, que ya está centrado. */
+  max-width: var(--content-max);
   min-width: 0;
 }
 
 .fc-report__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
+/* El `h1` de base ya fija display 38 / 1.15 / 500 (brief §3). */
 .fc-report__title {
   margin: 0;
-  font-size: var(--fs-2xl);
   overflow-wrap: anywhere;
 }
 
 .fc-report__lead {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  max-width: var(--reading-max);
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink-3);
 }
 
 .fc-report__skeleton {
@@ -41,36 +58,37 @@
   margin: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-3);
+  gap: 0 var(--space-5);
+  /* Regla superior de la fila de cifras, la única línea de esta pantalla. */
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-report__stat {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-4);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  padding: var(--space-4) 0 var(--space-2);
   min-width: 0;
 }
 
+/* Ni caja alta ni `letter-spacing`: la etiqueta es texto, no una señal. */
 .fc-report__stat-label {
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-regular);
+  color: var(--fc-ink-3);
   overflow-wrap: anywhere;
 }
 
+/* `margin-top: auto` en una rejilla de filas iguales: las cuatro cifras comparten línea
+   base aunque una etiqueta ocupe dos líneas. */
 .fc-report__stat-value {
-  margin: 0;
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
-  line-height: 1;
+  margin: auto 0 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink);
+  line-height: var(--lh-h2);
+  /* Una cifra no se recorta ni se fija en ancho (N-15): si no cabe, rompe la línea. */
+  overflow-wrap: anywhere;
 }
 
 .fc-report__actions {
@@ -80,7 +98,9 @@
 }
 
 @media (max-width: 767.98px) {
-  .fc-report__stat {
-    padding: var(--space-3);
+  /* --bp-md (768px): dos columnas de cifras como mínimo se estrechan de más; la rejilla
+     baja a 140 px de mínimo antes de pasar a una sola columna. */
+  .fc-report__stats {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }

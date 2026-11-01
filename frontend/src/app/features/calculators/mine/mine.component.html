@@ -1,4 +1,5 @@
-<fc-module-box title="Mis calculadoras">
+<header class="fc-mine__head">
+  <h1 class="fc-mine__title">Mis calculadoras</h1>
   <p class="fc-mine__intro">
     Una calculadora nace <strong>privada</strong>: solo la ves tú y puedes ejecutarla. Para que
     aparezca en el catálogo público o dentro de un artículo tiene que aprobarla un coordinador
@@ -9,7 +10,7 @@
       Crear una calculadora
     </fc-link-button>
   </div>
-</fc-module-box>
+</header>
 
 @if (notice(); as aviso) {
   <fc-banner tone="success">{{ aviso }}</fc-banner>
@@ -53,7 +54,8 @@
         @for (calculator of items(); track calculator.calculator_id) {
           <article class="fc-mine__item">
             <div class="fc-mine__cabecera">
-              <h3 class="fc-mine__nombre">{{ calculator.name }}</h3>
+              <!-- `title`: el nombre de una semilla es un identificador, no un título. -->
+              <h2 class="fc-mine__nombre">{{ title(calculator) }}</h2>
               <fc-badge [tone]="tone(calculator.state)">{{ label(calculator.state) }}</fc-badge>
               @if (calculator.is_builtin) {
                 <fc-tag category="neutral">De la plataforma</fc-tag>
