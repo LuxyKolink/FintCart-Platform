@@ -1,49 +1,97 @@
+/* ============================================================================
+   fc-module-box — dirección de arte v2 "institucional sereno" (brief §5, §6.4,
+   §6.7, §7)
+
+   QUÉ CAMBIA: el bloque DEJA DE SER UNA CAJA. Se retiran el fondo de tarjeta, el
+   borde de 1 px, el radio, la sombra y la cabecera con relleno. Un bloque de
+   contenido dentro de una página no lleva borde (brief §5); la jerarquía la
+   cargan el tipo y el espacio, no el cromo (brief §1). Un módulo se separa del
+   siguiente por `--section-gap`, regla que ya vive en `tokens/base.css`.
+
+   EL ENCABEZADO ES TIPOGRÁFICO: toma el escalón de título de sección del brief §3
+   (26 / 1.25 / 500 / -0.01em). El elemento sigue siendo `<h3>` y no `<h2>`: una
+   prueba de la primitiva afirma `querySelector('h3')`, y el brief no manda
+   cambiar el nivel del documento sino el tratamiento. Lo que el encabezado deja
+   de tener es la barra de acento de 3 px y la franja de fondo tintado.
+
+   EL ESTADO SE QUEDA EN EL ICONO. `[data-accent]` se conserva en el `<header>`
+   (una prueba afirma el atributo y es contrato público del componente), pero el
+   color ya no tiñe el TÍTULO: un encabezado de bloque en coral, marigoldo o
+   púrpura era el tercer acento compitiendo en el viewport. El color del estado
+   pasa al icono proyectado, que lo hereda (`stroke: currentColor`) y —al no ser
+   texto— no puede incumplir el contraste AA.
+   ============================================================================ */
+
+:host {
+  display: block;
+}
+
 .fc-module {
   display: block;
-  background: var(--surface-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
-  overflow: hidden;
+  /* Sin `background`, sin `border`, sin `border-radius`, sin `overflow` y sin
+     `box-shadow`: lo que queda es separación, que aporta `--section-gap`. */
+  background: none;
 }
 
 .fc-module__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--fc-surface);
-  border-bottom: 1px solid var(--border-default);
-  /* La barra de acento de 3 px está prohibida (brief §6.3) y `--border-accent`
-     ya no existe. El encabezado se distingue por peso tipográfico, no por cromo;
-     el color del estado se queda en el texto. Que deje de ser una CAJA entera es
-     el paso de primitivas. */
-  color: var(--text-strong);
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-sans);
+  /* Tinta terciaria: es el color que hereda el icono del slot `[fcIcon]`. El
+     icono por defecto es decorativo, así que el gris de metadato es su sitio. */
+  color: var(--fc-ink-3);
 }
 
-.fc-module__header[data-accent='accent'] { color: var(--fc-accent); }
-.fc-module__header[data-accent='success'] { color: var(--success); }
-.fc-module__header[data-accent='warning'] { color: var(--warning); }
-.fc-module__header[data-accent='danger'] { color: var(--danger); }
-.fc-module__header[data-accent='info'] { color: var(--fc-accent); }
+/* Estado sobre el icono, nunca sobre el título (brief §2: el color señala, no
+   decora). `primary` no define color propio: un bloque sin estado no necesita
+   acento. */
+.fc-module__header[data-accent='accent'],
+.fc-module__header[data-accent='info'] {
+  color: var(--fc-accent);
+}
+.fc-module__header[data-accent='success'] {
+  color: var(--fc-success);
+}
+.fc-module__header[data-accent='warning'] {
+  color: var(--fc-warning);
+}
+.fc-module__header[data-accent='danger'] {
+  color: var(--fc-danger);
+}
 
 .fc-module__title {
   margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
-  letter-spacing: 0.01em;
+  font-family: var(--font-display);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+  /* La tinta del título gana a la del estado: el color del encabezado es para el
+     icono, no para el texto. */
+  color: var(--fc-ink);
+  text-wrap: balance;
 }
 
 .fc-module__actions {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--text-body);
+  gap: var(--space-1);
+  color: var(--fc-ink-2);
 }
 
-.fc-module__body--padded {
-  padding: var(--space-3);
+/*
+ * `padded` deja de tener efecto y por eso NO hay regla para
+ * `.fc-module__body--padded`: la caja desapareció, así que un relleno interior
+ * solo conseguiría desalinear el cuerpo respecto del título y de la columna de
+ * la página. El `@Input` se conserva porque es contrato público de nueve
+ * plantillas; su clase sigue en la plantilla y queda inerte a propósito.
+ */
+.fc-module__body {
+  padding: 0;
 }

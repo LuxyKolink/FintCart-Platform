@@ -7,7 +7,7 @@ import { ButtonSize, ButtonVariant } from '../button/button.component';
 export type LinkButtonTarget = string | (string | number)[];
 
 /**
- * FintCart LinkButton — un enlace con el aspecto del botón primario (FR-095, FR-102).
+ * FintCart LinkButton — un enlace, con la forma de un enlace (FR-095, FR-102).
  *
  * POR QUÉ ES UN COMPONENTE APARTE Y NO UN MODO DE `fc-button`: el elemento decide el
  * rol. Un `<a>` se anuncia como enlace, se abre en una pestaña nueva con el menú
@@ -18,8 +18,11 @@ export type LinkButtonTarget = string | (string | number)[];
  * `<ng-content>` dentro de un bloque `@if`/`@else`, así que la rama del enlace
  * renderizaba un `<a>` VACÍO. Lo destapó una prueba que afirma el texto proyectado.
  *
- * Comparte la hoja de estilos de `fc-button` en lugar de duplicarla: los dos tienen que
- * verse idénticos, y dos copias del mismo CSS acaban divergiendo.
+ * Deja de compartir la hoja de `fc-button` (dirección de arte v2, brief §7): el botón
+ * es una acción de 40 px y el enlace es un enlace de texto. Una hoja compartida solo
+ * podía expresar uno de los dos tratamientos, y por eso esta primitiva tiene la suya.
+ * Conserva la clase `.fc-btn` y los ganchos `[data-variant]`/`[data-size]` porque son
+ * contrato público y las plantillas ya los usan.
  *
  * No admite `disabled`: un enlace deshabilitado no existe en HTML. Si hace falta
  * deshabilitar la acción, la pantalla usa `fc-button`.
@@ -43,7 +46,7 @@ export type LinkButtonTarget = string | (string | number)[];
       <ng-content select="[fcIconRight]" />
     </a>
   `,
-  styleUrl: '../button/button.component.css',
+  styleUrl: './link-button.component.css',
 })
 export class LinkButtonComponent {
   /** Destino obligatorio: un enlace sin destino no es un enlace. */

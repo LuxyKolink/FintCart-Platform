@@ -32,7 +32,7 @@ import { IconComponent, type IconName } from '../icon/icon.component';
   imports: [ButtonComponent, IconComponent],
   template: `
     <div class="fc-error-state" role="alert">
-      <fc-icon class="fc-error-state__icon" [name]="icon()" [size]="40" />
+      <fc-icon class="fc-error-state__icon" [name]="icon()" [size]="32" />
       <p class="fc-error-state__title">{{ title() }}</p>
       @if (message()) {
         <p class="fc-error-state__message">{{ message() }}</p>

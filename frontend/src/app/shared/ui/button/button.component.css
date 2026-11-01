@@ -1,19 +1,64 @@
+/* ============================================================================
+   fc-button — dirección de arte v2 "institucional sereno" (brief §7)
+
+   QUÉ CAMBIA Y POR QUÉ. El botón tenía tres problemas de cromo, no de gusto:
+   sombra de reposo (`--shadow-xs`), relleno de gradiente en la variante de
+   marca y un `filter: brightness()` como hover —que inventa un color que no
+   está en la paleta y por tanto no se puede auditar—.
+
+   La forma nueva la fija el brief: 40 px de alto, radio 2 px, peso 500, sin
+   sombra y sin gradiente. El hover deja de ser un filtro y pasa a ser un
+   TOKEN (`--fc-accent-hover`), el único oscurecimiento que la paleta define.
+
+   ── YA NO SE COMPARTE CON `fc-link-button` ────────────────────────────────
+   Esta hoja era el `styleUrl` de los dos componentes, y por eso conservaba
+   `.fc-btn`, `.fc-btn--block` y los ganchos `[data-variant]` / `[data-size]`
+   como contrato común. `fc-link-button` tiene ahora hoja propia (el brief §7 le
+   da tratamiento de enlace, no de acción de 40 px), así que aquí esas clases
+   son lo que son: la forma del botón. Se conservan igualmente, porque son
+   contrato público de la plantilla y de una prueba (`classList.contains('fc-btn')`).
+   Con el desacople, el bloque `a.fc-btn` que corregía el subrayado heredado del
+   `<a>` se retira: no quedaba ningún ancla que lo usara.
+
+   ── ACCESIBILIDAD (FR-094, SC-030) ────────────────────────────────────────
+   El anillo de foco es ahora `outline` de 2 px con offset 2 px, el mismo del
+   resto del sistema: no ocupa espacio, no lo pisa ninguna variante y no puede
+   desaparecer por orden de declaración —el defecto que tenía el botón fantasma,
+   que se enfocaba sin señal visible porque su `box-shadow: var(--shadow-none)`
+   ganaba por orden de aparición—. Un `MUST` de accesibilidad no puede depender
+   de en qué línea se escribió una variante.
+   ============================================================================ */
+
 .fc-btn {
+  /* Cada variante reescribe estos tres y nada más: así "primario", "secundario"
+     o "destructivo" son un cambio de color, no tres bloques que se desincronizan. */
+  --btn-bg: transparent;
+  --btn-fg: var(--fc-ink);
+  --btn-border: transparent;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
+  border: var(--border-hairline) solid var(--btn-border);
+  border-radius: var(--radius-2);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
   font-family: var(--font-sans);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-normal);
   line-height: 1;
-  letter-spacing: 0.01em;
-  border-radius: var(--radius-md);
   white-space: nowrap;
-  box-shadow: var(--shadow-xs);
+  /* Sin `transform` y sin `box-shadow`: el brief §5 retira la elevación como
+     forma de señalar. La transición es de color, y solo de color. */
   transition:
-    transform var(--dur-fast) var(--ease-out),
-    filter var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.fc-btn:not(:disabled) {
+  cursor: pointer;
 }
 
 .fc-btn--block {
@@ -21,103 +66,102 @@
   width: 100%;
 }
 
-.fc-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.fc-btn:not(:disabled) {
-  cursor: pointer;
-}
-
-.fc-btn:not(:disabled):active {
-  transform: translateY(1px);
-}
-
+/* ── Tamaños ───────────────────────────────────────────────────────────────
+   40 px es la altura del brief §7; `sm` y `lg` son los escalones de la misma
+   rejilla de 4 px (32 / 48) para las acciones de fila y las de cabecera. */
 .fc-btn[data-size='sm'] {
-  height: 30px;
-  padding: 0 10px;
-  font-size: var(--fs-sm);
-  gap: 6px;
+  height: var(--space-7);
+  padding: 0 var(--space-3);
+  font-size: var(--fs-secondary);
 }
 .fc-btn[data-size='md'] {
-  height: 38px;
-  padding: 0 16px;
-  font-size: var(--fs-base);
+  height: var(--space-8);
+  padding: 0 var(--space-5);
+  font-size: var(--fs-ui);
 }
 .fc-btn[data-size='lg'] {
-  height: 46px;
-  padding: 0 22px;
-  font-size: var(--fs-md);
+  height: var(--space-9);
+  padding: 0 var(--space-6);
+  font-size: var(--fs-ui);
 }
 
-.fc-btn[data-variant='primary'] {
-  background: var(--fc-accent);
-  color: var(--text-on-brand);
-  border: 1px solid var(--fc-accent);
-}
-.fc-btn[data-variant='primary']:not(:disabled):hover {
-  filter: brightness(0.95);
-}
-
+/* ── Variantes ─────────────────────────────────────────────────────────────
+   `primary` y `accent` son la MISMA variante con dos nombres: la paleta v2
+   tiene un solo acento, así que no hay nada que distinguir. Se conservan los
+   dos nombres porque las plantillas ya los usan y renombrar un `@Input`
+   rompería a sus llamadores. */
+.fc-btn[data-variant='primary'],
 .fc-btn[data-variant='accent'] {
-  background: var(--fc-accent);
-  color: var(--fc-on-accent);
-  border: 1px solid var(--fc-accent);
+  --btn-bg: var(--fc-accent);
+  --btn-fg: var(--fc-on-accent);
+  --btn-border: var(--fc-accent);
 }
+.fc-btn[data-variant='primary']:not(:disabled):hover,
 .fc-btn[data-variant='accent']:not(:disabled):hover {
-  background: var(--fc-accent-hover);
-  filter: none;
+  --btn-bg: var(--fc-accent-hover);
+  --btn-border: var(--fc-accent-hover);
 }
 
+/* Secundario: borde de 1 px, sin relleno (brief §7). El hover no tintá el
+   fondo —`--fc-accent-tint` está reservado a selección y estado (brief §5)—,
+   oscurece el borde. */
 .fc-btn[data-variant='secondary'] {
-  background: var(--surface-card);
-  color: var(--text-strong);
-  border: 1px solid var(--border-strong);
+  --btn-bg: var(--fc-surface);
+  --btn-fg: var(--fc-ink);
+  --btn-border: var(--fc-line-strong);
 }
 .fc-btn[data-variant='secondary']:not(:disabled):hover {
-  filter: brightness(0.95);
+  --btn-border: var(--fc-ink-2);
 }
 
+/* Terciario: solo texto, con subrayado en hover (brief §7). */
 .fc-btn[data-variant='ghost'] {
-  background: transparent;
-  color: var(--fc-accent);
-  border: 1px solid transparent;
-  box-shadow: var(--shadow-none);
+  --btn-bg: transparent;
+  --btn-fg: var(--fc-accent);
+  --btn-border: transparent;
 }
 .fc-btn[data-variant='ghost']:not(:disabled):hover {
-  background: var(--fc-accent-tint);
+  --btn-fg: var(--fc-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .fc-btn[data-variant='danger'] {
-  background: var(--danger);
-  color: #fff;
-  border: 1px solid var(--fc-danger);
+  --btn-bg: var(--fc-danger);
+  --btn-fg: var(--fc-on-accent);
+  --btn-border: var(--fc-danger);
 }
+/* No existe `--fc-danger-hover`: la paleta v2 solo define el oscurecimiento del
+   acento, y este proyecto no declara `browserslist`, así que `color-mix()`
+   (Safari 16.2+) podría aparecer como aviso de build y el gate de aceptación
+   prohíbe avisos. Se conserva el mecanismo que la variante ya usaba —un
+   `filter` de brillo, que no introduce ningún literal de color— y se lleva a
+   `var(--dur-fast)` para que el cambio sea perceptible. El contraste no decae:
+   el texto es blanco sobre un fondo que se oscurece. */
 .fc-btn[data-variant='danger']:not(:disabled):hover {
-  filter: brightness(0.95);
+  filter: brightness(0.9);
 }
 
-/*
- * El anillo de foco va AL FINAL a propósito. `[data-variant='ghost']` declara
- * `box-shadow: var(--shadow-none)` con la MISMA especificidad que este selector, así
- * que definido antes le ganaba por orden de aparición: el botón fantasma se enfocaba
- * sin ninguna señal visible (FR-094, SC-030). Un MUST de accesibilidad no puede
- * depender de en qué línea se escribió una variante.
- */
+/* ── Deshabilitado ─────────────────────────────────────────────────────────
+   Sin relleno gris y sin `opacity`: media opacidad sobre azul sólido deja el
+   texto por debajo de AA (el gris de relleno era justo lo que el brief §7
+   retira). Se baja el color a `--fc-ink-3` sobre `--fc-line`, la pareja
+   deshabilitada de los campos, que sigue midiendo 4.76 : 1 sobre papel. */
+.fc-btn:disabled {
+  --btn-bg: transparent;
+  --btn-fg: var(--fc-ink-3);
+  --btn-border: var(--fc-line);
+  cursor: not-allowed;
+}
+
+/* ── Foco ──────────────────────────────────────────────────────────────────
+   `outline`, no `box-shadow`: 2 px + offset 2 px sobre `--fc-focus`, igual
+   que el resto del sistema. Va al final por claridad, pero ya no depende del
+   orden: nada más en esta hoja escribe `outline`. */
 .fc-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: var(--border-thick) solid var(--fc-focus);
+  outline-offset: 2px;
 }
 
-/*
- * El enlace hereda el dibujo del botón, pero un `<a>` llega con lo suyo: subrayado,
- * `color` de enlace y un alto que ignora `[data-size]` si el texto desborda la línea.
- * Se corrige aquí y no en cada plantilla para que las dos formas del componente no
- * puedan divergir.
- */
-a.fc-btn {
-  box-sizing: border-box;
-  text-decoration: none;
-  cursor: pointer;
-}
+/* Nada más: el `<a>` que compartía esta hoja (y necesitaba perder el subrayado
+   heredado) vive ahora en `link-button/link-button.component.css`. */

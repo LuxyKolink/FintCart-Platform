@@ -1,36 +1,87 @@
+/* ============================================================================
+   fc-badge — dirección de arte v2 "institucional sereno" (brief §7)
+
+   Píldora de 20 px que usa `--fc-accent-tint` SOLO para señalar estado. La
+   forma la fija el brief: alto 20 px, `--radius-pill`, `--fs-meta`, sin
+   mayúsculas forzadas ni tracking ancho (eso era el vocabulario del *eyebrow*
+   retirado en §6.1).
+
+   Sin literales: los siete tonos resuelven a la paleta, y el texto sobre
+   relleno sólido usa `--fc-on-accent` —antes había cuatro blancos literales—. Las
+   parejas medidas: blanco sobre `--fc-accent` 9.49 : 1, sobre `--fc-danger`
+   7.57 : 1, sobre `--fc-success` 6.48 : 1 y sobre `--fc-warning` 5.93 : 1;
+   todas pasan AA (FR-096), que es lo que mide `e2e/a11y.spec.ts`.
+
+   `data-tone` y `data-variant` siguen siendo el contrato: hay una prueba que
+   los afirma y plantillas que los usan (`tone="warning"` para Borrador,
+   `variant="solid"` para Aprobado). Cambia el dibujo, no los ganchos.
+
+   ORDEN DE LAS REGLAS, que aquí importa: los tonos suaves van antes del
+   relleno sólido genérico, y los tonos sólidos —más específicos— después.
+   Si el bloque suave fuera el último, un `tone="success" variant="solid"`
+   pintaría el tint azul con texto verde.
+   ============================================================================ */
+
 .fc-badge {
+  --badge-bg: var(--fc-line);
+  --badge-fg: var(--fc-ink-2);
+
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
+  gap: var(--space-1);
+  height: var(--space-5);
+  padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
+  background: var(--badge-bg);
+  color: var(--badge-fg);
   font-family: var(--font-sans);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-semibold);
-  /* Brief §7: la píldora pierde las mayúsculas forzadas y el tracking ancho,
-     que la emparentaban con la etiqueta *eyebrow* retirada en §6.1. */
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-medium);
+  line-height: 1;
   letter-spacing: var(--ls-meta);
-  line-height: 1.4;
   white-space: nowrap;
 }
 
-.fc-badge[data-tone='neutral'][data-variant='soft'] { background: var(--fc-line); color: var(--fc-ink-2); }
-.fc-badge[data-tone='neutral'][data-variant='solid'] { background: var(--fc-ink-2); color: #fff; }
+/* ── Suaves (por defecto): tint de estado + texto del tono ───────────────── */
+.fc-badge[data-tone='accent'],
+.fc-badge[data-tone='brand'],
+.fc-badge[data-tone='info'] {
+  --badge-bg: var(--fc-accent-tint);
+  --badge-fg: var(--fc-accent);
+}
+.fc-badge[data-tone='success'] {
+  --badge-bg: var(--fc-accent-tint);
+  --badge-fg: var(--fc-success);
+}
+.fc-badge[data-tone='warning'] {
+  --badge-bg: var(--fc-accent-tint);
+  --badge-fg: var(--fc-warning);
+}
+.fc-badge[data-tone='danger'] {
+  --badge-bg: var(--fc-accent-tint);
+  --badge-fg: var(--fc-danger);
+}
 
-.fc-badge[data-tone='brand'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-accent-hover); }
-.fc-badge[data-tone='brand'][data-variant='solid'] { background: var(--fc-accent); color: #fff; }
-
-.fc-badge[data-tone='accent'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-accent); }
-.fc-badge[data-tone='accent'][data-variant='solid'] { background: var(--fc-accent); color: var(--fc-on-accent); }
-
-.fc-badge[data-tone='success'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-success); }
-.fc-badge[data-tone='success'][data-variant='solid'] { background: var(--success); color: #fff; }
-
-.fc-badge[data-tone='warning'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-warning); }
-.fc-badge[data-tone='warning'][data-variant='solid'] { background: var(--warning); color: #fff; }
-
-.fc-badge[data-tone='danger'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-danger); }
-.fc-badge[data-tone='danger'][data-variant='solid'] { background: var(--danger); color: #fff; }
-
-.fc-badge[data-tone='info'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-accent-hover); }
-.fc-badge[data-tone='info'][data-variant='solid'] { background: var(--fc-accent); color: #fff; }
+/* ── Sólidos: el tono como fondo, blanco de la paleta como texto ────────────
+   `brand`, `info` y `accent` son el MISMO tono: `colors.css` retiró el coral y
+   el púrpura, así que solo queda un acento. Los tres nombres sobreviven
+   porque los usa el catálogo y el editor, y renombrar un `@Input` rompería a
+   sus llamadores. */
+.fc-badge[data-variant='solid'] {
+  --badge-bg: var(--fc-ink-2);
+  --badge-fg: var(--fc-on-accent);
+}
+.fc-badge[data-tone='accent'][data-variant='solid'],
+.fc-badge[data-tone='brand'][data-variant='solid'],
+.fc-badge[data-tone='info'][data-variant='solid'] {
+  --badge-bg: var(--fc-accent);
+}
+.fc-badge[data-tone='success'][data-variant='solid'] {
+  --badge-bg: var(--fc-success);
+}
+.fc-badge[data-tone='warning'][data-variant='solid'] {
+  --badge-bg: var(--fc-warning);
+}
+.fc-badge[data-tone='danger'][data-variant='solid'] {
+  --badge-bg: var(--fc-danger);
+}

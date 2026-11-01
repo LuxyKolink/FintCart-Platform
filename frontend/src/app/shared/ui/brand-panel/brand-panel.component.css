@@ -1,30 +1,57 @@
+/* ============================================================================
+   fc-brand-panel — dirección de arte v2 "institucional sereno" (brief §7, §8;
+   nota N-14)
+
+   QUÉ CAMBIA: el fondo pasa a `--fc-accent` SÓLIDO. Se retira el degradado
+   coral→púrpura, que era el sitio donde los tres acentos viejos se veían a la
+   vez. Además de ser lo que el brief manda, un color sólido es lo único que el
+   verificador de `e2e/a11y.spec.ts` puede medir: el contraste se calcula sobre
+   `background-color`, y el fondo computado de un elemento con solo
+   `background-image` es transparente. Blanco sobre `--fc-accent` = 9.49 : 1.
+
+   LA MARCA ES MONOCROMA SOBRE EL ACENTO (brief §7). El logotipo se sirve como
+   `<img>` de `assets/logo/fintcart-mark.svg`, así que no puede heredar
+   `currentColor`: el tratamiento monocromo se aplica con `filter`, que no
+   introduce ningún literal de color. Se conserva la variante de asset `mark`
+   —una prueba de esta primitiva afirma el archivo— y el resultado es el mismo:
+   una sola tinta sobre el azul.
+
+   N-14: bajo --bp-md el panel degrada a BANDA COMPACTA y NUNCA se oculta. En el
+   acceso es la única presencia de la marca, así que se quedan logotipo, nombre y
+   titular; se van el subtítulo largo y los indicadores, que repiten lo que el
+   formulario de al lado ya dice con su propio `h1` + subtítulo.
+   ============================================================================ */
+
 :host {
   display: flex;
   flex-direction: column;
-  /* Brief §7: fondo `--fc-accent` SÓLIDO, sin degradado coral→púrpura. El panel
-     era el sitio donde los tres acentos se veían a la vez; el color sólido fija
-     el contraste en un solo valor verificable (blanco sobre `--fc-accent` =
-     9.49:1) y ya no depende de una imagen que el verificador de `e2e/a11y` no
-     puede medir: mide `background-color`. */
+  min-width: 0;
   background-color: var(--fc-accent);
-  color: var(--text-on-brand);
+  color: var(--fc-on-accent);
   padding: var(--space-8) var(--space-7);
-  position: relative;
-  overflow: hidden;
 }
 
+/* El logotipo entra como `<img>`: `currentColor` no cruza el límite del documento
+   del SVG, así que la marca se vuelve monocroma (blanco) con un filtro. Sin
+   literales de color: `brightness(0)` la deja en negro y `invert(1)` la sube a la
+   tinta de marca sobre acento. */
 .fc-brand-panel__brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: var(--space-3);
+}
+
+.fc-brand-panel__brand fc-brand-logo {
+  filter: brightness(0) invert(1);
 }
 
 .fc-brand-panel__wordmark {
   font-family: var(--font-display);
-  font-weight: var(--fw-bold);
-  font-size: var(--fs-2xl);
-  line-height: 1;
-  color: var(--text-on-brand);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  letter-spacing: var(--ls-h3);
+  color: var(--fc-on-accent);
 }
 
 .fc-brand-panel__intro {
@@ -32,24 +59,30 @@
 }
 
 .fc-brand-panel__title {
-  font-size: 34px;
-  line-height: var(--lh-tight);
-  color: var(--text-on-brand);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+  color: var(--fc-on-accent);
   margin: 0 0 var(--space-3);
+  text-wrap: balance;
 }
 
+/* Tinta opaca, no blanco al 92 %: el token es el único sitio del sistema donde
+   puede vivir un blanco, y el contraste medido es el del token. */
 .fc-brand-panel__subtitle {
-  font-size: var(--fs-md);
-  color: rgb(255 255 255 / 92%);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-reading);
+  color: var(--fc-on-accent);
   margin: 0;
-  max-width: 320px;
+  max-width: 34ch;
 }
 
 .fc-brand-panel__indicators {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4) var(--space-5);
+  gap: var(--space-3) var(--space-5);
   margin: var(--space-6) 0 0;
   padding: 0;
 }
@@ -58,32 +91,52 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--fs-sm);
-  color: var(--text-on-brand);
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
+  color: var(--fc-on-accent);
 }
 
-/* Degradación del panel (FR-126, N-14): bajo --bp-md el panel pasa a BANDA
-   compacta —conserva logotipo, titular y subtítulo, sacrifica los tres
-   indicadores— y NUNCA se oculta. Se escribe el literal 768px porque `var()` no
-   se resuelve dentro de `@media` (ver tokens/breakpoints.css). */
+/* Banda compacta (FR-126, N-14). Se escribe el literal 767.98px porque `var()`
+   no se resuelve dentro de un `@media` (ver tokens/breakpoints.css). El panel NO
+   se oculta: la comprobación visual de `e2e/visual/auth.spec.ts` lo exige visible
+   a 360, 480, 768, 1024 y 1280 px. */
 @media (max-width: 767.98px) {
   :host {
-    padding: var(--space-5);
+    /* Padding de banda, no de panel: el bloque se lee como una franja superior. */
+    padding: var(--space-4);
+  }
+
+  .fc-brand-panel__brand {
+    gap: var(--space-2);
+  }
+
+  /* El logotipo baja un escalón de la rejilla (40 → 32) para que la banda se
+     quede en franja. El asset lo dibuja `img` con `max-width: 100%`, así que
+     basta con acotar el host. */
+  .fc-brand-panel__brand fc-brand-logo {
+    width: var(--space-7);
+  }
+
+  .fc-brand-panel__wordmark {
+    font-size: var(--fs-ui);
+    line-height: var(--lh-ui);
+    letter-spacing: var(--ls-ui);
   }
 
   .fc-brand-panel__intro {
-    margin-top: var(--space-4);
+    margin-top: var(--space-2);
   }
 
   .fc-brand-panel__title {
-    font-size: var(--fs-xl);
-    margin-bottom: var(--space-1);
+    font-size: var(--fs-h3);
+    line-height: var(--lh-h3);
+    letter-spacing: var(--ls-h3);
+    margin-bottom: 0;
   }
 
-  .fc-brand-panel__subtitle {
-    max-width: none;
-  }
-
+  /* El subtítulo y los indicadores se retiran de la banda: repiten el mensaje del
+     formulario, que en esta anchura está justo debajo con su propio titular. */
+  .fc-brand-panel__subtitle,
   .fc-brand-panel__indicators {
     display: none;
   }

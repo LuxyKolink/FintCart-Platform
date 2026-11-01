@@ -21,8 +21,25 @@ const FILES: Record<BrandLogoVariant, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<img [src]="src()" [width]="width()" [height]="height()" alt="" />`,
   styles: `
+    /*
+     * La marca nunca se deforma ni arrastra el interlineado del texto que la
+     * rodea: 'line-height: 0' y 'display: block' son lo que impide que el panel
+     * de acceso gane 4 px fantasma bajo el logotipo.
+     *
+     * No se declara color: el asset lo decide ('currentColor' en
+     * fintcart-mark-mono.svg, tintes propios en el resto) y el tratamiento
+     * monocromo sobre el acento se aplica desde fc-brand-panel con un filtro.
+     */
     :host {
       display: inline-flex;
+      flex: none;
+      line-height: 0;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
     }
   `,
 })

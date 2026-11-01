@@ -1,58 +1,83 @@
+/* ============================================================================
+   fc-tag — dirección de arte v2 "institucional sereno" (brief §7)
+
+   Píldora de 20 px, NEUTRA. Antes había cinco bloques idénticos —uno por
+   categoría— que solo se diferenciaban en el color del punto; con la paleta v2
+   los cinco acentos por categoría (`--cat-ahorro`, `--cat-credito`, …) ya no
+   existen, así que cinco bloques que pintaban lo mismo se reducen a uno.
+
+   `data-category` SE CONSERVA como gancho: la prueba de `fc-tag` afirma que el
+   atributo existe y las pantallas lo usan para saber qué filtro está activo.
+   Lo que desaparece es que el color CODIFIQUE la categoría: el color vuelve a
+   señalar estado —seleccionado o no— y no tema (brief §2).
+
+   La forma la fija el brief: `--radius-pill`, alto 20 px, `--fc-meta`, sin
+   mayúsculas forzadas ni tracking ancho. Estado = `--fc-accent-tint` de fondo
+   con texto `--fc-accent`, el uso legítimo del tinte; neutro = `--fc-line` con
+   `--fc-ink-2`.
+
+   Se retira la barra interior (`box-shadow: inset 0 -2px 0`) de la variante
+   activa: era la barra de acento de 3 px del brief §6.3 con otro grosor.
+   ============================================================================ */
+
 .fc-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px 3px 8px;
-  border: 1px solid var(--border-default);
-  background: var(--surface-card);
-  border-radius: var(--radius-sm);
+  gap: var(--space-1);
+  height: var(--space-5);
+  padding: 0 var(--space-2);
+  border: var(--border-hairline) solid var(--fc-line);
+  border-radius: var(--radius-pill);
+  background: transparent;
   font-family: var(--font-sans);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  letter-spacing: var(--ls-meta);
+  color: var(--fc-ink-2);
+  white-space: nowrap;
   cursor: pointer;
   text-decoration: none;
-  line-height: var(--lh-secondary);
-  /* `transition: all` animaba también el `box-shadow` del foco (mismo motivo que
-     en `fc-checkbox`, FR-094/SC-030): aquí solo cambia el color. */
+  /* Explícito, y no `all`: animar `outline`/`box-shadow` retrasa el anillo de
+     foco y una barrera que mide el instante del foco lo lee como «sin
+     indicador» (FR-094, SC-030). */
   transition:
-    border-color var(--dur-fast),
-    color var(--dur-fast);
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.fc-tag:hover {
+  border-color: var(--fc-line-strong);
+  color: var(--fc-ink);
+}
+
+/* Estado seleccionado. Va DESPUÉS del hover y con su propio `:hover` para que
+   una etiqueta activa no vuelva al gris del neutro al pasar el puntero. */
+.fc-tag--active {
+  background: var(--fc-accent-tint);
+  border-color: var(--fc-accent-tint);
+  color: var(--fc-accent);
+}
+
+.fc-tag--active:hover {
+  color: var(--fc-accent-hover);
 }
 
 .fc-tag:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: var(--border-thick) solid var(--fc-focus);
+  outline-offset: 2px;
 }
 
+/* El punto se pinta con `currentColor`: así hereda el gris del neutro y el
+   acento del estado sin una regla por categoría. Es decoración —la etiqueta
+   lleva `aria-hidden="true"`—, y el nombre accesible sigue siendo el texto
+   proyectado. */
 .fc-tag__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--text-faint);
   flex: none;
-}
-
-.fc-tag[data-category='ahorro']:hover, .fc-tag[data-category='ahorro'].fc-tag--active { border-color: var(--fc-accent); }
-.fc-tag[data-category='ahorro'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
-.fc-tag[data-category='ahorro'] .fc-tag__dot { background: var(--fc-line-strong); }
-
-.fc-tag[data-category='credito']:hover, .fc-tag[data-category='credito'].fc-tag--active { border-color: var(--fc-accent); }
-.fc-tag[data-category='credito'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
-.fc-tag[data-category='credito'] .fc-tag__dot { background: var(--fc-line-strong); }
-
-.fc-tag[data-category='presupuesto']:hover, .fc-tag[data-category='presupuesto'].fc-tag--active { border-color: var(--fc-accent); }
-.fc-tag[data-category='presupuesto'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
-.fc-tag[data-category='presupuesto'] .fc-tag__dot { background: var(--fc-line-strong); }
-
-.fc-tag[data-category='inversion']:hover, .fc-tag[data-category='inversion'].fc-tag--active { border-color: var(--fc-accent); }
-.fc-tag[data-category='inversion'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
-.fc-tag[data-category='inversion'] .fc-tag__dot { background: var(--fc-line-strong); }
-
-.fc-tag[data-category='colombia']:hover, .fc-tag[data-category='colombia'].fc-tag--active { border-color: var(--fc-accent); }
-.fc-tag[data-category='colombia'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
-.fc-tag[data-category='colombia'] .fc-tag__dot { background: var(--fc-line-strong); }
-
-.fc-tag--active {
-  color: var(--text-strong);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
 }

@@ -1,34 +1,48 @@
+/* ============================================================================
+   fc-error-state — dirección de arte v2 "institucional sereno" (brief §5, §7)
+
+   QUÉ CAMBIA: el bloque deja de ser una tarjeta con borde. Un estado de error es
+   contenido de página, y un bloque de contenido dentro de una página no lleva
+   borde (brief §5); además, el borde de una tarjeta no aportaba ninguna
+   información —la aporta el texto y el `role="alert"` del contenedor—.
+
+   EL ESTADO SÍ SE PINTA, en el título y solo ahí (brief §2: el color señala
+   estado). El icono se queda en `--fc-ink-3`: es decorativo y lo que informa es
+   la frase. El título en `--fc-danger` mide 7.31 : 1 sobre papel, así que el
+   estado se lee sin romper AA.
+   ============================================================================ */
+
 .fc-error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-8) var(--space-5);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-  color: var(--text-body);
+  color: var(--fc-ink-2);
 }
 
 .fc-error-state__icon {
-  color: var(--danger);
+  color: var(--fc-ink-3);
 }
 
 .fc-error-state__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  letter-spacing: var(--ls-h3);
+  color: var(--fc-danger);
   text-wrap: balance;
 }
 
 .fc-error-state__message {
   margin: 0;
   max-width: 42ch;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-reading);
+  color: var(--fc-ink-2);
   text-wrap: pretty;
 }
 
@@ -37,5 +51,5 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
 }

@@ -1,38 +1,55 @@
+/* ============================================================================
+   fc-empty-state — dirección de arte v2 "institucional sereno" (brief §7)
+
+   QUÉ CAMBIA: se retira la ilustración decorativa y el bloque se reduce a lo que
+   informa —un icono de 32 px en tinta terciaria, un título de 19 px y una acción—.
+   El icono NO es una ilustración: hereda `--fc-ink-3` porque acompaña al texto, no
+   lo sustituye (el nombre accesible lo pone el título, no el icono).
+
+   El estado se centra porque no hay contenido que alinear; el ancho del mensaje se
+   limita en `ch` para que una frase de dos líneas no se estire a 880 px.
+   ============================================================================ */
+
 .fc-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-8) var(--space-5);
-  color: var(--text-body);
+  color: var(--fc-ink-2);
 }
 
 .fc-empty-state__icon {
-  color: var(--text-faint);
+  color: var(--fc-ink-3);
 }
 
 .fc-empty-state__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  letter-spacing: var(--ls-h3);
+  color: var(--fc-ink);
   text-wrap: balance;
 }
 
 .fc-empty-state__message {
   margin: 0;
   max-width: 42ch;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-reading);
+  color: var(--fc-ink-2);
   text-wrap: pretty;
 }
 
+/* Una sola acción (brief §7): lo que se proyecte aquí se apila en una fila; el
+   componente no añade botones propios. */
 .fc-empty-state__action {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
 }

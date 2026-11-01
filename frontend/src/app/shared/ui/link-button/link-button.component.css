@@ -1,0 +1,102 @@
+/* ============================================================================
+   fc-link-button — dirección de arte v2 "institucional sereno" (brief §7)
+
+   QUÉ CAMBIA: un enlace se lee como un ENLACE. Hasta ahora esta primitiva
+   compartía la hoja de `fc-button` (`../button/button.component.css`), así que el
+   mismo destino se veía como una pastilla rellena o con borde según la variante y
+   el lector tenía que adivinar si aquello navegaba o ejecutaba algo. La forma
+   nueva es la de un enlace de texto: tinta de acento, sin relleno, sin borde, sin
+   alto de 40 px y sin subrayado permanente —el subrayado aparece en `hover`, que
+   es donde el sistema lo pone para todo enlace (`tokens/base.css`)—.
+
+   POR QUÉ DEJA DE COMPARTIR LA HOJA DEL BOTÓN: el brief §7 da a las dos
+   primitivas tratamientos distintos —`fc-button` es una acción de 40 px y
+   `fc-link-button` un enlace—; una hoja compartida solo puede expresar uno de los
+   dos. El desacople además impide que un cambio en el botón mueva los enlaces.
+
+   SE CONSERVAN, porque son contrato público y una prueba los afirma:
+     · la clase `.fc-btn`,
+     · los ganchos `[data-variant]` y `[data-size]`,
+     · la clase `.fc-btn--block`.
+   Lo que cambia es lo que esos ganchos pintan: la VARIANTE ya solo elige el color
+   (acento o destructivo) y el TAMAÑO solo la escala tipográfica, porque la forma
+   del enlace no depende de ninguno de los dos.
+
+   ACCESIBILIDAD: el foco es el anillo del sistema —`outline` de 2 px + offset
+   2 px sobre `--fc-focus`—, el mismo de `:focus-visible` global, declarado aquí
+   para que el estado exista aunque el orden de las hojas cambie (FR-094).
+   ============================================================================ */
+
+:host {
+  /* En línea: el enlace participa del texto que lo rodea. Como elemento flexible
+     se blockifica solo, así que `[block]` sigue funcionando. */
+  display: inline;
+}
+
+.fc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fc-accent);
+  font-family: var(--font-sans);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  /* Sin subrayado permanente (brief §7). No se pone `!important` ni se toca
+     `tokens/base.css`: la especificidad de la encapsulación de Angular ya gana a
+     la regla global de `a`. */
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.fc-btn:hover {
+  color: var(--fc-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fc-btn:focus-visible {
+  outline: var(--border-thick) solid var(--fc-focus);
+  outline-offset: 2px;
+}
+
+/* Bloque: ocupa la línea y alinea su texto al inicio (los llamadores lo usan para
+   acciones de fila en el perfil). */
+.fc-btn--block {
+  display: flex;
+  width: 100%;
+  text-align: start;
+}
+
+/* ── Tamaño: solo escala tipográfica ─────────────────────────────────────── */
+.fc-btn[data-size='sm'] {
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
+}
+.fc-btn[data-size='lg'] {
+  font-size: var(--fs-reading);
+  line-height: var(--lh-reading);
+}
+
+/* ── Variante: solo color ────────────────────────────────────────────────── */
+.fc-btn[data-variant='primary'],
+.fc-btn[data-variant='accent'],
+.fc-btn[data-variant='secondary'],
+.fc-btn[data-variant='ghost'] {
+  color: var(--fc-accent);
+}
+
+/* Destructivo: `--fc-danger` sobre papel mide 7.31 : 1. Va después del hover
+   general para que el subrayado no arrastre el color del acento. */
+.fc-btn[data-variant='danger'] {
+  color: var(--fc-danger);
+}
+.fc-btn[data-variant='danger']:hover {
+  color: var(--fc-danger);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

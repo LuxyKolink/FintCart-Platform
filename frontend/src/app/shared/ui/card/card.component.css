@@ -1,18 +1,38 @@
+/* ============================================================================
+   fc-card — dirección de arte v2 "institucional sereno" (brief §5, §7)
+
+   La tarjeta deja de ser una caja: superficie `--fc-surface`, SIN borde, sin
+   sombra, radio 2 px y `--space-5` de padding. Lo que separa un bloque de
+   contenido de otro es el espacio y la tipografía, no el cromo (brief §6.7).
+
+   Por qué se van las tres cosas:
+     · el borde de 1 px rodeaba contenido dentro de una página, y el brief §5
+       solo admite borde cuando separa dos superficies funcionales (campo,
+       tabla, panel de filtros);
+     · `--shadow-sm`/`--shadow-md` ya resuelven a `none` en la capa de tokens,
+       así que las declaraciones mentían; se borran;
+     · el `translateY(-2px)` del hover era elevación decorativa —el brief §5
+       reserva la sombra para capas superpuestas reales— y además movía el
+       texto bajo el puntero.
+
+   El hover de la tarjeta interactiva se queda en un cambio de SUPERFICIE, sin
+   tinte (`--fc-accent-tint` pertenece a selección y estado) y sin sombra.
+
+   Se retira `overflow: hidden`: recortaba el anillo de foco de cualquier
+   control dentro de la tarjeta, que es una pérdida de accesibilidad invisible
+   en los estilos computados hasta que alguien tabula.
+   ============================================================================ */
+
 .fc-card {
   display: block;
-  background: var(--surface-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  transition:
-    box-shadow var(--dur-base),
-    transform var(--dur-base),
-    border-color var(--dur-base);
+  background: var(--fc-surface);
+  border: 0;
+  border-radius: var(--radius-2);
+  transition: background-color var(--dur-base) var(--ease-out);
 }
 
 .fc-card--padded {
-  padding: var(--space-4);
+  padding: var(--space-5);
 }
 
 .fc-card--interactive {
@@ -20,7 +40,5 @@
 }
 
 .fc-card--interactive:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-  border-color: var(--border-strong);
+  background: var(--fc-paper);
 }

@@ -1,3 +1,17 @@
+/* ============================================================================
+   fc-skeleton — dirección de arte v2 "institucional sereno" (brief §7)
+
+   QUÉ CAMBIA: el barrido se pinta en `--fc-line` (el riel de 1 px de la paleta) en
+   vez de en un tinte cálido, y los radios bajan al máximo del sistema. El degradado
+   de tres paradas sobrevive porque es lo que HACE que se lea como "cargando": sin
+   él, una caja gris es indistinguible de un divisor.
+
+   El estado ya existía y se conserva tal cual: `role="status"` con `aria-label` en
+   el contenedor y `aria-hidden="true"` en cada barra (una prueba lo afirma; un
+   lector de pantalla no puede leer una caja gris). `prefers-reduced-motion` sigue
+   desactivando el barrido.
+   ============================================================================ */
+
 .fc-skeleton {
   display: flex;
   flex-direction: column;
@@ -9,13 +23,13 @@
   display: block;
   width: var(--fc-skeleton-w, 100%);
   height: var(--fc-skeleton-h, 1em);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-2);
   background-color: var(--surface-inset);
   background-image: linear-gradient(
     90deg,
-    var(--surface-inset) 25%,
-    var(--surface-sunken) 37%,
-    var(--surface-inset) 63%
+    var(--fc-line) 25%,
+    var(--fc-paper) 37%,
+    var(--fc-line) 63%
   );
   background-size: 400% 100%;
   animation: fc-skeleton-shimmer 1.4s ease-in-out infinite;
@@ -23,18 +37,19 @@
 
 .fc-skeleton[data-variant='title'] .fc-skeleton__bar {
   height: var(--fc-skeleton-h, 1.5em);
-  border-radius: var(--radius-md);
 }
 
 .fc-skeleton[data-variant='rect'] .fc-skeleton__bar {
   height: var(--fc-skeleton-h, 120px);
-  border-radius: var(--radius-md);
 }
 
 .fc-skeleton[data-variant='circle'] {
   width: var(--fc-skeleton-w, 40px);
 }
 
+/* `circle` es el marcador de un avatar, y el avatar es redondo por definición (la
+   forma es el contenido, no una esquina decorada): aquí `--radius-pill` sigue
+   siendo legítimo, igual que en `fc-avatar`. */
 .fc-skeleton[data-variant='circle'] .fc-skeleton__bar {
   width: 100%;
   height: var(--fc-skeleton-h, 40px);

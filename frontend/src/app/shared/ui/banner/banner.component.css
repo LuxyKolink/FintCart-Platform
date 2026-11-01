@@ -2,27 +2,50 @@
   display: block;
 }
 
-/*
- * Brief §7: franja de 1 px superior DEL COLOR DEL ESTADO, con el icono alineado
- * al texto. NO un bloque tintado de ancho completo con fondo saturado.
- *
- * El cambio es de valores, no de plantilla: el mismo `<div class="fc-banner"
- * data-tone role>` sigue ahí y las pruebas siguen seleccionándolo por rol. Lo
- * que desaparece es el fondo tintado (decoración de tarjeta, §5) y las cuatro
- * parejas de verdes/rojos/marigoldos púrpuras del portal anterior: queda un
- * solo lenguaje, el color del estado en el texto y en la regla superior.
- *
- * `currentColor` es lo que hace que una sola declaración de borde sirva a los
- * cuatro estados: hereda el color que fija cada `[data-tone]` justo debajo.
- */
+/* ============================================================================
+   fc-banner — dirección de arte v2 "institucional sereno" (brief §7)
+
+   Franja con una regla superior de 1 px DEL COLOR DEL ESTADO. Ni bloque
+   tintado de ancho completo ni fondo saturado: esa era la decoración de
+   tarjeta que el brief §5 prohíbe, y era el único sitio del sistema donde el
+   color ocupaba una superficie entera.
+
+   EL TEXTO ES TINTA, NO COLOR DE ESTADO. El estado viaja en la regla y en el
+   `role` que fija la plantilla (`alert` para error y aviso, `status` para el
+   resto): el color nunca es la única señal, que es lo que hace legible el
+   mensaje a quien no distingue verde de rojo. De paso, el texto mide 17.15 : 1
+   en lugar de quedar al límite de AA en el tono de advertencia.
+
+   Se retiran las cuatro parejas de tintes por estado (`--success-soft`,
+   `--danger-soft`, …): esos tokens ya no existen en `colors.css` (brief §6.6).
+
+   `currentColor` no se usa aquí —esa era la solución anterior, que obligaba a
+   pintar el texto del tono para poder pintar el borde—: el tono se guarda en
+   una propiedad propia y el borde la lee.
+
+   La plantilla NO cambia: el mismo `<div class="fc-banner" data-tone role>`
+   sigue ahí, y las pruebas lo siguen seleccionando por rol y por tono.
+   ============================================================================ */
+
 .fc-banner {
+  --banner-tone: var(--fc-ink-3);
+
   padding: var(--space-3) 0;
+  border-top: var(--border-hairline) solid var(--banner-tone);
   font-size: var(--fs-secondary);
   line-height: var(--lh-secondary);
-  border-top: 1px solid currentColor;
+  color: var(--fc-ink);
 }
 
-.fc-banner[data-tone='error'] { color: var(--fc-danger); }
-.fc-banner[data-tone='success'] { color: var(--fc-success); }
-.fc-banner[data-tone='info'] { color: var(--fc-accent); }
-.fc-banner[data-tone='warning'] { color: var(--fc-warning); }
+.fc-banner[data-tone='error'] {
+  --banner-tone: var(--fc-danger);
+}
+.fc-banner[data-tone='success'] {
+  --banner-tone: var(--fc-success);
+}
+.fc-banner[data-tone='info'] {
+  --banner-tone: var(--fc-accent);
+}
+.fc-banner[data-tone='warning'] {
+  --banner-tone: var(--fc-warning);
+}

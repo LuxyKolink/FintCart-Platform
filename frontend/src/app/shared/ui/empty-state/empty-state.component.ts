@@ -25,7 +25,7 @@ import { IconComponent, type IconName } from '../icon/icon.component';
   imports: [IconComponent],
   template: `
     <div class="fc-empty-state" role="status">
-      <fc-icon class="fc-empty-state__icon" [name]="icon()" [size]="40" />
+      <fc-icon class="fc-empty-state__icon" [name]="icon()" [size]="32" />
       <p class="fc-empty-state__title">{{ title() }}</p>
       @if (message()) {
         <p class="fc-empty-state__message">{{ message() }}</p>

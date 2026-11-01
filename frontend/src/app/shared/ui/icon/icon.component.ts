@@ -93,6 +93,18 @@ const ICONS: Record<IconName, LucideIconData> = {
  * name vocabulary. Lucide is a substitution chosen by the design system, not
  * a FintCart brand asset (design/README.md:98): if a proprietary icon set
  * replaces it, only ICONS above and the kits change.
+ *
+ * DECORATIVO vs CON NOMBRE (brief §7, FR-095). El registro de 25 iconos se
+ * conserva y el trazo baja a 1.5: a 20 px el trazo de 2 px engorda la silueta y
+ * devuelve la densidad de intranet que la dirección de arte v2 retira.
+ *
+ * El icono es SIEMPRE decorativo salvo que se le pase `label`, y esa distinción
+ * no se deja al azar: `LucideDynamicIcon` emite `aria-hidden="true"` en cuanto
+ * no hay `title`, de modo que un icono sin etiqueta no roba el nombre accesible
+ * del texto que acompaña ni aparece como imagen suelta ante el lector de
+ * pantalla. Cuando SÍ hay etiqueta, se añade `role="img"` para que el `<title>`
+ * se anuncie (un `<svg>` sin rol no expone su título). Las dos ramas son
+ * excluyentes, así que nunca coinciden `aria-hidden` y `role="img"`.
  */
 @Component({
   selector: 'fc-icon',
@@ -105,10 +117,18 @@ const ICONS: Record<IconName, LucideIconData> = {
       [size]="size()"
       [strokeWidth]="strokeWidth()"
       [title]="label() ?? undefined"
+      [attr.role]="label() ? 'img' : null"
       class="fc-icon"
     ></svg>
   `,
   styles: `
+    /*
+     * Solo geometría de colocación: el color lo hereda ('stroke: currentColor'
+     * lo pone Lucide), así que un icono dentro de un encabezado de estado toma
+     * el color del estado sin que este componente sepa nada de la paleta.
+     * 'flex: none' evita que el icono se comprima en una fila flexible —el
+     * defecto que hacía desaparecer el icono de un botón estrecho—.
+     */
     .fc-icon {
       display: inline-block;
       vertical-align: middle;
@@ -119,7 +139,8 @@ const ICONS: Record<IconName, LucideIconData> = {
 export class IconComponent {
   readonly name = input.required<IconName>();
   readonly size = input<number | string>(20);
-  readonly strokeWidth = input<number | string>(2);
+  /** Trazo 1.5 (brief §7). El registro de iconos no cambia. */
+  readonly strokeWidth = input<number | string>(1.5);
   /** Accessible label. Leave unset for decorative icons (the common case). */
   readonly label = input<string | null>(null);
 

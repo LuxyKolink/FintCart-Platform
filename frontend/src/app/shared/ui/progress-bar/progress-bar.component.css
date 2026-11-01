@@ -1,47 +1,98 @@
+/* ============================================================================
+   fc-progress-bar — dirección de arte v2 "institucional sereno" (brief §6.5, §7)
+
+   QUÉ CAMBIA: el riel baja a 4 px de alto, pierde el borde de 1 px y el relleno
+   tipo píldora, y la barra se queda en `--fc-accent`. Un riel de 10-14 px con
+   borde y esquinas redondeadas era cromo: la barra es una MEDIDA, y una medida se
+   lee mejor fina y con el número en texto al lado —que es lo que hace la meta de
+   arriba— que engordada con una etiqueta dentro.
+
+   `--surface-inset` resuelve a `--fc-line` (el riel de 1 px del brief §2) y
+   `--radius-2` es el radio máximo del sistema (brief §5): nada de `--radius-pill`,
+   que la dirección v2 reserva a la forma de píldora de `fc-badge`/`fc-tag`.
+
+   LOS TRES TAMAÑOS COLAPSAN AL MISMO ALTO, y es deliberado: el brief §7 fija
+   4 px para la primitiva, así que `sm`, `md` y `lg` dejan de dibujar tres rieles
+   distintos. El `@Input` se conserva porque es contrato público de las pantallas
+   que ya lo pasan; su atributo sigue en el DOM y no cambia nada.
+   ============================================================================ */
+
+:host {
+  display: block;
+  width: 100%;
+}
+
 .fc-progress {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-2);
 }
 
 .fc-progress__meta {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: var(--space-3);
 }
 
 .fc-progress__label {
   font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
+  font-weight: var(--fw-medium);
+  color: var(--fc-ink);
 }
 
+/* El porcentaje va en texto al lado de la barra, no dentro (brief §7), y con la
+   cifra en monospace tabular: es un dato (N-15). */
 .fc-progress__value {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  letter-spacing: var(--ls-meta);
+  color: var(--fc-ink-3);
 }
 
 .fc-progress__track {
+  height: var(--space-1); /* 4 px (brief §7) */
   background: var(--surface-inset);
-  border-radius: var(--radius-pill);
+  border: 0;
+  border-radius: var(--radius-2);
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
 }
 
-.fc-progress__track[data-size='sm'] { height: 6px; }
-.fc-progress__track[data-size='md'] { height: 10px; }
-.fc-progress__track[data-size='lg'] { height: 14px; }
+/* Los tres ganchos de tamaño siguen en el DOM y ya no cambian el alto. */
+.fc-progress__track[data-size='sm'],
+.fc-progress__track[data-size='md'],
+.fc-progress__track[data-size='lg'] {
+  height: var(--space-1);
+}
 
 .fc-progress__fill {
   height: 100%;
   background: var(--fc-accent);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-2);
   transition: width var(--dur-slow) var(--ease-out);
 }
 
-.fc-progress__fill[data-tone='primary'] { background: var(--fc-accent); }
-.fc-progress__fill[data-tone='success'] { background: var(--success); }
-.fc-progress__fill[data-tone='warning'] { background: var(--warning); }
-.fc-progress__fill[data-tone='danger'] { background: var(--danger); }
+/* El estado de la barra también puede señalarse con color (brief §2): el tono es
+   el del resultado, no un adorno. */
+.fc-progress__fill[data-tone='primary'] {
+  background: var(--fc-accent);
+}
+.fc-progress__fill[data-tone='success'] {
+  background: var(--fc-success);
+}
+.fc-progress__fill[data-tone='warning'] {
+  background: var(--fc-warning);
+}
+.fc-progress__fill[data-tone='danger'] {
+  background: var(--fc-danger);
+}
+
+/* El ancho animado es una transición de la medida: quien pidió menos movimiento
+   ve el valor final sin recorrido. */
+@media (prefers-reduced-motion: reduce) {
+  .fc-progress__fill {
+    transition: none;
+  }
+}

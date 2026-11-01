@@ -1,35 +1,54 @@
+/* ============================================================================
+   fc-checkbox — dirección de arte v2 "institucional sereno" (brief §7)
+
+   Casilla de 18 px con borde de 1 px `--fc-line-strong` y radio 2 px: el mismo
+   borde de campo que `fc-input` y `fc-select`. El grosor baja de 1.5 px a 1 px
+   porque el sistema tiene una sola hairline (`--border-hairline`); un grosor
+   intermedio era un cuarto valor de borde que nadie más usaba.
+
+   FOCO: `outline` de 2 px + offset 2 px. Antes era un `box-shadow`, que la
+   casilla podía perder al animarse —de ahí el comentario contra
+   `transition: all`—. Con `outline` la señal no compite con ninguna
+   transición, y el `transition` declarado sigue siendo explícito por la misma
+   razón: animar `box-shadow`/`outline` retrasa el anillo y una barrera que mide
+   el instante del foco lo lee como «sin indicador» (FR-094, SC-030).
+
+   DESHABILITADO: sin `opacity` —la media opacidad dejaba el texto de la
+   etiqueta por debajo de AA—. Se baja a `--fc-ink-3` y el borde a `--fc-line`,
+   la pareja deshabilitada del brief §7.
+   ============================================================================ */
+
 .fc-checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
   font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  color: var(--text-body);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  color: var(--fc-ink);
 }
 
 .fc-checkbox[data-disabled] {
+  color: var(--fc-ink-3);
   cursor: not-allowed;
-  opacity: 0.5;
 }
 
 .fc-checkbox__input {
   appearance: none;
+  flex: none;
   width: 18px;
   height: 18px;
   margin: 0;
-  border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--fc-line-strong);
+  border-radius: var(--radius-2);
+  background: var(--fc-surface);
   display: grid;
   place-items: center;
   cursor: inherit;
-  /* NO `transition: all`: animaba también el `box-shadow`, así que el anillo de
-     foco aparecía desvaneciéndose en vez de de inmediato — y una barrera que mide
-     el instante del foco lo veía como «sin indicador» (FR-094, SC-030). */
   transition:
-    background var(--dur-fast),
-    border-color var(--dur-fast);
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
   accent-color: var(--fc-accent);
 }
 
@@ -42,12 +61,20 @@
   content: '';
   width: 5px;
   height: 9px;
-  border-right: 2px solid var(--text-on-brand);
-  border-bottom: 2px solid var(--text-on-brand);
+  border-right: var(--border-thick) solid var(--fc-on-accent);
+  border-bottom: var(--border-thick) solid var(--fc-on-accent);
   transform: rotate(45deg) translate(-1px, -1px);
 }
 
+.fc-checkbox[data-disabled] .fc-checkbox__input {
+  border-color: var(--fc-line);
+}
+.fc-checkbox[data-disabled] .fc-checkbox__input:checked {
+  background: var(--fc-ink-3);
+  border-color: var(--fc-ink-3);
+}
+
 .fc-checkbox__input:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: var(--border-thick) solid var(--fc-focus);
+  outline-offset: 2px;
 }

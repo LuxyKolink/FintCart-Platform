@@ -1,14 +1,30 @@
+/* ============================================================================
+   fc-select — dirección de arte v2 "institucional sereno" (brief §7)
+
+   Misma forma que `fc-input`, y por eso los tres bloques de campo/etiqueta/
+   ayuda están repetidos aquí: cada componente de Angular tiene su propia
+   encapsulación de estilos, así que un `@import` compartido no llegaría a
+   ninguno de los dos. Se mantienen sincronizados a mano y con el mismo
+   comentario en ambos archivos.
+
+   Lo que cambia respecto de la versión de portal: fuera el `box-shadow` de
+   relleno, borde de 1 px `--fc-line-strong`, 40 px de alto, radio 2 px y el
+   anillo de foco de 2 px + offset 2 px sobre `--fc-focus` (brief §2). El
+   chevron baja a `--fc-ink-3`: es un adorno de afordancia, no texto.
+   ============================================================================ */
+
 .fc-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-2);
 }
 
 .fc-field__label {
   font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-secondary);
+  color: var(--fc-ink);
 }
 
 .fc-select__wrap {
@@ -19,56 +35,67 @@
 .fc-select {
   appearance: none;
   width: 100%;
-  padding: 0 34px 0 12px;
+  padding: 0 var(--space-9) 0 var(--space-3);
   font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  color: var(--text-body);
-  background: var(--surface-card);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-inset);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  color: var(--fc-ink);
+  background: var(--fc-surface);
+  border: var(--border-hairline) solid var(--fc-line-strong);
+  border-radius: var(--radius-2);
   cursor: pointer;
-  outline: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    outline-color var(--dur-fast) var(--ease-out);
 }
 
 .fc-select[data-size='sm'] {
-  height: 30px;
+  height: var(--space-7);
 }
 .fc-select[data-size='md'] {
-  height: 38px;
+  height: var(--space-8);
 }
 .fc-select[data-size='lg'] {
-  height: 46px;
+  height: var(--space-9);
 }
 
 .fc-select[data-invalid] {
-  border-color: var(--danger);
+  border-color: var(--fc-danger);
 }
 
+/* Anillo de 2 px con 2 px de separación, la misma señal que `fc-input`: el
+   borde no cambia de color al enfocar (dos marcos azules para un solo estado
+   se leían como un campo mal dibujado). */
 .fc-select:focus-visible {
-  border-color: var(--border-focus);
-  box-shadow: var(--focus-ring);
+  outline: var(--border-thick) solid var(--fc-focus);
+  outline-offset: 2px;
 }
 
+/* Deshabilitado sin relleno gris: color a `--fc-ink-3` y borde a `--fc-line`
+   (brief §7). El texto sigue midiendo 4.76 : 1 sobre superficie. */
 .fc-select:disabled {
+  border-color: var(--fc-line);
+  color: var(--fc-ink-3);
   cursor: not-allowed;
-  opacity: 0.5;
 }
 
 .fc-select__chevron {
   position: absolute;
-  right: 12px;
   top: 50%;
+  right: var(--space-4);
   transform: translateY(-50%);
   pointer-events: none;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--fc-ink-3);
+  font-size: var(--fs-meta);
+  line-height: 1;
 }
 
 .fc-field__help {
-  font-size: var(--fs-xs);
-  color: var(--text-faint);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  letter-spacing: var(--ls-meta);
+  color: var(--fc-ink-3);
 }
 .fc-field__help[data-invalid] {
-  color: var(--danger);
+  color: var(--fc-danger);
 }

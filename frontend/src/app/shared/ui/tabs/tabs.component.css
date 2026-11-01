@@ -1,47 +1,69 @@
+/* ============================================================================
+   fc-tabs — dirección de arte v2 "institucional sereno" (brief §6, §7)
+
+   QUÉ CAMBIA: la pestaña activa se marca con un SUBRAYADO de 2 px y nada más. Se
+   retiran el fondo tintado y la pastilla —que la dirección v2 prohíbe como tinte
+   decorativo (brief §5) y que competían con el subrayado—, y la fila se apoya en
+   una regla de 1 px `--fc-line`. El peso pasa de 700 a 600: a 15 px el 700 cierra
+   la palabra y vuelve a leerse como un botón.
+
+   ACCESIBILIDAD INTACTA: `role="tablist"` / `role="tab"` / `aria-selected` viven
+   en la plantilla y no se tocan (una prueba los afirma y las suites e2e navegan
+   por rol). El foco conserva su anillo de 2 px + offset 2 px. El contador de la
+   pestaña es un dato: monoespaciado y en tinta terciaria.
+   ============================================================================ */
+
 .fc-tabs {
   display: flex;
-  gap: 2px;
   align-items: flex-end;
-  border-bottom: 1px solid var(--border-default);
+  gap: var(--space-5);
+  /* Regla de 1 px: separa la fila de pestañas del panel que gobiernan. */
+  border-bottom: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-tabs__tab {
   appearance: none;
-  border: none;
-  background: transparent;
-  padding: 9px 14px;
-  margin-bottom: -1px;
+  margin: 0 0 -1px; /* el subrayado activo pisa la regla, no la engorda */
+  padding: var(--space-3) 0;
+  border: 0;
+  /* El subrayado existe siempre y es transparente en reposo: así la pestaña no
+     salta 2 px al activarse. */
+  border-bottom: var(--border-thick) solid transparent;
+  background: none;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   white-space: nowrap;
   font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
-  color: var(--text-muted);
-  border-bottom: 2px solid transparent;
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--ls-ui);
+  color: var(--fc-ink-2);
   transition:
-    color var(--dur-fast),
-    border-color var(--dur-fast);
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 .fc-tabs__tab:hover:not(.fc-tabs__tab--active) {
-  color: var(--text-body);
+  color: var(--fc-ink);
 }
 
 .fc-tabs__tab--active {
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+  color: var(--fc-ink);
   border-bottom-color: var(--fc-accent);
 }
 
 .fc-tabs__tab:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: var(--border-thick) solid var(--fc-focus);
+  outline-offset: 2px;
 }
 
 .fc-tabs__count {
-  font-size: var(--fs-2xs);
-  color: var(--text-faint);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  letter-spacing: var(--ls-meta);
+  color: var(--fc-ink-3);
 }

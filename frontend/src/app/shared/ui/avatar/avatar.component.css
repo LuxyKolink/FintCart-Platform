@@ -1,31 +1,85 @@
+/* ============================================================================
+   fc-avatar — dirección de arte v2 "institucional sereno" (brief §5, §7)
+
+   QUÉ CAMBIA: el monograma pierde la sombra de anillo (`box-shadow: 0 0 0 1px`) y
+   el borde de 2 px sobre blanco —dos capas de cromo para separar algo que ya se
+   separa por su propio color—, y la tinta pasa del blanco crudo al token
+   `--fc-on-accent`. Los tonos se remapean a la paleta v2: los cinco acentos por
+   categoría ya no existen, así que `primary`, `brand`, `accent` e `info` son el
+   MISMO azul y solo `success` / `warning` / `danger` / `neutral` distinguen estado.
+   Se conservan los ocho valores de `tone` porque son contrato público: renombrar
+   un `@Input` rompería a sus llamadores.
+
+   LA FORMA ES REDONDA, y es la única excepción al radio de 2 px (brief §5): aquí
+   el radio no es un tratamiento de esquina sino la forma misma del objeto —un
+   avatar circular, igual que la píldora de `fc-badge`/`fc-tag` y el marcador
+   `circle` de `fc-skeleton`—. El brief §7 da esta primitiva por conservada.
+
+   CONTRASTE: blanco sobre `--fc-accent` 9.49 : 1, sobre `--fc-success` 6.25 : 1,
+   sobre `--fc-warning` 5.72 : 1, sobre `--fc-danger` 7.31 : 1 y sobre
+   `--fc-ink-2` 8.15 : 1. Todas pasan AA; el caso del monograma es texto normal.
+   ============================================================================ */
+
 .fc-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  color: #fff;
-  font-family: var(--font-sans);
-  font-weight: var(--fw-bold);
-  overflow: hidden;
   flex: none;
-  border: 2px solid var(--surface-card);
-  box-shadow: 0 0 0 1px var(--border-default);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  border: 0;
+  box-shadow: none;
+  color: var(--fc-on-accent);
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-meta);
+  line-height: 1;
 }
 
-.fc-avatar[data-size='sm'] { width: 24px; height: 24px; font-size: 10px; }
-.fc-avatar[data-size='md'] { width: 36px; height: 36px; font-size: 14px; }
-.fc-avatar[data-size='lg'] { width: 48px; height: 48px; font-size: 19px; }
-.fc-avatar[data-size='xl'] { width: 64px; height: 64px; font-size: 26px; }
+.fc-avatar[data-size='sm'] {
+  width: 24px;
+  height: 24px;
+  font-size: var(--fs-meta);
+}
+.fc-avatar[data-size='md'] {
+  width: 36px;
+  height: 36px;
+  font-size: var(--fs-secondary);
+}
+.fc-avatar[data-size='lg'] {
+  width: 48px;
+  height: 48px;
+  font-size: var(--fs-h3);
+}
+.fc-avatar[data-size='xl'] {
+  width: 64px;
+  height: 64px;
+  font-size: var(--fs-h2);
+}
 
-.fc-avatar[data-tone='primary'] { background: var(--fc-accent); }
-.fc-avatar[data-tone='brand'] { background: var(--fc-accent); }
-.fc-avatar[data-tone='accent'] { background: var(--fc-accent); color: var(--fc-on-accent); }
-.fc-avatar[data-tone='success'] { background: var(--success); }
-.fc-avatar[data-tone='warning'] { background: var(--warning); }
-.fc-avatar[data-tone='danger'] { background: var(--danger); }
-.fc-avatar[data-tone='info'] { background: var(--fc-accent); }
-.fc-avatar[data-tone='neutral'] { background: var(--fc-ink-2); }
+/* Acento único: `primary`, `brand`, `accent` e `info` son el mismo azul. */
+.fc-avatar[data-tone='primary'],
+.fc-avatar[data-tone='brand'],
+.fc-avatar[data-tone='accent'],
+.fc-avatar[data-tone='info'] {
+  background: var(--fc-accent);
+}
 
+/* Estado: el color aquí informa de algo (confirmado, en riesgo, destructivo). */
+.fc-avatar[data-tone='success'] {
+  background: var(--fc-success);
+}
+.fc-avatar[data-tone='warning'] {
+  background: var(--fc-warning);
+}
+.fc-avatar[data-tone='danger'] {
+  background: var(--fc-danger);
+}
+.fc-avatar[data-tone='neutral'] {
+  background: var(--fc-ink-2);
+}
+
+/* Con imagen, el relleno del tono sobra: la foto es la superficie. */
 .fc-avatar--image {
   background: transparent;
 }

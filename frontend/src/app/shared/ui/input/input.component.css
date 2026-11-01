@@ -1,72 +1,124 @@
+/* ============================================================================
+   fc-input — dirección de arte v2 "institucional sereno" (brief §7)
+
+   El campo deja de ser una caja decorada: borde de 1 px `--fc-line-strong`,
+   40 px de alto, radio 2 px y CERO relleno gris (`--shadow-inset` era el
+   "relleno" que el brief §7 retira; en `elevation.css` ya resuelve a `none`,
+   así que la declaración se borra en vez de quedarse mintiendo).
+
+   FOCO: anillo de 2 px + offset 2 px en `--fc-focus` (brief §2). El anillo
+   vive en `.fc-field__control:focus-within`, no en el `<input>`, porque el
+   borde que se ve es el del contenedor: pintarlo en el control interior
+   dibujaría un segundo recuadro dentro del primero. La barrera de
+   accesibilidad sube por los ancestros del elemento enfocado y acepta el
+   anillo del contenedor como señal legítima (FR-094), así que la sustitución
+   de `box-shadow` por `outline` no le quita el indicador a nadie.
+
+   DESHABILITADO: sin fondo gris —bajaría el contraste del texto a 3.7 : 1 y
+   ese era justo el relleno prohibido—. Se baja a `--fc-ink-3` y `--fc-line`,
+   que sobre superficie mide 4.76 : 1 (brief §7).
+   ============================================================================ */
+
 .fc-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-2);
 }
 
 .fc-field__label {
   font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-secondary);
+  color: var(--fc-ink);
 }
 
 .fc-field__control {
   display: flex;
   align-items: center;
-  background: var(--surface-card);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-inset);
+  background: var(--fc-surface);
+  border: var(--border-hairline) solid var(--fc-line-strong);
+  border-radius: var(--radius-2);
   transition:
-    border-color var(--dur-fast),
-    box-shadow var(--dur-fast);
+    border-color var(--dur-fast) var(--ease-out),
+    outline-color var(--dur-fast) var(--ease-out);
 }
 
+/* Altura 40 px en `md`, el escalón del brief §7; `sm` y `lg` son los vecinos
+   de la rejilla de 4 px para las acciones de fila y las de cabecera. */
 .fc-field__control[data-size='sm'] {
-  height: 30px;
+  height: var(--space-7);
 }
 .fc-field__control[data-size='md'] {
-  height: 38px;
+  height: var(--space-8);
 }
 .fc-field__control[data-size='lg'] {
-  height: 46px;
+  height: var(--space-9);
 }
 
 .fc-field__control[data-invalid] {
-  border-color: var(--danger);
+  border-color: var(--fc-danger);
 }
 
+/* 2 px + 2 px de separación: el anillo NO se pega al borde, de modo que se lee
+   como foco y no como un segundo borde de campo. El borde no cambia de color:
+   pintarlo también de azul producía dos marcos azules con una rendija blanca
+   en medio —dos señales para un solo estado—. El anillo es la señal.
+   (`outline-color` va en la transición y `outline-style`/`width` no, así que
+   una barrera que mide el instante del foco ve el anillo de inmediato; FR-094.) */
 .fc-field__control:focus-within {
-  border-color: var(--border-focus);
-  box-shadow: var(--focus-ring);
+  outline: var(--border-thick) solid var(--fc-focus);
+  outline-offset: 2px;
+}
+
+/* El contenedor no tiene atributo propio de deshabilitado (el `<input>` sí), y
+   añadirlo sería cambiar la plantilla por estética. `:has()` pregunta por el
+   estado real del control, que es la fuente de verdad. */
+.fc-field__control:has(.fc-field__input:disabled) {
+  background: var(--fc-surface);
+  border-color: var(--fc-line);
 }
 
 .fc-field__affix {
-  color: var(--text-faint);
-  font-size: var(--fs-sm);
+  padding: 0 var(--space-3);
   font-family: var(--font-mono);
-  padding: 0 10px;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-secondary);
+  color: var(--fc-ink-3);
   white-space: nowrap;
 }
 
 .fc-field__input {
   flex: 1;
   min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-3);
   border: none;
+  /* El anillo lo pinta el contenedor (ver comentario de cabecera): aquí un
+     `outline` propio quedaría dibujado dentro del borde del campo. */
   outline: none;
   background: transparent;
   font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  color: var(--text-body);
-  height: 100%;
-  padding: 0 12px;
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  color: var(--fc-ink);
+}
+
+.fc-field__input::placeholder {
+  color: var(--fc-ink-3);
+}
+
+.fc-field__input:disabled {
+  color: var(--fc-ink-3);
+  cursor: not-allowed;
 }
 
 .fc-field__help {
-  font-size: var(--fs-xs);
-  color: var(--text-faint);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  letter-spacing: var(--ls-meta);
+  color: var(--fc-ink-3);
 }
 .fc-field__help[data-invalid] {
-  color: var(--danger);
+  color: var(--fc-danger);
 }
