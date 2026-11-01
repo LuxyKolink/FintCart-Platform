@@ -11,6 +11,8 @@
 %  Origen: consolidación de docs/anteproyecto/referencias.md (46 fuentes),
 %  docs/anteproyecto/marco-referencial.md (6 citas) y las pp. 25-26 del PDF del
 %  anteproyecto (11 entradas). 63 citas de origen → 49 trabajos únicos.
+%  Añadidos el 2026-11-01 (sección 6): las tres fuentes de usabilidad que cita
+%  en prosa docs/informe/04-instrumentos-validacion.md → 46 entradas en total.
 %  Inventario, conflictos y bitácora HTTP: refs/refs-inventory.md
 %
 %  Reglas aplicadas:
@@ -21,7 +23,7 @@
 %   - Las notas internas viajan como comentarios `%   NOTA (no se imprime)` para
 %     no contaminar la salida APA.
 %   - Fechas ausentes: se omite el campo y biblatex-apa imprime (n.d.).
-%   - Verificación de red: 2026-10-27.
+%   - Verificación de red: 2026-10-27 (sección 6: 2026-11-01).
 % ============================================================================
 
 % ---------------------------------------------------------------------------
@@ -489,4 +491,52 @@
   url          = {https://straitsresearch.com/report/microservices-architecture-market},
   urldate      = {2026-10-27},
 %   NOTA (no se imprime): Estudio de mercado de proveedor; no arbitrado
+}
+
+% ---------------------------------------------------------------------------
+% 6. Usabilidad — instrumentos de validación aplicados (medición)
+%    Añadido el 2026-11-01: sostienen los instrumentos de
+%    docs/informe/04-instrumentos-validacion.md (SUS, bandas de interpretación
+%    y definición de usabilidad). Verificación en refs/refs-inventory.md.
+% ---------------------------------------------------------------------------
+
+@incollection{brooke1996sus,
+  author    = {Brooke, John},
+  title     = {{SUS}: A ``quick and dirty'' usability scale},
+  editor    = {Jordan, Patrick W. and Thomas, Bruce and Weerdmeester, Bernard A. and McClelland, Ian L.},
+  booktitle = {Usability evaluation in industry},
+  publisher = {Taylor \& Francis},
+  date      = {1996},
+  doi       = {10.1201/9781498710411-35},
+  url       = {https://doi.org/10.1201/9781498710411-35},
+%   NOTA (no se imprime): Se omite `pages` a propósito. El registro del editor (CRC Press/T&F,
+%   DOI del capítulo) da 207--212; la literatura sobre el SUS cita 189--194. La discrepancia no
+%   se resolvió contra el impreso de 1996 (ISBN 0-7484-0314-0 / 0-7484-0460-0): se prefiere no
+%   inventar paginación (ver refs/refs-inventory.md, §Conflictos).
+}
+
+@article{bangor2008empirical,
+  author       = {Bangor, Aaron and Kortum, Philip T. and Miller, James T.},
+  title        = {An empirical evaluation of the {System Usability Scale}},
+  journaltitle = {International Journal of Human--Computer Interaction},
+  volume       = {24},
+  number       = {6},
+  pages        = {574--594},
+  date         = {2008-07},
+  doi          = {10.1080/10447310802205776},
+  url          = {https://doi.org/10.1080/10447310802205776},
+  publisher    = {Taylor \& Francis},
+}
+
+@report{iso2018usability,
+  author      = {{International Organization for Standardization}},
+  title       = {Ergonomics of human-system interaction---{Part} 11: Usability: Definitions and concepts},
+  type        = {International Standard},
+  number      = {ISO 9241-11:2018},
+  institution = {ISO},
+  date        = {2018-03},
+  url         = {https://www.iso.org/standard/63500.html},
+  urldate     = {2026-11-01},
+%   NOTA (no se imprime): Edición 2 (2018-03), 29 págs., ISO/TC 159/SC 4; confirmada en 2023.
+%   Sustituye a ISO 9241-11:1998. Sin DOI: el localizador es el catálogo de ISO (n.º 63500).
 }

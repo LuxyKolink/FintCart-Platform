@@ -4,6 +4,8 @@ Consolidación de las **tres** bibliografías divergentes del proyecto en **una*
 trabajos únicos. Fuente de verdad de metadatos para `docs/informe/refs/referencias.bib`.
 
 Fecha de verificación de red: **2026-10-27** (todos los DOI y URL se probaron con `curl`).
+Ampliación **2026-11-01**: se añaden tres fuentes de usabilidad citadas en prosa en
+`docs/informe/04-instrumentos-validacion.md` (ver §Añadidos del 2026-11-01).
 
 ## Fuentes minadas
 
@@ -12,9 +14,12 @@ Fecha de verificación de red: **2026-10-27** (todos los DOI y URL se probaron c
 | `ref.md` | `docs/anteproyecto/referencias.md` | 51 ítems numerados → **46 fuentes** (5 ítems no son fuentes: ver §Excluidos) |
 | `mr.md` | `docs/anteproyecto/marco-referencial.md` | **6** citas autor-año en prosa |
 | `pdf` | `docs/anteproyecto/Propuesta Proyecto FintCart.pdf`, pp. 25-26 | **11** entradas en formato APA de gestor |
+| `iv.md` | `docs/informe/04-instrumentos-validacion.md` | **3** citas autor-año en prosa, sin `\cite` (el documento las declara como deuda bibliográfica en su §5.4) |
 
-Total de citas de origen: **63**. Trabajos únicos tras deduplicar: **49**, de los cuales **43**
-permanecen en `referencias.bib` y **6** se descartaron por no ser citables (ver §Recuento final).
+Total de citas de origen: **63** del anteproyecto **+ 3** del informe. Trabajos únicos tras
+deduplicar: **49**, de los cuales **43** permanecen en `referencias.bib` y **6** se descartaron por
+no ser citables; a esos 49 se suman las **3** fuentes de usabilidad verificadas el 2026-11-01, de
+modo que el `.bib` queda con **46** entradas (ver §Recuento final).
 
 ## Política de verificación y de clasificación
 
@@ -95,6 +100,10 @@ permanecen en `referencias.bib` y **6** se descartaron por no ser citables (ver 
 | straitsresearchndmicroservices | Straits Research | n.d. | Microservices Architecture Market Size, Share, Growth, Analysis, 2034 | straitsresearch.com | — | https://straitsresearch.com/report/microservices-architecture-market | ref.md | no | marco-tecnologico | verified | Estudio de mercado de proveedor; sin año en `ref.md`. |
 | improvement2018existing | (autor no identificado) | 2018 | Improvement of an Existing Microservices Architecture for an E-learning Platform in STEM Education | ResearchGate | — | https://www.researchgate.net/publication/327018933_Improvement_of_an_Existing_Microservices_Architecture_for_an_E-learning_Platform_in_STEM_Education | ref.md | yes | marco-tecnologico | **descartada: existencia no confirmada** | ResearchGate bloquea `curl` (403) y ni Crossref ni OpenAlex registran la obra: **autoría no determinada** y existencia no confirmada. Eliminada del `.bib` el 2026-10-28. |
 
+| brooke1996sus | Brooke, J. | 1996 | SUS: A "quick and dirty" usability scale | En P. W. Jordan, B. Thomas, B. A. Weerdmeester e I. L. McClelland (Eds.), Usability evaluation in industry | 10.1201/9781498710411-35 | https://doi.org/10.1201/9781498710411-35 | iv.md | weak | evaluacion | verified | Capítulo de libro: existencia y editorial verificadas por ISBN en OpenLibrary (`0748403140` / `0748404600`, Taylor & Francis, 1996, 252 págs.) y por el registro Crossref del libro (CRC Press, 1996-06-11). La página del editor confirma autor, título y que el capítulo ocupa las pp. 207-212. **`pages` se omite a propósito**: la literatura del SUS cita 189-194 y el editor registra 207-212; sin el impreso a la vista no se elige (ver §Conflictos). |
+| bangor2008empirical | Bangor, A.; Kortum, P. T.; Miller, J. T. | 2008 | An empirical evaluation of the System Usability Scale | International Journal of Human-Computer Interaction, 24(6), 574-594 | 10.1080/10447310802205776 | https://doi.org/10.1080/10447310802205776 | iv.md | yes | evaluacion | verified | DOI `302`; autoría, volumen, número y páginas leídos de la API de Crossref (publicado 2008-07-29). Aporta las bandas de interpretación que el documento de instrumentos cita en prosa (§3.3). |
+| iso2018usability | International Organization for Standardization | 2018 | Ergonomics of human-system interaction — Part 11: Usability: Definitions and concepts | ISO 9241-11:2018 (ed. 2), ISO/TC 159/SC 4 | — | https://www.iso.org/standard/63500.html | iv.md | weak | evaluacion | verified | Catálogo ISO, referencia 63500: edición 2, **2018-03**, 29 págs., confirmada en 2023; sustituye a ISO 9241-11:1998. Sin DOI: el localizador es el catálogo. `curl` recibe `403` anti-bot; lectura con cliente de navegación y confirmación independiente en BSI (BS EN ISO 9241-11:2018, `200`). |
+
 ## Deduplicación
 
 Cada fila es una aparición que se absorbió en la clave canónica (no genera entrada propia en el `.bib`).
@@ -129,6 +138,7 @@ Total: **14 apariciones duplicadas** (8 del PDF + 6 de `mr.md`), colapsadas en 8
 | menberu2024technology | revista | Cogent Economics & Finance | — | — | Cogent Business & Management (Crossref) |
 | etienam2023building | fecha | January 2024 | — | 21-11-2023 | 2023 (PDF) |
 | richardsonndpattern | autoría | "Martin Fowler's site" | — | — | Chris Richardson (el propio sitio) |
+| brooke1996sus | paginación del capítulo | — | — | — | **Se omite el campo** (editor: 207-212; literatura del SUS: 189-194). Ninguno de los dos se pudo contrastar con el impreso de 1996 → no se inventa paginación |
 
 ## Bitácora de verificación (HTTP observado)
 
@@ -169,28 +179,47 @@ sustituido por el DOI.
 
 Total de URL distintas probadas: 44 (25 × `2xx` + 18 × `403` + 1 × `404`).
 
+### Añadidos del 2026-11-01 (usabilidad)
+
+`https://doi.org/10.1080/10447310802205776` → `302` · `https://doi.org/10.1201/9781498710411-35`
+→ `302` · `api.crossref.org/works/10.1201/9781498710411` → `200` (libro: CRC Press, 1996-06-11,
+ISBN 9780429157011; editores Jordan, Thomas, McClelland, Weerdmeester; el capítulo figura con
+`page: 207-212`) · `api.crossref.org/works/10.1080/10447310802205776` → `200` (24(6), 574-594) ·
+`taylorfrancis.com/chapters/edit/10.1201/9781498710411-35/...` → `200` (autor John Brooke; el HTML
+de la ficha declara `pageStart 207`, `pageEnd 212`) · `openlibrary.org/search.json?q=usability+evaluation+in+industry`
+→ `200` (ISBN `0748403140`, `0748404600`, Taylor & Francis, 1996; la ficha de edición da 252
+págs.) · `iso.org/standard/63500.html` → `403` a `curl`, **`200` con cliente de navegación**
+(catálogo leído: ISO 9241-11:2018, edición 2, 2018-03, 29 págs., ISO/TC 159/SC 4, confirmada el
+2023-10-30) · `knowledge.bsigroup.com/products/ergonomics-of-human-system-interaction-usability-definitions-and-concepts`
+→ `200` (BS EN ISO 9241-11:2018 como confirmación independiente del número y del título).
+
+Ninguno de los tres se descartó: los tres tienen localizador que abre y metadatos contrastados.
+
 ## Recuento final
 
 | Métrica | Valor |
 |---|---|
-| Citas de origen (3 archivos) | 63 |
+| Citas de origen (3 archivos del anteproyecto + `iv.md`) | 63 + **3** |
 | Ítems de `ref.md` que no son fuentes (excluidos) | 5 |
-| Trabajos únicos identificados | **49** |
+| Trabajos únicos identificados en las tres bibliografías del anteproyecto | **49** |
+| Añadidos verificados el 2026-11-01 (`iv.md`) | **3** (Brooke 1996, Bangor et al. 2008, ISO 9241-11:2018) |
 | Descartados por no ser citables | **6** (5 sin localizador + 1 existencia no confirmada) |
-| **Entradas en `referencias.bib`** | **43** |
-| `verified` | **35** |
+| **Entradas en `referencias.bib`** | **46** |
+| `verified` | **38** |
 | `unreachable` | **7** (todos `403` anti-bot: 5 Medium, GAO, UNDP; 0 enlaces muertos) |
 | `incomplete` | **1** (`banrep2024financial`: sin autoría individual) |
 | Duplicados absorbidos | **14** |
-| Académicos `yes` | 20 |
-| Académicos `weak` | 11 |
+| Académicos `yes` | 21 |
+| Académicos `weak` | 13 |
 | No académicos `no` | 18 |
 | Aportación única de `ref.md` | 46 |
 | Aportación única de `mr.md` | 0 (6 citas, 6 duplicadas; solo añade atribuciones erróneas) |
 | Aportación única del `pdf` | 3 (atlassian2024what, encore2024go, kodali2023nestjs) |
 
 Verificación de paridad: el conjunto de claves del §Inventario con estado distinto de
-`descartada` es **exactamente** el conjunto de entradas de `refs/referencias.bib` (43 = 43).
+`descartada` es **exactamente** el conjunto de entradas de `refs/referencias.bib` (**46 = 46**:
+43 minadas + 3 añadidas). Las cuentas de clasificación cuadran con ese total:
+21 `yes` + 13 `weak` + 18 `no` = **52** = 46 entradas + 6 descartadas.
 
 ## Excluidos (no son fuentes)
 
