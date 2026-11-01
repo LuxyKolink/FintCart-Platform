@@ -1,9 +1,29 @@
 /* ============================================================
-   FintCart — Spacing & layout tokens
-   4px base grid. Portal density → tight defaults.
+   FintCart — Spacing & layout tokens · dirección de arte v2
+   Fuente única: `docs/informe/03-brief-diseno.md` §4 (retícula y espacio).
+
+   Se conserva la rejilla de 4 px tal cual: no era el problema. Lo que
+   cambia es el MARCO:
+
+     · `--content-max` 1100 → 880 px. La columna de contenido se estrecha
+       porque la jerarquía la carga la tipografía, no el ancho.
+     · `--reading-max` 720 → 680 px.
+     · DESAPARECE EL RIEL DERECHO (`--rail-right`, 256 px). La información
+       que vivía ahí —progreso, avisos— se integra en el flujo, arriba o al
+       final (brief §4). Un token que nadie puede usar legítimamente es una
+       invitación a volver a dibujarlo.
+     · El índice izquierdo pasa de 188 px con borde a 160 px sin borde, sin
+       tarjeta y sin fondo: `--index-rail`. En móvil vale 0 y la columna no
+       se dibuja.
+
+   Los tres valores que dependen del ancho (`--page-gutter`, `--section-gap`,
+   `--index-rail`) arrancan aquí en su escalón MÍNIMO —360 px, el suelo del
+   sistema— y suben en `tokens/breakpoints.css`, que es el único archivo con
+   los `@media` que reescriben tokens.
    ============================================================ */
 
 :root {
+  /* ---------- Rejilla de 4 px (sin cambios) ---------- */
   --space-0:  0;
   --space-px: 1px;
   --space-1:  4px;
@@ -19,15 +39,22 @@
   --space-11: 80px;
   --space-12: 96px;
 
-  /* Component density */
+  /* Densidad de componente */
   --gap-tight:   var(--space-2);
   --gap-default: var(--space-3);
   --gap-loose:   var(--space-5);
 
-  /* Portal layout rails */
-  --rail-left:  188px;   /* services sidebar */
-  --rail-right: 256px;   /* aside / ads / weather */
-  --content-max: 1100px; /* dense portal column */
-  --reading-max: 720px;  /* article reading width */
-  --page-gutter: var(--space-5);
+  /* ---------- Marco ---------- */
+  --content-max: 880px;   /* antes 1100: el ancho ya no hace jerarquía */
+  --reading-max: 680px;   /* antes 720: columna de lectura               */
+  --index-rail:  0px;     /* 160 px a partir de --bp-lg (breakpoints.css) */
+  --page-gutter: var(--space-5);  /* 20 px a 360; 32 y 48 en breakpoints.css */
+  --section-gap: var(--space-7);  /* 32 px a 360; 48 en breakpoints.css      */
+  --form-max:    100%;    /* 400 px a partir de --bp-sm (breakpoints.css) */
+
+  /* RETIRADOS:
+       --rail-left  (188 px, riel de servicios con borde) → --index-rail
+       --rail-right (256 px, riel de progreso/avisos)     → sin sustituto:
+                     el brief §4 prohíbe el riel derecho y manda integrar su
+                     contenido en el flujo. */
 }

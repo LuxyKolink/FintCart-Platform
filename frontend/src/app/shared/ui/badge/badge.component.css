@@ -6,30 +6,31 @@
   border-radius: var(--radius-pill);
   font-family: var(--font-sans);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: var(--fw-semibold);
+  /* Brief §7: la píldora pierde las mayúsculas forzadas y el tracking ancho,
+     que la emparentaban con la etiqueta *eyebrow* retirada en §6.1. */
+  letter-spacing: var(--ls-meta);
   line-height: 1.4;
   white-space: nowrap;
 }
 
-.fc-badge[data-tone='neutral'][data-variant='soft'] { background: var(--warm-100); color: var(--warm-700); }
-.fc-badge[data-tone='neutral'][data-variant='solid'] { background: var(--warm-700); color: #fff; }
+.fc-badge[data-tone='neutral'][data-variant='soft'] { background: var(--fc-line); color: var(--fc-ink-2); }
+.fc-badge[data-tone='neutral'][data-variant='solid'] { background: var(--fc-ink-2); color: #fff; }
 
-.fc-badge[data-tone='brand'][data-variant='soft'] { background: var(--coral-50); color: var(--coral-600); }
-.fc-badge[data-tone='brand'][data-variant='solid'] { background: var(--brand-primary); color: #fff; }
+.fc-badge[data-tone='brand'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-accent-hover); }
+.fc-badge[data-tone='brand'][data-variant='solid'] { background: var(--fc-accent); color: #fff; }
 
-.fc-badge[data-tone='accent'][data-variant='soft'] { background: var(--gold-50); color: var(--gold-600); }
-.fc-badge[data-tone='accent'][data-variant='solid'] { background: var(--brand-accent); color: var(--warm-900); }
+.fc-badge[data-tone='accent'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-accent); }
+.fc-badge[data-tone='accent'][data-variant='solid'] { background: var(--fc-accent); color: var(--fc-on-accent); }
 
-.fc-badge[data-tone='success'][data-variant='soft'] { background: var(--success-soft); color: var(--green-500); }
+.fc-badge[data-tone='success'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-success); }
 .fc-badge[data-tone='success'][data-variant='solid'] { background: var(--success); color: #fff; }
 
-.fc-badge[data-tone='warning'][data-variant='soft'] { background: var(--warning-soft); color: var(--gold-600); }
+.fc-badge[data-tone='warning'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-warning); }
 .fc-badge[data-tone='warning'][data-variant='solid'] { background: var(--warning); color: #fff; }
 
-.fc-badge[data-tone='danger'][data-variant='soft'] { background: var(--danger-soft); color: var(--red-500); }
+.fc-badge[data-tone='danger'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-danger); }
 .fc-badge[data-tone='danger'][data-variant='solid'] { background: var(--danger); color: #fff; }
 
-.fc-badge[data-tone='info'][data-variant='soft'] { background: var(--info-soft); color: var(--purple-600); }
-.fc-badge[data-tone='info'][data-variant='solid'] { background: var(--info); color: #fff; }
+.fc-badge[data-tone='info'][data-variant='soft'] { background: var(--fc-accent-tint); color: var(--fc-accent-hover); }
+.fc-badge[data-tone='info'][data-variant='solid'] { background: var(--fc-accent); color: #fff; }

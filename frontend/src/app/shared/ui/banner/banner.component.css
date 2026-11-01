@@ -2,33 +2,27 @@
   display: block;
 }
 
+/*
+ * Brief §7: franja de 1 px superior DEL COLOR DEL ESTADO, con el icono alineado
+ * al texto. NO un bloque tintado de ancho completo con fondo saturado.
+ *
+ * El cambio es de valores, no de plantilla: el mismo `<div class="fc-banner"
+ * data-tone role>` sigue ahí y las pruebas siguen seleccionándolo por rol. Lo
+ * que desaparece es el fondo tintado (decoración de tarjeta, §5) y las cuatro
+ * parejas de verdes/rojos/marigoldos púrpuras del portal anterior: queda un
+ * solo lenguaje, el color del estado en el texto y en la regla superior.
+ *
+ * `currentColor` es lo que hace que una sola declaración de borde sirva a los
+ * cuatro estados: hereda el color que fija cada `[data-tone]` justo debajo.
+ */
 .fc-banner {
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  line-height: var(--lh-normal);
+  padding: var(--space-3) 0;
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
+  border-top: 1px solid currentColor;
 }
 
-.fc-banner[data-tone='error'] {
-  background: var(--danger-soft);
-  color: var(--red-500);
-  border: 1px solid var(--red-100);
-}
-
-.fc-banner[data-tone='success'] {
-  background: var(--success-soft);
-  color: var(--green-600);
-  border: 1px solid var(--green-100);
-}
-
-.fc-banner[data-tone='info'] {
-  background: var(--info-soft);
-  color: var(--purple-600);
-  border: 1px solid var(--purple-100);
-}
-
-.fc-banner[data-tone='warning'] {
-  background: var(--warning-soft);
-  color: var(--gold-600);
-  border: 1px solid var(--gold-100);
-}
+.fc-banner[data-tone='error'] { color: var(--fc-danger); }
+.fc-banner[data-tone='success'] { color: var(--fc-success); }
+.fc-banner[data-tone='info'] { color: var(--fc-accent); }
+.fc-banner[data-tone='warning'] { color: var(--fc-warning); }

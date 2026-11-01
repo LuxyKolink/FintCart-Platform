@@ -18,13 +18,13 @@
   font-size: var(--fs-sm);
   /* FR-120: un nombre largo de calculadora se parte antes que desbordar el riel. */
   overflow-wrap: anywhere;
-  color: var(--text-link);
-  border-left: var(--border-accent) solid transparent;
+  color: var(--fc-accent);
+  border-left: var(--border-hairline) solid transparent;
   border-radius: var(--radius-sm);
 }
 
 .fc-rail__link:hover {
-  background: var(--purple-50);
+  background: var(--fc-accent-tint);
   text-decoration: none;
 }
 
@@ -36,7 +36,7 @@
   font-weight: var(--fw-bold);
   color: var(--text-strong);
   background: var(--surface-sunken);
-  border-left-color: var(--brand-primary);
+  border-left-color: var(--fc-accent);
 }
 
 /*
@@ -55,11 +55,11 @@
   .fc-rail__link {
     white-space: nowrap;
     border-left: 0;
-    border-bottom: var(--border-accent) solid transparent;
+    border-bottom: var(--border-hairline) solid transparent;
   }
 
   .fc-rail__link--active {
     border-left-color: transparent;
-    border-bottom-color: var(--brand-primary);
+    border-bottom-color: var(--fc-accent);
   }
 }

@@ -1,8 +1,15 @@
 /* ============================================================
-   FintCart — base element styling & primitives
-   Light, opinionated resets that make raw HTML look "on brand".
-   Reusable structural primitives (.fc-module, .fc-link) live here so
-   specimen cards and kits share the portal vocabulary.
+   FintCart — Base element styling & portal primitives
+   Dirección de arte v2 "institucional sereno" (brief §3, §5, §6).
+
+   Esta hoja hace dos cosas y solo dos:
+     1. Alinear los elementos desnudos (body, titulares, enlaces, foco) con
+        la escala tipográfica y la paleta nuevas.
+     2. Dejar las primitivas de portal reducidas a su función mínima.
+
+   Lo que se ha RETIRADO de aquí: la etiqueta *eyebrow* (brief §6.1), los
+   separadores punteados de la lista de enlaces (§6.2) y el fondo tintado de
+   la cabecera de módulo (§6.3, §6.4).
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -12,88 +19,135 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  line-height: var(--lh-normal);
+  font-size: var(--fs-ui);          /* cuerpo de interfaz 15 / 1.5 */
+  line-height: var(--lh-ui);
   color: var(--text-body);
-  background: var(--surface-page);
+  background: var(--fc-paper);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-feature-settings: "kern" 1;
 }
 
+/*
+ * Titulares: cada nivel toma SU escalón del brief §3 en vez de heredar un
+ * `--fw-bold` común. El peso 500 del display no es un detalle de gusto: a
+ * 38 px el 700 cierra las contraformas y devuelve la densidad de intranet
+ * que el brief retira.
+ */
 h1, h2, h3, h4 {
   font-family: var(--font-display);
   color: var(--text-strong);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-snug);
-  letter-spacing: var(--ls-snug);
   margin: 0 0 0.4em;
   text-wrap: balance;
 }
 
+h1 {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--ls-display);
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+}
+
+h3 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  letter-spacing: var(--ls-h3);
+}
+
+/* El brief no define un cuarto escalón: h4 es un título de interfaz. */
+h4 {
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-ui);
+}
+
 p { margin: 0 0 0.85em; text-wrap: pretty; }
 
+/* Enlaces: `--fc-accent`. Ya no hay un púrpura distinto para "enlace" y otro
+   para "acción": un solo acento señala las dos cosas (brief §2). */
 a {
-  color: var(--text-link);
+  color: var(--fc-accent);
   text-decoration: none;
 }
-a:hover { color: var(--text-link-hover); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { color: var(--fc-accent-hover); text-decoration: underline; text-underline-offset: 2px; }
 
-small { font-size: var(--fs-xs); }
+small { font-size: var(--fs-meta); }
 
 code, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }
 
-::selection { background: var(--gold-200); color: var(--warm-900); }
+/* Selección: el único uso legítimo de `--fc-accent-tint` junto al estado. */
+::selection { background: var(--fc-accent-tint); color: var(--fc-ink); }
 
+/* Foco: anillo de 2 px + offset 2 px en `--fc-focus` (brief §2). Sustituye
+   al anillo de 3 px sobre púrpura, que era el tercer acento. */
 :focus-visible {
-  outline: 2px solid var(--purple-400);
+  outline: 2px solid var(--fc-focus);
   outline-offset: 2px;
-  border-radius: var(--radius-xs);
 }
 
-/* Numeric / money figures */
-.fc-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-
-/* Eyebrow / kicker label */
-.fc-eyebrow {
-  font-family: var(--font-sans);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-  color: var(--text-muted);
+/* ─────────────────────────────────────────────────────────────────────────
+   Cifras monetarias — PROTEGIDO (nota N-15, Principio VIII)
+   Se conserva tal cual, y no por estética: `tabular-nums` mantiene la columna
+   de dígitos alineada y el tracking a 0 evita que la separación de miles se
+   lea como un decimal. Una cifra monetaria que se trunca o se aprieta no es
+   texto incompleto, es un dato falso. Ningún rediseño puede tocar esta regla
+   sin romper la corrección del dato.
+   ───────────────────────────────────────────────────────────────────────── */
+.fc-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ls-num);
 }
 
-/* The signature portal "module box": bordered card with a header bar */
-.fc-module {
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
-  overflow: hidden;
-}
+/* ─────────────────────────────────────────────────────────────────────────
+   Primitivas de portal, reducidas a su función mínima (brief §6, §7)
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Separación de bloques. Ya NO es una caja: fuera el borde, el radio, el
+   sombreado y el fondo tintado de cabecera. El encabezado se distingue por
+   peso tipográfico y por espacio, no por una barra de acento de 3 px.
+   (`fc-module-box` todavía pinta su propia caja; retirarla del todo es el
+   paso de primitivas, no este.) */
+.fc-module { display: block; }
+
+.fc-module + .fc-module { margin-top: var(--section-gap); }
+
 .fc-module > header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-module-header);
-  border-bottom: var(--border-hairline) solid var(--border-default);
-  border-left: var(--border-accent) solid var(--brand-primary);
+  margin: 0 0 var(--space-4);
   font-family: var(--font-sans);
-  font-weight: var(--fw-bold);
-  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
   color: var(--text-strong);
 }
-.fc-module > .fc-module-body { padding: var(--space-3); }
 
-/* Portal link list (sidebar services) */
+/* Lista de enlaces (índice silencioso). Sin separadores punteados, sin fondo
+   al pasar el ratón y sin borde: solo una lista de enlaces (brief §4, §6.2).
+   Sin consumidores hoy; sobrevive porque el índice izquierdo de 160 px del
+   paso 3 la reutiliza. */
 .fc-linklist { list-style: none; margin: 0; padding: 0; }
-.fc-linklist li { border-bottom: var(--border-hairline) dotted var(--border-default); }
-.fc-linklist li:last-child { border-bottom: 0; }
 .fc-linklist a {
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) var(--space-1);
-  font-size: var(--fs-sm); color: var(--text-link);
+  display: inline-block;
+  padding: var(--space-1) 0;
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
+  color: var(--fc-accent);
 }
-.fc-linklist a:hover { background: var(--purple-50); text-decoration: none; }
+
+/* RETIRADA: `.fc-eyebrow` (brief §6.1, §7). Las mayúsculas espaciadas sobre
+   cada título se sustituyen por el título mismo. Queda UNA plantilla con la
+   clase (`features/admin/indicators`), fuera del alcance de este paso: al no
+   existir la clase, esa etiqueta ya se pinta como texto corriente y el paso 3
+   borra el elemento. */

@@ -57,14 +57,14 @@
  * activo que solo se ve por color desaparece para quien no distingue ese color.
  */
 .fc-rte__btn--on {
-  background: var(--brand-accent-soft);
-  border-color: var(--brand-primary);
-  color: var(--brand-primary-hover);
-  box-shadow: inset 0 -3px 0 var(--brand-primary);
+  background: var(--fc-accent-tint);
+  border-color: var(--fc-accent);
+  color: var(--fc-accent-hover);
+  box-shadow: inset 0 -3px 0 var(--fc-accent);
 }
 
 .fc-rte__btn:focus-visible {
-  outline: 2px solid var(--brand-primary);
+  outline: 2px solid var(--fc-accent);
   outline-offset: 1px;
 }
 
@@ -89,7 +89,7 @@
 /* El foco del teclado cae en el campo invisible: se dibuja en la etiqueta que lo representa,
    que es lo que la persona ve. Sin esto, tabular hasta aquí no mostraría nada. */
 .fc-rte__archivo:focus-visible + .fc-rte__btn {
-  outline: 2px solid var(--brand-primary);
+  outline: 2px solid var(--fc-accent);
   outline-offset: 1px;
 }
 
@@ -142,7 +142,7 @@
 }
 
 .fc-rte__superficie :focus-visible {
-  outline: 2px solid var(--brand-primary);
+  outline: 2px solid var(--fc-accent);
   outline-offset: 2px;
 }
 
@@ -174,7 +174,7 @@
 }
 
 .fc-rte__superficie .fc-rte__content a {
-  color: var(--brand-primary-hover);
+  color: var(--fc-accent-hover);
 }
 
 .fc-rte__superficie .fc-rte__content img {

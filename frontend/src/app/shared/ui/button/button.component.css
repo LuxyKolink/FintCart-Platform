@@ -52,21 +52,22 @@
 }
 
 .fc-btn[data-variant='primary'] {
-  background: var(--brand-primary);
+  background: var(--fc-accent);
   color: var(--text-on-brand);
-  border: 1px solid var(--brand-primary);
+  border: 1px solid var(--fc-accent);
 }
 .fc-btn[data-variant='primary']:not(:disabled):hover {
   filter: brightness(0.95);
 }
 
 .fc-btn[data-variant='accent'] {
-  background: var(--brand-accent);
-  color: var(--warm-900);
-  border: 1px solid var(--gold-500);
+  background: var(--fc-accent);
+  color: var(--fc-on-accent);
+  border: 1px solid var(--fc-accent);
 }
 .fc-btn[data-variant='accent']:not(:disabled):hover {
-  filter: brightness(0.95);
+  background: var(--fc-accent-hover);
+  filter: none;
 }
 
 .fc-btn[data-variant='secondary'] {
@@ -80,18 +81,18 @@
 
 .fc-btn[data-variant='ghost'] {
   background: transparent;
-  color: var(--text-link);
+  color: var(--fc-accent);
   border: 1px solid transparent;
   box-shadow: var(--shadow-none);
 }
 .fc-btn[data-variant='ghost']:not(:disabled):hover {
-  background: var(--purple-50);
+  background: var(--fc-accent-tint);
 }
 
 .fc-btn[data-variant='danger'] {
   background: var(--danger);
   color: #fff;
-  border: 1px solid var(--red-500);
+  border: 1px solid var(--fc-danger);
 }
 .fc-btn[data-variant='danger']:not(:disabled):hover {
   filter: brightness(0.95);

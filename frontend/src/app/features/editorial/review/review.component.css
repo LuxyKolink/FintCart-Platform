@@ -53,7 +53,7 @@
   padding: var(--space-4);
   background: var(--surface-card);
   border: var(--border-hairline) solid var(--border-default);
-  border-left: var(--border-accent) solid var(--brand-interactive);
+  border-left: var(--border-hairline) solid var(--fc-accent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
   min-width: 0;
@@ -91,7 +91,7 @@
   line-height: var(--lh-relaxed);
   color: var(--text-body);
   background: var(--surface-sunken);
-  border-left: var(--border-accent) solid var(--border-strong);
+  border-left: var(--border-hairline) solid var(--border-strong);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   /* FR-120: la vista previa larga se acota visualmente, pero el texto completo sigue en el
      DOM (y es el que `us4-editorial.spec.ts` busca para identificar la versión). */

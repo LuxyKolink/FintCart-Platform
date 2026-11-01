@@ -30,12 +30,12 @@
   transition:
     background var(--dur-fast),
     border-color var(--dur-fast);
-  accent-color: var(--brand-primary);
+  accent-color: var(--fc-accent);
 }
 
 .fc-checkbox__input:checked {
-  background: var(--brand-primary);
-  border-color: var(--brand-primary);
+  background: var(--fc-accent);
+  border-color: var(--fc-accent);
 }
 
 .fc-checkbox__input:checked::after {

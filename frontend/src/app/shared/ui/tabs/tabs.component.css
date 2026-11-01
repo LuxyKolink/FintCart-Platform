@@ -33,7 +33,7 @@
 .fc-tabs__tab--active {
   font-weight: var(--fw-bold);
   color: var(--text-strong);
-  border-bottom-color: var(--brand-interactive);
+  border-bottom-color: var(--fc-accent);
 }
 
 .fc-tabs__tab:focus-visible {

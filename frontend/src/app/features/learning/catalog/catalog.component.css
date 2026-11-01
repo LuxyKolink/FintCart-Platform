@@ -60,9 +60,9 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: var(--surface-module-header);
+  background: var(--fc-surface);
   border-bottom: var(--border-hairline) solid var(--border-default);
-  border-left: var(--border-accent) solid var(--brand-primary);
+  border-left: var(--border-hairline) solid var(--fc-accent);
   font-family: var(--font-sans);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
@@ -105,7 +105,7 @@
   font-family: var(--font-sans);
   font-size: var(--fs-sm);
   text-align: left;
-  color: var(--text-link);
+  color: var(--fc-accent);
   background: transparent;
   border: 0;
   border-radius: var(--radius-sm);
@@ -113,7 +113,7 @@
 }
 
 .fc-portal__cat:hover {
-  background: var(--purple-50);
+  background: var(--fc-accent-tint);
 }
 
 .fc-portal__cat--active {
@@ -170,8 +170,8 @@
   /* Coral sólido bajo el degradado: el verificador de contraste lee
      `background-color`, y con solo `background-image` el fondo computado es
      transparente (misma decisión que en `fc-brand-panel`). */
-  background-color: var(--coral-500);
-  background-image: linear-gradient(150deg, var(--coral-400), var(--brand-primary));
+  background-color: var(--fc-accent);
+  background-image: linear-gradient(150deg, var(--fc-accent), var(--fc-accent));
 }
 
 .fc-portal__hero-body {
@@ -205,7 +205,7 @@
   padding: 0;
   font-family: var(--font-sans);
   font-size: var(--fs-xs);
-  color: var(--text-link);
+  color: var(--fc-accent);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -314,7 +314,7 @@
  * en blanco y negro no pueden leer.
  */
 .fc-portal__inbox-item--unread {
-  background: var(--coral-50);
+  background: var(--fc-accent-tint);
 }
 
 .fc-portal__inbox-item--unread .fc-portal__inbox-type {
@@ -329,9 +329,9 @@
 .fc-portal__unread {
   font-size: var(--fs-2xs);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-caps);
+  letter-spacing: var(--ls-meta);
   text-transform: uppercase;
-  color: var(--coral-600);
+  color: var(--fc-accent-hover);
 }
 
 .fc-portal__inbox-time {

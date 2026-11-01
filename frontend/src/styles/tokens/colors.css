@@ -1,136 +1,108 @@
 /* ============================================================
-   FintCart — Color tokens
-   "El portal financiero": warm Colombian palette (tomato-coral + marigold)
-   with a portal-purple interactive accent. Borders & warm paper neutrals
-   carry the dense, editorial web-portal look.
+   FintCart — Color tokens · dirección de arte v2 "institucional sereno"
+   Fuente única: `docs/informe/03-brief-diseno.md` §2 (paleta) y §6.6 (segundo
+   y tercer acento, prohibidos).
+
+   UNA sola familia de acento. El color deja de decorar y pasa a señalar
+   estado o acción. Se retiran el coral de marca, el marigoldo de "destacado"
+   y el púrpura de enlaces: tres acentos compitiendo en el mismo viewport es
+   la razón por la que la interfaz se leía como un portal web de 2010.
+
+   DOS CAPAS, y solo dos:
+     1. Paleta (`--fc-*`): los ÚNICOS literales de color del sistema. Es la
+        capa que citan el brief (§7 nombra `--fc-accent`, `--fc-ink`,
+        `--fc-line` en las 19 primitivas) y las plantillas nuevas.
+     2. Roles (`--surface-*`, `--text-*`, `--border-*`, …): nombres de
+        función que resuelven sobre la paleta. Se conservan porque 46 hojas
+        de componente ya los consumen; la capa de primitivas (paso 2 de 3)
+        migra a `--fc-*` y entonces esta segunda capa se vacía.
+
+   LOS TRES ACENTOS NO SOBREVIVEN COMO ALIAS DEL AZUL. `--brand-primary`,
+   `--brand-accent`, `--brand-interactive`, `--text-link` e `--info` se
+   ELIMINAN y cada consumidor se re-apunta al token nuevo. Un alias habría
+   conservado el vocabulario del coral ("marca = coral") y el siguiente
+   rediseño habría vuelto a empezar por este archivo.
+
+   Contraste: todo par texto/fondo de esta paleta supera 4.5:1 (texto
+   normal) según el brief §2; `e2e/a11y.spec.ts` lo mide sobre estilos
+   computados y es la prueba, no el comentario.
    ============================================================ */
 
 :root {
-  /* ---------- Base palette ---------- */
+  /* ---------- 1. PALETA (brief §2, literal) ---------- */
 
-  /* Warm paper neutrals — the substrate of the whole portal */
-  --warm-50:  #FBF8F2;
-  --warm-100: #F5EFE3;
-  --warm-200: #EBE2D2;
-  --warm-300: #DDD1BC;
-  --warm-400: #C3B49A;
-  --warm-500: #998A72;
-  --warm-550: #7F6F55; /* tono más claro que aún cumple AA sobre blanco (4.87:1) */
-  --warm-600: #6E6353;
-  --warm-700: #4C4339;
-  --warm-800: #2E2822;
-  --warm-900: #1C1815;
+  --fc-paper:        #FBFBF9; /* fondo de página                          */
+  --fc-surface:      #FFFFFF; /* tarjetas y campos                        */
+  --fc-ink:          #16181C; /* texto principal          17.15 : 1       */
+  --fc-ink-2:        #4A5058; /* texto secundario          7.86 : 1       */
+  --fc-ink-3:        #6B7178; /* metadatos, ayudas         4.76 : 1       */
+  --fc-line:         #E3E1DC; /* reglas de 1 px (no es texto)             */
+  --fc-line-strong:  #C9C6BE; /* bordes de campo (no es texto)            */
+  --fc-accent:       #14477A; /* acción primaria, enlaces  9.16 : 1       */
+  --fc-accent-hover: #0F3D66; /* hover / active           11.40 : 1       */
+  --fc-accent-tint:  #EEF2F7; /* selección y estado, NUNCA tarjeta        */
+  --fc-success:      #1E6B44; /* confirmación              6.25 : 1       */
+  --fc-warning:      #8A5A00; /* advertencia               5.72 : 1       */
+  --fc-danger:       #9B2C1E; /* error, destructivo        7.31 : 1       */
+  --fc-focus:        #14477A; /* anillo de foco 2 px + offset 2 px        */
 
-  /* Coral / "tomate" — primary brand, energetic Colombian red-orange */
-  --coral-50:  #FCEFEA;
-  --coral-100: #F8D8CC;
-  --coral-200: #F1B09B;
-  --coral-300: #E8866A;
-  --coral-400: #DE4D2B;
-  --coral-500: #C53F20;
-  --coral-600: #A2331A;
-  --coral-700: #7C2714;
+  /* Texto sobre superficie de acento. El brief §2 mide 9.49 : 1 sobre
+     `--fc-accent` y 7.57 : 1 sobre `--fc-danger`: ambos pasan AA. */
+  --fc-on-accent:    #FFFFFF;
 
-  /* Marigold — Colombian yellow, accent / progress / highlight */
-  --gold-50:  #FEF6E0;
-  --gold-100: #FCE9B4;
-  --gold-200: #F8D571;
-  --gold-300: #F2BB2E;
-  --gold-400: #EE9B00;
-  --gold-500: #C97F00;
-  --gold-600: #9A6200;
+  /* ---------- 2. ROLES ---------- */
 
-  /* Portal purple — interactive, links, focus (the retro-portal signature) */
-  --purple-50:  #F2EBFB;
-  --purple-100: #E0CCF6;
-  --purple-200: #C4A0ED;
-  --purple-300: #A06FE0;
-  --purple-400: #7E40D0;
-  --purple-500: #6A1FB0;
-  --purple-600: #571892;
-  --purple-700: #421270;
+  /* Superficies. No hay tintes decorativos: `--fc-accent-tint` queda
+     reservado a selección y estado (brief §5). */
+  --surface-page:    var(--fc-paper);
+  --surface-card:    var(--fc-surface);
+  --surface-sunken:  var(--fc-paper);   /* antes un beige cálido; el papel basta */
+  --surface-inset:   var(--fc-line);    /* riel de progreso, barrido de skeleton */
+  --surface-inverse: var(--fc-ink);
 
-  /* Growth green — money / positive / success */
-  --green-50:  #E6F4EC;
-  --green-100: #C3E6D2;
-  --green-400: #1F8A4C;
-  --green-500: #16713C;
-  --green-600: #0F542C;
+  /* Tinta */
+  --text-strong:  var(--fc-ink);
+  --text-body:    var(--fc-ink-2);
+  --text-muted:   var(--fc-ink-3);
+  /* El brief §2 define TRES niveles de tinta, no cuatro. `--text-faint`
+     sobrevive como rol porque 19 hojas lo consumen (ayuda de campo,
+     contador de pestañas, afijos); resuelve al mismo `--fc-ink-3` y el paso
+     de primitivas lo colapsa en `--text-muted`. */
+  --text-faint:   var(--fc-ink-3);
+  --text-inverse: var(--fc-surface);
+  --text-on-brand: var(--fc-on-accent);
 
-  /* Alert red — danger / negative */
-  --red-50:   #FCEBE8;
-  --red-100:  #F7CCC4;
-  --red-400:  #C2341D;
-  --red-500:  #9E2716;
+  /* Bordes — solo separan superficies funcionales (brief §5) */
+  --border-subtle:  var(--fc-line);
+  --border-default: var(--fc-line);
+  --border-strong:  var(--fc-line-strong);
+  --border-focus:   var(--fc-focus);
 
-  /* ---------- Semantic aliases ---------- */
+  /* Estado */
+  --success: var(--fc-success);
+  --warning: var(--fc-warning);
+  --danger:  var(--fc-danger);
 
-  /* Surfaces */
-  --surface-page:    var(--warm-50);
-  --surface-card:    #FFFFFF;
-  --surface-sunken:  var(--warm-100);
-  --surface-inset:   var(--warm-200);
-  --surface-inverse: var(--warm-900);
-  --surface-module-header: var(--warm-100);
+  /* Datos financieros: sube/baja, nunca un tercer acento */
+  --value-up:   var(--fc-success);
+  --value-down: var(--fc-danger);
+  --value-flat: var(--fc-ink-3);
 
-  /* Text / ink */
-  --text-strong:  var(--warm-900);
-  --text-body:    var(--warm-800);
-  --text-muted:   var(--warm-600);
-  /* `--text-faint` NO es el warm-500 del kit: ese tono da 3.37:1 sobre blanco y el
-   * texto secundario (ayuda de campo, etiqueta del divisor, pestañas inactivas) caía
-   * por debajo del 4.5:1 de AA (FR-096, SC-032). Se sustituye por el tono más claro
-   * que SÍ cumple (4.87:1) para conservar la jerarquía frente a `--text-muted` en vez
-   * de igualarlos. Mismo criterio que el coral 500 del botón primario: el kit es
-   * autoridad visual, pero no puede ganarle a un MUST de accesibilidad. */
-  --text-faint:   var(--warm-550);
-  --text-inverse: var(--warm-50);
-  --text-link:    var(--purple-500);
-  --text-link-hover: var(--purple-600);
-  --text-on-brand: #FFFFFF;
+  /* Anillo de foco: 2 px + offset 2 px (brief §2). Se mantiene como token
+     de `box-shadow` porque las primitivas actuales lo aplican así; el paso 2
+     lo pasa a `outline` con `--fc-focus`. */
+  --focus-ring: 0 0 0 2px var(--fc-focus);
 
-  /* Brand —
-   * `--brand-primary` es la superficie que lleva texto BLANCO (botón primario, badge
-   * sólido, avatar, pestaña activa). El coral 400 del kit (#DE4D2B) da 4.04:1 contra
-   * blanco, por debajo del 4.5:1 de AA para texto normal (FR-096, SC-032): el coral
-   * 500 da 5.11:1 y conserva el tono. Se corrige en el token y no en cada componente
-   * porque el punto de corte se declara UNA vez (FR-125). El kit es autoridad visual,
-   * pero no puede ganarle a un MUST de accesibilidad. */
-  --brand-primary:       var(--coral-500);
-  --brand-primary-hover: var(--coral-600);
-  --brand-primary-press: var(--coral-700);
-  --brand-accent:        var(--gold-400);
-  --brand-accent-soft:   var(--gold-100);
-  --brand-interactive:   var(--purple-500);
-
-  /* Borders — central to the portal module look */
-  --border-subtle:  var(--warm-200);
-  --border-default: var(--warm-300);
-  --border-strong:  var(--warm-400);
-  --border-focus:   var(--purple-400);
-
-  /* Feedback */
-  --success: var(--green-400);
-  --success-soft: var(--green-50);
-  --warning: var(--gold-500);
-  --warning-soft: var(--gold-50);
-  --danger:  var(--red-400);
-  --danger-soft: var(--red-50);
-  --info:    var(--purple-500);
-  --info-soft: var(--purple-50);
-
-  /* Finance data */
-  --value-up:   var(--green-400);
-  --value-down: var(--red-400);
-  --value-flat: var(--warm-500);
-
-  /* Focus ring */
-  --focus-ring: 0 0 0 3px var(--purple-100);
-
-  /* Category accents (catalog topic chips) */
-  --cat-ahorro:     var(--green-400);
-  --cat-credito:    var(--coral-400);
-  --cat-presupuesto:var(--gold-500);
-  --cat-inversion:  var(--purple-500);
-  --cat-colombia:   #1565A8;
+  /* RETIRADOS, y esta vez sin alias (brief §6.6):
+       --brand-primary, --brand-primary-hover, --brand-primary-press  (coral)
+       --brand-accent, --brand-accent-soft                            (marigoldo)
+       --brand-interactive, --text-link, --text-link-hover, --info    (púrpura)
+       --brand-primary-press                                           (coral)
+       --success-soft, --warning-soft, --danger-soft, --info-soft     (tintes)
+       --cat-ahorro, --cat-credito, --cat-presupuesto,
+       --cat-inversion, --cat-colombia    (cinco acentos por categoría)
+     Las escalas crudas (--warm-*, --coral-*, --gold-*, --purple-*,
+     --green-*, --red-*) también desaparecen: ya no hay literales fuera de la
+     paleta, así que no queda ningún sitio donde volver a introducir un
+     segundo acento por la puerta de atrás. */
 }

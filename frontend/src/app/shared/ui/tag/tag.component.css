@@ -12,8 +12,12 @@
   color: var(--text-muted);
   cursor: pointer;
   text-decoration: none;
-  line-height: 1.6;
-  transition: all var(--dur-fast);
+  line-height: var(--lh-secondary);
+  /* `transition: all` animaba también el `box-shadow` del foco (mismo motivo que
+     en `fc-checkbox`, FR-094/SC-030): aquí solo cambia el color. */
+  transition:
+    border-color var(--dur-fast),
+    color var(--dur-fast);
 }
 
 .fc-tag:focus-visible {
@@ -29,25 +33,25 @@
   flex: none;
 }
 
-.fc-tag[data-category='ahorro']:hover, .fc-tag[data-category='ahorro'].fc-tag--active { border-color: var(--cat-ahorro); }
-.fc-tag[data-category='ahorro'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-ahorro); }
-.fc-tag[data-category='ahorro'] .fc-tag__dot { background: var(--cat-ahorro); }
+.fc-tag[data-category='ahorro']:hover, .fc-tag[data-category='ahorro'].fc-tag--active { border-color: var(--fc-accent); }
+.fc-tag[data-category='ahorro'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
+.fc-tag[data-category='ahorro'] .fc-tag__dot { background: var(--fc-line-strong); }
 
-.fc-tag[data-category='credito']:hover, .fc-tag[data-category='credito'].fc-tag--active { border-color: var(--cat-credito); }
-.fc-tag[data-category='credito'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-credito); }
-.fc-tag[data-category='credito'] .fc-tag__dot { background: var(--cat-credito); }
+.fc-tag[data-category='credito']:hover, .fc-tag[data-category='credito'].fc-tag--active { border-color: var(--fc-accent); }
+.fc-tag[data-category='credito'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
+.fc-tag[data-category='credito'] .fc-tag__dot { background: var(--fc-line-strong); }
 
-.fc-tag[data-category='presupuesto']:hover, .fc-tag[data-category='presupuesto'].fc-tag--active { border-color: var(--cat-presupuesto); }
-.fc-tag[data-category='presupuesto'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-presupuesto); }
-.fc-tag[data-category='presupuesto'] .fc-tag__dot { background: var(--cat-presupuesto); }
+.fc-tag[data-category='presupuesto']:hover, .fc-tag[data-category='presupuesto'].fc-tag--active { border-color: var(--fc-accent); }
+.fc-tag[data-category='presupuesto'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
+.fc-tag[data-category='presupuesto'] .fc-tag__dot { background: var(--fc-line-strong); }
 
-.fc-tag[data-category='inversion']:hover, .fc-tag[data-category='inversion'].fc-tag--active { border-color: var(--cat-inversion); }
-.fc-tag[data-category='inversion'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-inversion); }
-.fc-tag[data-category='inversion'] .fc-tag__dot { background: var(--cat-inversion); }
+.fc-tag[data-category='inversion']:hover, .fc-tag[data-category='inversion'].fc-tag--active { border-color: var(--fc-accent); }
+.fc-tag[data-category='inversion'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
+.fc-tag[data-category='inversion'] .fc-tag__dot { background: var(--fc-line-strong); }
 
-.fc-tag[data-category='colombia']:hover, .fc-tag[data-category='colombia'].fc-tag--active { border-color: var(--cat-colombia); }
-.fc-tag[data-category='colombia'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--cat-colombia); }
-.fc-tag[data-category='colombia'] .fc-tag__dot { background: var(--cat-colombia); }
+.fc-tag[data-category='colombia']:hover, .fc-tag[data-category='colombia'].fc-tag--active { border-color: var(--fc-accent); }
+.fc-tag[data-category='colombia'].fc-tag--active { box-shadow: inset 0 -2px 0 var(--fc-accent); }
+.fc-tag[data-category='colombia'] .fc-tag__dot { background: var(--fc-line-strong); }
 
 .fc-tag--active {
   color: var(--text-strong);

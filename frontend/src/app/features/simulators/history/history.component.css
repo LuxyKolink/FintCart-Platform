@@ -65,7 +65,7 @@
 .fc-history__table thead th {
   font-size: var(--fs-2xs);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-caps);
+  letter-spacing: var(--ls-meta);
   text-transform: uppercase;
   color: var(--text-muted);
   border-bottom: var(--border-hairline) solid var(--border-default);

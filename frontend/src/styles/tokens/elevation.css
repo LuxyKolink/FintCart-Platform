@@ -1,39 +1,60 @@
 /* ============================================================
-   FintCart — Radius, border & shadow tokens
-   The portal look leans on 1px borders, not heavy shadows.
-   Corners are modest; some chrome stays near-square for the boxy feel.
+   FintCart — Radius, border & shadow tokens · dirección de arte v2
+   Fuente única: `docs/informe/03-brief-diseno.md` §5 y §6.3.
+
+   · Radio máximo 2 px. Nada de 8 / 12 / 16: las esquinas redondeadas eran
+     parte del cromo de portal.
+   · Sin sombras salvo capas superpuestas reales (menú, modal): UNA sola,
+     `0 8px 24px rgba(16,20,26,.12)`. Todo lo demás es `none` — un borde de
+     1 px separa; una sombra decora.
+   · Prohibida la barra de acento de 3 px sobre encabezados: `--border-accent`
+     se retira.
    ============================================================ */
 
 :root {
-  /* Radii */
-  --radius-0:  0;
-  --radius-xs: 2px;   /* sharp portal chrome: tabs, table cells */
-  --radius-sm: 4px;
-  --radius-md: 6px;   /* default: cards, inputs, buttons */
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-pill: 999px;
+  /* ---------- Radios ---------- */
+  --radius-0: 0;
+  --radius-2: 2px;    /* EL radio del sistema (brief §5) */
+  --radius-pill: 999px; /* solo `fc-badge` y `fc-tag`: la píldora es forma, no decoración */
 
-  /* Border widths */
+  /* Escala heredada: COLAPSA sobre el tope. 44 hojas de componente todavía
+     escriben `--radius-md` (6 px) para tarjetas, campos y botones; si aquí
+     quedara el valor viejo, el rediseño no llegaría a ninguna pantalla. Los
+     pasos 2 (primitivas) y 3 (marco) citan `--radius-2` y esta tabla se
+     borra. */
+  --radius-xs: var(--radius-2);
+  --radius-sm: var(--radius-2);
+  --radius-md: var(--radius-2);
+  --radius-lg: var(--radius-2);
+  --radius-xl: var(--radius-2);
+
+  /* ---------- Grosores de borde ---------- */
   --border-hairline: 1px;
-  --border-thick: 2px;
-  --border-accent: 3px; /* left/top accent bars on module headers */
+  --border-thick: 2px;   /* subrayado de pestaña activa, anillo de foco */
+  /* RETIRADO: --border-accent (3 px). La barra de acento sobre el encabezado
+     de un bloque es cromo prohibido (brief §6.3); sus cuatro consumidores
+     dibujan ahora una regla de 1 px o nada. */
 
-  /* Shadows — restrained */
+  /* ---------- Elevación ---------- */
   --shadow-none: none;
-  --shadow-xs: 0 1px 0 rgba(28, 24, 21, 0.04);
-  --shadow-sm: 0 1px 2px rgba(28, 24, 21, 0.06), 0 1px 1px rgba(28, 24, 21, 0.04);
-  --shadow-md: 0 2px 6px rgba(28, 24, 21, 0.08), 0 1px 2px rgba(28, 24, 21, 0.05);
-  --shadow-lg: 0 8px 24px rgba(28, 24, 21, 0.12), 0 2px 6px rgba(28, 24, 21, 0.06);
-  --shadow-pop: 0 6px 20px rgba(28, 24, 21, 0.16);
+  --shadow-overlay: 0 8px 24px rgba(16, 20, 26, 0.12); /* la ÚNICA sombra del sistema */
 
-  /* Focusable inset for portal inputs */
-  --shadow-inset: inset 0 1px 2px rgba(28, 24, 21, 0.06);
+  /* Elevación heredada: resuelve a `none`. Se conserva el nombre —y no se
+     borra— porque 18 declaraciones de componente todavía lo escriben y un
+     borrado en seco las dejaría huérfanas; el efecto es el correcto hoy
+     (ninguna sombra), y el paso 2 elimina las declaraciones. */
+  --shadow-xs:    none;
+  --shadow-sm:    none;
+  --shadow-md:    none;
+  --shadow-lg:    none;
+  --shadow-pop:   none;
+  --shadow-inset: none;   /* el inset de los campos era el "relleno gris" que el brief §7 retira */
 
-  /* Transitions */
+  /* ---------- Movimiento ---------- */
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1); /* @kind other */
-  --ease-snap: cubic-bezier(0.2, 0.9, 0.3, 1.2); /* @kind other */
   --dur-fast: 120ms; /* @kind other */
   --dur-base: 180ms; /* @kind other */
   --dur-slow: 260ms; /* @kind other */
+  /* RETIRADO: --ease-snap (rebote con sobreimpulso). Un sistema sereno no
+     rebota, y no tenía ni un consumidor. */
 }

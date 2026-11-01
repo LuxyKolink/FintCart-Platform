@@ -59,9 +59,10 @@
   padding: var(--space-3) var(--space-4);
   background: var(--surface-card);
   border: var(--border-hairline) solid var(--border-default);
-  /* Barra de acento a la izquierda: la marca de la herramienta editorial, con el púrpura
-     del portal que usa el kit. */
-  border-left: var(--border-accent) solid var(--brand-interactive);
+  /* Barra de acento a la izquierda: la marca de la herramienta editorial. En la
+     dirección de arte v2 la regla es de 1 px y del único acento (antes 3 px del
+     púrpura del portal); retirarla del todo es trabajo de la pantalla (paso 3). */
+  border-left: var(--border-hairline) solid var(--fc-accent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
   min-width: 0;
@@ -98,7 +99,7 @@
 .fc-ed__key {
   font-size: var(--fs-2xs);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-caps);
+  letter-spacing: var(--ls-meta);
   text-transform: uppercase;
   color: var(--text-muted);
 }

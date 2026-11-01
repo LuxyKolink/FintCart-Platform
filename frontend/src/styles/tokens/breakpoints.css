@@ -1,31 +1,33 @@
 /* ============================================================
-   FintCart — Responsive breakpoint tokens (research D-27, FR-125)
+   FintCart — Responsive breakpoint tokens · dirección de arte v2
+   Fuente única: `docs/informe/03-brief-diseno.md` §9 (invariantes).
 
-   El frontend no tenía ni un `@media` ni un token de punto de corte:
-   el responsive se define aquí por primera vez. Estos cuatro valores
-   son una ADICIÓN al design system, no una desviación — se declaran
-   junto al resto de tokens para que los features siguientes los
-   hereden en vez de repetir números sueltos por pantalla.
+   Cuatro puntos de corte y un suelo de 360 px sin desbordamiento
+   horizontal. Estos cuatro valores son la fuente única de verdad; no se
+   repiten números sueltos por pantalla.
 
-   Regla de degradación por disposición (D-27):
-     --bp-sm  480px  Móvil. Una sola columna; los rieles se apilan.
-     --bp-md  768px  Tableta vertical. Dos zonas; se sacrifica el
-                     riel secundario, nunca el principal.
-     --bp-lg 1024px  Tableta horizontal / portátil. Tres zonas con
-                     rieles estrechos.
-     --bp-xl 1280px  Escritorio. La disposición de los kits, tal cual.
+   ─── AVISO TÉCNICO: POR QUÉ `@media` NO PUEDE USAR `var()` ───────────────
+   Las propiedades personalizadas de CSS NO se resuelven en el contexto de
+   una consulta de medios: `@media (max-width: var(--bp-md))` es inválido y
+   el navegador descarta la consulta ENTERA —no falla ruidosamente, deja la
+   pantalla sin responsive—. Por eso:
 
-   AVISO TÉCNICO — por qué esto NO se usa como `var(--bp-md)` dentro
-   de un `@media`: las propiedades personalizadas de CSS no se
-   resuelven en el contexto de una consulta de medios, así que
-   `@media (max-width: var(--bp-md))` es inválido y el navegador
-   descarta la consulta entera. Estos tokens son la fuente única de
-   verdad; cada `@media` de un componente escribe el valor literal
-   (768px) y cita el token en un comentario para que la correspondencia
-   sea verificable. Cambiar un punto de corte es cambiar este archivo
-   Y los literales que lo citan — no se puede hacer mejor sin un
-   preprocesador de `@custom-media`, que este feature no introduce
-   (Technical Context: ninguna dependencia nueva).
+     · cada `@media` escribe el valor LITERAL (768px, no `--bp-md`);
+     · y cita el token en un comentario, para que la correspondencia entre
+       el literal y esta tabla sea verificable con un grep.
+
+   Cambiar un punto de corte es cambiar este archivo Y los literales que lo
+   citan. No hay forma de evitarlo sin `@custom-media`, que exige un
+   preprocesador que este feature no introduce (ninguna dependencia nueva).
+
+   ─── EL PATRÓN: `@media` SOLO EN ESTE ARCHIVO, MOBILE-FIRST ──────────────
+   Los `@media` de este archivo NO dibujan nada: solo reescriben tokens de
+   layout en `:root`. Así la pantalla no pregunta por el ancho —pregunta por
+   `--page-gutter` y recibe el valor correcto—. Los `@media` de componente
+   que ya existen (banda de marca en 768, rejillas en 1024) siguen siendo
+   válidos porque cambian disposición, no escala; el criterio para el paso 3
+   es: si el cambio es un VALOR, va aquí; si es una DISPOSICIÓN, va en el
+   componente con el literal y el token citados.
    ============================================================ */
 
 :root {
@@ -34,3 +36,52 @@
   --bp-lg: 1024px;
   --bp-xl: 1280px;
 }
+
+/* ─── Suelo: 360 px ───────────────────────────────────────────────────────
+   No es un breakpoint, es el mínimo garantizado. Con `--page-gutter: 20px`
+   (declarado en `spacing.css`) quedan 320 px de contenido útil: el ancho al
+   que se verifica que NADA desborda (brief §9). */
+
+/* ─── --bp-sm · 480px ─────────────────────────────────────────────────────
+   La medida de formulario del brief §8 (400 px) solo cabe aquí: 400 + 2×20
+   de margen = 440 ≤ 480. Por debajo, el formulario ocupa el ancho completo. */
+@media (min-width: 480px) {
+  :root {
+    --form-max: 400px; /* --bp-sm (480px) */
+  }
+}
+
+/* ─── --bp-md · 768px ─────────────────────────────────────────────────────
+   Tableta vertical: márgenes de 32 px (brief §4) y se abre la separación
+   entre secciones un escalón de la rejilla (space-7 32 → space-9 48). Es el
+   punto en el que el panel de marca deja de ser banda y vuelve a ser panel
+   (`fc-brand-panel`), pero ese `@media` es de disposición y vive en el
+   componente. */
+@media (min-width: 768px) {
+  :root {
+    --page-gutter: 32px;              /* --bp-md (768px) */
+    --section-gap: var(--space-9);    /* --bp-md (768px) */
+  }
+}
+
+/* ─── --bp-lg · 1024px ────────────────────────────────────────────────────
+   Portátil: márgenes de 48 px (brief §4) y aparece el índice izquierdo
+   silencioso de 160 px, sin borde, sin tarjeta y sin fondo. Si la pantalla
+   no necesita navegación lateral, no dibuja la columna: el token vale 0 por
+   debajo y la rejilla no reserva espacio. */
+@media (min-width: 1024px) {
+  :root {
+    --page-gutter: 48px;              /* --bp-lg (1024px) */
+    --index-rail: 160px;              /* --bp-lg (1024px) */
+  }
+}
+
+/* ─── --bp-xl · 1280px ────────────────────────────────────────────────────
+   Escritorio. NINGÚN token cambia aquí, y es deliberado: `--content-max`
+   (880 px) y `--reading-max` (680 px) son medidas de LECTURA, no de ventana
+   —crecen hasta su tope y el excedente se va a los márgenes—; los márgenes
+   ya están en su valor máximo (48 px) desde 1024. El token se declara
+   igualmente porque el cuarto escalón sí se usa: es donde una pantalla
+   concreta puede pasar de dos a tres zonas (kit editorial, paso 3) citando
+   `--bp-xl`. Inventar aquí un cambio de token sería repetir el error que
+   este brief corrige: mover cromo en vez de tipografía. */

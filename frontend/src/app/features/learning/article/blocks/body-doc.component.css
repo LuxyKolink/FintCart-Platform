@@ -69,13 +69,13 @@
 }
 
 .fc-blocks__link {
-  color: var(--brand-primary);
+  color: var(--fc-accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .fc-blocks__link:hover {
-  color: var(--brand-primary-hover);
+  color: var(--fc-accent-hover);
 }
 
 .fc-blocks__figure {

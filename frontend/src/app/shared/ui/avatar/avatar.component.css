@@ -17,14 +17,14 @@
 .fc-avatar[data-size='lg'] { width: 48px; height: 48px; font-size: 19px; }
 .fc-avatar[data-size='xl'] { width: 64px; height: 64px; font-size: 26px; }
 
-.fc-avatar[data-tone='primary'] { background: var(--brand-interactive); }
-.fc-avatar[data-tone='brand'] { background: var(--brand-primary); }
-.fc-avatar[data-tone='accent'] { background: var(--brand-accent); color: var(--warm-900); }
+.fc-avatar[data-tone='primary'] { background: var(--fc-accent); }
+.fc-avatar[data-tone='brand'] { background: var(--fc-accent); }
+.fc-avatar[data-tone='accent'] { background: var(--fc-accent); color: var(--fc-on-accent); }
 .fc-avatar[data-tone='success'] { background: var(--success); }
 .fc-avatar[data-tone='warning'] { background: var(--warning); }
 .fc-avatar[data-tone='danger'] { background: var(--danger); }
-.fc-avatar[data-tone='info'] { background: var(--info); }
-.fc-avatar[data-tone='neutral'] { background: var(--warm-700); }
+.fc-avatar[data-tone='info'] { background: var(--fc-accent); }
+.fc-avatar[data-tone='neutral'] { background: var(--fc-ink-2); }
 
 .fc-avatar--image {
   background: transparent;

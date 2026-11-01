@@ -47,7 +47,7 @@
 .fc-result__row--primary .fc-result__label {
   font-size: var(--fs-xs);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-caps);
+  letter-spacing: var(--ls-meta);
   text-transform: uppercase;
   color: var(--text-muted);
 }

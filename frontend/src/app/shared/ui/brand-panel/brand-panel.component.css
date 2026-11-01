@@ -1,17 +1,12 @@
 :host {
   display: flex;
   flex-direction: column;
-  /* El color sólido va DEBAJO del degradado: fija el peor caso de contraste para
-     el verificador (que lee `background-color`, no la imagen) y sirve de respaldo
-     si el degradado no se pinta. Coral 500 y no el coral 400 del kit porque el
-     blanco sobre coral 400 da 4.04:1, por debajo de AA (FR-096, SC-032). */
-  background-color: var(--coral-500);
-  background-image: linear-gradient(
-    160deg,
-    var(--coral-500) 0%,
-    var(--coral-700) 70%,
-    var(--purple-700) 140%
-  );
+  /* Brief §7: fondo `--fc-accent` SÓLIDO, sin degradado coral→púrpura. El panel
+     era el sitio donde los tres acentos se veían a la vez; el color sólido fija
+     el contraste en un solo valor verificable (blanco sobre `--fc-accent` =
+     9.49:1) y ya no depende de una imagen que el verificador de `e2e/a11y` no
+     puede medir: mide `background-color`. */
+  background-color: var(--fc-accent);
   color: var(--text-on-brand);
   padding: var(--space-8) var(--space-7);
   position: relative;

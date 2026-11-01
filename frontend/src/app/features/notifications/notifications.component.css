@@ -44,7 +44,7 @@
   padding: var(--space-3);
   background: var(--surface-card);
   border: var(--border-hairline) solid var(--border-default);
-  border-left: var(--border-accent) solid transparent;
+  border-left: var(--border-hairline) solid transparent;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
   min-width: 0;
@@ -52,8 +52,8 @@
 
 /* Lo no leído: barra de acento + fondo tenue + la etiqueta del encabezado. */
 .fc-inbox__item--unread {
-  border-left-color: var(--brand-primary);
-  background: var(--coral-50);
+  border-left-color: var(--fc-accent);
+  background: var(--fc-accent-tint);
 }
 
 .fc-inbox__meta {
@@ -69,9 +69,9 @@
   gap: var(--space-1);
   font-size: var(--fs-2xs);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-caps);
+  letter-spacing: var(--ls-meta);
   text-transform: uppercase;
-  color: var(--coral-600);
+  color: var(--fc-accent-hover);
 }
 
 .fc-inbox__time {
