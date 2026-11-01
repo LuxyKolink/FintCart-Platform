@@ -13,16 +13,19 @@ Los tres se acumulan: 002 enmienda a 001, y 003 solo toca `frontend/`.
 Feature **exclusivamente de presentación**: no toca backend, contratos, eventos ni base de
 datos. Requisitos FR-086…FR-123, criterios SC-027…SC-037, decisiones D-26…D-32.
 
-- **Retira una capa, no añade otra** (nota N-12): `frontend/src/styles.scss` (116 líneas, 15
-  clases artesanales "inspiradas en" el design system) es un **duplicado parcial** de
-  `shared/ui`. Se vacía clase a clase y **su eliminación es el criterio de terminación**. Las
-  primitivas de portal de `tokens/base.css` (`fc-module`, `fc-num`, `fc-eyebrow`,
-  `fc-linklist`) **sí sobreviven**.
+- **Retira una capa, no añade otra** (nota N-12): `frontend/src/styles.scss` era un duplicado
+  parcial de `shared/ui` y **ya no existe** — se eliminó en `1aeffc5`, y `node
+  scripts/design-debt.mjs --check` marca 0 pantallas con clase artesanal desde entonces. Ese
+  criterio de terminación está cumplido; lo que falta del feature es juicio visual, no
+  fontanería. De las primitivas de portal de `tokens/base.css` sobreviven `fc-module`, `fc-num`
+  y `fc-linklist`; `fc-eyebrow` se retiró con el rediseño (§11 del brief).
 - **Las pruebas e2e NO se modifican** (nota N-13): seleccionan por rol y etiqueta accesible en
   110 de 112 casos, así que sobreviven al rediseño y fallan si este rompe la accesibilidad. Si
   una falla, el fallo es del rediseño; ajustar la aserción destruye la única garantía dura.
-- **Responsive definido por primera vez** (D-27): no existe ni un `@media` en todo el
-  frontend. Cuatro puntos de corte como **tokens** (480/768/1024/1280), mínimo 360 px. En el
+- **Responsive con una sola escala** (D-27): sí existían `@media` —31 en `frontend/src`, cuatro
+  de ellos ya en `tokens/breakpoints.css` en `104b41d`—; lo que faltaba era coherencia. Ahora
+  hay cuatro puntos de corte como **tokens** (480/768/1024/1280, con 1280 declarado como no-op
+  deliberado), mínimo 360 px, y `--page-gutter` gobierna cabecera y contenido. En el
   acceso, el panel de marca degrada a banda compacta pero **nunca se oculta** (N-14).
 - **Una cifra monetaria nunca trunca** (N-15): truncar `$1.234.567` a `$1.234…` no es texto
   incompleto, es un dato falso. Es la expresión visual del Principio VIII.
@@ -30,6 +33,13 @@ datos. Requisitos FR-086…FR-123, criterios SC-027…SC-037, decisiones D-26…
   el marco que la rodea. El grupo editorial se migra **el último**.
 - Migración **pantalla por pantalla agrupada por UI kit** (D-28), desplegando kit completo:
   acceso → aprendizaje → simuladores → perfil → editorial.
+- **Estado (2026-11-01, rama `development`, `staging` intacta en `104b41d`)**: tokens v2,
+  las 19 primitivas y las pantallas de acceso, aprendizaje, simuladores, perfil y
+  administración ya migradas; editorial (solo el marco, FR-123) es lo último que queda. Las
+  cifras que sostienen esto: 59/59 e2e sin omisiones, 311/311 unitarias, build limpio,
+  design-debt 0. Lección que el informe debe recoger: `npm run build` no demuestra que una
+  página se renderice —la máscara del logotipo pasaba el build y rompía el servidor de
+desarrollo—, así que el juicio visual es una prueba, no un adorno.
 
 ## Feature en curso: Constructor de Calculadoras y Administración (`002-calculator-builder-content-admin`)
 
