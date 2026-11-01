@@ -63,6 +63,18 @@
 }
 
 /*
+ * Aquí la etiqueta de un modo es un NOMBRE, no una acción: «Gravamen a los Movimientos
+ * Financieros (GMF)» mide 344 px en una sola línea y a 360 px la columna solo tiene 320.
+ * `flex-wrap` no basta, porque el botón no baja de su ancho de contenido mientras su
+ * etiqueta no pueda partirse. Se pide el salto con la variable que expone la primitiva.
+ */
+.fc-sim__modes fc-button {
+  --fc-btn-wrap: normal;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
  * El formulario no es una caja: es la entrada de la banda de resultado, separada por la
  * tipografía del título de sección y por el espacio. Fuera el fondo de tarjeta, el borde, el
  * radio y la sombra (brief §5, §6.7).

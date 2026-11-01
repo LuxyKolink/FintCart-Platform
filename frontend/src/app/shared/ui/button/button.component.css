@@ -48,7 +48,13 @@
   font-weight: var(--fw-medium);
   letter-spacing: var(--ls-normal);
   line-height: 1;
-  white-space: nowrap;
+  white-space: var(--fc-btn-wrap, nowrap);
+  /* Una etiqueta de botón no se parte por defecto: parte una acción en dos líneas y se lee
+     como dos. Pero hay consumidores donde la etiqueta es un NOMBRE —un modo de cálculo, una
+     categoría— y ese nombre puede medir más que la columna, sobre todo a 360 px. Ahí el
+     consumidor pide el salto con `--fc-btn-wrap: normal` sobre el host de `fc-button`:
+     las propiedades personalizadas sí atraviesan la encapsulación de Angular, `::ng-deep` no
+     hace falta. */
   /* Sin `transform` y sin `box-shadow`: el brief §5 retira la elevación como
      forma de señalar. La transición es de color, y solo de color. */
   transition:

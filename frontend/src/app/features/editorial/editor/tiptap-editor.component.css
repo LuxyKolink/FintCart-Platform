@@ -69,7 +69,8 @@
 }
 
 .fc-rte__btn:disabled {
-  color: var(--text-muted);
+  /* Misma razón que `.fc-rte__estado`: es texto sobre `--surface-inset`. */
+  color: var(--text-secondary);
   cursor: not-allowed;
 }
 
@@ -95,13 +96,23 @@
 
 /* Y lo mismo para el estado deshabilitado: el mensaje que explica por qué está en la barra. */
 .fc-rte__archivo:disabled + .fc-rte__btn {
-  color: var(--text-muted);
+  /* Tercera vez la misma pareja: texto sobre `--surface-inset` (ver la nota de
+     `.fc-rte__estado`). El estado deshabilitado se lee por el cursor y la ausencia de
+     respuesta, no por bajar el contraste hasta hacer el texto ilegible. */
+  color: var(--text-secondary);
   cursor: not-allowed;
 }
 
+/*
+ * Texto sobre `--surface-inset`, que es `--fc-line`. El gris terciario (`--text-muted` =
+ * `--fc-ink-3` #6B7178) da 3,77:1 sobre ese fondo y no llega a AA; el secundario
+ * (`--fc-ink-2`) supera 6:1. La regla general: **sobre una superficie interior, el texto
+ * no puede ser el gris más claro**. Vale para la barra del editor y para cualquier
+ * consumidor que ponga palabras sobre un riel.
+ */
 .fc-rte__estado {
   font-size: var(--fs-sm);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* El panel de la imagen y del enlace: interrumpe la escritura, así que se separa. */
