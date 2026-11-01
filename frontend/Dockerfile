@@ -58,6 +58,44 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # COMPRESIÓN. Medido con Lighthouse el 2026-11-01: el bundle se servía sin
+    # `Content-Encoding` aunque el navegador pidiera `gzip, br` (main.js salía con
+    # `Content-Length: 77328`). Texto plano del 25 % de su tamaño.
+    #
+    # gzip y NO brotli: la imagen `nginx-unprivileged:alpine` no trae `ngx_brotli`
+    # (sus módulos son geoip, image_filter, js, xslt; `gzip` sí está compilado en el
+    # binario). Una línea `brotli on;` sería rechazada al arrancar —«unknown
+    # directive»— y el contenedor no levantaría. Cuando la imagen lo incluya, se
+    # añade aquí, y `gzip_static`/brotli solo ganan si además se precomprimen los
+    # ficheros.
+    #
+    # `gzip_types` NO incluye woff2, woff, png, jpg ni ico: ya vienen comprimidos y
+    # volver a comprimirlos cuesta CPU para crecer unos bytes. `text/html` tampoco
+    # aparece porque nginx lo comprime siempre que `gzip` esté activo.
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    # 6 es el punto donde el tamaño deja de mejorar de forma apreciable frente a la CPU
+    # que consume por petición. Medido sobre `main.js` (77 328 B): nivel 4 → 23 817,
+    # 5 → 23 162, 6 → 22 947, 9 → 22 908. De 6 a 9 se gana un 0,2 % pagando el máximo
+    # de CPU por petición; de 4 a 6 se gana un 3,7 %.
+    gzip_comp_level 6;
+    # Por debajo no compensa: la cabecera gzip son ~20 bytes.
+    gzip_min_length 1024;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        application/javascript
+        application/json
+        application/manifest+json
+        application/xml
+        image/svg+xml
+        # TTF/OTF son sfnt sin comprimir, así que gzip les quita la mitad. Los
+        # formatos ya comprimidos (woff2) quedan fuera a propósito.
+        font/ttf
+        font/otf;
+
     # Los ficheros con hash en el nombre son inmutables: se pueden cachear para
     # siempre. `index.html` NO, porque es el que apunta a los hashes nuevos — con
     # caché larga, un despliegue no llegaría al navegador hasta que expirara.
@@ -69,6 +107,17 @@ server {
 
     location = /index.html {
         add_header Cache-Control "no-cache";
+    }
+
+    # `/robots.txt` se sirve como fichero REAL, no por el fallback del SPA. Sin esta
+    # línea, `try_files` de `location /` no encontraba el fichero y devolvía
+    # `index.html` con `200 text/html`: Lighthouse lo marca como robots.txt inválido
+    # (SEO 83 en todas las rutas). El `=404` es deliberado: si el fichero desaparece
+    # del build, prefiero un 404 honesto a un HTML disfrazado de texto plano.
+    location = /robots.txt {
+        default_type text/plain;
+        add_header Cache-Control "public, max-age=3600";
+        try_files $uri =404;
     }
 
     # `config.js` se escribe en tiempo de EJECUCIÓN, así que vive fuera del árbol

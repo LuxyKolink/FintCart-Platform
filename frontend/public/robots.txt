@@ -1,0 +1,24 @@
+# FintCart — reglas de rastreo.
+#
+# El catálogo, el perfil, los simuladores y el área editorial exigen sesión
+# (`app.routes.ts` les pone guardas), así que un buscador solo encontraría
+# redirecciones al acceso: no hay contenido indexable detrás de esas rutas y no debe
+# gastar rastreo en ellas. Las únicas pantallas públicas son el acceso, el registro y
+# la verificación de correo.
+#
+# No se anuncia `Sitemap:` porque la aplicación no publica ninguno: declarar una URL
+# que devuelve 404 es peor que no declararla.
+User-agent: *
+Allow: /
+Disallow: /catalogo
+Disallow: /articulos/
+Disallow: /cuestionarios/
+Disallow: /progreso
+Disallow: /simuladores
+Disallow: /calculadoras
+Disallow: /perfil
+Disallow: /notificaciones
+Disallow: /editorial
+Disallow: /admin
+Disallow: /interno
+Disallow: /auth/

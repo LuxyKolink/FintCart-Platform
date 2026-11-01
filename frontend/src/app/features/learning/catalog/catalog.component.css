@@ -150,6 +150,22 @@
 
 /* ── secciones y listas ────────────────────────────────────────────────────── */
 
+/*
+ * Alto RESERVADO del bloque de contenido mientras carga (CLS). No es un relleno:
+ * es la geometría que va a ocupar lo que llega. Medido sobre el bundle a 768, 1024
+ * y 1280 px, el contenido cargado mide 88 px de destacado + 32 de ritmo + 760 de
+ * sección = 880; las dos cajas grises son 132 + 40 + 220 = 392. Los 40rem (640 px)
+ * reservan la mayor parte de la diferencia sin pasarse: reservar de más también
+ * desplaza —hacia arriba— cuando llegan menos artículos de los previstos, y el
+ * catálogo de una instalación recién sembrada tiene uno o dos.
+ */
+.fc-catalog__placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-height: 40rem;
+}
+
 .fc-catalog__section {
   display: flex;
   flex-direction: column;

@@ -16,7 +16,8 @@
 
    DESHABILITADO: sin fondo gris —bajaría el contraste del texto a 3.7 : 1 y
    ese era justo el relleno prohibido—. Se baja a `--fc-ink-3` y `--fc-line`,
-   que sobre superficie mide 4.76 : 1 (brief §7).
+   que sobre superficie mide 6.07 : 1 (brief §7; el token se oscureció el
+   2026-11-01 y con él este par subió de 4.76 a 6.07).
    ============================================================================ */
 
 .fc-field {

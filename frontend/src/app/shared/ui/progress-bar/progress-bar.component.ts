@@ -18,6 +18,13 @@ export type ProgressBarTone = 'accent' | 'primary' | 'success' | 'warning' | 'da
  * `value`/`max` are display-only counters (question counts, percentages already
  * computed server-side); they are never used to derive a monetary or graded amount.
  *
+ * ACCESIBLE NAME. `role="progressbar"` sin nombre se anuncia como «barra de
+ * progreso» y nada más: el lector de pantalla no puede decir de qué progreso
+ * habla (Lighthouse: `aria-progressbar-name`). El nombre sale de `ariaLabel` o,
+ * si no se pasa, del `label` visible —que es el texto que la persona ya lee al
+ * lado—. Los dos caminos escriben el mismo `aria-label` del riel, así que un
+ * consumidor que ya rotula la barra no necesita añadir nada.
+ *
  * The fill width is a continuous 0-100 value with no natural class boundary, so it
  * is set imperatively via Renderer2 (not a template `[style]` binding) to keep the
  * template itself free of inline styles.
@@ -42,6 +49,7 @@ export type ProgressBarTone = 'accent' | 'primary' | 'success' | 'warning' | 'da
         class="fc-progress__track"
         [attr.data-size]="size()"
         role="progressbar"
+        [attr.aria-label]="accessibleName()"
         [attr.aria-valuenow]="value()"
         [attr.aria-valuemin]="0"
         [attr.aria-valuemax]="max()"
@@ -56,9 +64,17 @@ export class ProgressBarComponent {
   readonly value = input(0);
   readonly max = input(100);
   readonly label = input<string>();
+  /**
+   * Nombre accesible cuando NO hay `label` visible. El texto tiene que ser el que
+   * una persona reconocería al oírlo («Avance hacia el siguiente hito»), no el
+   * nombre interno del campo.
+   */
+  readonly ariaLabel = input<string>();
   readonly showValue = input(false);
   readonly tone = input<ProgressBarTone>('accent');
   readonly size = input<ProgressBarSize>('md');
+
+  protected readonly accessibleName = computed(() => this.ariaLabel() ?? this.label() ?? null);
 
   protected readonly percent = computed(() => Math.max(0, Math.min(100, (this.value() / this.max()) * 100)));
 

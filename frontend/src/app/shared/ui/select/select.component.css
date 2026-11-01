@@ -72,7 +72,8 @@
 }
 
 /* Deshabilitado sin relleno gris: color a `--fc-ink-3` y borde a `--fc-line`
-   (brief §7). El texto sigue midiendo 4.76 : 1 sobre superficie. */
+   (brief §7). El texto mide 6.07 : 1 sobre superficie y 4.65 : 1 sobre
+   `--fc-line`: el token cubre las dos, que es por lo que se oscureció. */
 .fc-select:disabled {
   border-color: var(--fc-line);
   color: var(--fc-ink-3);

@@ -20,7 +20,9 @@
 
 :root {
   /* ---------- Familias ---------- */
-  --font-sans:    'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;        /* interfaz y titulares */
+  /* `'Roboto Fallback'` es el respaldo de `fonts.css`: mismos anchos de avance
+     que Roboto, para que el intercambio de fuente no cambie ninguna caja. */
+  --font-sans:    'Roboto', 'Roboto Fallback', system-ui, -apple-system, 'Segoe UI', sans-serif;        /* interfaz y titulares */
   --font-display: var(--font-sans);                                                   /* una sola familia para todo el discurso */
   --font-mono:    'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;                /* cifras y datos (N-15) */
 

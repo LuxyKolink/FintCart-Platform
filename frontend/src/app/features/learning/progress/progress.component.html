@@ -37,7 +37,11 @@
           -->
           <p class="fc-num fc-progress__points">{{ formatPoints(p.points) }} puntos</p>
           <div class="fc-progress__bar">
-            <fc-progress-bar [value]="withinMilestone(p.points)" [max]="100" />
+            <fc-progress-bar
+              [value]="withinMilestone(p.points)"
+              [max]="100"
+              ariaLabel="Avance hacia el siguiente hito"
+            />
           </div>
           <p class="fc-progress__note">
             {{ withinMilestone(p.points) }} de 100 hacia los {{ nextMilestone(p.points) }} · hito actual desde los

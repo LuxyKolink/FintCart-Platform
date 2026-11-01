@@ -26,6 +26,27 @@
    Contraste: todo par texto/fondo de esta paleta supera 4.5:1 (texto
    normal) según el brief §2; `e2e/a11y.spec.ts` lo mide sobre estilos
    computados y es la prueba, no el comentario.
+
+   `--fc-ink-3` SE OSCURECIÓ A #5D636A (antes #6B7178) Y LA RAZÓN ES UN PAR, NO
+   UN SELECTOR. El comentario del token decía 4.76:1, y era cierto solo contra
+   papel. Lighthouse midió 4.38:1 en `/catalogo` —el `<time>` de la bandeja cae
+   sobre `--fc-accent-tint`, no sobre papel— y fallaba AA. Las cuatro superficies
+   donde hay texto en la aplicación, medidas con la fórmula de WCAG 2.x sobre el
+   color resuelto:
+
+     superficie                        #6B7178   #5D636A
+     papel  --fc-paper   #FBFBF9        4.76 ✅   5.86 ✅
+     tarjeta --fc-surface #FFFFFF       4.93 ✅   6.07 ✅
+     tinte  --fc-accent-tint #EEF2F7    4.38 ❌   5.40 ✅
+     hueco  --surface-inset = --fc-line 3.77 ❌   4.65 ✅
+
+   Se oscureció la tinta, no se aclaró el tinte: subir el tinte habría dejado
+   `--fc-ink-3` por debajo de AA en cualquier superficie más oscura que el papel
+   (el caso de `--fc-line`, el único fondo de texto que no es blanco) y habría
+   deshecho el trabajo de los 19 bloques que ya bajaron a `--fc-ink-3` desde
+   `--fc-ink-2`. Con la tinta oscurecida el token sirve sobre CUALQUIER
+   superficie de la paleta, así que las retiradas de texto sobre `--surface-inset`
+   que se hicieron antes de este cambio dejan de ser necesarias; se conservan.
    ============================================================ */
 
 :root {
@@ -35,7 +56,7 @@
   --fc-surface:      #FFFFFF; /* tarjetas y campos                        */
   --fc-ink:          #16181C; /* texto principal          17.15 : 1       */
   --fc-ink-2:        #4A5058; /* texto secundario          7.86 : 1       */
-  --fc-ink-3:        #6B7178; /* metadatos, ayudas         4.76 : 1       */
+  --fc-ink-3:        #5D636A; /* metadatos, ayudas         5.86 : 1       */
   --fc-line:         #E3E1DC; /* reglas de 1 px (no es texto)             */
   --fc-line-strong:  #C9C6BE; /* bordes de campo (no es texto)            */
   --fc-accent:       #14477A; /* acción primaria, enlaces  9.16 : 1       */

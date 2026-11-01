@@ -1,92 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import {
-  LucideArrowRight,
-  LucideBell,
-  LucideBookOpen,
-  LucideCalculator,
-  LucideCheck,
-  LucideChevronRight,
-  LucideCircle,
-  LucideCircleCheck,
-  LucideClipboardCheck,
-  LucideClock,
-  LucideCornerUpLeft,
-  LucideCreditCard,
-  LucideDynamicIcon,
-  LucideFileText,
-  LucideFlame,
-  LucideInfo,
-  LucideLoader,
-  LucideMailCheck,
-  LucidePiggyBank,
-  LucidePlus,
-  LucideSave,
-  LucideSearch,
-  LucideSend,
-  LucideSettings,
-  LucideShield,
-  LucideShieldCheck,
-  type LucideIconData,
-} from '@lucide/angular';
+import { LucideDynamicIcon } from '@lucide/angular';
+
+import { ICON_DATA } from './icon-data';
 
 /**
- * The 25 icons the FintCart UI kits use (research D-32 / T033). Adding a name here
- * pulls in exactly that icon's component — nothing more, per FR-085.
+ * The 25 icons the FintCart UI kits use (research D-32 / T033).
+ *
+ * El vocabulario vive aquí y los DATOS en `icon-data.ts`, que se genera con
+ * `node scripts/gen-icon-data.mjs` a partir del `@lucide/angular` instalado. Antes se
+ * importaban las 25 clases del paquete para leer su `static icon`; eso metía en el
+ * chunk inicial las 25 plantillas Angular de Lucide (~2,5 KB cada una) que este
+ * componente nunca instancia, porque pinta con `LucideDynamicIcon` a partir de los
+ * datos. El SVG es el mismo: el generador verifica que los 25 `LucideIconData` son
+ * idénticos a los de las clases.
+ *
+ * Para añadir un icono: añádelo a esta unión Y al `NAMES` del generador, y ejecútalo.
+ * Si el nombre no existe en el paquete, el generador falla nombrándolo.
  */
-export type IconName =
-  | 'arrow-right'
-  | 'bell'
-  | 'book-open'
-  | 'calculator'
-  | 'check'
-  | 'check-circle'
-  | 'chevron-right'
-  | 'circle'
-  | 'clipboard-check'
-  | 'clock'
-  | 'corner-up-left'
-  | 'credit-card'
-  | 'file-text'
-  | 'flame'
-  | 'info'
-  | 'loader'
-  | 'mail-check'
-  | 'piggy-bank'
-  | 'plus'
-  | 'save'
-  | 'search'
-  | 'send'
-  | 'settings'
-  | 'shield'
-  | 'shield-check';
+export type IconName = keyof typeof ICON_DATA;
 
-const ICONS: Record<IconName, LucideIconData> = {
-  'arrow-right': LucideArrowRight.icon,
-  bell: LucideBell.icon,
-  'book-open': LucideBookOpen.icon,
-  calculator: LucideCalculator.icon,
-  check: LucideCheck.icon,
-  'check-circle': LucideCircleCheck.icon,
-  'chevron-right': LucideChevronRight.icon,
-  circle: LucideCircle.icon,
-  'clipboard-check': LucideClipboardCheck.icon,
-  clock: LucideClock.icon,
-  'corner-up-left': LucideCornerUpLeft.icon,
-  'credit-card': LucideCreditCard.icon,
-  'file-text': LucideFileText.icon,
-  flame: LucideFlame.icon,
-  info: LucideInfo.icon,
-  loader: LucideLoader.icon,
-  'mail-check': LucideMailCheck.icon,
-  'piggy-bank': LucidePiggyBank.icon,
-  plus: LucidePlus.icon,
-  save: LucideSave.icon,
-  search: LucideSearch.icon,
-  send: LucideSend.icon,
-  settings: LucideSettings.icon,
-  shield: LucideShield.icon,
-  'shield-check': LucideShieldCheck.icon,
-};
+const ICONS = ICON_DATA;
 
 /**
  * FintCart Icon — wraps the 25 registered Lucide icons behind FintCart's own

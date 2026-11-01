@@ -37,7 +37,14 @@
       @case ('ready') {
         @if (progress(); as p) {
           <div class="fc-catalog__milestone">
-            <fc-progress-bar [value]="withinMilestone(p.points)" [max]="100" />
+            <!-- `ariaLabel` y no `label`: aquí la barra no lleva rótulo visible —la
+                 leyenda de abajo ya dice «X de 100 hacia los Y»— y sin él la barra
+                 se anunciaba como «barra de progreso» a secas. -->
+            <fc-progress-bar
+              [value]="withinMilestone(p.points)"
+              [max]="100"
+              ariaLabel="Avance hacia el siguiente hito"
+            />
             <p class="fc-catalog__milestone-note">
               <span class="fc-num fc-catalog__points">{{ p.points }} puntos</span>
               · {{ withinMilestone(p.points) }} de 100 hacia los {{ nextMilestone(p.points) }}
@@ -90,8 +97,18 @@
 
   @switch (state()) {
     @case ('loading') {
-      <fc-skeleton variant="rect" height="132px" />
-      <fc-skeleton variant="rect" height="220px" />
+      <!--
+        EL ESQUELETO RESERVA LA GEOMETRÍA FINAL (defecto 4 del informe de
+        Lighthouse, 2026-11-01). Medido sobre el bundle: el bloque de carga
+        ocupaba 352 px y el contenido cargado ~880 a 768–1280 px, así que todo lo
+        que quedaba debajo —la bandeja— bajaba medio millar de píxeles cuando
+        llegaban los datos: CLS 0.108 a 768 y 0.168 a 360. `.fc-catalog__placeholder`
+        fija el alto de lo que va a llegar, no el de las dos cajas grises.
+      -->
+      <div class="fc-catalog__placeholder">
+        <fc-skeleton variant="rect" height="132px" />
+        <fc-skeleton variant="rect" height="220px" />
+      </div>
     }
     @case ('error') {
       <fc-error-state

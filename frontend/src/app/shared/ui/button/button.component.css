@@ -152,7 +152,7 @@
    Sin relleno gris y sin `opacity`: media opacidad sobre azul sólido deja el
    texto por debajo de AA (el gris de relleno era justo lo que el brief §7
    retira). Se baja el color a `--fc-ink-3` sobre `--fc-line`, la pareja
-   deshabilitada de los campos, que sigue midiendo 4.76 : 1 sobre papel. */
+   deshabilitada de los campos, que mide 5.86 : 1 sobre papel. */
 .fc-btn:disabled {
   --btn-bg: transparent;
   --btn-fg: var(--fc-ink-3);

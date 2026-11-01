@@ -80,6 +80,24 @@ a {
 }
 a:hover { color: var(--fc-accent-hover); text-decoration: underline; text-underline-offset: 2px; }
 
+/* Un enlace DENTRO de un bloque de texto se distingue por FORMA, no solo por
+   color (WCAG 1.4.1). Esto es el mínimo y no una preferencia: `--fc-accent`
+   sobre `--fc-ink-3` da 1.92:1, así que «Regístrate» en el acceso era
+   indistinguible de la frase que lo rodea —Lighthouse lo midió como
+   `link-in-text-block`— y con `prefers-contrast` o en modo de colores forzados
+   el color desaparece del todo. El subrayado sí sobrevive a los colores
+   forzados, y no convierte el enlace en un botón: ni relleno, ni borde, ni
+   padding.
+
+   Solo `p`: los enlaces de la barra, del destacado y de las filas del catálogo
+   son bloques completos con su propia jerarquía, y subrayarlos enteros sería
+   otro defecto (un titular subrayado se lee como enlace pulsado). */
+p a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+
 small { font-size: var(--fs-meta); }
 
 code, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }

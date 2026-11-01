@@ -25,13 +25,19 @@
                 "input": "src/assets",
                 "output": "assets"
               },
+              {
+                "glob": "**/*",
+                "input": "public",
+                "output": "/"
+              },
               "src/config.js"
             ],
             "styles": [
               "node_modules/@fontsource/ibm-plex-mono/400.css",
               "node_modules/@fontsource/ibm-plex-mono/500.css",
               "node_modules/@fontsource/ibm-plex-mono/600.css",
-              "src/styles/styles.css"
+              "src/styles/styles.css",
+              "src/styles/fonts-woff2.css"
             ],
             "scripts": []
           },

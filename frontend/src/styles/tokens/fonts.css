@@ -34,3 +34,42 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* ---------- RESPALDO MÉTRICAMENTE COMPATIBLE (CLS, no tipografía) ----------
+
+   QUÉ PROBLEMA RESUELVE. `font-display: swap` significa que el texto se pinta
+   primero con la fuente de respaldo y se vuelve a pintar cuando Roboto llega.
+   Si las métricas no coinciden, el texto CAMBIA DE ANCHO, y hay un sitio donde
+   eso no es un cambio de anchura sino de geometría: el acceso superior tiene
+   doce destinos en línea a partir de --bp-xl, y a 1280 px caben con Roboto por
+   5 px. Con la fuente de respaldo `system-ui` —más ancha— la fila se PARTE en
+   dos, el armazón crece 29 px y al entrar Roboto sube todo el contenido:
+   CLS 0.383 medido sobre el bundle de producción (2026-11-01), y 0.43/0.40 en
+   Lighthouse a 1024 y 1280. No era el logotipo ni el esqueleto: era la fuente.
+
+   CÓMO. Una familia de respaldo con `size-adjust` que iguala el ancho de avance
+   de Roboto, y `ascent-override`/`descent-override` de Roboto para que el
+   intercambio tampoco mueva la línea base. `local()` no exige descargar nada y
+   degrada en silencio: si ninguna de las fuentes está instalada, el
+   `@font-face` no resuelve y la pila sigue a `system-ui` como antes.
+
+   POR QUÉ 95 %. Medido en Chromium sobre los doce destinos reales: Roboto suma
+   976 px, `Arial`/`Liberation Sans` 973 px y `DejaVu Sans` 1025 px. 95 % deja
+   las dos variantes de respaldo por debajo de los 976 px de Roboto, que es la
+   condición para que la fila no se parta ANTES de que Roboto llegue. Un valor
+   mayor (97 %) no bastaba con DejaVu. */
+@font-face {
+  font-family: 'Roboto Fallback';
+  src:
+    local('Arial'),
+    local('Liberation Sans'),
+    local('Helvetica'),
+    local('DejaVu Sans');
+  size-adjust: 95%;
+  ascent-override: 92.77%;
+  descent-override: 24.41%;
+  line-gap-override: 0%;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
