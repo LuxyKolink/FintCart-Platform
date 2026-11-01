@@ -1,15 +1,35 @@
 /*
- * Historial de versiones (T065/T068). Una lista, no una tabla: cada versión lleva pocos
- * datos y el cuerpo puede ser largo, así que una tarjeta por versión se lee mejor que una
- * fila con celdas estrechas.
+ * Historial de versiones y borradores (T065/T068) — marco migrado a la dirección de
+ * arte v2 «institucional sereno». Frontera FR-123: esto es el MARCO de la pantalla,
+ * no la superficie de redacción del editor.
+ *
+ * ── FILAS, NO TARJETAS ──────────────────────────────────────────────────────────
+ * Cada versión era una tarjeta con fondo, borde completo, radio, sombra y barra de
+ * acento a la izquierda. Cinco piezas de cromo para separar dos versiones: el ojo las
+ * lee antes que el texto, que es exactamente la jerarquía invertida que el brief §1
+ * diagnostica. Brief §8, «lista de filas con reglas de 1 px, sin tarjetas»: queda una
+ * regla entre filas y una superior que las despega de la acción de cabecera.
+ *
+ * ── EL METADATO ES SUBORDINADO ─────────────────────────────────────────────────
+ * Autor, creación y publicación bajan a 13 px en tinta terciaria y van DEBAJO del
+ * título de la fila, no compitiendo con él por el mismo renglón.
+ *
+ * ── SE RETIRA EL EYEBROW ───────────────────────────────────────────────────────
+ * `Autor`, `Creada` y `Publicada` iban en mayúsculas forzadas, con tracking abierto y
+ * peso negrita: la etiqueta *eyebrow* que el brief §6.1 retira. La etiqueta se queda
+ * —el dato necesita nombre—; lo que se va es la caja alta.
+ *
+ * ── UNA COLUMNA, UN EJE ────────────────────────────────────────────────────────
+ * `max-width: 860px` con `margin: 0 auto` era un centrado dentro del armazón, que ya
+ * está centrado: dos ejes, y ninguno de ellos el que usan perfil, notificaciones o
+ * administración. La medida la fija el token de retícula (`--content-max`, brief §4).
  */
 
 .fc-ed {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-width: 860px;
-  margin: 0 auto;
+  gap: var(--section-gap);
+  max-width: var(--content-max);
   min-width: 0;
 }
 
@@ -22,19 +42,26 @@
 .fc-ed__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
+/*
+ * El escalón de h1 de página (38 / 1.15 / 500) lo pone `tokens/base.css`. Aquí NO se
+ * repite con `--fs-2xl`: ese es el rol de título de sección (26 px) y vestía el título
+ * de la pantalla como si fuera un subtítulo — el mismo defecto que la galería destapó
+ * en `fc-module-box`. Solo se retira el margen que el elemento hereda.
+ */
 .fc-ed__title {
   margin: 0;
-  font-size: var(--fs-2xl);
   overflow-wrap: anywhere;
 }
 
 .fc-ed__lead {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  max-width: var(--reading-max);
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
+  color: var(--fc-ink-3);
 }
 
 .fc-ed__toolbar {
@@ -49,83 +76,87 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
 }
 
+/* La fila: 16 px de aire vertical y una regla de 1 px. Sin fondo, sin radio, sin sombra. */
 .fc-ed__item {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  /* Barra de acento a la izquierda: la marca de la herramienta editorial. En la
-     dirección de arte v2 la regla es de 1 px y del único acento (antes 3 px del
-     púrpura del portal); retirarla del todo es trabajo de la pantalla (paso 3). */
-  border-left: var(--border-hairline) solid var(--fc-accent);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-hairline) solid var(--fc-line);
   min-width: 0;
+}
+
+/* La primera fila también lleva regla arriba: es lo que separa la lista de la acción
+   de cabecera, y sin ella el botón quedaba pegado al título de la primera versión. */
+.fc-ed__item:first-child {
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-ed__item-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
 }
 
+/* El título de la fila: 17 px y seminegrita, en tinta principal. */
 .fc-ed__version {
   font-size: var(--fs-md);
+  line-height: var(--lh-snug);
   font-weight: var(--fw-semibold);
-  color: var(--text-strong);
+  color: var(--fc-ink);
 }
 
+/*
+ * Los pares etiqueta/valor van en una sola línea de metadatos que envuelve: tres
+ * renglones de `dl` por versión convertían cada fila en un formulario. El `dl` conserva
+ * su semántica; lo que cambia es que se lee como pie de la fila, no como tabla.
+ */
 .fc-ed__pairs {
   margin: 0;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  min-width: 0;
 }
 
 .fc-ed__pair {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
 }
 
+/* Sin `text-transform`: la etiqueta va en caja natural, en 13 px y tinta terciaria. */
 .fc-ed__key {
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   letter-spacing: var(--ls-meta);
-  text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--fc-ink-3);
 }
 
 .fc-ed__value {
   margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--text-body);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  color: var(--fc-ink-2);
   overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* El identificador del editor es un UUID: monoespaciado y discreto, pero presente. */
 .fc-ed__id {
   margin-left: var(--space-2);
-  font-size: var(--fs-2xs);
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  color: var(--fc-ink-3);
 }
 
 .fc-ed__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-@media (max-width: 767.98px) {
-  .fc-ed__item {
-    padding: var(--space-3);
-  }
+  margin-top: var(--space-1);
 }

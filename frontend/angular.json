@@ -89,6 +89,14 @@
               "zone.js/testing"
             ],
             "tsConfig": "tsconfig.spec.json",
+            "codeCoverage": true,
+            "codeCoverageExclude": [
+              "src/main.ts",
+              "src/environments/**",
+              "**/*.spec.ts",
+              "**/*.config.ts",
+              "**/testing/**"
+            ],
             "assets": [
               {
                 "glob": "**/*",

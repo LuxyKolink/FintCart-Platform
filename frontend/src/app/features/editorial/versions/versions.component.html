@@ -47,9 +47,12 @@
               : 'Este artículo no tiene versiones registradas.'
           "
         >
-          @if (articleId() === null) {
-            <fc-link-button variant="primary" to="/editorial">Crear el primero</fc-link-button>
-          }
+          <!--
+            SIN botón propio. La acción de la pantalla —«Nuevo artículo»— ya está en la
+            barra de arriba, y el estado vacío la repetía palabra por palabra en el mismo
+            viewport (`Crear el primero`): dos llamadas a la acción al mismo destino, una
+            encima de otra. El vacío explica; la acción vive donde vive siempre.
+          -->
         </fc-empty-state>
       } @else {
         <ul class="fc-ed__list">

@@ -61,45 +61,93 @@ type LoadState = 'loading' | 'ready' | 'error';
   ],
   templateUrl: './review-calculators.component.html',
   styles: `
+    /*
+     * Curaduría de calculadoras (FR-052…FR-054) — marco en la dirección de arte v2.
+     *
+     * FILAS, NO TARJETAS. Cada propuesta era una caja con borde de 1 px y radio, apilada
+     * con un hueco: cuatro bordes para separar dos propuestas. Brief §8: reglas de 1 px
+     * entre filas, sin tarjetas, y una regla superior que despega la lista del bloque de
+     * cabecera. La jerarquía la cargan el nombre de la calculadora y el espacio.
+     *
+     * EL METADATO ES SUBORDINADO. Versión propuesta, autoría e indicadores bajan a 13 px
+     * en tinta terciaria: se leen después del nombre y de las salidas, que es lo que se
+     * necesita para decidir.
+     *
+     * SIN MAYÚSCULAS FORZADAS ni barras de acento: no había ninguna, y no vuelven.
+     */
+    /*
+     * EL MARCO. Una columna de --content-max (880 px) y el mismo eje que la bandeja de
+     * revisión y el listado de versiones: la pantalla no tenía contenedor y cada bloque se
+     * estiraba hasta el ancho del armazón. --section-gap separa cabecera, bloque y lista.
+     */
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      gap: var(--section-gap);
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+    .fc-revc__head {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    /* El escalón de h1 de página lo pone tokens/base.css; aquí solo el margen. */
+    .fc-revc__title {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+    /* Título del bloque: rol h2 del brief §3 (26 px) y 12 px hasta el cuerpo. */
+    .fc-revc__seccion {
+      margin: 0 0 var(--space-3);
     }
     .fc-revc__intro {
-      max-width: 68ch;
-      color: var(--text-body);
+      margin: 0;
+      max-width: var(--reading-max);
+      font-size: var(--fs-secondary);
+      line-height: var(--lh-secondary);
+      color: var(--fc-ink-2);
     }
     .fc-revc__lista {
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
-      margin-top: var(--space-4);
+    }
+    /* Las filas se separan por su regla de 1 px, no por un hueco; en el estado de carga
+       no hay reglas, así que las dos barras esqueleto sí necesitan aire entre ellas. */
+    .fc-revc__lista > fc-skeleton + fc-skeleton {
+      margin-top: var(--space-2);
     }
     .fc-revc__item {
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
-      padding: var(--space-3);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
+      gap: var(--space-2);
+      padding: var(--space-4) 0;
+      border-bottom: var(--border-hairline) solid var(--fc-line);
+      min-width: 0;
+    }
+    .fc-revc__item:first-child {
+      border-top: var(--border-hairline) solid var(--fc-line);
     }
     .fc-revc__cabecera {
       display: flex;
-      align-items: center;
+      align-items: baseline;
       gap: var(--space-2);
       flex-wrap: wrap;
     }
+    /* Sin talla propia: el «h3» de base ya fija título de bloque (19 / 1.35 / 600). */
     .fc-revc__nombre {
       margin: 0;
-      font-size: var(--fs-md);
-      font-weight: var(--fw-semibold);
     }
+    /* Pie de la fila: 13 px y tinta terciaria, debajo del nombre y de las salidas. */
     .fc-revc__cuerpo {
       display: flex;
-      gap: var(--space-3);
+      gap: var(--space-1) var(--space-4);
       flex-wrap: wrap;
       align-items: baseline;
-      color: var(--text-faint);
-      font-size: var(--fs-sm);
+      margin: 0;
+      color: var(--fc-ink-3);
+      font-size: var(--fs-meta);
+      line-height: var(--lh-meta);
     }
     .fc-revc__indicadores {
       font-family: var(--font-mono);
@@ -107,19 +155,24 @@ type LoadState = 'loading' | 'ready' | 'error';
     .fc-revc__salidas {
       margin: 0;
       padding-left: var(--space-4);
-      color: var(--text-body);
+      font-size: var(--fs-secondary);
+      line-height: var(--lh-secondary);
+      color: var(--fc-ink-2);
     }
     .fc-revc__acciones {
       display: flex;
       gap: var(--space-2);
       flex-wrap: wrap;
+      margin-top: var(--space-1);
     }
+    /* El motivo del rechazo es un campo de formulario: ahí el borde de 1 px sí separa
+       dos superficies funcionales (brief §5). */
     .fc-revc__rechazo {
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
-      padding-top: var(--space-2);
-      border-top: 1px solid var(--border-subtle);
+      padding-top: var(--space-3);
+      border-top: var(--border-hairline) solid var(--fc-line);
     }
   `,
 })

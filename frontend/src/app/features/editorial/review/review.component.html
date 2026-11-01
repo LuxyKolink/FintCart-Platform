@@ -7,8 +7,8 @@
       aviso de abajo aparece cuando el borde la aplica.
     -->
     <p class="fc-rev__lead">
-      Solo un coordinador distinto del autor puede publicar una versión (FR-008). Publicar
-      saca la versión de esta cola; archivar la retira sin publicarla.
+      Solo un coordinador distinto del autor puede publicar una versión. Publicar saca la
+      versión de esta cola; archivar la retira sin publicarla.
     </p>
   </header>
 
@@ -80,7 +80,6 @@
                   <fc-button
                     variant="primary"
                     size="lg"
-                    [block]="true"
                     [disabled]="deciding() !== null"
                     (pressed)="onApprove(v)"
                   >

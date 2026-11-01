@@ -1,15 +1,34 @@
 /*
- * Bandeja de revisión (T066). Una tarjeta por versión con la decisión DESTACADA: el aviso
- * de por qué se ve (FR-116), la vista previa que permite decidir sin abrir el editor y los
- * dos botones de la decisión al final, donde el ojo llega después de leer (FR-115).
+ * Bandeja de revisión (T066) — marco migrado a la dirección de arte v2. La decisión
+ * sigue siendo lo DESTACADO de cada fila: el aviso de por qué se ve (FR-116), la vista
+ * previa que permite decidir sin abrir el editor y la acción al final, donde el ojo
+ * llega después de leer (FR-115).
+ *
+ * ── FILAS, NO TARJETAS ──────────────────────────────────────────────────────────
+ * Cada versión era una tarjeta con fondo, borde completo, radio, sombra y barra de
+ * acento a la izquierda, separada de la siguiente por un hueco: el cromo cargaba la
+ * jerarquía y el texto la seguía (brief §1). Brief §8: reglas de 1 px entre filas, sin
+ * tarjetas. La primera fila lleva además regla arriba para despegarse de la cabecera.
+ *
+ * ── EL METADATO ES SUBORDINADO ─────────────────────────────────────────────────
+ * Autor y fecha de envío bajan a 13 px en tinta terciaria. El título de la fila es la
+ * versión (`v3`); quién y cuándo es el pie, no el encabezado.
+ *
+ * ── LA VISTA PREVIA ES TEXTO, NO UNA CAJA ──────────────────────────────────────
+ * Tenía fondo hundido, regla a la izquierda y radio: tres señales de «cita» para un
+ * texto que solo tiene que leerse. Queda la columna de lectura y el recorte a seis
+ * líneas (FR-120) — la caja la dibujaba el cromo, no el contenido.
+ *
+ * ── UNA COLUMNA, UN EJE ────────────────────────────────────────────────────────
+ * `max-width: 860px` con `margin: 0 auto` centraba la pantalla dentro del armazón, que
+ * ya está centrado. La medida la fija `--content-max` (brief §4) y no hay segundo eje.
  */
 
 .fc-rev {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-width: 860px;
-  margin: 0 auto;
+  gap: var(--section-gap);
+  max-width: var(--content-max);
   min-width: 0;
 }
 
@@ -22,19 +41,25 @@
 .fc-rev__head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
+/*
+ * El escalón de h1 de página (38 / 1.15 / 500) lo pone `tokens/base.css`; aquí no se
+ * repite con `--fs-2xl`, que es el rol de título de sección (26 px) y dejaba el título
+ * de la pantalla vestido de subtítulo.
+ */
 .fc-rev__title {
   margin: 0;
-  font-size: var(--fs-2xl);
   overflow-wrap: anywhere;
 }
 
 .fc-rev__lead {
   margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  max-width: var(--reading-max);
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-secondary);
+  color: var(--fc-ink-3);
 }
 
 .fc-rev__list {
@@ -43,58 +68,64 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
 }
 
+/* La fila: 16 px de aire vertical, una regla de 1 px y nada más. */
 .fc-rev__item {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-4);
-  background: var(--surface-card);
-  border: var(--border-hairline) solid var(--border-default);
-  border-left: var(--border-hairline) solid var(--fc-accent);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-hairline) solid var(--fc-line);
   min-width: 0;
+}
+
+/*
+ * La regla superior va en la PRIMERA fila de la lista, y se selecciona por el `li` y no
+ * por el `article`: el `<article>` es el único hijo de su `li`, así que `:first-child`
+ * sobre él marcaría todas las filas.
+ */
+.fc-rev__list > li:first-child .fc-rev__item {
+  border-top: var(--border-hairline) solid var(--fc-line);
 }
 
 .fc-rev__item-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
 }
 
+/* El título de la fila: 17 px y seminegrita, en tinta principal. */
 .fc-rev__version {
   font-size: var(--fs-md);
+  line-height: var(--lh-snug);
   font-weight: var(--fw-semibold);
-  color: var(--text-strong);
+  color: var(--fc-ink);
 }
 
 .fc-rev__author {
   margin-left: auto;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  color: var(--fc-ink-3);
 }
 
 .fc-rev__meta {
   margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  color: var(--fc-ink-3);
 }
 
 .fc-rev__preview {
   margin: 0;
-  padding: var(--space-3);
-  font-size: var(--fs-sm);
+  max-width: var(--reading-max);
+  font-size: var(--fs-ui);
   line-height: var(--lh-relaxed);
-  color: var(--text-body);
-  background: var(--surface-sunken);
-  border-left: var(--border-hairline) solid var(--border-strong);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  /* FR-120: la vista previa larga se acota visualmente, pero el texto completo sigue en el
-     DOM (y es el que `us4-editorial.spec.ts` busca para identificar la versión). */
+  color: var(--fc-ink-2);
+  /* FR-120: la vista previa larga se acota visualmente, pero el texto completo sigue en
+     el DOM (y es el que `us4-editorial.spec.ts` busca para identificar la versión). */
   display: -webkit-box;
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
@@ -102,28 +133,11 @@
   overflow-wrap: anywhere;
 }
 
+/* La acción de la fila: una sola, alineada con el texto. Sin regla punteada encima —la
+   regla de la fila ya separa, y un punteado más era cromo del portal (brief §6.2). */
 .fc-rev__decision {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: var(--border-hairline) dotted var(--border-default);
-}
-
-@media (max-width: 767.98px) {
-  .fc-rev__item {
-    padding: var(--space-3);
-  }
-
-  .fc-rev__author {
-    margin-left: 0;
-    flex-basis: 100%;
-  }
-
-  /* Los dos botones de la decisión se apilan en columna y ocupan el ancho: en un móvil,
-     dos acciones de esta importancia no deben quedar a medio ancho y pegadas. */
-  .fc-rev__decision {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  margin-top: var(--space-1);
 }
