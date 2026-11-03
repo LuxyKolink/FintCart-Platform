@@ -6,12 +6,309 @@
 %  is written in ENGLISH and translated to Spanish later.
 % ===========================================================================
 
+% DONE: the annex is an index, not a reprint. It names the artifact, says where
+%   it lives and what a reader needs it for, and stops there. The instrument set
+%   (650 lines) and the bibliography (46 entries) are pointed at, never copied.
+% DONE: the provenance of the bibliography is an annex in its own right, with
+%   the seven works not read in full named one by one.
+% DONE: reproduction commands are the ones that exist in the repository; the
+%   design-debt barrier lives at frontend/scripts/design-debt.mjs, not at the
+%   repository root, and is written here as it is.
+% DONE: in Table 1 a path too long for its column is wrapped after the last
+%   slash, on two lines, and the caption says so.
+
+% EVIDENCE INVENTORY (every claim in the prose maps to a real artifact):
+% EVIDENCE: the instruments are 650 lines in six sections (§0 scope, §1 consent, §2 survey, §3 moderated session, §4 capture sheets, §5 limits, §6 versions) → docs/informe/04-instrumentos-validacion.md.
+% EVIDENCE: 16 Likert items, 3 forced-choice/ranking items, 4 open questions, 5 tasks, 4 capture tables; a target of 15 responses and 5-8 sessions → 04-instrumentos-validacion.md:159-235, 361-470, 480-561, 278-291.
+% EVIDENCE: the instruments are a closed template with no data in any table; five declared debts in §5.4 (script unapproved, no seeded test accounts, T1 credentials missing, consent contact address blank, 360 px question open) → 04-instrumentos-validacion.md:632-643.
+% EVIDENCE: "preferring the new interface is not evidence that more is learned"; the instruments do not measure learning → 04-instrumentos-validacion.md:604-631.
+% EVIDENCE: the bib holds 46 entries → docs/informe/refs/referencias.bib (46 @-entries).
+% EVIDENCE: 39 COMPLETO, 2 PARCIAL, 4 SOLO-ABSTRACT, 1 INACCESIBLE, 0 SIN-LOCALIZADOR → docs/informe/refs/fuentes-acceso.md §Recuento.
+% EVIDENCE: route order DOI → Crossref → OpenAlex → Unpaywall → legal repository or Wayback capture → publisher record; no payments, no shadow libraries, no accounts → refs/fuentes-acceso.md §Método.
+% EVIDENCE: a PDF counts as read only if pdftotext shows the body; HTML only if it is the whole article → refs/fuentes-acceso.md §Método.
+% EVIDENCE: the files lived in /tmp/fuentes and are gone; the ledger's file names, sizes and page counts are the surviving proof → refs/fuentes-acceso.md, opening note.
+% EVIDENCE: of 20 entries marked academic, 16 COMPLETO; of 18 vendor/README entries, 17 COMPLETO, and vendor text is framework, never evidence → refs/fuentes-acceso.md §Recuento.
+% EVIDENCE: Cloudflare in front of Springer, Wiley, SAGE, Elsevier, ISO and Taylor & Francis; perfdrive at banrep.gov.co; Anubis at EconStor; none circumvented; where a legal alternative existed it was used (Kovacs via REAL, Menberu via the publisher's CC BY version, Miao and Amagir via Wayback captures of the publisher's own PDFs) → refs/fuentes-acceso.md §Método.
+% EVIDENCE: no general web search was available (missing Google CSE credentials), so location depended on OpenAlex, Unpaywall and Semantic Scholar → refs/fuentes-acceso.md §Método.
+% EVIDENCE: the derived rule (cite for existence or for a fact visible on the page read, never for an argument) and its worked consequences → refs/fuentes-acceso.md §Regla que se deriva.
+% EVIDENCE: Brooke pagination conflict 189-194 vs 207-212 unresolved; the entry omits pages rather than guess; no page of Brooke is cited → refs/referencias.bib (NOTA above brooke1996sus); docs/informe/00-glosario-y-estilo.md §6.
+% EVIDENCE: verify-citations.mjs makes the ledger a gate: ERROR on a key absent from the .bib, WARN on a cited key whose verdict is not COMPLETO, WARN on a key with no verdict → docs/informe/scripts/verify-citations.mjs:11-25.
+% EVIDENCE: the seven non-COMPLETO works and their specific reasons → refs/fuentes-acceso.md §Las 7 que no son COMPLETO.
+% EVIDENCE: the brief is 231 lines; §11 corrections verified 2026-10-27 and §12 separates brand from accent → docs/informe/03-brief-diseno.md:172, 209.
+% EVIDENCE: the formula language document is 285 lines, including the section on what the language deliberately lacks → docs/lenguaje-de-formulas.md:273.
+% EVIDENCE: calculator foundations are 1,184 lines: interest regimes, Colombian regulatory anchors, feasibility matrix, three seed designs → docs/calculadoras-fundamentos.md:14-620.
+% EVIDENCE: six requirement statements of 33 lines each → docs/rf/RF-01, RF-02, RF-02-1, RF-03, RF-03-1, RF-04.
+% EVIDENCE: six protos totalling 1,143 lines and the REST border at 767 lines → contracts/proto/fintcart/*/v1/*.proto; contracts/openapi/gateway.yaml.
+% EVIDENCE: the environment was verified on 2026-10-24 (docker without sudo, texlive image, k6 image, Playwright Chromium) → docs/informe/01-entorno-y-herramientas.md:4-20.
+% EVIDENCE: six PNG figures, and no other screen reproduced → docs/informe/figures/.
+% EVIDENCE: build.sh runs texlive/texlive:latest with latexmk -pdf; the container deliberately runs as root because this machine's idmapped mounts break `-u <host-uid>` with "Cannot write file main.aux" → docs/informe/build.sh:22-45.
+% EVIDENCE: dev/build, dev/up, dev/migrate and dev/seed exist and are the supported path → dev/build, dev/up, dev/migrate, dev/seed.
+% EVIDENCE: npm test is ng test --watch=false --browsers=ChromeHeadless; npx playwright test runs the e2e suite against E2E_BASE_URL (default http://localhost:4200) → frontend/package.json scripts; frontend/playwright.config.ts:27,41,45.
+% EVIDENCE: npm run lint chains eslint, oxlint, security-barrier, formula-help and events-barrier → frontend/package.json scripts.
+% EVIDENCE: k6 has no host binary and runs as the grafana/k6 image; --network host reaches localhost → docs/informe/01-entorno-y-herramientas.md:134; the 200-VU profile with an external account pool is in deploy/loadtest/README.md.
+% EVIDENCE: prose-barrier.mjs exits 0 with no ERROR on the current chapters; design-debt.mjs --check reports 0 inline styles, 0 artisanal-class screens and styles.scss retired, exit 0 → both run on 2026-11-03.
+% EVIDENCE: 311 unit tests and 59 e2e specs with 0 skipped, five widths per visual spec → docs/informe/chapters/11-pruebas.tex (tab:unit-coverage, tab:e2e).
+% EVIDENCE: a clean ng build does not prove a page renders: the logo mask passed the build and broke the development server → specs/003-design-system-frontend/plan.md (lesson recorded for this report).
+% EVIDENCE: the 200-VU k6 run was a single run against a development host, and the same script against dev/up measures the laptop → deploy/loadtest/README.md first table.
+% EVIDENCE: the survey asks for no name and no email; the capture sheets have no identifying column → 04-instrumentos-validacion.md:151-158, 278-291, 480-561.
+
 \appendix
 \section{Anexos}
 \label{anex:anexos}
 
-% TODO: Appendices (English source text). Add each annex as a subsection or a
-%   lettered \section, e.g.:
-%   \subsection{Deployment manifests}
-%   \subsection{API contracts (OpenAPI + protos)}
-%   \subsection{Schedule / timeline}
+An annex earns its place by shortening the distance between a sentence and the artifact that
+supports it. Almost nothing supporting this report lives inside the report: the instrument set,
+the formula language, the requirement statements, the protocol definitions and the bibliographic
+ledger all live in the repository, under version control, beside the code that produced them.
+Reprinting them here would create a second copy that can disagree with the first, and a copy
+printed in a PDF cannot be re-run. What follows is an index in three parts: where each annexed
+artifact lives and what a reader needs it for, the provenance of the bibliography, unusual enough
+to be an annex in its own right, and the commands that rebuild every number the report quotes.
+The third column of Table~\ref{tab:annex-index} exists so that this is not a table of contents
+with extra steps.
+
+\subsection{What is annexed, and where it lives}
+
+Three rows of Table~\ref{tab:annex-index} need a sentence of justification. The validation
+instruments are pointed at rather than summarised because a summary of an instrument is a
+different instrument: the exact wording of a Likert item and the exact order of a task are the
+measurement, so paraphrasing them destroys the only thing a reviewer can audit. The protocol
+definitions are the authority over the prose for the reverse reason: where a chapter and a
+\code{.proto} file disagree about a field name, the file is right, and the reader needs to know
+which document to trust. The requirement statements are here because they are the text the FR
+identifiers of Chapter 06 were derived from.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}p{3.2cm}p{6.0cm}p{7.0cm}@{}}
+    \hline
+    Annexed artifact & Where it lives & What a reader needs it for \\
+    \hline
+    Validation instruments: informed consent, perception survey, SUS and task session, capture
+      sheets &
+      \code{docs/informe/}\newline\code{04-instrumentos-validacion.md} (650 lines) &
+      The full protocol behind Chapter 13, and its declared limits: the item-to-objective map, the
+      sampling commitment, and the five debts still open \\
+    Bibliography &
+      \code{docs/informe/refs/}\newline\code{referencias.bib} (46 entries) &
+      The works the report may cite; biber reads this file, not the prose \\
+    Access ledger &
+      \code{docs/informe/refs/}\newline\code{fuentes-acceso.md} (169 lines) &
+      Which of the 46 were read in full, what each one actually sustains, and why seven were not \\
+    Reference inventory &
+      \code{docs/informe/refs/}\newline\code{refs-inventory.md} &
+      Provenance of each entry: mining, deduplication, recorded metadata conflicts, observed HTTP,
+      and the academic-or-vendor classification \\
+    Design brief &
+      \code{docs/informe/}\newline\code{03-brief-diseno.md} (231 lines) &
+      The fixed values Chapter 09 is judged against, including the corrections verified on
+      2026-10-27 and the separation of brand from accent \\
+    Formula language &
+      \code{docs/}\newline\code{lenguaje-de-formulas.md} (285 lines) &
+      Grammar, the two numeric types, the function list, rejection codes, and the section on what
+      the language deliberately does not have \\
+    Calculator foundations &
+      \code{docs/}\newline\code{calculadoras-fundamentos.md} (1,184 lines) &
+      Interest regimes, Colombian regulatory anchors, the feasibility matrix, and three seed
+      designs checked token by token \\
+    Requirement statements &
+      \code{docs/rf/} (six files, RF-01 to RF-04) &
+      The original requirement text upstream of the FR identifiers that Chapter 06 traces; six
+      files of 33 lines each \\
+    API contracts &
+      \code{contracts/proto/} (six protos, 1,143 lines)\newline\code{contracts/openapi/}%
+      \newline\code{gateway.yaml} (767 lines) &
+      The exact messages the services speak and the REST border they expose; the authority where
+      prose and contract disagree \\
+    Environment record &
+      \code{docs/informe/}\newline\code{01-entorno-y-herramientas.md} &
+      The machine as verified on 2026-10-24: which tool ran, from which image, so a measurement can
+      be attributed to an environment \\
+    Figures &
+      \code{docs/informe/figures/} (six PNG files) &
+      The only screens this document reproduces; every other screen is HTML the reader opens \\
+    \hline
+  \end{tabular}
+  \caption{Annexed artifacts, where each lives, and what a reader needs it for. A path longer than
+  its column is wrapped after a slash.}
+  \label{tab:annex-index}
+\end{table}
+
+\subsection{The provenance of the bibliography}
+
+The bibliography is annexed as a record, not as a list, because how it was assembled determines
+what it can be used to say. On 2026-11-03 each of the 46 entries was chased through the same six
+routes, in the same order, and only through legal ones: the DOI or URL declared in the entry,
+Crossref for metadata, OpenAlex for an open-access location, Unpaywall for a declared legal copy,
+a legal repository or a Wayback capture of the publisher's own PDF, and finally the publisher's
+public record page. No payment, no shadow library, no institutional account. A file counted as
+read only if it showed the body: a PDF had to yield method, results, conclusion and references
+through \code{pdftotext}, and an HTML copy had to be the whole article rather than its summary.
+The verdicts are 39 read in full, 2 partially, 4 abstract-only, and 1 inaccessible.
+
+Two facts matter more than the count. First, the files are gone — they lived in a temporary
+directory — so the ledger records file names, sizes and page counts per verdict; the proof of
+reading is a measurement, not a path that still resolves. Second, crossing the verdict with the
+character of the source gives a less flattering split: of the 20 academic works, 16 were read in
+full, and the four that were not sit in the theoretical framework and in methodology, where an
+omission costs most. Of the 18 vendor pages and READMEs, 17 were read in full, and that buys
+nothing: a vendor blog read end to end is still a vendor blog, and it can support a claim about
+what a vendor says, never a measurement of the system.
+
+What was encountered and not circumvented belongs in the record too. Cloudflare stood in front of
+the Springer, Wiley, SAGE, Elsevier, ISO and Taylor \& Francis platforms, \code{perfdrive} filtered
+the Banco de la República site, and an Anubis proof-of-work challenge guarded EconStor; none of
+the three was worked around. Where a legal copy existed, the alternative was taken instead of the
+detour: Kovacs through the REAL repository, Menberu through the publisher's CC BY version, Miao
+and Amagir through Wayback captures of the publisher's PDFs. Where none existed the entry stays
+short, and Table~\ref{tab:annex-unread} says so one by one. No general web search was available,
+so location relied on OpenAlex, Unpaywall and Semantic Scholar; one of the seven may have a legal
+copy that only a search engine would have surfaced, which is a limit of the search, not a property
+of the works.
+
+From the ledger follows the rule the chapters were written under, which is why the ledger is
+annexed: \emph{a work may be cited for its existence, or for a fact visible on the page actually
+read; not for an argument if it was not read in full}. The rule costs something, and the cost is
+visible. The ISO standard on usability is cited for the fact that a standard defines usability and
+for the scope its public abstract states, never for a clause. The Banco de la República report is
+cited for its authorship and for the 16.4~\% figure in its abstract, never for its sampling design.
+Brooke is cited for the fact that the SUS was proposed in 1996 and for nothing else; no chapter
+relies on the instrument's wording, its scoring rule, or any of its pages. The clearest instance
+of the rule biting is a pagination conflict left open: the publisher's record gives pages 207-212,
+the usability literature 189-194, and the entry in \code{referencias.bib} omits the range rather
+than choose one without having seen the printed volume. Picking the more frequently quoted number
+would have been a false datum dressed as formatting.
+
+The ledger is not left as an agreement between people. \code{verify-citations.mjs} turns it into a
+gate: a cited key absent from the \code{.bib} is an error, because biblatex would print a question
+mark; a cited key whose verdict is not \enquote{read in full} raises a warning with the verdict in
+view; a key with no verdict raises one too, because nobody has measured that source. Seven entries
+are listed in Table~\ref{tab:annex-unread} with the reason each stopped, because hiding them would
+be the one thing a reviewer could not forgive: a report that claims 46 sources and shows 46
+abstracts is a different report.
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \begin{tabular}{@{}p{5.6cm}p{10.6cm}@{}}
+    \hline
+    Work and verdict & Why it stopped, and what may still be cited \\
+    \hline
+    \code{choung2023digital}\newline inaccessible &
+      ScienceDirect returns 403 through Cloudflare to the client and to the reader; the article is
+      an Elsevier subscription (\emph{Finance Research Letters} 58:104438) and not even the abstract
+      page was reachable. Citable for its existence only; the one real hole in the theoretical
+      framework. \\
+    \code{li2024design}\newline abstract only &
+      IEEE Xplore answers 202 to an automated client and the PDF needs a subscription; the 941-word
+      abstract of the ICSESS paper was read. Citable for existence and for what the abstract states.
+      \\
+    \code{bangor2008empirical}\newline abstract only &
+      The Taylor \& Francis abstract page was read in full (1,423 words including references); the
+      PDF endpoint returns 403 and no legal repository copy was found. Citable for existence and
+      for the interpretation bands the abstract states. \\
+    \code{banrep2024financial}\newline abstract only &
+      The record page answers 200 with complete authorship and the whole abstract, but the PDF is
+      served by a script-only button with no file URL, and \code{perfdrive} filters the rest.
+      Citable for authorship and for the 16.4~\% figure the abstract states; not for the sampling
+      design, not for the conclusions. \\
+    \code{iso2018usability}\newline abstract only &
+      The standard is a paid ISO publication and \code{iso.org} returns 403 through Cloudflare even
+      with browser headers; the catalog record and the scope were read through the BSI page.
+      Citable for existence and scope, not for a clause-by-clause requirement. \\
+    \code{brooke1996sus}\newline partial &
+      The chapter page answers 200 with 58 KB of HTML of which 191 words are visible: the first
+      page. The instrument, its scoring and the 1996 pagination are behind the paywall. Citable for
+      the fact that the SUS was proposed in 1996; no page, no item, no scoring rule. \\
+    \code{straitsresearchndmicroservices}\newline partial &
+      The public summary page was read in full (2,109 words); the market report behind it is a paid
+      product, so its figures cannot be checked. Citable only for the summary's own claims, which
+      are marketing. \\
+    \hline
+  \end{tabular}
+  \caption{The seven works of the 46 that were not read in full, why each one stopped, and what
+  remains citable.}
+  \label{tab:annex-unread}
+\end{table}
+
+\subsection{Re-measuring what the report claims}
+
+Every number Chapter 11 quotes comes from a command that exists in the repository. A reviewer who
+cannot run them has to take them on trust, which is not a position a thesis should put a reader
+in. The listing below gives the entry point for each measurement, not a manual: the
+parameters of the load profile, the account pool it needs and the thresholds it asserts are
+documented in \code{deploy/loadtest/README.md}, and repeating them here would produce a second
+copy to drift.
+
+\begin{verbatim}
+# The report (Docker, texlive/texlive:latest, latexmk + biber)
+cd docs/informe && ./build.sh   # add force after editing the .bib
+
+# The stack the measurements ran against
+dev/build && dev/up && dev/migrate && dev/seed
+
+# Frontend suites
+cd frontend && npm test              # Karma, headless Chrome, 311 tests
+cd frontend && npx playwright test   # 59 specs, five widths
+
+# Load profile (k6 has no host binary; it runs as a container)
+docker run --rm --network host -i grafana/k6 run - \
+  < deploy/loadtest/k6-scenarios.js
+
+# Style barriers and the citation ledger
+node docs/informe/scripts/prose-barrier.mjs
+node frontend/scripts/design-debt.mjs --check
+node docs/informe/scripts/verify-citations.mjs
+
+# Static barriers: eslint, oxlint, security, formula help, events
+cd frontend && npm run lint
+\end{verbatim}
+
+Three notes on those commands, learned by running them. The document build runs the container as
+root on purpose: under this machine's idmapped bind mounts, passing the host user id with
+\code{-u} fails with \enquote{Cannot write file main.aux}, so a reviewer who adds that flag is not
+reproducing this build. The end-to-end suite needs the whole stack raised by \code{dev/up}, not a
+frontend-only server, because a spec that cannot reach a real endpoint fails in a way that looks
+like a product defect; it is also the accessibility gate, since its locators select by role and
+accessible name. And a clean build is not evidence that a page renders: a logo mask passed
+\code{npm run build} and broke the development server, which is why the visual judgment in
+Chapter 09 is treated as a test rather than a decoration.
+
+\subsection{What this annex deliberately does not contain}
+
+\textbf{No participant data.} The instrument set is a closed template: every table is empty, and
+the emptiness is a decision. The instruments declare five debts that block the session phase — the
+session script is unapproved, there are no seeded test accounts for the task that needs them, the
+payment credentials the first task requires do not exist, the contact address on the consent form
+is blank, and the mobile-width question is unanswered. Filling any of those with plausible numbers
+would be fabrication of the kind that is hardest to detect, because it looks like work that was
+done. What can be said without data is said in Chapter 13: which conditions the protocol would
+have measured, and why none of them is learning. \emph{Preferring the new interface is not
+evidence that more is learned} — the instruments measure efficacy, efficiency and perceived
+satisfaction, and learning would need a validated pre- and post-test, a comparison group and, to
+speak of effect, random assignment. That design is not in this work and is not simulated here.
+
+\todo{The validation sessions have not been run: the contact address on the consent form is blank
+and the session script is not yet approved, so Chapter 13 reports an empty protocol rather than
+results.}
+
+\textbf{No production traffic.} The load numbers come from a development host, and the load scripts
+themselves warn that the same script pointed at the development topology measures the laptop. The
+200-VU run is a characterization of behavior under a stated profile, not a capacity claim about a
+deployed system; the autoscaler that declares a floor of two replicas in \code{deploy/k8s/base/}
+and a ceiling of twenty in the production overlay is a different piece of evidence from a latency
+percentile, and the report does not present one as the other.
+
+\textbf{No personal data of anyone.} The consent form is a template with no name on it, the survey
+asks for neither name nor email, and the capture sheets have no identifying column, by design.
+There is consequently nothing here to anonymize, and the anonymity the instruments promise is a
+property of the templates rather than of a later redaction step.
+
+\textbf{No screenshots beyond \code{docs/informe/figures/}.} Six PNG files carry every screen this
+document shows. The five UI kits under \code{design/ui_kits/} are not reproduced, because they are
+HTML driven by a browser, and a screenshot of a page that can be opened is a lossy copy of it. The
+same logic governs the two long artifacts: the instrument set and the reference list are pointed
+at, not reprinted. The test of this annex is whether a reader can get from a sentence to the
+artifact that supports it in one step. Where that step is missing, the sentence — not the annex —
+is what needs fixing.

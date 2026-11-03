@@ -18,3 +18,7 @@ main.pdf
 *.nav
 *.snm
 *.vrb
+
+# Restos de un build de biber interrumpido (no son fuentes)
+main.bbl-SAVE-ERROR
+main.bcf-SAVE-ERROR
