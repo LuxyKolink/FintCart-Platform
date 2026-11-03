@@ -16,7 +16,7 @@
 | Moneda de todos los ejemplos | COP (peso colombiano), formato `$1.234.567` |
 | Instrumentos | (1) consentimiento informado · (2) encuesta de percepción · (3) sesión moderada con SUS y tareas · (4) planilla de captura |
 | Orden de aplicación | Encuesta **después** de que el participante haya usado el producto al menos una vez; SUS **al final** de la sesión, antes de la entrevista de cierre. Un mismo participante no debe responder la encuesta y hacer la sesión el mismo día: contamina la percepción con la tarea |
-| Objetivo que estos instrumentos sirven | **OE5** (validar con usuarios y medir el impacto educativo) con insumos para **OE2** (diseño de la experiencia y el sistema visual). Los OE1, OE3 y OE4 **no se validan aquí**: se verifican con la matriz de trazabilidad, las suites de prueba y las mediciones de rendimiento. La §2.3 explica qué señal indirecta aporta la encuesta a cada uno y por qué no basta |
+| Objetivo que estos instrumentos sirven | **OE5** (evaluar con usuarios, midiendo usabilidad y confianza) con insumos para **OE2** (diseño de la experiencia y el sistema visual). Los OE1, OE3 y OE4 **no se validan aquí**: se verifican con la matriz de trazabilidad, las suites de prueba y las mediciones de rendimiento. La §2.3 explica qué señal indirecta aporta la encuesta a cada uno y por qué no basta |
 
 **Tres reglas que gobiernan todo lo que sigue:**
 
@@ -624,10 +624,18 @@ Lo que sí se puede afirmar, con estos datos, es acotado y verificable:
 5. Si los problemas encontrados son de una pantalla específica (accionable) o del modelo de
    interacción (grave).
 
-El OE5 dice "validar con usuarios y medir el impacto educativo". Con estos instrumentos se cumple la
-primera mitad de forma defendible. La segunda se cumple **parcialmente**, y el informe debe decirlo
-con esas palabras: se midieron condiciones para el aprendizaje —que el contenido se lea, que la tarea
-se complete, que la cifra se entienda—, no aprendizaje.
+El OE5, tal como quedó redactado en el capítulo 03, dice: "put the platform into operation and
+evaluate it with representative users … to establish whether a student completes real tasks unaided
+and whether the interface is trusted with money, **reporting that as usability and never as a gain in
+financial literacy**". Con estos instrumentos se cumple la primera mitad de forma defendible. La
+segunda se cumple **parcialmente**, y el informe debe decirlo con esas palabras: se midieron
+condiciones para el aprendizaje —que el contenido se lea, que la tarea se complete, que la cifra se
+entienda—, no aprendizaje.
+
+> Nota de coherencia (2026-11-02). Una redacción anterior de este documento atribuía al OE5 la frase
+> "medir el impacto educativo". El capítulo 03 la retiró a propósito: sería una promesa que ningún
+> instrumento de esta tesis puede cumplir sin un estudio controlado. Si alguien encuentra esa frase
+> en una versión vieja, la versión vigente es esta.
 
 ### 5.4 Deudas de este documento
 

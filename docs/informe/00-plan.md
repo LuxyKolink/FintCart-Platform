@@ -90,7 +90,7 @@ El evaluador pide un objetivo de validación y, en el mismo párrafo, advierte: 
 | OE2 | Diseñar la experiencia y el sistema visual | **Figma/design tokens**, benchmark de productos de referencia | interacción del contenido educativo |
 | OE3 | Implementar la plataforma | Go, NestJS, Rust, Angular, **gRPC**, PostgreSQL, RabbitMQ, Docker | proveer los servicios de la plataforma |
 | OE4 | Verificar funcionamiento e integración | Pruebas unitarias, de integración y **E2E (Playwright)**, CI/CD, despliegue en contenedores | asegurar cumplimiento de requerimientos |
-| OE5 | **Validar con usuarios y medir el impacto educativo** | Pruebas de usabilidad, **SUS**, encuesta, **Lighthouse**, k6 | demostrar que la plataforma enseña, no solo que existe |
+| OE5 | **Poner en operación y evaluar con usuarios: usabilidad y confianza, nunca ganancia en alfabetización** | Pruebas de usabilidad, **SUS**, encuesta, **Lighthouse**, k6 | demostrar que la tarea se completa y que la interfaz se entiende, no que la plataforma enseña |
 
 Además, dos correcciones del evaluador se absorben como contenido, no como errata:
 - **Gamificación**: hoy está en la justificación y en ningún objetivo. Se ancla en OE5 (progreso medible) o se elimina de la justificación.

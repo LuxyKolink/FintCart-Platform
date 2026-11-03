@@ -6,19 +6,201 @@
 %  Labels OE1..OE5 are kept ready so other chapters can \ref them.
 % ===========================================================================
 
+% DONE: One general objective, exactly five specific objectives in the
+% QUÉ–CÓMO–PARA–QUÉ shape, a traceability table from each objective to the
+% chapter and the instrument that discharges it, the reduction from the ten
+% objectives of the proposal to these five, and the claims the objectives
+% deliberately do not make.
+
+% EVIDENCE: eight backend services plus one Angular SPA → specs/001-fintcart-platform/plan.md:11
+% EVIDENCE: FR-001…FR-031 / SC-001…SC-012 (001), FR-032…FR-085 / SC-013…SC-026 (002),
+%   FR-086…FR-127 / SC-027…SC-039 (003) → docs/informe/chapters/06-requerimientos.tex:73-77
+% EVIDENCE: twelve constitutional principles, checked as a gate → docs/informe/chapters/05-metodologia.tex:20-27
+% EVIDENCE: C4 levels 1 to 3 and the ADR index D-13…D-32 → docs/informe/chapters/07-arquitectura.tex:38-41
+% EVIDENCE: 19 primitives, four measured AA ratios, five UI kits, 0 artisanal screens →
+%   docs/informe/chapters/09-diseno-ui-ux.tex:10-24; frontend/src/app/shared/ui/index.ts:1-19
+% EVIDENCE: ten seed definitions and the formula engine (lexer → parser → AST in JSONB →
+%   bounded evaluator in rust_decimal) → services/simulator/src/domain/seeds/mod.rs:144-155;
+%   services/simulator/src/domain/formula/mod.rs:1-25
+% EVIDENCE: closed block vocabulary validated server-side →
+%   services/learning/src/articles/body-doc.validator.ts:1-20
+% EVIDENCE: 311/311 unit specs, 59/59 e2e specs, k6 at 200 VUs with 0.00 % HTTP failures,
+%   Lighthouse at five widths → docs/informe/chapters/11-pruebas.tex:9-16
+% EVIDENCE: four deployment verbs, production image, Caddy edge, 31 migrations across seven
+%   databases → docs/informe/chapters/12-despliegue.tex:9-31
+% EVIDENCE: 5–8 moderated sessions, ≥ 15 survey responses (target 20), ten-item SUS and a
+%   16-item perception survey → docs/informe/04-instrumentos-validacion.md:17-19,282,292-309
+% EVIDENCE: preferring is not learning; the instruments cannot demonstrate a learning gain →
+%   docs/informe/04-instrumentos-validacion.md:608-616
+
 \section{Objetivos}
 
 \subsection{Objetivo general}
 
-% TODO: General objective (English source text).
-State the single general objective of the project.
+The general objective is one sentence because a project that needs a paragraph to
+say what it is for has not yet decided.
+
+\begin{quote}
+Design, implement, and evaluate a financial-education platform for the Colombian
+context (what), as a polyglot microservice system — eight backend services in Go,
+NestJS, and Rust behind a single Angular application, communicating over gRPC
+internally and REST only at the edge — built through an incremental,
+specification-first process whose gates are executable (how), so that a student in
+Colombia can read verified content, practice with graded quizzes, and calculate
+with decimal-exact arithmetic on a system whose requirements, behavior, and
+usability are each backed by evidence rather than assertion (why).
+\end{quote}
+
+The five objectives below decompose that sentence. Each one names three things: the
+artefact it produces, the instrument or method by which it produces it, and the end
+that makes the artefact worth producing. A reader who cannot point at a chapter and
+a measurement for an objective has not been given an objective but a topic.
 
 \subsection{Objetivos específicos}
 
 \begin{itemize}
-  \item[OE1.] \label{oe1} % TODO: specific objective 1 (English).
-  \item[OE2.] \label{oe2} % TODO: specific objective 2 (English).
-  \item[OE3.] \label{oe3} % TODO: specific objective 3 (English).
-  \item[OE4.] \label{oe4} % TODO: specific objective 4 (English).
-  \item[OE5.] \label{oe5} % TODO: specific objective 5 (English).
+  \item[OE1.] \label{oe1} Establish the requirements and the architecture of the
+  platform (what), through an IEEE Std 830-1998-style specification of 127
+  functional requirements and 39 acceptance criteria numbered continuously across
+  three feature generations, a C4 description at levels 1 to 3 whose planning
+  decisions are promoted to architecture decision records, and a
+  database-per-service data model with its migration chain (how), to fix the scope,
+  the twelve constitutional principles, and the criterion by which each requirement
+  is later accepted or declared not claimed, before implementation begins (why).
+
+  \item[OE2.] \label{oe2} Design the interface and the visual system (what), through
+  a token-governed design system of 19 primitives, five full-screen reference kits,
+  and a single responsive scale of four breakpoints down to a 360 px floor, audited
+  for WCAG 2.1 AA contrast and for a rule that a monetary figure is never truncated
+  (how), so that hierarchy is carried by typography and space rather than by
+  decoration and a student can locate the title, the amount, and the next action in
+  one pass (why).
+
+  \item[OE3.] \label{oe3} Implement the platform's capabilities (what), as eight
+  backend services in Go, NestJS, and Rust plus the Angular application, over gRPC
+  contracts, with a formula engine that parses, persists the abstract syntax tree
+  as \code{JSONB}, and evaluates in \code{rust_decimal}; a content pipeline whose
+  block document is validated server-side against a closed vocabulary; and ten seed
+  definitions shipped as data (how), so that a student can register, read, practice
+  a randomized quiz, run a calculator, and review progress, and so that no monetary
+  value can silently lose a digit (why).
+
+  \item[OE4.] \label{oe4} Demonstrate that the implemented system satisfies the
+  specification (what), through unit, integration, and end-to-end suites (311 unit
+  tests and 59 Playwright specs), a load profile of 200 virtual users, Lighthouse
+  runs at five widths, and continuous-integration gates that reject a float
+  literal, a breaking contract, or a violation of the report's own glossary (how),
+  so that each of the 39 acceptance criteria resolves into reproducible evidence or
+  into an explicit statement that it is not claimed (why).
+
+  \item[OE5.] \label{oe5} Put the platform into operation and evaluate it with
+  representative users (what), by raising the container topology with four verbs,
+  serving a multi-stage image behind a TLS-terminating reverse proxy, and applying a
+  protocol of five observed tasks, the ten-item System Usability Scale, and a
+  16-item perception survey to 5 to 8 moderated sessions and at least 15 responses
+  (how), to establish whether a student completes real tasks unaided and whether the
+  interface is trusted with money, reporting that as usability and never as a gain
+  in financial literacy (why).
 \end{itemize}
+
+\subsection{De diez objetivos a cinco}
+
+The proposal stated ten specific objectives; this report states five, and the
+reduction is a decision about what an objective is, not a cut in what was built.
+Three of the ten were pairings of one objective with itself. The first two both
+establish requirements — the second repeats \enquote{funcionales, no funcionales}
+before adding architecture in the same breath — so both are absorbed into OE1,
+which carries requirements \emph{and} architecture \emph{and} the data model in one
+statement with one closing measurement. The seventh and the eighth both describe
+testing, one by naming the levels (unit, integration, end-to-end) and the other by
+naming the same integration in different words; integration testing is a step
+inside verification, not an objective beside it, and both are absorbed into OE4.
+The ninth and the tenth both describe the delivery pipeline, first as
+\enquote{ciclos de integración continua} to guarantee delivery and then as
+deployment to production through those same cycles.
+
+Four of the ten named an activity instead of a result. \enquote{Utilizando
+herramientas de diagrama UML} says which tool the author will open, not what will
+exist when the objective closes; \enquote{asegurar el funcionamiento adecuado} and
+\enquote{garantizar la entrega} are wishes, because neither names an instrument
+that could contradict them. An objective that cannot fail is not an objective, and
+an activity is not a deliverable. Six of the ten were steps inside another
+objective rather than objectives of their own: the user-experience clause of the
+third belongs to design; the event-management components of the fifth are one
+capability of the build; the frontend of the sixth is the half of the build that
+OE2 designs and OE3 implements.
+
+The absorption, exhaustively: objectives 1 and 2 into OE1; 3 into OE1 for its
+architecture and OE2 for its interface clause; 4 and 5 into OE3; 6 into OE2 for the
+design and OE3 for the implementation; 7 and 8 into OE4; 9 into OE4, where the
+pipeline is the gate rather than the goal; and 10 into OE5, because a platform
+nobody can reach cannot be evaluated. Two things were
+added that the ten did not have. The first is an evaluation objective with
+instruments rather than an intention: the ten could be satisfied by a running
+system that no one had ever used. The second is a measurement attached to every
+objective, which is what turns a list of wishes into a work plan.
+
+\subsection{Trazabilidad de los objetivos}
+
+Table~\ref{tab:objetivos-trazabilidad} closes the loop. For each objective it names
+the chapter where the artefact is reported and the evidence that a reader can
+re-run, inspect, or reject. Two rows cite two chapters: the delivery pipeline
+belongs to verification as a gate and to evaluation as the environment in which
+people meet the product, and the report keeps those two readings apart.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Each specific objective, the chapter that discharges it, and the evidence that closes it.}
+  \label{tab:objetivos-trazabilidad}
+  \begin{tabular}{@{}p{1.1cm}p{3.1cm}p{1.7cm}p{8.9cm}@{}}
+    \hline
+    Obj. & What it establishes & Chapter & Evidence that closes it \\
+    \hline
+    OE1 & Requirements, architecture, data model & 6, 7, 8 &
+    \code{FR-001}--\code{FR-127} and \code{SC-001}--\code{SC-039} in the three
+    \code{specs/}; C4 levels 1--3 with the ADR index \code{D-13}--\code{D-32};
+    seven PostgreSQL databases and 31 migrations. \\
+    OE2 & Interface and visual system & 9 &
+    Nineteen primitives exported by \code{shared/ui/index.ts}; four measured AA
+    contrast ratios; \code{design-debt.mjs --check} reporting 0 artisanal-class
+    screens; five widths, 360 px to 1280 px. \\
+    OE3 & Implementation & 10 &
+    Eight services plus the SPA; formula engine with exact \code{pot} and
+    approximate \code{potd}; ten seed definitions; closed block vocabulary
+    validated server-side. \\
+    OE4 & Verification and delivery & 11, 12 &
+    311 unit tests and 59 e2e specs passing; k6 at 200 virtual users with
+    0.00 \% HTTP failures; Lighthouse at five widths; CI jobs for contracts,
+    Go, Rust, TypeScript, and the barriers. \\
+    OE5 & Operation and evaluation & 12, 13 &
+    The four deployment verbs and the production image behind a TLS edge;
+    five observed tasks, the ten-item SUS, and 16 survey items, administered to
+    5--8 sessions and $\geq 15$ responses. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\subsection{Lo que los objetivos no afirman}
+
+No objective in this chapter asserts that the platform improves financial literacy.
+That claim would require a controlled design — a comparison group, a pre- and
+post-measurement, and an instrument validated for the construct — and nothing here
+is that. What OE5 measures is whether a student can complete five real tasks
+unaided, what the System Usability Scale makes of the interface, and what a
+16-item survey records about its perceived legibility, hierarchy, and trust. Those
+are properties of the interaction, not of the learning, and chapter~13 reports them
+under that name.\todo{chapter~13 is still a stub: the instruments exist and the
+protocol is fixed, but no session has been reported, so the evidence for OE5 is
+pending rather than absent}. A high usability score is compatible with a platform
+that teaches nothing, and a low one with a platform that teaches well; the report
+keeps the distinction instead of letting a green number imply the first.
+
+Two smaller refusals follow from the same discipline. OE4's numbers are properties
+of the artefact: 311 passing specs say that the code behaves as specified, not that
+anyone learns from it, and chapter~11 states that limit where the numbers are
+printed. OE5's operational claim is a single-host deployment that serves an address
+and terminates TLS, not a highly available one: there is one replica per service
+and no backup, and chapter~12 records that as the state of the system rather than
+as an aspiration. The load figure of 200 virtual users is a threshold that was met
+on one host shared with seven databases and a broker; it is not a capacity plan,
+and no objective promises one.
