@@ -5,8 +5,262 @@
 %  is written in ENGLISH and translated to Spanish later.
 % ===========================================================================
 
+% EVIDENCE INVENTORY (every claim below maps to a real artifact):
+% EVIDENCE: four verbs, no manual step between them → dev/build:20-26 (builds, prints the next verb), dev/up:15-38 (raises the topology, waits on health checks), dev/migrate:1-95, dev/down:9-27.
+% EVIDENCE: the composition forbids bypassing the verbs → dev/docker-compose.yaml:3-6.
+% EVIDENCE: golang-migrate is the single migration tool, run as a container on the compose network → dev/migrate:4-8,36,66-71.
+% EVIDENCE: configuration only by environment variables, discovery by hostname → dev/docker-compose.yaml:10-13.
+% EVIDENCE: service counts by role → dev/docker-compose.yaml:186,204,234,255,276,314,338,351 (eight services), :387 (frontend), :13-102 (seven PostgreSQL), :108 (Redis), :120 (RabbitMQ), :137-180 (MailHog, Swagger UI, Adminer: development only); dev/up:15.
+% EVIDENCE: e2e assertion budget doubled from 5 s to 10 s because one spec failed one run in three when the rest of the suite competed for the gateway → frontend/playwright.config.ts:29-36.
+% EVIDENCE: the load run shares one host with seven databases, the broker, the cache and eight services → deploy/loadtest/README.md:198.
+% EVIDENCE: dev compose builds frontend/Dockerfile.dev, whose entrypoint is `npm run start` = `ng serve` → dev/docker-compose.yaml:387; frontend/Dockerfile.dev:30; frontend/package.json:9.
+% EVIDENCE: production image is a multi-stage Angular build served as static files by nginx-unprivileged, no Node in the final layer → frontend/Dockerfile:14-45,56,177-181.
+% EVIDENCE: SPA fallback → frontend/Dockerfile:132; gzip on, level 6, types excluding woff2 → :75-95; no brotli because the image ships no ngx_brotli module → :63-71; dedicated `location = /robots.txt` → :110-121; cache headers → :100-109.
+% EVIDENCE: main.js 77,328 B → 23,022 B gzip, CSS 21,588 B → 4,269 B gzip, Roboto 488,026 B TTF → 66,544 B woff2 → Lighthouse and served-payload measurement against frontend/Dockerfile, 2026-11-03; the JavaScript and font figures repeat chapter 11's load table.
+% EVIDENCE: the config.js write permission failure existed only on the production path → frontend/Dockerfile:165-178.
+% EVIDENCE: ci.yml jobs — contracts (buf lint + breaking) :19-31; Go matrix of five services, gofmt + golangci-lint + `go test -race`, audit adds testcontainers integration tests :33-76; Rust fmt/clippy/cargo test :78-98; TypeScript for learning, notification, frontend :100-130; dev workflow :135-160; documentation/script coherence :164-200.
+% EVIDENCE: no job in ci.yml runs the prose barrier or the design-debt check (that absence is what this chapter found); the barriers now run in a separate workflow → .github/workflows/barriers.yml:1-60, added by commit 7112f09.
+% EVIDENCE: barriers.yml triggers on every push on any branch and on every pull request, runs the prose barrier, the citation verifier and `design-debt.mjs --check`, and self-tests the barrier against a scratch file containing `behaviour` and `analysed` → .github/workflows/barriers.yml:12-20,30-57.
+% EVIDENCE: only ERRORs fail the barrier; WARNs do not, and the citation verifier warns instead of failing for a work not read in full → .github/workflows/barriers.yml:31-39; docs/informe/scripts/prose-barrier.mjs:44; docs/informe/scripts/verify-citations.mjs:11-18.
+% EVIDENCE: 39 of 46 sources read in full, so 7 are not → docs/informe/refs/fuentes-acceso.md:1-6.
+% EVIDENCE: ci.yml still triggers on pushes to main and 001-* only, and on pull requests to main → .github/workflows/ci.yml:5-7.
+% EVIDENCE: two VPS, 4 GB RAM / 2 vCPU each, application on the one with a public address and data on the one without → deploy/vps/README.md:3,14-24.
+% EVIDENCE: one domain, Caddy routes /api/* to the gateway with the prefix stripped and everything else to the frontend → deploy/vps/Caddyfile:29-36; deploy/vps/README.md:35-38.
+% EVIDENCE: two TLS issuers (ACME first, internal fallback) because the campus perimeter filtered the ACME validators → deploy/vps/Caddyfile:19-23; deploy/vps/README.md:604-636.
+% EVIDENCE: 31 migrations across seven databases in 3.9 s on empty databases → deploy/vps/README.md:363-372.
+% EVIDENCE: migrate down reverts the whole chain of the seven databases and deletes their data → deploy/vps/README.md:379-381; dev/migrate:26-33.
+% EVIDENCE: no backups, one replica per service, Redis without authentication → deploy/vps/README.md:720-732.
+% EVIDENCE: Kubernetes base plus dev/prod overlays, two replicas minimum, HPA to twenty, secrets referenced by name → deploy/k8s/README.md:3-13,20-26; deploy/k8s/base/users.yaml:12; deploy/k8s/overlays/prod/autoscaling.yaml:1-8.
+% EVIDENCE: the production overlay does not fit the two VPSs before a single user arrives → deploy/vps/README.md:4-7.
+% EVIDENCE: load profile 200 VUs, 1 min ramp, 3 min hold, 30 s down, one account per VU → deploy/loadtest/README.md:89-100.
+% EVIDENCE: 64,268 requests over 4 m 08 s, 0.00 % HTTP failures, read p95 115 ms, action p95 763 ms → k6 summary of the attributed run, 2026-11-03 (chapter 11, load table).
+% EVIDENCE: the edge limits per IP and per authenticated user at 600 requests per minute → services/api-gateway/cmd/gateway/main.go:204-208; deploy/loadtest/README.md:73-85.
+% EVIDENCE: 160 responses were 429 within 58 ms, all before the measured window, and setup() now uses per-account synthetic addresses in 10.255.0.0/16 → deploy/loadtest/README.md:160-186; deploy/loadtest/k6-scenarios.js:568-574.
+
 \section{Despliegue}
 
-% TODO: Deployment (English source text).
-Document the real deployment: VPS + Caddy + TLS, Docker Compose, Kubernetes
-manifests and CI/CD.
+% DONE: deployment as the fourth artifact of the system — the local composition, the
+% image that ships, the server configuration, the pipeline, and the operations that
+% exist against those that only exist as files. Every figure is attributed.
+
+\subsection{Local reproducibility as a design goal}
+
+The first deployment decision in FintCart was not where the system runs but whether a second person
+can raise it. The repository answers with four verbs: \code{dev/build} builds the development images,
+\code{dev/up} raises the topology and blocks until it reports healthy, \code{dev/migrate} applies every
+service's migrations, and \code{dev/down} stops the composition while keeping the volumes unless asked
+to delete them. No step between them is manual, and the composition file states the rule in its header: operate always
+with the verbs, and if something cannot be done with the scripts, that is a defect of the scripts.
+
+Five stacks live in the monorepo, and each stack's own tool — Go migrations for Go, an ORM runner for
+NestJS, a SQLx macro for Rust — would mean five ordering semantics and five ways to be half-applied. FintCart uses one tool, \code{golang-migrate}, for all five stacks, executed as a
+container attached to the compose network so that no machine needs it installed. The consequence is
+that \enquote{the schema is at version N} is one statement across seven databases.
+
+Configuration follows the same line: everything arrives by environment variable, and every address is
+a hostname resolved inside the compose network. The frontend is the interesting case: a compiled SPA
+cannot read the environment, because its JavaScript runs in the browser. Baking the API URL into the
+bundle is the usual answer, and it creates one image per environment — the artifact tested in staging
+is then not byte-for-byte the artifact served in production. FintCart writes \code{config.js} at
+container start from \code{API_BASE_URL}, so one image serves every environment and the difference
+between them is a variable.
+
+Why insist? Because \enquote{it works on my machine} is not a convenience problem but an undocumented
+part of the specification. A system only its author can raise has an implicit dependency graph — a
+locale, a port already taken, a tool at the right version — that no artifact records, and the failure
+surfaces later as an environment difference rather than as the missing declaration it is. An
+unreproducible deployment also cannot be measured: every number in Chapter 11 describes a system
+raised the same way each time, and if the raising varied, the numbers would describe machines.
+
+The claim is worth only what enforces it. A dedicated CI job checks out the repository, runs
+\code{dev/build}, \code{dev/up}, and \code{dev/migrate up}, then reverts the migrations and reapplies
+them, then runs \code{dev/down}; if any verb fails, the pipeline fails. That job is the difference
+between a promise and a gate.
+
+\subsection{Container topology and what it costs}
+
+Table~\ref{tab:topology} lists what \code{dev/up} raises: eight backend services, the SPA, seven
+PostgreSQL instances, one Redis, one RabbitMQ broker, and three tools that exist only in development.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{llp{7.4cm}}
+    \hline
+    Component & Count & Role in the composition \\
+    \hline
+    Backend services & 8 & Gateway (REST edge, no state), auth, users, learning, simulator, orchestrator, notification, audit \\
+    SPA & 1 & Angular bundle; development server locally, nginx in production \\
+    PostgreSQL 16 & 7 & One database per service with state; the gateway has none \\
+    Redis 7.4 & 1 & JWT blacklist and refresh tokens (auth), rate limiting (gateway) \\
+    RabbitMQ 4.0 & 1 & Producer to consumer events; the gateway never touches it \\
+    Development tools & 3 & MailHog, Swagger UI, Adminer: no production counterpart \\
+    \hline
+  \end{tabular}
+  \caption{Topology raised by \code{dev/up}.}
+  \label{tab:topology}
+\end{table}
+
+Seven databases for eight services is not an oversight: the gateway owns no domain state, so the count
+follows the services that own data. The table restates the constitutional rules in operational form: a
+violation would show up here before it reached an incident.
+
+The cost belongs here too. The full composition puts seven PostgreSQL instances, a broker, a cache,
+eight services, a SPA, and the test harness in competition for one host's cores. That contention was
+measured, not assumed: one end-to-end spec failed one run in three when the rest of the suite competed
+for the gateway and passed first time in isolation, so the assertion budget went from five to ten
+seconds with the reason recorded rather than absorbed silently. A multi-second stall in a browser
+assertion is the shape this contention takes. It does not invalidate the composition — the composition
+exists to be raised, not to be fast — but the host is a test rig, and a rig that stalls changes what a
+test measures.
+
+\subsection{The image that ships is not the image that develops}
+
+The development composition builds \code{frontend/Dockerfile.dev}: it runs \code{npm run start},
+which is \code{ng serve}, a server that recompiles on change, keeps source maps, and serves
+unoptimized output. The production file compiles the bundle in a Node stage, copies
+the static output into \code{nginx-unprivileged}, and contains no Node at all.
+
+This distinction produced a false measurement. An early performance reading was taken against the
+stack raised by \code{dev/up} — that is, against \code{ng serve} — and the numbers looked like a slow
+application. They described a development server: uncompressed modules, no minification, a watcher
+beside the process being measured. None of it could have been true of what a student downloads. The
+measurements in Chapter 11 were therefore taken against \code{frontend/Dockerfile}, with the served
+bundle's hash compared against the build output so the payload measured was provably the code under
+discussion. Measuring the artifact you ship sounds like a tautology; it has to be written
+down because the convenient artifact is always the one already running.
+
+The same split hid a second defect in the other direction. The production image writes
+\code{config.js} at startup into a directory owned by the nginx user; before that directory existed,
+the first real deployment failed with a permission error because the served tree belonged to root. No
+number of runs in development could have caught it: that script never executes there. A development
+path that skips a production code path is not a smaller deployment, it is a different program, and the
+difference sits exactly on the unexercised lines.
+
+\subsection{The web server is part of the deliverable}
+
+What ships is static files and the configuration of the server that hands them out; four decisions
+are load-bearing.
+
+The first is \code{try_files $uri $uri/ /index.html}. Without it, reloading the browser on a
+client-side route returns 404, because the route exists in the Angular router, not as a file. The
+second is compression: the bundle was served without \code{Content-Encoding} although the browser
+requested it, so plain text crossed the network at full size. gzip is enabled at level six, and the
+types list excludes woff2, png, and jpg, already compressed. Brotli is absent, and the absence is
+verified against the image's compiled module list: the \code{nginx-unprivileged:alpine} image ships no
+\code{ngx_brotli} module, so a \code{brotli on;} directive is rejected at startup and the container
+never comes up.
+
+The third is a dedicated \code{location = /robots.txt}: with only the SPA fallback, a request for that
+file received \code{index.html} with status 200 and an HTML content type, which an audit reports as an
+invalid robots file. The explicit location serves the real file and returns an honest 404 if it ever
+leaves the build. The fourth is caching: hashed names are immutable for a year, while
+\code{index.html} is \code{no-cache} because it is the file that points at the new hashes.
+
+Table~\ref{tab:payload} reports what the first two decisions are worth.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{llrr}
+    \hline
+    Asset & Mechanism & Before & Served \\
+    \hline
+    \code{main.js} & gzip, level 6 & 77,328 B & 23,022 B \\
+    CSS bundle & gzip, level 6 & 21,588 B & 4,269 B \\
+    Roboto & woff2 instead of TTF & 488,026 B & 66,544 B \\
+    \hline
+  \end{tabular}
+  \caption{Static payload before and after the server and format fixes.}
+  \label{tab:payload}
+\end{table}
+
+The JavaScript figure is a seventy per cent reduction and the CSS figure eighty per cent, both
+produced by a server directive and neither by a line of application code. The font row is a different
+mechanism and must not be added to the same total: 488,026 bytes of TrueType became 66,544 bytes of
+woff2 because the build emits a compressed format, not because nginx compressed the old one. The last
+seventy per cent of the transfer was therefore decided in the server configuration, which a project
+that stops at the bundle leaves to whoever configures the server — who, in most projects, does not
+exist.
+
+\subsection{Continuous integration}
+
+The pipeline runs six things, and naming them matters, because \enquote{CI runs the tests} would
+hide both what is covered and what is not.
+
+Contracts come first: \code{buf} lints the proto tree and checks backward compatibility against
+\code{main}, so an incompatible message change fails before any service compiles. Then Go, as a
+matrix over the five Go services: format check, \code{golangci-lint} with the repository
+configuration that also bans float for money, and \code{go test -race}; audit additionally runs its
+testcontainers integration tests against a real PostgreSQL. Then Rust: \code{cargo fmt --check},
+\code{cargo clippy --all-targets -D warnings}, and \code{cargo test --all-targets}. Then TypeScript,
+as a matrix over learning, notification, and the frontend: \code{npm ci}, lint, build, and test. Then
+the development workflow job described earlier. Then a coherence job that fails if the documentation
+cites a \code{dev/} verb that does not exist or omits one that does.
+
+The prose barrier, the citation verifier, and the
+design-debt script existed and exited non-zero on failure, but no job in \code{ci.yml} ran them: they
+ran when someone remembered. A check that depends on memory is weaker than one that fails the build;
+its failure mode is silence, and a rule nobody hears broken stops being a rule.
+
+Writing this chapter found that gap, and commit \code{7112f09} closes it. A separate workflow,
+\code{.github/workflows/barriers.yml}, runs the three scripts on every push, on any branch, and on
+every pull request — separate from \code{ci.yml} on purpose, because they are Node and files and
+should not drag \code{cargo test} into a documentation push. It also tests the tester: against a
+scratch file with \code{behaviour} and \code{analysed}, the barrier must exit non-zero, since a
+verifier that has never failed has not shown it can fail. Severity stays deliberately uneven: only
+ERRORs stop the build, so the citation verifier warns rather than fails when a cited work was not read
+in full — seven of the forty-six sources are not — and the prose barrier's warnings do not fail
+either, because a declared debt is not a build error.
+
+\subsection{Operations that exist, and operations that do not}
+
+What exists is a deployment on two virtual machines of four gigabytes and two cores each. The
+application machine, the only one with a public address, runs the eight services, the frontend, and
+Caddy; the data machine runs the seven databases, Redis, and RabbitMQ, reachable only over the private
+network. Caddy terminates TLS on a single domain and routes by path — \code{/api/*} to the gateway
+with the prefix stripped, everything else to the frontend — which lets one certificate cover both.
+TLS has two issuers, ACME and Caddy's internal authority as fallback, because the campus perimeter
+filtered the ACME validators: with ACME alone the site had no certificate, and with the authority
+alone someone had to remember to undo the workaround.
+
+Migrations ran as a separate step before the new code started: thirty-one across seven databases in
+3.9 seconds. That figure is a floor: the databases were empty, and migrations that walk whole tables grow with the
+rows. Rollback deserves the same honesty: \code{dev/migrate
+down} does not revert the last migration, it reverts the entire chain of the seven databases and
+deletes their data, so real rollback begins with a dump taken before migrating, and schema and code
+move back together.
+
+What does not exist is the list that usually fills this section. There is no Kubernetes in production.
+The repository holds a kustomize base and two overlays with deployments, probes, autoscalers, and
+disruption budgets, and the production overlay asks for two replicas per service and up to twenty
+under load; on two machines of four gigabytes those requests do not fit before a single student
+arrives, which is why the compose tree exists. We did not run the manifests against a cluster, so this
+chapter does not present them as a running system: their content can be inspected, their behavior
+cannot be certified here. There is no autoscaling, no blue-green switch, no
+second environment; one replica per service means a restart is a visible outage; the seven volumes
+have no automated backup; Redis has no password, protected only by the network boundary.
+
+One deployment was operated and several were described; enumerating promises with no run behind them
+would be a catalogue.
+
+\subsection{Load testing as a deployment concern}
+
+The load profile is a property of the deployment, not of the code. Two hundred virtual users was not
+chosen for realism: it was the size of the account pool, and one account per virtual user was forced
+by the edge, which limits per IP and per authenticated identity at 600 requests per minute each. The
+reported run held that profile for three minutes and issued 64,268 requests over four minutes and
+eight seconds with no HTTP failures, a read p95 of 115 ms, and an action p95 of 763 ms.
+
+Those numbers are honest only with their ceiling attached. The run happened on a single development
+host sharing its cores with the whole composition, so it is not a production capacity figure. The
+ceiling itself belongs to the limiter: 600 requests per minute per client is ten per second per
+client, a bound the aggregate of two hundred independent clients never approaches. Its setup traffic
+left from one address, and the access log
+attributes 160 rejections inside 58 milliseconds to that phase, all of them before the measured window
+opened; the fix was a synthetic source address per account, and the breakdown by phase is now recorded
+so a future run can say whether a failure belongs to the platform or to the harness.
+
+What the run supports is narrow: two hundred clients, each inside its allowance, served for three
+minutes without an error and with percentiles far below the thresholds. It supports no
+statement about how many students the platform holds, because multiplying the observed rate would be
+arithmetic on a number the limiter fixed. A capacity figure needs the replicas the manifests describe
+and hardware the two machines do not have.
