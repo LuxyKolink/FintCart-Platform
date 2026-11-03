@@ -5,9 +5,247 @@
 %  is written in ENGLISH and translated to Spanish later.
 % ===========================================================================
 
+% EVIDENCE INVENTORY (every claim in the prose maps to a real artifact):
+% EVIDENCE: formula engine = parser -> AST persisted as JSONB -> bounded evaluator, all in rust_decimal -> services/simulator/src/domain/formula/mod.rs:1-25.
+% EVIDENCE: errors discovered at save, not at run; the AST is persisted, not the source text -> domain/formula/mod.rs:14-26; docs/lenguaje-de-formulas.md "Por qué existe un lenguaje".
+% EVIDENCE: bounds checked at save and never re-checked at run: MAX_NODES=64 (limits.rs:31), MAX_DEPTH=16 (limits.rs:39), MAX_INPUTS=20 (limits.rs:42), MAX_OUTPUTS=10 (limits.rs:45), MIN_INPUTS=1, MIN_OUTPUTS=1.
+% EVIDENCE: MAX_SCALE=28 = rust_decimal ceiling -> domain/formula/functions.rs:49; MAX_EXPONENT=360 = MAX_PERIODS -> functions.rs:59, domain/inputs.rs.
+% EVIDENCE: the language has no loops, no recursion, no assignments, no author-defined functions, a single expression -> docs/lenguaje-de-formulas.md "Lo que el lenguaje NO tiene".
+% EVIDENCE: no text type: InputKind = Monto | Tasa | Entero; the only text input (operacion) was removed by D-16 -> domain/formula/ast.rs:34-58.
+% EVIDENCE: pot (integer exponent, exact) and potd (decimal exponent, approximate via exp/ln) are two separate Func variants -> ast.rs:56-60; functions.rs:150-193; docs/lenguaje-de-formulas.md "pot y potd no son la misma función".
+% EVIDENCE: merging them would silently lose Principle VIII exactness; log-power off by "up to the pesos" at 240 months -> functions.rs:8-18; domain/annuity.rs:26.
+% EVIDENCE: ten seed definitions, not seven -> domain/seeds/mod.rs:144-155 (drafts(): ahorro, credito, presupuesto, inversion, ea_a_mv, mv_a_ea, gmf, fondo_emergencia, meta_ahorro, cdt_dias).
+% EVIDENCE: seed_regression.rs is the gate that keeps the native calculators as oracle until the definitions reproduce them (T092, SC-015, FR-049) -> services/simulator/tests/seed_regression.rs:1-12.
+% EVIDENCE: Go layering (users): handler does unwrap/call/wrap only -> internal/handler/handler.go:10-21; server holds domain, no SQL, no proto types, constructor injection -> internal/server/server.go:1-9,53-68; storer is an explicit interface -> internal/storer/storer.go:22-44.
+% EVIDENCE: Rust layering (simulator): grpc transport -> grpc/service.rs:1-9; domain application; repo persistence over generic traits, no PgPool visible to transport -> grpc/service.rs:61-76.
+% EVIDENCE: mapping/types is the only place a decimal string becomes a decimal type -> users internal/handler/mapping.go:1-20; simulator grpc/mapping.rs:1-16; domain/decimal_str.rs:1-9.
+% EVIDENCE: body_doc is a closed block vocabulary, not HTML: 8 node types, 3 marks, heading levels 2-4, link schemes http/https/mailto whitelist -> services/learning/src/articles/body-doc.ts:22-63.
+% EVIDENCE: deny-by-default validation, no cleaning, every rejection names its path -> body-doc.validator.ts:1-28,40-90.
+% EVIDENCE: frontend renders block by block, per component, no innerHTML / bypassSecurityTrust (FR-068) -> frontend/src/app/features/learning/article/blocks/body-doc.component.ts:14-15.
+% EVIDENCE: OAuth2 Authorization Code + PKCE (SPA) and Client Credentials (M2M); JWT in sessionStorage unless "Recordarme" opts into localStorage -> frontend/src/app/core/auth/token-storage.service.ts:7-27; specs/001 spec.md (authentication).
+% EVIDENCE: Redis only for JWT blacklist/refresh (Auth) and the gateway rate limiter -> services/api-gateway/internal/ratelimit/ratelimit.go:1-13.
+% EVIDENCE: rate limit 600 requests/minute per IP is a default capacity decision, not a business rule -> cmd/gateway/main.go:204-208; it throttled our own load harness (recorded in this chapter's drafting notes).
+% EVIDENCE: dev workflow is four scripts (build/up/migrate/down) with zero manual steps -> dev/build, dev/up, dev/migrate, dev/down; golang-migrate for every stack -> dev/migrate:1-10.
+% EVIDENCE: configuration entirely by environment variables, discovery by hostname -> dev/migrate:37-40; cmd/gateway/main.go:240-307; thin entrypoints -> services/users/cmd/users/main.go, services/simulator/src/main.rs.
+% EVIDENCE: contracts are validated first in CI (buf lint + breaking), then Go/Rust/TypeScript matrices -> .github/workflows/ci.yml:13-31.
+
+% DONE: full English implementation chapter written 2026-11-03. The evidence
+%       inventory above maps each claim to a repository artifact; no open TODO markers remain.
+
 \section{Implementación}
 
-% TODO: Implementation (English source text).
-Document the implementation of the eight services and the formula engine
-(parser \textrightarrow\ persisted AST in JSONB \textrightarrow\ bounded evaluator in
-rust\_decimal), including the seed calculator definitions.
+This chapter is organized around the constraints of the platform rather than around its
+directory tree, because the implementation is where those constraints stopped being prose and
+became code. Each subsection therefore follows one constraint from its statement to the artifact
+that enforces it. Two artifacts recur throughout: the formula engine, in which a piece of
+author-authored text becomes a bounded, typed, exact computation, and the layered shape
+\code{handler} \textrightarrow{} \code{server} \textrightarrow{} \code{storer} that every service
+repeats, in every language, as the discipline that keeps a constraint from leaking across a
+boundary. The decisions that cost the most are gathered at the end, together with what would
+change if any of them were relaxed.
+
+\subsection{The formula engine: a closed artifact, bounded by construction}
+
+The simulator service is a calculator is a definition is a formula. The last link of that chain
+is the one that concentrates the most risk, and it is implemented as a four-stage pipeline:
+source text \textrightarrow{} lexer \textrightarrow{} parser \textrightarrow{} a typed abstract
+syntax tree (AST), which is persisted in \code{JSONB} and later walked by a bounded evaluator,
+everything in \code{rust_decimal}. The module header states the three properties the pipeline
+exists to deliver: errors are discovered at save time, not at run time; cost is bounded without a
+runtime watchdog; and no code is ever executed, because a formula is a single expression over a
+closed set of nodes. The decision that carries the least obvious consequence is the middle step:
+what is persisted is the tree, not the text. If the source text were stored, a future change to
+the parser —a new precedence, a new meaning for \code{pot}— would silently reinterpret every
+already-published formula and alter historical results without touching a single row. Storing the
+AST freezes what was published.
+
+The bounds that make the evaluator safe are a small, explicit table, and each row prevents a
+specific failure rather than expressing a taste:
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lll@{}}
+\hline
+Bound & Value & What it prevents \\
+\hline
+AST nodes per formula & 64 & an unbounded traversal cost at execution \\
+AST depth & 16 & evaluator recursion deeper than the tree itself \\
+Inputs per calculator & 20 & a form so long it stops being a form \\
+Outputs per calculator & 10 & an unbounded result surface \\
+\code{pot} exponent / periods & 360 & hundreds of multiplications; $n=0$ dividing by zero in the annuity primitives \\
+Rounding scale & 28 & exceeding the \code{rust_decimal} ceiling \\
+\hline
+\end{tabular}
+\caption{The formula engine's bounds and the failure each one prevents.}
+\label{tab:formula-bounds}
+\end{table}
+
+Node count and depth are checked once, at save time, by \code{limits::check}; they are never
+looked at again at execution, which is precisely why the evaluator needs no watchdog —the tree it
+walks is already closed. The distinction between depth and parser nesting matters and is kept
+separate: \code{((((1))))} has depth 1 (parentheses are transparent in the tree) but nesting 4,
+so the parser's own nesting limit of 64 is a different number from the tree's 16 and merging them
+would reject a formula for a limit it does not actually violate. The language is numeric only: the
+input kinds are \code{Monto}, \code{Tasa}, and \code{Entero}, and the single text discriminator
+that once existed was removed when the Colombian calculator was split into three definitions.
+There is no text value a formula can name, because the text belongs in the labels of the inputs
+and outputs, not in the arithmetic.
+
+The two power functions are the sharpest example of a constraint turned into a named artifact.
+\code{pot(base, n)} requires an integer exponent and is exact: raising to an integer is repeated
+multiplication, a finite decimal computation. \code{potd(base, x)} accepts a decimal exponent and
+is approximate, because it resolves through \code{exp} and \code{ln} and a non-exact root has no
+finite decimal representation. They are two functions, never one \enquote{power} that inspects its
+argument and chooses a path, because that single function would end up using the approximate path
+where the code uses the exact one, and historical results would change without any test noticing.
+The native code that the definitions reproduce documents the difference with a figure: at a
+240-month term, computing the power through logarithms is off \enquote{up to the pesos}. A decimal
+literal is serialized to \code{JSONB} as a canonical string —the call \code{pot(1.1, 12)} stores
+its arguments as the strings \code{"1.1"} and \code{"12"}, never as JSON numbers— because a JSON
+number forces a floating-point reading and \code{serde_json} rounds beyond 15 to 17 significant
+digits, a loss that would be silent on every save-then-read cycle.
+
+Finally, the ten seed definitions are the regression gate that proves the engine reproduces the
+legacy behavior. The five calculators of the base feature were re-seeded as ten definitions, and
+\code{tests/seed_regression.rs} runs the engine and the native hard-coded code against the same
+inputs and requires the same output map. The native modules were not deleted until that suite
+passed; they now live under \code{tests/nativo/} as a living oracle, and the comparison is against
+code that still computes, not against a frozen table of remembered answers. The suite also guards
+against its own false green: every case counts how many inputs actually reached a computation and
+demands a minimum, so that a regression that makes both sides fail identically cannot read as
+success.
+
+\subsection{One layered shape, translated into every stack}
+
+The formula engine is one service's center of gravity; the layered shape is the invariant that
+holds everywhere else. Every stateful service is built as three layers —transport, application,
+persistence— with the dependency direction fixed downward and each boundary carrying an explicit
+mapping. The pattern is easiest to read in the Go service for users, and it survives translation
+into Rust with the names changed and the discipline intact, which is the point: the constraint is
+the direction of the arrows, not the spelling of the directories.
+
+In \code{users}, the \code{handler} layer does exactly three things and in that order: unwrap the
+DTO, call the service, wrap the result. The file is deliberately monotonous, and the comment
+declares that a business \code{if} appearing there is in the wrong layer and is easy to spot in
+review precisely because the file is monotonous. The \code{server} layer holds the domain rules
+and the domain types; it contains no SQL, no protocol-buffer types, and no \code{net/http}, so it
+can be tested against a fake storer without a database or a gRPC server. The \code{storer} layer
+is an explicit interface —\code{Storer}, with \code{PostgresStorer} as its one real
+implementor— and because the application depends on the interface and not on PostgreSQL, the
+compiler enforces the absence of upward dependencies: \code{storer} does not import \code{server}
+or \code{handler}, and any attempt to introduce such an import fails as a cycle. Dependencies
+enter by constructor injection; \code{server.New} assembles a \code{Server} from interfaces and
+receives everything already built.
+
+The simulator repeats the same shape in Rust. Its transport is the \code{grpc} module, which
+unpacks the message, validates what the contract leaves unvalidated, and delegates computation to
+\code{domain} and writing to \code{repo}; it computes nothing itself. Its persistence is the
+\code{repo} module, generic over three traits —\code{Calculators}, \code{Indicators}, and
+\code{Simulations}— rather than over a concrete connection pool, so that a pool never becomes
+visible to the transport and the contract test can run without PostgreSQL. The mapping layer sits
+at each frontier under the same name in both stacks, and it is the only place where a decimal
+string becomes a decimal type:
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lll@{}}
+\hline
+Concern & Go — \code{users} & Rust — \code{simulator} \\
+\hline
+Transport & \code{internal/handler} & \code{grpc} \\
+Application & \code{internal/server} & \code{domain} \\
+Persistence & \code{internal/storer} (\code{Storer}, \code{PostgresStorer}) & \code{repo} (traits) \\
+Decimal mapping & \code{internal/handler/mapping.go} & \code{grpc/mapping.rs} \\
+\hline
+\end{tabular}
+\caption{The same four concerns under different names in the two reference services.}
+\label{tab:layers}
+\end{table}
+
+The mapping rule is the one that makes the decimal constraint auditable. Money and rates cross
+every boundary as a canonical decimal string, and the conversion to \code{rust_decimal} in Rust or
+\code{shopspring/decimal} in Go happens in exactly one file per frontier —there and only there— so
+that a review can answer \enquote{where does this string become a number} by pointing at one place,
+and a value that fails the canonical format fails at the border instead of being silently
+re-shaped inside the database.
+
+\subsection{The content pipeline: a closed vocabulary, denied by default}
+
+Article bodies posed the same problem as formulas —untrusted text that must never become code— and
+the platform answered it with the same strategy: replace the open form with a closed one and deny
+by default. A version's body is not HTML and not plain text; it is a block document persisted as
+\code{JSONB} over a vocabulary that is declared once and closed. The vocabulary has eight node
+types (\code{doc}, \code{parrafo}, \code{encabezado}, \code{lista}, \code{item_lista},
+\code{texto}, \code{imagen}, \code{calculadora}), three text marks (\code{negrita}, \code{cursiva},
+\code{enlace}), heading levels 2 through 4, and link schemes whitelisted to \code{http},
+\code{https}, and \code{mailto}. Anything outside those lists does not enter.
+
+The validator is deliberately negative: it enumerates what is admitted and rejects everything
+else, and it never \enquote{cleans} or \enquote{corrects} a document. A silent cleaner converts a
+client error into a different datum stored without warning, and the client discovers it two
+versions later. Every rejection carries the path to the offending node, because the document is
+written by a machine and debugged by a person. The choice of a closed vocabulary over sanitized
+HTML is recorded as a security posture, not a preference: with HTML, safety depends on configuring
+a sanitizer correctly today and on no one adding an \code{[innerHTML]} \enquote{just for this
+view} a year from now; with a closed vocabulary there is no injection surface to sanitize because
+there is no HTML anywhere in the path. The frontend renders the document block by block, one
+Angular component per node type, and both \code{innerHTML} and \code{bypassSecurityTrust*} are
+forbidden —the comment in the renderer states that the absence of \code{[innerHTML]} is the
+functionality.
+
+\subsection{Authentication and the two permitted uses of Redis}
+
+Authentication is the one constraint whose two halves point at different audiences. The SPA signs
+in with OAuth2 Authorization Code plus PKCE, so that the authorization code cannot be replayed by
+an attacker who intercepts the redirect; machine-to-machine callers use Client Credentials; both
+receive signed JWTs. The client stores the tokens in \code{sessionStorage} by default, so that the
+session does not survive the closing of the tab and closing the session revokes access; the
+\enquote{Recordarme} option is the only path to \code{localStorage}, and it is an explicit opt-in
+rather than a changed default, because the default behavior is a privacy criterion and the
+checkbox is not an ornament.
+
+Redis appears in exactly two places, and both are chosen so that losing its contents is bounded.
+The Auth service uses it for the JWT blacklist and refresh tokens, and the gateway uses it for the
+rate limiter; in neither case is Redis a source of truth, so a failure costs a bounded interval of
+relaxed limits rather than the loss of a datum. The limiter deserves an honest statement: the
+default is 600 requests per minute per IP. That is a capacity decision, not a business rule —the
+comment at the constant explains that its absence is unambiguous and that starting without any
+limit because of a forgotten variable would be the dangerous failure— and it is honest about its
+consequence in the other direction too: during load testing, the harness itself was throttled by
+the limit it was supposed to measure, which is the correct behavior for a boundary that does not
+know the difference between a hostile client and a friendly one.
+
+\subsection{The developer workflow as an implemented feature}
+
+The local development environment is treated as a product requirement rather than a convenience:
+the repository is brought up with four scripts —\code{dev/build}, \code{dev/up},
+\code{dev/migrate}, and \code{dev/down}— with zero manual steps between them. \code{dev/up} raises
+the full topology and waits for the infrastructure health checks before returning, so that
+\code{dev/migrate} can run immediately without races; \code{dev/migrate} applies the migrations of
+the seven stateful services through \code{golang-migrate}, the single migration tool for all five
+stacks regardless of the service's language, run as a container so it need not be installed on the
+machine. Configuration is entirely by environment variable, and discovery is by hostname: the
+migration container joins the Compose network and resolves the PostgreSQL hostnames by name, never
+by published port or IP. The entrypoints are thin by rule —\code{cmd/<svc>/main.go},
+\code{src/main.rs}, \code{src/main.ts}— and do only configuration, wiring, and graceful shutdown;
+the domain lives in the library, and the binary is a shell over it. Continuous integration enforces
+the same order: the contracts are validated first with \code{buf} lint and breaking-change checks,
+and only then do the Go, Rust, and TypeScript matrices run their formatters, linters (including
+the float prohibition of Principle VIII), and tests.
+
+\subsection{What the constraints cost}
+
+The constraints are worth what they cost, and the thesis would be incomplete if it did not state
+the bill. Five decimal types —\code{NUMERIC} in PostgreSQL, \code{shopspring/decimal} in Go,
+\code{rust_decimal} in Rust, \code{decimal.js} in TypeScript, and the decimal string on the
+wire— mean five conversions and a mapping layer that must never be bypassed; the price is paid in
+discipline, and it is collected by review and by the compiler's import cycles. Database-per-service
+means there are no joins and no cross-service transactions: the activity report cannot read the
+simulator's tables, so it asks over gRPC, and a counter that crosses a service boundary costs a
+round trip that a join would not. The saga with compensations means every step needs an inverse:
+each write is idempotent so a retry cannot double it, and each step's compensation must undo only
+what that step did. If any one of these were relaxed the implementation would be smaller: allowing
+floats would collapse the five conversions to one; allowing cross-service reads would restore the
+join and the transaction; replacing the saga with two-phase commit would delete the compensations.
+The chapter argues that the size is the point —each of those shortcuts buys a smaller codebase by
+reintroducing, as a silent risk, exactly the failure the platform exists to exclude.

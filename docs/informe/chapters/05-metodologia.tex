@@ -7,8 +7,323 @@
 
 \section{Metodología}
 
-% TODO: Methodology (English source text).
-Declare the hybrid approach: Kanban (flow + WIP limits) + XP (CI, automated
-testing, continuous refactoring) inside a document-driven structure, executed
-as 4 increments with verifiable acceptance criteria. Include phases and the
-objectives-to-development traceability matrix.
+% DONE: Methodology written in English. The chapter is the honest account of how
+% the work was actually done: three accumulated features behind gates, an
+% evidence-first discipline with per-chapter claim inventories, the separation
+% between machine-verifiable properties and properties that need people, a
+% validation design stated before results exist, the threats to validity, and
+% what the method deliberately did not do. Prose and tables make only the claims
+% inventoried below.
+
+% ---------------------------------------------------------------------------
+% CLAIMS INVENTORY — every prose claim is listed here with its evidence.
+% The prose below makes only these claims.
+% ---------------------------------------------------------------------------
+% EVIDENCE: three features accumulate (001 platform → 002 calculator builder and
+%   content administration → 003 presentation redesign); each amends the
+%   previous, none restarts the product → specs/001-fintcart-platform/plan.md:6-13;
+%   specs/002-calculator-builder-content-admin/plan.md:6-11;
+%   specs/003-design-system-frontend/plan.md:8-13.
+% EVIDENCE: 001's gate is a Constitution Check over the twelve principles, PASS
+%   and re-evaluated after Phase 1 → specs/001-fintcart-platform/plan.md:74-93.
+% EVIDENCE: 002's gate is the Constitution Check over the design, then over the
+%   code, with declared deviations → specs/002-calculator-builder-content-admin/plan.md:107-126,130-175.
+% EVIDENCE: 003's gate is the Constitution Check over the design plus a closing
+%   re-evaluation (T091) that corrected a real data defect →
+%   specs/003-design-system-frontend/plan.md:80-113.
+% EVIDENCE: the hybrid working model — Kanban flow with WIP limits plus XP
+%   practices inside a document-driven structure — and why not Scrum or pure
+%   waterfall → docs/informe/00-plan.md:75-81.
+% EVIDENCE: the report's five phases and their gates (skeleton, art direction,
+%   calculators, evidence, validation) → docs/informe/00-plan.md:173-181.
+% EVIDENCE: the schedule's three cuts (three new seeds, five sessions plus ≥15
+%   survey responses, one new diagram) → docs/informe/00-plan.md:333-339.
+% EVIDENCE: decision IDs D-26…D-30 exist in both feature 002 and feature 003
+%   research files and name different things; every citation is qualified by
+%   feature → specs/002-calculator-builder-content-admin/research.md (D-13…D-30);
+%   specs/003-design-system-frontend/research.md (D-26…D-32).
+% EVIDENCE: the simulator ships ten seed definitions (six general, four
+%   Colombian), not the seven the 002 spec still names →
+%   services/simulator/src/domain/seeds/mod.rs:144-155.
+% EVIDENCE: four roles usuario_final, editor, coordinador_editorial,
+%   administrador → services/users/migrations/20260727120000_init_users.up.sql:46;
+%   services/users/migrations/20260903090000_roles_administrador.up.sql:15.
+% EVIDENCE: every chapter opens with a % EVIDENCE: inventory and its prose may
+%   assert only what the inventory lists → docs/informe/chapters/04-marco-referencial.tex:19-33;
+%   docs/informe/chapters/06-requerimientos.tex:25-45.
+% EVIDENCE: an ad hoc screenshot sweep let two defects ship; an overflow probe
+%   and a computed-contrast probe caught them → docs/informe/chapters/11-pruebas.tex:242-266.
+% EVIDENCE: a green build does not prove a page renders; a logo mask passed the
+%   build and broke the development server → docs/informe/chapters/11-pruebas.tex:223-234,316.
+% EVIDENCE: machine-verifiable properties are reported in chapter 11, and
+%   human-judgment properties in chapter 13 → docs/informe/chapters/11-pruebas.tex:28;
+%   docs/informe/chapters/13-evaluacion.tex:8.
+% EVIDENCE: validation is declared before results exist — convenience sample,
+%   ≥15 survey responses (target 20), 5–8 moderated sessions, SUS at the end of
+%   the session, task success observed → docs/informe/04-instrumentos-validacion.md:282,298,306-309.
+% EVIDENCE: the SUS is a perceived-satisfaction instrument, not a learning
+%   measure; “preferring is not learning” is the stated limit →
+%   docs/informe/04-instrumentos-validacion.md:351,608-616.
+% EVIDENCE: honest limits — moderator effect, self-selection, no control group,
+%   no significance tests at n ≈ 15 → docs/informe/04-instrumentos-validacion.md:570-601.
+% EVIDENCE: the glossary and the prose barrier exist because three authors
+%   writing in parallel diverge without a shared, executable gate →
+%   docs/informe/00-glosario-y-estilo.md:5; docs/informe/scripts/prose-barrier.mjs:6-10.
+% EVIDENCE: no 2PC, no cross-service database reads; saga with compensations
+%   only → specs/001-fintcart-platform/plan.md:82,85; .specify/memory/constitution.md:140-142.
+
+% ---------------------------------------------------------------------------
+% PROSE
+% ---------------------------------------------------------------------------
+
+This chapter describes how the work was actually done, not how a textbook
+method would have arranged it. The honest account matters because every result
+reported later inherits its limits from the procedure that produced it. The
+method has three commitments: the product was built as three increments
+accumulated behind gates, every claim rests on evidence that a file, a command,
+or a measurement could settle, and machine-verifiable properties were kept
+strictly apart from the properties only a person can judge.
+
+\subsection{The shape of the work: three accumulated features, each gated}
+
+This is not three projects. It is one product specified in three features that
+accumulated on top of each other, each with its own requirements, its own
+acceptance criteria, and a gate that had to pass before the next feature could
+begin. Feature \code{001-fintcart-platform} establishes the platform: identity
+and access, guided learning, the first calculators, the eight services, and the
+constitution of twelve principles that everything later must satisfy. Feature
+\code{002-calculator-builder-content-admin} amends it rather than replaces it:
+the hard-wired calculators become parameterized seed definitions served by a
+formula engine, quizzes become randomized sessions, article bodies become block
+documents, and a fourth role is added. Feature
+\code{003-design-system-frontend} is different in kind: it is exclusively
+presentation, touches nothing outside \code{frontend/}, and is judged by
+whether it removes a duplicated style layer rather than by whether it adds one.
+Because each feature amended the one before, the numbering of requirements,
+acceptance criteria, and decisions is continuous and cumulative, and the
+repository is the record of that continuity.
+
+The gate is the same instrument in all three features, and naming it precisely
+matters more than naming a process framework. Each feature opens with a
+Constitution Check: a table that walks the twelve principles one by one and
+states how the design satisfies each of them, and each feature re-runs that
+check after Phase 1. Table~\ref{tab:features-gates} records what each gate
+demanded.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{p{3.2cm}p{4.4cm}p{6.0cm}}
+    \hline
+    Feature & Gate & What the gate demanded \\
+    \hline
+    \code{001-fintcart-platform} & Constitution Check, re-run after Phase 1 &
+    All twelve principles satisfied by design before any code: gRPC internal
+    with REST only at the edge, database-per-service, saga without 2PC,
+    decimal-only money, layered services. \\
+    \code{002-calculator-builder-content-admin} & Constitution Check over the
+    design, then over the code & The same twelve principles, checked against
+    the running system rather than the compose file; the seed-regression suite
+    must hold before the native calculators retire; declared deviations replace
+    silent promises. \\
+    \code{003-design-system-frontend} & Constitution Check over the design,
+    plus a closing re-evaluation (T091) & No functional behavior may change;
+    style debt must reach zero; a monetary figure must never truncate; the
+    closing gate corrected a real data defect in the money format. \\
+    \hline
+  \end{tabular}
+  \caption{The three accumulated features and the gate each one had to pass.}
+  \label{tab:features-gates}
+\end{table}
+
+The first gate demanded that the architecture be constitutional before a line
+of code existed, because a violation found after implementation would have
+meant rework measured in services, not in files. The second gate mattered most
+because it was run over the running system rather than over the compose file:
+Redis was checked by listing its actual clients, RabbitMQ by its actual
+connections, and the seed-regression suite had to hold before the native
+calculator code could retire. The third gate forbade functional change and
+demanded that style debt reach zero, and its closing re-evaluation caught a
+monetary figure rendered with the wrong thousands separator, a value that
+looked right and was another figure entirely.
+
+The same gated pattern governs this document. The writing plan is five phases,
+each with a named exit condition: the LaTeX skeleton must compile and match
+the institutional template, the art direction must pass its end-to-end and
+accessibility gates with zero style debt, the calculators must pass the
+seed-regression suite, every figure in the evidence chapters must trace to a
+versioned artifact, and validation runs only after the others are closed. A
+one-to-two-week deadline then forced three explicit cuts: three new seeds
+instead of five, five moderated sessions as the floor, and one new diagram
+instead of a redrawn set.
+
+Traceability is not free of collisions, and the method treats them as data
+rather than as noise. Decision identifiers overlap between the two research
+files: \code{D-26} through \code{D-30} name one thing in feature 002 and a
+different thing in feature 003, so throughout this report a decision is always
+cited with its feature --- \code{D-27} of feature 003 is the four breakpoints,
+and \code{D-27} of feature 002 is the correction of the annuity overflow. Two
+authoritative counts are fixed once and reused everywhere: the simulator ships
+ten seed definitions (six general, four Colombian), not the seven the 002 spec
+still names, and the role model has exactly four roles --- \code{usuario_final},
+\code{editor}, \code{coordinador_editorial}, and \code{administrador}.
+
+The working model is the hybrid the plan declares: Kanban flow with
+work-in-progress limits, plus the extreme-programming practices of continuous
+integration and automated testing, inside a document-driven structure. It is
+defended negatively: Scrum would be a fiction for a single developer with no
+team, no Product Owner, and no sprints, and pure waterfall is contradicted by
+the repository's own history of three features that each amend the previous one
+behind a gate.
+
+\subsection{Evidence-first engineering}
+
+The second commitment is a discipline about claims. Every chapter of this
+report opens with a \texttt{\% EVIDENCE:} inventory, a list of the specific
+claims the prose is allowed to make, each paired with the file and line where a
+reader could settle the dispute. The rule is executed rather than recommended:
+a chapter may assert only what its inventory lists, and an assertion that
+cannot be pointed at a file, a command, or a measurement is reworded or dropped.
+This is not documentation theater. It is how three authors writing in parallel
+are kept from quietly diverging from the repository, and it is how a reviewer
+can tell a measured result from a remembered one.
+
+The discipline changed decisions, not just prose. The clearest case is negative
+evidence from feature 003. A first, ad hoc sweep of screenshots was meant to
+confirm the redesign by eye, and it let two defects ship: a four-pixel
+horizontal overflow on a route the sweep never visited, and a contrast
+regression in the token layer, where a value that was true against white was
+false against the tinted surface it actually shipped on. Both passed human
+inspection, and both were caught only by instruments that assert what nobody
+was looking at --- a scroll-width probe and a computed-color contrast check.
+The lesson: a review that photographs what it already believes representative
+will miss exactly the defect it did not anticipate, and only a measurement that
+asserts a property on every target surface can contradict a number that looks
+right. Chapter~11 reports both defects in full; this chapter records only what
+the episode changed in the method.
+
+\subsection{Two kinds of verification, kept apart}
+
+The method keeps two kinds of verification apart because their failure modes
+differ and because conflating them inflates results in one predictable
+direction. The first kind is machine-verifiable: a property a command can
+assert reproducibly on every run --- unit behavior and numerical edge cases,
+end-to-end flows and accessibility selected by role and label, load thresholds,
+payload budgets, and style debt. The second kind needs people: whether a task
+can be completed without help, how long it takes, and how usable the result
+felt. Table~\ref{tab:verification-kinds} assigns each property to its
+instrument and its owner chapter.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{p{4.4cm}p{5.2cm}p{3.4cm}}
+    \hline
+    Property & Instrument & Owner chapter \\
+    \hline
+    Unit behavior and numerical edge cases & unit specs, seed-regression suite & chapter~11 \\
+    End-to-end flows and accessibility & Playwright suite selecting by role and label & chapter~11 \\
+    Load thresholds & k6 runs on the development host & chapter~11 \\
+    Style debt and payload budgets & \code{design-debt.mjs} and bundle checks & chapter~11 \\
+    Prose and citation discipline & prose barrier and citation gate & the document itself \\
+    Task success, efficacy and efficiency & moderated observation of five tasks & chapter~13 \\
+    Perceived usability & SUS administered after the tasks & chapter~13 \\
+    Perceived design brief & perception survey & chapter~13 \\
+    \hline
+  \end{tabular}
+  \caption{Properties, their instruments, and the chapter that owns each.}
+  \label{tab:verification-kinds}
+\end{table}
+
+The separation is not a filing convention; it is the guard against a specific
+inflation. A green suite proves that its tests pass and nothing else: it says
+nothing about whether a student can complete a task. A favorable SUS score
+proves that a participant reported the system as usable and nothing else: it
+says nothing about whether any requirement was implemented correctly. If the
+two kinds were allowed to borrow each other's authority, chapter~13 could
+report a green build as evidence of usability and chapter~11 could report a
+favorable survey as evidence of correctness, and neither claim would be earned.
+Each chapter therefore declines the other's claims on purpose.
+
+\subsection{Validation design, stated before results exist}
+
+The validation instrument was fixed before any participant was recruited, and
+this chapter records it as a commitment rather than as a description of what
+happened. The sample is a convenience sample: a minimum of 15 survey responses
+with a target of 20, and between 5 and 8 moderated sessions, recruited by
+direct invitation from the author's university community. No sampling frame is
+claimed, and the instrument states in advance that the sample represents no one
+beyond the people who answered. The two instruments measure two different
+things. The survey measures declared perception on a five-point anchored scale,
+read per item as a distribution, never collapsed into a single average index.
+The moderated session measures task success by observation: five tasks, each
+with an observable success criterion, a clock, and an escalation ladder that
+turns a helped completion into a distinct outcome.
+
+The SUS is used, and it is used for exactly one thing. \parencite{brooke1996sus}
+proposed the System Usability Scale in 1996, and that is its role here: a
+satisfaction instrument, not a learning measure. Its origin is the only claim
+this report makes on the strength of that source, whose full text was
+obtainable only as its first page. \todo{verify page range} The scale is
+administered at the end of the session and reported per session with the
+median, never as a percentage of \enquote{usability}.
+
+The honest limits are stated before the data exist because they are properties
+of the design, not defects discovered afterward. There is no control group, so
+no difference can be attributed to the redesign. The moderator is the author of
+the product, so courtesy is a real pressure that the script reduces but cannot
+eliminate. The sample self-selects toward people interested in finance or in
+the platform. And the rule that governs all of it is negative: preferring the
+interface is not evidence of learning. None of these instruments measures
+learning; to claim the platform teaches would require a before-and-after
+knowledge instrument, a comparison group, and randomization, and none of that
+is in this work or simulated here.
+
+\subsection{Threats to validity}
+
+Five threats are named because each one limits what a later chapter may
+conclude, and each is a property of the procedure rather than of the results.
+
+First, the load measurement runs on a single development host on a single day;
+the figures are a measurement of that host, not a capacity statement about the
+deployment. Second, coverage is collected as a diagnostic with no threshold: a
+covered line is a line that executed, not a line whose behavior was verified,
+so coverage is reported but never used as a quality gate. Third, the end-to-end
+suite depends on a running stack; without \code{dev/up} and the seeded data
+there is no regression network at all, which is why a broken local environment
+reads to the suite as a product defect. Fourth, a passing build does not prove
+that a page renders: a logo mask once passed the build and broke the
+development server, because the build compiled the template and never painted
+it. Visual capture --- actually reading a rendered screen --- is the only gate
+that closes that hole, and it is a human judgment. Fifth, the redesign was
+measured largely by its own end-to-end suite, which selects by role and
+accessible label; that suite proves consistency with the behavior it already
+encoded, not that the redesign is good or better. A redesign that passes its
+own regression network is self-consistent, not necessarily improved.
+
+\subsection{What the method deliberately did not do}
+
+Three refusals are part of the method and are recorded because a method is
+defined as much by what it declines as by what it does.
+
+The system never uses two-phase commit and never reads across service
+databases. Multi-service consistency is achieved only through the
+orchestrator's sagas with explicit compensations, and the only surface shared
+between services is the versioned contract in \code{contracts/}. These refusals
+are constitutional, not stylistic: they are the mechanism by which each service
+stays independently deployable and each database stays sovereign, and they are
+verified in the gates rather than assumed.
+
+The report never lets prose run ahead of a shared vocabulary. Three authors
+write chapters in parallel, and without a shared glossary and an executable
+barrier they would quietly diverge until the translation stage inherits the
+confusion. This is stated plainly because it is a real methodological finding:
+the glossary and the prose barrier exist because parallel writing without them
+diverges, and the barrier turns the glossary from a recommendation into a gate.
+The same discipline applies to citations: a source may be cited by its
+existence or by a fact visible in the page actually read, never by its argument
+when the full text was not obtained.
+
+Finally, the method never lets a measurement that needs people be replaced by a
+measurement that needs a machine, or the reverse. The two are kept apart for
+the reason already given: each inflates the other, and a thesis that cannot say
+which of its claims are machine-verified and which are human-judged cannot
+honestly report either.
