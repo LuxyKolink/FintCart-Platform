@@ -1,0 +1,40 @@
+digraph causas_efectos {
+  rankdir=LR;
+  bgcolor="white";
+  nodesep=0.30;
+  ranksep=0.85;
+  splines=spline;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11,
+        color="#14477A", fillcolor="#F5F2EC", penwidth=1.1, margin="0.16,0.10"];
+  edge [color="#5D636A", arrowsize=0.7, penwidth=1.0];
+
+  /* Causas */
+  subgraph cluster_causas {
+    label="Causas"; fontname="Helvetica-Bold"; fontsize=13; color="#C9CFD6";
+    style="rounded"; margin=14;
+    c1 [label="Conceptos financieros\nnunca enseñados\n(inflación, tasas, interés)"];
+    c2 [label="Enseñanza teórica,\nsin práctica ni\nsimulación"];
+    c3 [label="Hábitos financieros\nformados por imitación,\nno por decisión"];
+    c4 [label="Herramientas disponibles\nen inglés o ajenas al\ncontexto colombiano"];
+    c5 [label="Contenido formativo\nactualizado solo\nen papel o PDF"];
+  }
+
+  /* Problema */
+  problema [label="Baja alfabetización financiera\nde la población colombiana\n(16.4 % con conocimientos básicos)",
+            fillcolor="#14477A", fontcolor="white", fontname="Helvetica-Bold",
+            fontsize=13, penwidth=0];
+
+  /* Efectos */
+  subgraph cluster_efectos {
+    label="Efectos"; fontname="Helvetica-Bold"; fontsize=13; color="#C9CFD6";
+    style="rounded"; margin=14;
+    e1 [label="Decisiones de crédito\ny ahorro que empobrecen"];
+    e2 [label="Ingresos reales erosionados\npor la inflación"];
+    e3 [label="Baja planificación\ndel retiro y del riesgo"];
+    e4 [label="Brecha entre quienes\ndominan y quienes\nno dominan las finanzas"];
+    e5 [label="Dependencia de terceros\npara decisiones\neconómicas cotidianas"];
+  }
+
+  c1 -> problema; c2 -> problema; c3 -> problema; c4 -> problema; c5 -> problema;
+  problema -> e1; problema -> e2; problema -> e3; problema -> e4; problema -> e5;
+}
