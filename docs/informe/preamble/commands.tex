@@ -11,7 +11,12 @@
 
 % --- Monospace for figures / money / code -----------------------------------
 % N-15: a monetary figure must never be truncated — mono keeps digits stable.
-\newcommand{\fcnum}[1]{\texttt{#1}}   % money / numeric literals (may switch to siunitx later)
+%
+% `\fcnum` también va con \detokenize: los importes de interfaz se copian tal como los
+% muestra la aplicación —`$1.234.567,89`, con su signo de pesos y su punto de miles— y en modo
+% texto el `$` abre matemáticas: `\texttt{$1.234.567,89}` aborta con «Extra }, or forgotten \$».
+% Un importe de interfaz no se reescribe para que LaTeX lo acepte; se imprime como está.
+\newcommand{\fcnum}[1]{\texttt{\detokenize{#1}}}
 %
 % `\code` es \detokenize y no \texttt a secas porque los identificadores de este proyecto
 % llevan guion bajo —`usuario_final`, `article_versions.body_doc`, `rust_decimal`— y en modo

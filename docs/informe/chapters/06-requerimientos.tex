@@ -7,6 +7,498 @@
 
 \section{Requerimientos}
 
-% TODO: Requirements (English source text).
-Structure the functional and non-functional requirements (FR/NFR) of the three
-specs plus the six docs/rf/RF-*.md documents, in an IEEE-830 style.
+% DONE: Requirements chapter written in English, in IEEE-830 style. Functional
+% requirements are grouped by capability with the stable identifiers the three
+% specs assign (FR-001…FR-127), the five constitutional non-negotiables are
+% restated as requirements in their own right, the non-functional requirements
+% are stated per category, and acceptance criteria SC-013…SC-039 are classified
+% as measured, pending human participants, unverifiable as written, or not
+% claimed. The traceability argument maps each group to its evidence. Prose and
+% tables make only the claims inventoried below.
+
+% ---------------------------------------------------------------------------
+% CLAIMS INVENTORY — every prose claim is listed here with its evidence.
+% The prose below makes only these claims.
+% ---------------------------------------------------------------------------
+% EVIDENCE: 001 ends at FR-031/SC-012; 002 continues FR-032…FR-085/SC-013…SC-026
+%   and amends 001; 003 continues FR-086…FR-127/SC-027…SC-039 and is
+%   presentation-only → specs/002-calculator-builder-content-admin/spec.md:28-44;
+%   specs/003-design-system-frontend/spec.md:361 (FR-121), 366 (FR-123).
+% EVIDENCE: 002 amends six 001 requirements (roles, categories, quiz serving,
+%   grading scale, the five calculators, account deletion) →
+%   specs/002-calculator-builder-content-admin/spec.md:38-50.
+% EVIDENCE: ten seed definitions (six general + four Colombian), not seven →
+%   services/simulator/src/domain/seeds/mod.rs:144-155; the 002 spec still says
+%   "seven" and lags the code.
+% EVIDENCE: four roles usuario_final, editor, coordinador_editorial,
+%   administrador → specs/001-fintcart-platform/spec.md:148;
+%   specs/002-calculator-builder-content-admin/spec.md:504-510.
+% EVIDENCE: D-26…D-30 are duplicated between 002 and 003 research; qualify
+%   "D-27 (feature 003)" etc. → specs/002-calculator-builder-content-admin/research.md
+%   (D-13…D-30); specs/003-design-system-frontend/research.md (D-26…D-32).
+% EVIDENCE: FR-049 → five FR-019 calculators become default definitions;
+%   seed_regression.rs is the gate → specs/002-calculator-builder-content-admin/spec.md:403;
+%   services/simulator/tests/seed_regression.rs:1-9.
+% EVIDENCE: seed_regression.rs has 28 #[test] functions (one ignored) and uses
+%   the retired native code under tests/nativo/ as a recalculating oracle →
+%   services/simulator/tests/seed_regression.rs (grep count 28).
+% EVIDENCE: money rule in five languages → .specify/memory/constitution.md:177-210
+%   (Principle VIII); FR-028 → specs/001-fintcart-platform/spec.md:191.
+% EVIDENCE: gRPC internal / REST at gateway, DB-per-service, RabbitMQ
+%   producer→consumer, saga-only consistency → .specify/memory/constitution.md:76,89,120,136.
+% EVIDENCE: SC-023/SC-024 not claimed; phase 9 dropped explicitly →
+%   specs/002-calculator-builder-content-admin/success-criteria.md:301-312.
+% EVIDENCE: 12 of 14 SC-013…SC-026 meet; 2 not claimed →
+%   specs/002-calculator-builder-content-admin/success-criteria.md:313-315.
+% EVIDENCE: 19 e2e spec files; 44 frontend unit spec files (311 test cases) →
+%   find frontend/e2e -name '*.spec.ts'; find frontend/src -name '*.spec.ts'.
+% EVIDENCE: CI enforces the non-negotiables (buf breaking, golangci float ban,
+%   clippy f32/f64 ban, npm lint number ban) → .github/workflows/ci.yml.
+% EVIDENCE: load test exists; SC-003/SC-005 name the deployed topology; the
+%   smoke run is 3 VUs, the full 200-VU run reported 0.21 % failures traced to
+%   warm-up 429s → deploy/loadtest/README.md.
+% EVIDENCE: SUS and perception instruments exist and are pending administration →
+%   docs/informe/04-instrumentos-validacion.md:17,190,292-309.
+
+% ---------------------------------------------------------------------------
+% PURPOSE AND SCOPE
+% ---------------------------------------------------------------------------
+\subsection{Purpose and scope}
+
+This chapter restates the product requirements in the style of IEEE Std 830-1998: a statement of
+purpose and scope, functional requirements organized by capability under stable identifiers,
+non-functional requirements by category, and an explicit traceability argument that connects each
+group of requirements to the evidence that verifies it. The source of truth is the three feature
+specifications under \code{specs/}, which the repository numbers continuously across the product's
+history: \code{001-fintcart-platform} assigns \code{FR-001} through \code{FR-031} and
+\code{SC-001} through \code{SC-012}; \code{002-calculator-builder-content-admin} continues with
+\code{FR-032} through \code{FR-085} and \code{SC-013} through \code{SC-026}; and
+\code{003-design-system-frontend} continues again with \code{FR-086} through \code{FR-127} and
+\code{SC-027} through \code{SC-039}. Those identifiers are stable, they are the ones used
+throughout this report, and they allow any single requirement to be recovered from its
+specification file by number.
+
+The scope of the chapter is the functional surface of the three features, the constraints that the
+repository constitution makes non-negotiable, and the acceptance criteria together with the
+instruments that verify them. It deliberately does not restate implementation, which belongs to
+later chapters; the claim made here is about what the product must do and how we know it does it,
+not about how the services achieve it.
+
+% ---------------------------------------------------------------------------
+% THREE GENERATIONS
+% ---------------------------------------------------------------------------
+\subsection{Three generations of one product}
+
+The three specifications are not three separate systems and must not be flattened into one
+undifferentiated list of 127 requirements. They are three generations of a single product, and the
+history is itself the argument for how the requirements hold together. The first generation
+(\code{001-fintcart-platform}) establishes the platform: identity and access, guided learning with
+articles and quizzes, the five financial calculators, the editorial pair that produces content,
+notifications, audit, and the privacy obligations of Ley 1581. The second generation
+(\code{002-calculator-builder-content-admin}) is an amendment, not a replacement: it keeps the
+numbering of the first document running so that traceability is preserved across both, and it
+modifies six requirements of the first generation in place, adding the administrator role, the
+managed category catalog, randomized quiz serving, the percentage grading scale, the calculator
+builder with the five calculators rebuilt as default definitions, and administrative account
+purging. The third generation (\code{003-design-system-frontend}) is different in kind: it is
+exclusively presentation, it must not alter any functional behavior (\code{FR-121}), and it is
+bounded against the second generation by an explicit frontier (\code{FR-123}) that reserves the
+article writing surface to feature 002 and hands feature 003 only the frame that surrounds it.
+
+Reading the three documents as three generations explains several facts that a flat list would
+obscure. The count of seed calculators is a case in point: \code{FR-049} says that the five
+calculators of \code{FR-019} must be offered as default definitions of the builder, and the second
+specification still writes \enquote{seven} in one place, but the code ships ten seed definitions,
+six general (\code{ahorro}, \code{credito}, \code{presupuesto}, \code{inversion},
+\code{fondo_emergencia}, \code{meta_ahorro}) and four Colombian (\code{ea_a_mv}, \code{mv_a_ea},
+\code{gmf}, \code{cdt_dias}), as the authoritative seed list at
+\code{services/simulator/src/domain/seeds/mod.rs:144-155} shows. The code is the authority and the
+specification lags it. Likewise, the four roles in the running system are \code{usuario_final},
+\code{editor}, \code{coordinador_editorial}, and \code{administrador}; there is no separate
+\enquote{student} or \enquote{apprentice} role in the code, and this report calls the person who
+consumes content a student while naming the role \code{usuario_final}. Finally, decision
+identifiers \code{D-26} through \code{D-30} are duplicated between the research documents of
+features 002 and 003 and mean different things in each, so any citation of a decision in that
+range is qualified here, for example \code{D-27 (feature 003)} for the responsive breakpoints.
+
+% ---------------------------------------------------------------------------
+% FUNCTIONAL REQUIREMENTS
+% ---------------------------------------------------------------------------
+\subsection{Functional requirements by capability}
+
+The functional requirements are grouped by capability rather than transcribed row by row. Every
+group cites the exact identifier range it covers, and within each generation the groups are
+contiguous in identifier space, so the range locates every single requirement; the only group
+inserted out of numeric order is the responsive group of feature 003 (\code{FR-124} through
+\code{FR-127}), which Table~\ref{tab:fr-003} notes explicitly. A reader who needs a single
+requirement finds its group, and from the group its number, and from the number the full sentence
+in the corresponding specification file.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Functional requirements of feature 001, grouped by capability.}
+  \label{tab:fr-001}
+  \begin{tabular}{@{}p{3.6cm}p{3.4cm}p{9.4cm}@{}}
+    \hline
+    Capability & IDs & What it requires \\
+    \hline
+    Identity and access & FR-001--FR-006 & Registration by email with verification, secure
+    login, immediate and verifiable logout, password change, and at least three roles with a
+    separated editorial pair; an editor cannot publish own content. \\
+    Content and learning & FR-007--FR-013 & Editors draft and version articles; an editorial
+    coordinator publishes; each article carries a quiz; students browse, read, and are graded;
+    version history is kept. \\
+    Progress and profile & FR-014--FR-018 & Points-based progress using the best score per quiz,
+    article and attempt history, an editable profile, and statistical activity reports. \\
+    Financial calculators & FR-019--FR-022 & Five calculators (savings, credit, budget,
+    investment, and Colombian context), COP as the primary currency, decimal-exact results, and a
+    persisted per-user simulation history. \\
+    Notifications & FR-023--FR-024 & Email for security and identity events plus an in-app inbox
+    for activity events, both asynchronous and tolerant of transient failures. \\
+    Audit and compliance & FR-025--FR-026 & Append-only, immutable audit of every significant
+    operation, traceable for Colombian regulatory review. \\
+    Distributed coordination & FR-027 & Eventual consistency with automatic compensation for
+    operations that cross domains. \\
+    Monetary precision & FR-028 & Arbitrary-precision decimals everywhere; binary floating point
+    prohibited in every layer. \\
+    Privacy (Ley 1581) & FR-029--FR-031 & Data access and rectification, account deletion with
+    anonymization, and a five-year audit retention minimum. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:fr-001} is the platform as it was first specified: the value chain from
+registration to graded learning to progress, the calculators, the notification and audit
+cross-cutting concerns, and the two requirements that already carry the constitution's weight,
+\code{FR-027} and \code{FR-028}. The acceptance criteria of this generation, \code{SC-001} through
+\code{SC-012}, remain in force wherever the second generation does not amend them.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Functional requirements of feature 002, grouped by capability.}
+  \label{tab:fr-002}
+  \begin{tabular}{@{}p{3.6cm}p{3.4cm}p{9.4cm}@{}}
+    \hline
+    Capability & IDs & What it requires \\
+    \hline
+    Category catalog & FR-032--FR-036 & A managed thematic catalog; every article belongs to
+    exactly one category; deactivation is logical and preserves history; legacy free-text values
+    migrate without loss. \\
+    Randomized quizzes & FR-037--FR-042 & A configurable number of served questions, random
+    selection and shuffled options, a recorded served set, rejection of off-session answers,
+    percentage grading over the served set, and session expiry. \\
+    Calculator builder & FR-043--FR-050 & Any authenticated user defines calculators with typed
+    inputs and a formula language; definitions are validated, evaluation is bounded, all values
+    are decimal-exact, and the five FR-019 calculators become default definitions. \\
+    Authorship and curation & FR-051--FR-054 & Private by default, publication requires curation
+    by an editorial coordinator distinct from the author, and rejection records a reason. \\
+    Annual indicators & FR-055--FR-060 & Colombian context indicators persisted with a validity
+    period, referenced by name, snapshotted per simulation, and overlap-checked. \\
+    Annual update procedure & FR-061--FR-062 & Email notice before indicators expire and a visible
+    warning before executing a calculator that depends on expired indicators. \\
+    Rich editor and media & FR-063--FR-069 & A visual writing surface, inline images with required
+    alternative text, type and size validation, versioned images, neutralized active content, and
+    migration of legacy bodies without text loss. \\
+    Embedded calculators & FR-070--FR-072 & Editors embed a published calculator in an article;
+    the student runs it in place and the execution is recorded; an unpublished block degrades to a
+    notice. \\
+    Account purge and anonymity & FR-073--FR-079 & An administrator marks an account for purge;
+    a thirty-day grace period with the email reserved; then definitive anonymization with no
+    recoverable representation of the original email and no effect on aggregates. \\
+    Administrator role & FR-080--FR-082 & A fourth role for categories, indicators, and purging,
+    enforced at the platform edge, independent of the editorial coordinator. \\
+    Visual consistency and accessibility & FR-083--FR-085 & New screens share the common visual
+    system, are keyboard-operable with visible focus and labels, and render without runtime
+    external assets. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:fr-002} is the amendment that turns a closed set of tools into an extensible
+capability. The two most consequential rows are the calculator builder and the formula engine that
+sustains it, because they carry the exactness obligation of \code{FR-028} into user-authored
+formulas (\code{FR-048}) and into the historical record of every simulation (\code{FR-050} and
+\code{FR-058}). The builder group is the one whose default definitions are the ten seeds described
+above, and its gate is the seed regression suite, not a claim of equivalence written in prose.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Functional requirements of feature 003, grouped by capability.}
+  \label{tab:fr-003}
+  \begin{tabular}{@{}p{3.6cm}p{3.4cm}p{9.4cm}@{}}
+    \hline
+    Capability & IDs & What it requires \\
+    \hline
+    Common visual system & FR-086--FR-092 & All screens share one visual system and one brand
+    asset location, compose from the shared library, carry no inline styles, and self-block their
+    reintroduction; the interface text follows the brand voice and needs no runtime third parties. \\
+    Accessibility & FR-093--FR-097 & Full keyboard traversal, always-visible focus, labels for
+    every control, WCAG AA contrast, and usability at enlarged font sizes. \\
+    Platform access & FR-098--FR-101 & Access, registration, and verification present brand
+    identity beside the form, explicit data-processing consent, and a clear success state. \\
+    Learning portal & FR-102--FR-106 & A three-zone catalog, a comfortable reading width, quiz
+    results with retry, progress with the shared indicators, and a read/unread notification
+    distinction. \\
+    Calculators & FR-107--FR-110 & A rail of available calculators beside the form, data typography
+    for money and rates, no precision-altering conversion, and comparable history rows. \\
+    Profile and personal data & FR-111--FR-113 & Profile, password, report, and account-deletion
+    screens reuse the platform controls; the deletion consequence is communicated prominently; the
+    report figures keep their decimal precision. \\
+    Editorial frame & FR-114--FR-117 & Articles grouped by state with visual badges, a prominent
+    approve-or-reject decision, a comprehensible self-approval warning, and a consistent version
+    history. \\
+    Content states & FR-118--FR-120 & Every data-dependent screen shows loading, error, and empty
+    states, and tolerates longer text and figures without breaking. \\
+    Scope and frontier & FR-121--FR-123 & No functional behavior changes; missing data is reported
+    as a finding, not silently added; the article screen changes only the frame around the writing
+    surface. \\
+    Responsive adaptation (out of numeric order) & FR-124--FR-127 & Usable from 360 px up, with the
+    breakpoints declared once as tokens, a declared degradation order, and no horizontal page
+    scroll at any width. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:fr-003} is a statement of restraint: feature 003 removes a layer rather than adding
+one, and its requirements are mostly about what must not happen again, inline styles, per-screen
+components, precision-altering conversions, silent behavior changes. The responsive group appears
+out of numeric order because it was added after the consistency review of the feature, resolved by
+research decision \code{D-27 (feature 003)}, and it is the group the table places last so that the
+numeric irregularity is visible rather than hidden.
+
+% ---------------------------------------------------------------------------
+% NON-FUNCTIONAL REQUIREMENTS
+% ---------------------------------------------------------------------------
+\subsection{Non-functional requirements}
+
+The non-functional requirements are stated per category, each with the criterion that makes it
+falsifiable.
+
+\textbf{Performance.} Catalog, progress, and history reads must return in under one second under
+normal load (\code{SC-003}), and the platform must sustain at least 1,000 concurrent users with a
+perceived response below two seconds (\code{SC-005}). Formula evaluation must be bounded so that a
+worst-case admissible definition does not dominate the request path (\code{FR-047}), a property
+the bounded-cost suite and the paired load comparison verify. These two criteria are written
+against the deployed topology, and their verification status is stated honestly in
+Section~\ref{sec:acceptance}.
+
+\textbf{Security.} Identity follows OAuth2 with Authorization Code plus PKCE for the public SPA and
+Client Credentials for machine-to-machine calls, with signed JWTs and centralized revocation; the
+administrator surface is authorized explicitly at the platform edge and not merely hidden
+(\code{FR-081}); the rich body never executes active content in a student's browser (\code{FR-068},
+\code{SC-022}); and the audit log is append-only and immutable (\code{FR-025}).
+
+\textbf{Portability.} The interface must present completely and legibly with connectivity to
+external services disabled (\code{FR-085}, \code{FR-092}), which removes any runtime dependency on
+third-party fonts or icon sets; the offline-assets end-to-end test blocks every external domain and
+asserts the assets remain present.
+
+\textbf{Maintainability.} Screens must compose from the shared component library, never from
+per-screen components (\code{FR-087}); no template may carry inline styles, and an automatic
+barrier must reject their reintroduction (\code{FR-088}, \code{FR-089}); breakpoints are declared
+once as tokens, never per screen (\code{FR-125}). These three requirements exist so that the design
+debt that motivated feature 003 cannot accumulate again.
+
+\textbf{Usability.} A user without technical knowledge must create and run a two-input calculator in
+under five minutes (\code{SC-016}); a first-time visitor must identify what the platform offers
+before entering credentials (\code{SC-029}); and a person walking the application must find no
+screen that clashes with the common visual system (\code{SC-028}). These are measured with the
+moderated-session and perception instruments described in
+\code{docs/informe/04-instrumentos-validacion.md}, whose administration is the outstanding human
+part of the evaluation.
+
+\textbf{Accessibility.} Every screen must be traversable by keyboard alone with visible focus
+(\code{FR-093}, \code{FR-094}), every control must carry an announced label (\code{FR-095}), text
+must meet WCAG AA contrast (\code{FR-096}), and the interface must remain usable at enlarged font
+sizes (\code{FR-097}). These are the requirements the end-to-end accessibility suite and the
+contrast barrier verify automatically.
+
+% ---------------------------------------------------------------------------
+% NON-NEGOTIABLES AS REQUIREMENTS
+% ---------------------------------------------------------------------------
+\subsection{Non-negotiable constraints as requirements}
+
+Five constraints from the repository constitution are requirements in their own right, not
+implementation notes. They are restated here because a requirement that is only implied by a
+constitution is easy to treat as optional when a trade-off appears, and because each one is
+enforced in the continuous-integration gate rather than left to review discipline.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Constitutional non-negotiables, restated as requirements.}
+  \label{tab:non-negotiables}
+  \begin{tabular}{@{}p{4.4cm}p{5.4cm}p{6.6cm}@{}}
+    \hline
+    Non-negotiable & Constitutional basis & Requirement and gate \\
+    \hline
+    Decimal precision for money & Principle VIII, \code{.specify/memory/constitution.md:177} &
+    \code{FR-028}, \code{FR-048}, \code{FR-056}, \code{FR-109}; enforced by golangci and clippy
+    float bans and the npm \code{number} ban in \code{.github/workflows/ci.yml}. \\
+    gRPC internally, REST only at the gateway & Principle II, \code{constitution.md:76} & No
+    internal REST and no direct gRPC to clients; the gateway is the only translation point, and
+    contract compatibility is gated by buf breaking in CI. \\
+    Database per service & Principle III, \code{constitution.md:89} & Each service owns its
+    PostgreSQL; cross-service reads happen only over gRPC or events, never through shared schemas
+    or credentials. \\
+    RabbitMQ only producer-to-consumer & Principle V, \code{constitution.md:120} & Events flow
+    only to the Notification and Audit consumers; domain coordination stays synchronous over gRPC
+    or through the saga. \\
+    Consistency only through saga & Principle VI, \code{constitution.md:136} & \code{FR-027}; every
+    cross-service operation has explicit compensation steps; two-phase commit and distributed
+    locks are prohibited. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:non-negotiables} is deliberately narrow. The first row is the one this report
+treats as the deepest obligation, because a monetary figure must never pass through a binary
+float in any of the five implementation languages: \code{NUMERIC} columns in PostgreSQL,
+\code{shopspring/decimal} in Go, \code{rust_decimal} in Rust, \code{decimal.js} or \code{big.js}
+in TypeScript, and a canonical decimal string in Protocol Buffers and JSON. A figure that reaches
+the interface as \fcnum{$1.234.567,89} is the same decimal string that left the simulator, and a
+rendering that truncated it to \fcnum{$1.234\ldots} would be a false datum, not an abbreviation.
+The remaining four rows fix the system's topology: they are what makes the platform a bounded set
+of services rather than a monolith with a messaging layer.
+
+% ---------------------------------------------------------------------------
+% ACCEPTANCE CRITERIA
+% ---------------------------------------------------------------------------
+\subsection{Acceptance criteria and verification status}
+\label{sec:acceptance}
+
+The acceptance criteria are where the chapter has to be most honest. A criterion is not verified
+by what the code is capable of doing but by what has been observed doing it, and several criteria
+either name human participants, name an environment that has not yet been exercised, or cannot be
+falsified as written. Table~\ref{tab:acceptance} classifies \code{SC-013} through \code{SC-039}
+into four statuses: measured, pending human participants, unverifiable as written, and not
+claimed. Feature 001's twelve criteria (\code{SC-001} through \code{SC-012}) remain in force and
+are not re-enumerated here; the three that share instruments with the later generations,
+\code{SC-003} and \code{SC-005} (performance) and \code{SC-010} (retention), are folded into the
+same buckets.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Acceptance criteria SC-013 through SC-039, classified by verification status.}
+  \label{tab:acceptance}
+  \begin{tabular}{@{}p{2.2cm}p{4.0cm}p{10.2cm}@{}}
+    \hline
+    Criteria & Status & Evidence or reason \\
+    \hline
+    SC-013 & Measured & Sampling unit spec plus three live sessions serving distinct sets from a
+    twelve-question bank. \\
+    SC-014 & Measured & \code{served_snapshot} column is \code{NOT NULL}; grading spec; four of
+    four reconstructions exact. \\
+    SC-015 & Measured & Seed regression suite (\code{seed_regression.rs}, 28 test functions) against
+    the retired native code as a recalculating oracle. \\
+    SC-016 & Pending participants & The e2e path completes in about 10.7 seconds, but the subject
+    of the criterion, a user without technical knowledge, requires human sessions. \\
+    SC-017 & Measured & Parser, definition, and bounded-cost suites; three live 422 rejections with
+    no row written. \\
+    SC-018 & Measured & Curation e2e plus Go and Rust suites; author with both roles receives 403. \\
+    SC-019 & Measured & Provenance suite plus a live indicator edit; old results keep the old
+    values. \\
+    SC-020 & Measured & Orchestrator sweep emits the advance email; the executor warns before
+    calculating with missing indicators. \\
+    SC-021 & Measured & Editor image e2e and the closed shared vocabulary. \\
+    SC-022 & Measured & Body-document rejection e2e and the frontend security barrier. \\
+    SC-023 & Not claimed & The purge phase (T136--T148) was explicitly dropped; declared in
+    \code{tasks.md}. \\
+    SC-024 & Not claimed & Same phase; feature 001's anonymization exists and is preserved. \\
+    SC-025 & Measured & Migration of 79 rows with zero losses; category repository and editorial
+    e2e. \\
+    SC-026 & Measured & Design-debt barrier at zero, keyboard and contrast across 19 screens, and
+    the offline-assets e2e. \\
+    SC-027 & Measured & Design-debt barrier reports zero inline styles; reintroduction is rejected
+    in lint. \\
+    SC-028 & Pending participants & Requires a person to walk the 19 screens and judge that none
+    clashes. \\
+    SC-029 & Pending participants & Requires a first-time visitor to state, without scrolling, what
+    the platform offers. \\
+    SC-030 & Measured & Accessibility e2e reaches every control by keyboard with visible focus. \\
+    SC-031 & Measured & Accessibility e2e asserts a label on every form control. \\
+    SC-032 & Measured & Contrast barrier and accessibility e2e enforce AA. \\
+    SC-033 & Measured & Offline-assets e2e blocks external domains and asserts fonts and icons
+    remain. \\
+    SC-034 & Unverifiable as written & The loading, error, and empty primitives exist, but
+    \enquote{every data-dependent screen} is not enumerated, so no instrument can close the claim. \\
+    SC-035 & Measured & Result-format and format-decimal unit specs assert the last decimal is
+    preserved. \\
+    SC-036 & Measured & The inherited e2e battery runs unmodified as the regression net, per
+    \code{D-29 (feature 003)}. \\
+    SC-037 & Measured & Brand assets reduced to a single location with no broken references. \\
+    SC-038 & Measured (partial) & The 360 px floor is a declared token, but no per-screen 360 px
+    regression enumerates all screens yet. \\
+    SC-039 & Measured & Breakpoints declared once in \code{frontend/src/styles/tokens/breakpoints.css}. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:acceptance} has to be read together with its absences. The two \enquote{not
+claimed} rows are the most important ones in the table: \code{SC-023} and \code{SC-024} describe a
+thirty-day purge subsystem that was descoped after the feature's planning, and the repository
+declares them unimplemented rather than quietly marking them passed. That is the only honest way
+for a criterion not to pass. The \enquote{unverifiable as written} row, \code{SC-034}, is a
+different problem: the criterion's universal quantifier over \enquote{every data-dependent screen}
+has no enumerated extension, so no test can ever report it green or red. The performance criteria
+\code{SC-003} and \code{SC-005} sit in the same spirit: the load scripts exist and a smoke run
+passed, but the criteria name the deployed topology, and the full run there has not been completed,
+so they are measured by instrument but not yet by result \todo{run the k6 scenarios against the
+deployed topology and record the SC-003 and SC-005 verdicts}. The human criteria, \code{SC-016},
+\code{SC-028}, and \code{SC-029}, plus the retention criterion \code{SC-010}, require the
+moderated sessions and perception instruments to be administered
+\todo{administer the SUS and perception instruments; record SC-016, SC-028, SC-029, and SC-010}.
+
+% ---------------------------------------------------------------------------
+% TRACEABILITY
+% ---------------------------------------------------------------------------
+\subsection{Traceability argument}
+
+The traceability argument maps each requirement group to the evidence that proves it. The mapping
+is not by aspiration: it names the artifact, the thing it observes, and the requirement it closes,
+so that a reader can open the artifact and reproduce the verdict.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Traceability from requirement groups to verification evidence.}
+  \label{tab:traceability}
+  \begin{tabular}{@{}p{5.6cm}p{5.2cm}p{5.6cm}@{}}
+    \hline
+    Evidence artifact & What it observes & Requirements it closes \\
+    \hline
+    \code{frontend/e2e/us1-aprendizaje.spec.ts}, \code{us2-simuladores.spec.ts},
+    \code{us3-perfil.spec.ts}, \code{us4-editorial.spec.ts} & The four feature-001 journeys
+    against the real edge & FR-001--FR-022; SC-001--SC-003 \\
+    \code{constructor-calculadora.spec.ts}, \code{curaduria-calculadoras.spec.ts},
+    \code{calculadora-incrustada.spec.ts}, \code{editor-imagen.spec.ts},
+    \code{indicadores-admin.spec.ts}, \code{body-doc-rechazado.spec.ts} & Builder, curation,
+    embedding, rich editor, indicators, and body-document security & FR-043--FR-072; SC-016--SC-022 \\
+    \code{a11y.spec.ts}, \code{offline-assets.spec.ts}, \code{zoom-200.spec.ts}, and the six
+    \code{visual/*.spec.ts} files & Keyboard, labels, contrast, no external assets, zoom, and
+    kit parity across 19 screens & FR-083--FR-097, FR-118--FR-120; SC-026--SC-033, SC-038 \\
+    \code{frontend/src/**/*.spec.ts} (44 files, 311 test cases) & Unit-level behavior, including
+    decimal formatting in \code{result-format.spec.ts} and \code{format-decimal.spec.ts} &
+    FR-028, FR-109; SC-035 \\
+    \code{services/simulator/tests/seed_regression.rs} & Ten seeds reproduce the retired native
+    code under the same inputs, using it as a recalculating oracle & FR-049; SC-015, SC-004 \\
+    \code{.github/workflows/ci.yml} & The enforcement gate: buf breaking, golangci float ban,
+    clippy f32/f64 ban, npm \code{number} ban, all test suites, and the dev workflow & The five
+    constitutional non-negotiables of Table~\ref{tab:non-negotiables} \\
+    \code{deploy/loadtest/k6-scenarios.js}, \code{k6-calculadora.js} & Platform reads under load
+    and bounded formula cost under concurrency & SC-003, SC-005; FR-047, \code{D-15} \\
+    \code{frontend/scripts/design-debt.mjs}, \code{security-barrier.mjs} & Inline-style debt and
+    active-content injection, as lint barriers & FR-088, FR-089, FR-068; SC-022, SC-027 \\
+    \code{docs/informe/04-instrumentos-validacion.md} & The SUS and perception instruments,
+    pending administration & SC-016, SC-028, SC-029; SC-010 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:traceability} is the chapter's closing argument. Two rows deserve emphasis. The seed
+regression row closes the requirement that would otherwise be the easiest to overstate: it does not
+assert that the seeds \enquote{look right} but that they reproduce the native implementation input
+for input, with the native code kept in \code{tests/nativo/} as an oracle that recalculates rather
+than a frozen table that only remembers. And the CI row closes the non-negotiables: the bans on
+binary floats, cross-service REST, and contract breakage are not recommendations that reviewers
+might forget but automated gates that fail the build. Together with the accessibility, offline, and
+design-debt barriers, the platform's requirements are, at the close of the third generation,
+enforced rather than merely declared.

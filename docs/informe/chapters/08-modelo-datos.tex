@@ -7,6 +7,389 @@
 
 \section{Modelo de datos}
 
-% TODO: Data model (English source text).
-Document the data model per service (data-model.md) and one ER diagram per
-database, covering the persistent schema of the eight services.
+% DONE: The chapter argues the invariant (database-per-service, no cross-service
+% reads) and the four hard shapes (exact decimals, the formula AST in JSONB, the
+% article body as a block document, daterange indicators with EXCLUDE gist), plus
+% identity/lifecycle, content-addressed images, the deliberately-absent schema
+% features, and one entity table per owning service.
+
+% Claims inventory. Every claim in the prose below is checkable in the
+% repository; the migrations are the authority wherever a spec and SQL disagree.
+% EVIDENCE: database-per-service, no cross-service access → .specify/memory/constitution.md:89
+% EVIDENCE: money/tax/rates as arbitrary-precision decimals, float forbidden → .specify/memory/constitution.md:177
+% EVIDENCE: versioned paired migrations, no synchronize:true → .specify/memory/constitution.md:282
+% EVIDENCE: multi-table writes only through execTx(ctx, fn) → services/users/internal/storer/storer_postgres.go:50; services/learning/src/common/tx.ts:42
+% EVIDENCE: simulations store canonical decimal strings, jsonb_has_no_numbers guard → services/simulator/migrations/20260727120000_init_simulator.up.sql:22-68
+% EVIDENCE: pot exact for integer exponents, potd approximate for decimal, kept separate → services/simulator/src/domain/formula/functions.rs:190-193
+% EVIDENCE: calculators + calculator_definitions; AST persisted as JSONB → services/simulator/migrations/20260902120000_calculators.up.sql:16-63
+% EVIDENCE: published_version points at an existing definition, deferrable FK → services/simulator/migrations/20260902130000_calculator_published_version.up.sql:65-74
+% EVIDENCE: ten seed definitions (code is the authority) → services/simulator/src/domain/seeds/mod.rs:144-155
+% EVIDENCE: financial_indicators NUMERIC(20,6) with EXCLUDE USING gist → services/simulator/migrations/20260902121500_financial_indicators.up.sql:19-44
+% EVIDENCE: simulations snapshot calculator_id/version and indicators_snapshot → services/simulator/migrations/20260902123000_simulations_calculator_ref.up.sql:14-45
+% EVIDENCE: article body as JSONB block document, closed vocabulary validated server-side → services/learning/migrations/20260902111500_article_versions_body_doc.up.sql; services/learning/src/articles/body-doc.ts:26-57
+% EVIDENCE: article_images BYTEA, SHA-256 id, 2 MB cap, STORAGE EXTERNAL → services/learning/migrations/20260902113000_article_images.up.sql:44-58
+% EVIDENCE: four roles usuario_final/editor/coordinador_editorial/administrador → services/users/migrations/20260727120000_init_users.up.sql:45; services/users/migrations/20260903090000_roles_administrador.up.sql
+% EVIDENCE: audit_log append-only via REVOKE plus trigger → services/audit/migrations/20260727120000_init_audit.up.sql:58-90
+% EVIDENCE: pending_deletion and purge grace specified but not yet migrated → specs/002-calculator-builder-content-admin/data-model.md:315-327 vs services/users/migrations/ (no such migration)
+
+A data model is not a list of tables; it is the set of shapes a system is
+willing to commit to, and every shape in FintCart traces back to one decision or
+one prohibition. The prohibition comes first. The system is a set of eight
+backend services and one Angular SPA, and each stateful backend owns its own
+PostgreSQL 16 database that no other service may read or write
+(\code{.specify/memory/constitution.md:89}, Principle~III). Seven databases
+exist; the API Gateway and the frontend hold none. The consequence that governs
+the whole chapter is that an entity is never normalized across a service
+boundary, even when it is duplicated: the same e-mail address lives in
+\code{auth_db.credentials} and in \code{users_db.profiles}, the same person's
+identifier appears in every history table, and in no case is there a foreign key
+joining two databases. Cross-service references are opaque UUIDs resolved over
+gRPC, and the two profiles agree because the saga that creates the account
+writes both, not because either table knows the other exists.
+
+That duplication is bought on purpose, and it is worth naming the price. The
+system pays for the isolation with redundant storage and with eventual
+consistency: when a quiz is graded, the learning service stores the attempt and
+a later saga step updates the users service's best score, so the two services
+can disagree for the length of that step. The design accepts that window because
+the alternative --- one shared schema that any service can join --- is precisely
+the coupling that Principle~III exists to prevent. Duplication is the tax on
+sovereignty, and the schemas below are shaped to make the duplicated copies
+self-consistent on their own, with the cross-service agreement delegated to
+sagas and events rather than to constraints.
+
+\subsection{The four hard shapes}
+
+Four column shapes carry the non-negotiable parts of the model, and each exists
+because of a specific failure it rules out.
+
+\textbf{Money and rates as exact decimals.} The single thing the constitution
+forbids outright is a binary floating-point number standing for money, a rate,
+or a simulation result (\code{.specify/memory/constitution.md:177},
+Principle~VIII). The rule names its representation per technology:
+\code{NUMERIC} columns in PostgreSQL, \code{shopspring/decimal} in Go,
+\code{rust_decimal} in Rust, \code{decimal.js} or \code{big.js} in TypeScript,
+and a canonical decimal \code{string} in Protocol Buffers and JSON. The
+simulator service enforces the rule at the schema level as well as in code: the
+\code{simulations} table stores its \code{inputs} and \code{result} documents as
+\code{JSONB}, and a helper function, \code{jsonb_has_no_numbers}, walks the
+document to any depth and rejects a raw JSON number anywhere in it
+(\code{services/simulator/migrations/20260727120000_init_simulator.up.sql:22-68}).
+The reason is subtle and worth stating: a JSON number would be stored as a
+PostgreSQL \code{numeric}, but deserializing it into Rust would pass through an
+\code{f64} in most deserializers, and that single hop reintroduces the binary
+float the rule forbids. The cost of the rule is permanent: every boundary needs
+a conversion, and the mapping layer is where it must happen and only there
+(Principle~IX). A decimal string, a domain decimal, and a database \code{numeric}
+are three distinct types, and the conversion between them is the highest-risk
+operation in the system, so it is confined to one module per boundary instead of
+scattered through the code.
+
+\textbf{The formula as a persisted AST.} A calculator in the simulator service
+is a row, not code. The \code{calculators} table holds the identity --- owner,
+curation state, the version in force --- while \code{calculator_definitions}
+holds one immutable row per version, with the parsed formula tree stored as
+\code{JSONB} next to the source text the author typed
+(\code{services/simulator/migrations/20260902120000_calculators.up.sql:16-63}).
+Editing never updates a definition; it inserts a new version, which is what lets
+a simulation cite the exact version that produced it and what lets a published
+calculator keep serving its approved version while the author drafts the next.
+Storing the tree rather than the text is what buys user-defined calculators
+without deploying: a formula arrives as text, is parsed and validated at save
+time, and from then on only the tree is walked, so execution never parses text
+and never runs code. What the shape demands is a bounded evaluator: a definition
+may declare at most 20 inputs and 10 outputs, and each formula at most 64 nodes
+and depth 16, checked by the parser before persistence --- limits the schema
+deliberately does not re-encode, because walking a tree to count nodes inside a
+\code{CHECK} would be unreadable and would drift from the parser that is the
+real gate. Two functions are kept apart on purpose: \code{pot} raises to an
+integer exponent by repeated multiplication and is exact, while \code{potd}
+raises to a decimal exponent through \code{exp}/\code{ln} and is approximate
+(\code{services/simulator/src/domain/formula/functions.rs:190-193}). Merging
+them would silently lose the exactness of Principle~VIII, so they are two names
+and the author chooses. One count must be corrected here: the simulator ships
+ten seed definitions --- \code{ahorro}, \code{credito}, \code{presupuesto},
+\code{inversion}, \code{ea_a_mv}, \code{mv_a_ea}, \code{gmf},
+\code{fondo_emergencia}, \code{meta_ahorro} and \code{cdt_dias}
+(\code{services/simulator/src/domain/seeds/mod.rs:144-155}) --- while the 002
+data model still says seven (\code{specs/002-calculator-builder-content-admin/data-model.md:176,300})
+and even the migration's own comment repeats that stale count
+(\code{20260902120000_calculators.up.sql:18}). The code is what runs, so the
+spec is one count behind the system it describes; the lag is reported here
+rather than silently reconciled.
+
+\textbf{The article body as a block document.} The learning service replaced the
+plain-text \code{article_versions.body} column with \code{body_doc}, a
+\code{JSONB} tree of typed blocks with a closed vocabulary --- \code{doc},
+\code{parrafo}, \code{encabezado}, \code{lista}, \code{item_lista},
+\code{texto}, \code{imagen} and \code{calculadora} --- and a closed set of marks,
+\code{negrita}, \code{cursiva} and \code{enlace}
+(\code{services/learning/src/articles/body-doc.ts:26-57}). The whole document is
+validated positively in the server at save time: the validator enumerates what
+is admitted and rejects everything else, links included only if their scheme is
+\code{http}, \code{https} or \code{mailto}. The rejected alternative was HTML,
+which would have forced the frontend to render with \code{innerHTML} and
+\code{bypassSecurityTrust*}, opening an injection surface that then has to be
+sanitized forever. A tree of typed blocks has no such surface: the frontend
+renders each node with a component and never interpolates markup, so safety is
+by construction rather than by sanitizer. The migration that installed the shape
+wrapped every existing paragraph in a document and only dropped \code{body}
+after a guard proved the converted text equaled the original
+(\code{services/learning/migrations/20260902150000_drop_article_versions_body.up.sql}).
+The database enforces only the root --- \code{body_doc} must be an object whose
+\code{tipo} is \code{doc} --- and leaves the full vocabulary to the validator,
+because a complete schema written in SQL would be unreadable and would drift from
+the validator that is the real gate.
+
+\textbf{Indicators with a validity range.} A yearly indicator such as \code{@UVT}
+does not hold one value; it holds a value for an interval, and the schema makes
+the interval part of the row. \code{financial_indicators} stores each value as
+\code{NUMERIC(20,6)} together with a half-open \code{DATERANGE} validity, and the
+constraint \code{EXCLUDE USING gist (name WITH =, validity WITH &&)} makes the
+database itself reject two overlapping values for the same indicator
+(\code{services/simulator/migrations/20260902121500_financial_indicators.up.sql:19-44}).
+The exclusion lives in the base rather than in the application because two
+administrators loading the same year's value concurrently is a real case, and a
+read-then-write check in code does not see the race. The half-open convention is
+what makes \enquote{which value rules on day D} have a single answer. Because
+values change over time, every simulation stores the snapshot it used ---
+\code{indicators_snapshot}, a map of name to value written as decimal strings
+and guarded by the same no-JSON-numbers check as \code{inputs} and \code{result}
+--- instead of joining the indicator table later
+(\code{services/simulator/migrations/20260902123000_simulations_calculator_ref.up.sql:14-45}).
+A historical simulation therefore stays explicable even after an indicator is
+revised, which a join against the current value could never guarantee.
+
+\subsection{Identity and lifecycle}
+
+The identity shapes live in two services and are joined only by the opaque
+identifier. \code{auth_db.credentials} owns the account: the \code{id} is the
+same UUID as \code{users_db.profiles.id} and as the JWT \code{sub} claim, the
+password is an Argon2id hash, and the verification token for e-mail confirmation
+is stored only as a SHA-256 hash so that a dump of the table cannot activate a
+pending account. \code{users_db.profiles} owns the profile and carries the four
+authorization roles through \code{roles_assignment}: \code{usuario_final},
+\code{editor}, \code{coordinador_editorial} and \code{administrador}
+(\code{services/users/migrations/20260903090000_roles_administrador.up.sql}).
+The administrator role is independent of the editorial coordinator; it does not
+inherit the coordinator's powers, and the reverse is equally true.
+
+The lifecycle of an account is the place where the specification and the
+migrations disagree, and the disagreement is stated here because the SQL is what
+runs. The 002 data model specifies a \code{pending_deletion} account status with
+a 30-day grace period, two new columns (\code{purge_due_at},
+\code{purge_requested_by}), and a widened partial unique index
+\code{profiles_email_reserved_uniq} so the e-mail stays reserved during the
+grace (\code{specs/002-calculator-builder-content-admin/data-model.md:315-327}).
+No users migration implements any of that: the live schema still constrains
+\code{account_status} to \code{active} and \code{anonymized}, and the e-mail
+uniqueness index still covers only \code{active} accounts
+(\code{services/users/migrations/20260727120000_init_users.up.sql:26-32}).
+The grace-period shape is therefore specified but not yet migrated, and the
+frontend profile component confirms it in a comment. One part of that
+specification is already decided and must not be reintroduced by the eventual
+migration: the system will not keep a hash of the deleted original e-mail,
+because a hash of an address is a membership oracle over an enumerable,
+low-entropy space, and anyone with the table could test whether a specific
+person ever held an account --- which is exactly the re-identification the
+anonymization destroys.
+
+\subsection{Images addressed by content}
+
+Article images live in the database as \code{BYTEA}, with the SHA-256 of the
+bytes as the primary key, a 2\,MB ceiling, and the column marked
+\code{STORAGE EXTERNAL} so the payload is not compressed into the row
+(\code{services/learning/migrations/20260902113000_article_images.up.sql:44-58}).
+Addressing by content makes two failures impossible at once: the same image
+uploaded twice resolves to the same row, so bytes are never duplicated, and a
+file can never be swapped for a different file while keeping its identifier,
+because the identifier is the content. The row is immutable by construction ---
+there is no \code{updated_at} and no update path --- and the alternative text and
+caption live in the \code{imagen} node of the document rather than on the row,
+because they belong to a particular version's use of the image, which is what
+lets two versions share one file with different captions. The cost is equally
+deliberate: there is no CDN and no partial read, a listing query must avoid
+pulling the \code{BYTEA} column, and the 2\,MB cap is a schema-enforced promise,
+checked against the real byte length with \code{byte_size = octet_length(bytes)}
+so that a declared size cannot lie about the content it describes.
+
+\subsection{What the schemas deliberately do not do}
+
+The negative space of the model is as deliberate as the columns. There are no
+foreign keys across services: every cross-service reference is an opaque UUID
+without a constraint, because the constraint would be the first thread of a
+shared schema. There are no triggers carrying business logic; the only triggers
+in the system exist to make \code{audit_log} refuse \code{UPDATE} and
+\code{DELETE}, enforcing append-only immutability in the base itself
+(\code{services/audit/migrations/20260727120000_init_audit.up.sql:58-90}).
+There is no \code{synchronize: true} anywhere: every schema change is a paired
+versioned migration applied with \code{golang-migrate}, so no ORM silently
+rewrites a database on startup (Principle~XI). And multi-table writes run only
+through the \code{execTx(ctx, fn)} helper --- in Go
+(\code{services/users/internal/storer/storer_postgres.go:50}) and in TypeScript
+(\code{services/learning/src/common/tx.ts:42}) --- which concentrates
+\code{begin}/\code{rollback}/\code{commit} in one place instead of repeating it
+per method. Each of these absences is a decision with a name in the
+constitution; together they are what keeps the seven databases seven separate
+systems rather than one.
+
+\subsection{Entities per service}
+
+The tables that follow consolidate the model: one table per owning service,
+listing the entities and the invariant each carries. The Gateway and the
+frontend are omitted because they hold no database. Each table is introduced
+briefly; the invariants are the constraints written into the migrations, not a
+summary of the application layer.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Authentication entities (\texttt{auth\_db}) and their invariants.}
+  \label{tab:auth}
+  \begin{tabular}{@{}l l p{8.2cm}@{}}
+    \hline
+    \textbf{Entity} & \textbf{Holds} & \textbf{Invariant it carries} \\
+    \hline
+    \code{credentials} & identity, Argon2id hash & e-mail unique; \code{login_status} in \{\code{pending_verification}, \code{active}, \code{anonymized}\}; verification token stored only as SHA-256 \\
+    \code{oauth_clients} & OAuth2 client registry & public SPA has no secret, confidential M2M must; grant types restricted to the two constitutional flows \\
+    \code{authorization_codes} & single-use PKCE codes & \code{S256} only; lifetime at most 60 seconds \\
+    Redis (not a table) & JWT blacklist, refresh tokens & confined to Principle~IV purposes \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The authentication service owns identity and credentials, and the invariants
+above are the trust boundary: an e-mail must be unique, a public client cannot
+hold a secret, and a short-lived code cannot outlive its purpose.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Users entities (\texttt{users\_db}) and their invariants.}
+  \label{tab:users}
+  \begin{tabular}{@{}l l p{7.6cm}@{}}
+    \hline
+    \textbf{Entity} & \textbf{Holds} & \textbf{Invariant it carries} \\
+    \hline
+    \code{profiles} & profile, e-mail copy & \code{id} equals \code{credentials.id} with no cross-service key; \code{account_status} in \{\code{active}, \code{anonymized}\} today \\
+    \code{roles_assignment} & role grants & role in the four-value vocabulary \\
+    \code{preferences} & locale, channels & one row per user \\
+    \code{progress} & points & non-negative; equals the sum of best scores per distinct quiz \\
+    \code{quiz_best_score} & best per quiz & updated only when the new score exceeds the stored one \\
+    \code{article_views} & view counters & one row per user and article \\
+    \code{inapp_notifications} & inbox & \code{read_at} set if and only if \code{read_state} is \code{read} \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The users service owns the profile and every derived reading of a person's
+activity. Its most instructive invariant is \code{quiz_best_score}: it is updated
+monotonically, which is what makes the saga step that applies a quiz score
+idempotent and removes the need for a destructive compensation.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Learning entities (\texttt{learning\_db}) and their invariants.}
+  \label{tab:learning}
+  \begin{tabular}{@{}l l p{7.6cm}@{}}
+    \hline
+    \textbf{Entity} & \textbf{Holds} & \textbf{Invariant it carries} \\
+    \hline
+    \code{articles} & article identity, category & category references the catalog, never free text \\
+    \code{article_versions} & immutable bodies & approver differs from author; \code{body_doc} root is a \code{doc} \\
+    \code{categories} & catalog & unique slug; never physically deleted, only deactivated \\
+    \code{article_images} & image bytes & primary key is the SHA-256; at most 2\,MB; \code{STORAGE EXTERNAL} \\
+    \code{quizzes} & the instrument & \code{pass_threshold} in 0--100; \code{questions_to_serve} positive \\
+    \code{questions} & question bank & correct key exists among the options; weight positive \\
+    \code{quiz_sessions} & served random set & expires 60 minutes after creation; served order kept \\
+    \code{quiz_attempts} & graded submissions & \code{score} in 0--100; \code{served_snapshot} not null; session key \code{SET NULL} \\
+    \code{article_stats} & aggregates & counts non-negative \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The learning service owns content and assessment, and its invariants are the
+editorial rules made mechanical: nobody approves their own work, a quiz cannot
+serve a question whose correct answer is not among the options, and an attempt
+keeps its own copy of what was served so the history stays reconstructible after
+its session is purged. One migration-level correction is worth recording: the
+002 data model prescribed rescaling existing \code{pass_threshold} and
+\code{score} from an absolute weighted sum to a percentage
+(\code{specs/002-calculator-builder-content-admin/data-model.md:117,158}), but
+the actual migrations only tightened the range to 0--100, because the 001 code
+had already stored both as percentages and reapplying the formula would have
+doubled them (\code{services/learning/migrations/20260902103000_quizzes_questions_to_serve.up.sql}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Simulator entities (\texttt{simulator\_db}) and their invariants.}
+  \label{tab:simulator}
+  \begin{tabular}{@{}l l p{7.6cm}@{}}
+    \hline
+    \textbf{Entity} & \textbf{Holds} & \textbf{Invariant it carries} \\
+    \hline
+    \code{calculators} & identity, curation state & published implies an approver and a published version; approver differs from owner; built-in implies no owner \\
+    \code{calculator_definitions} & immutable version rows & composite key \code{(calculator_id, version)}; 1--20 inputs, 1--10 outputs; AST bounded by the parser \\
+    \code{financial_indicators} & yearly values & \code{NUMERIC(20,6)}; half-open \code{DATERANGE}; no two overlapping values per name \\
+    \code{simulations} & history, snapshot & \code{calculator_id} plus exact version; \code{indicators_snapshot}; no JSON number at any depth \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The simulator service owns the formula engine and the history it produces. Its
+sharpest invariant is the deferrable foreign key that ties
+\code{calculators.published_version} to an existing definition row, which closes
+the only path by which a published calculator could point at a version nobody
+approved.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Notification entities (\texttt{notification\_db}) and their invariants.}
+  \label{tab:notification}
+  \begin{tabular}{@{}l l p{7.6cm}@{}}
+    \hline
+    \textbf{Entity} & \textbf{Holds} & \textbf{Invariant it carries} \\
+    \hline
+    \code{notification_events_queue} & pending e-mail & \code{event_id} unique; template in a closed set \\
+    \code{notification_states} & outcome that survives dequeue & \code{failed} requires an error; \code{sent} requires none \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The notification service keeps a persistent queue with state: the queue holds
+what is pending and the state table survives the dequeue, so the outcome of each
+delivery attempt remains auditable after the event leaves the queue.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Audit entities (\texttt{audit\_db}) and their invariants.}
+  \label{tab:audit}
+  \begin{tabular}{@{}l l p{7.6cm}@{}}
+    \hline
+    \textbf{Entity} & \textbf{Holds} & \textbf{Invariant it carries} \\
+    \hline
+    \code{audit_log} & immutable record & append-only enforced by \code{REVOKE} and a trigger; \code{actor_ref} opaque; partitioned by year \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The audit service owns the one table that must never change: immutability is
+enforced in the base, not in the application, and the actor reference is an
+opaque identifier that survives the anonymization of the person it names.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Orchestrator entities (\texttt{orchestrator\_db}) and their invariants.}
+  \label{tab:orchestrator}
+  \begin{tabular}{@{}l l p{7.6cm}@{}}
+    \hline
+    \textbf{Entity} & \textbf{Holds} & \textbf{Invariant it carries} \\
+    \hline
+    \code{saga_state} & saga sequencing & \code{saga_type} and \code{status} in closed vocabularies \\
+    \code{event_outbox} & reliable publication & \code{event_type} in a closed set; written in the same transaction as the advance \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The orchestrator holds no domain data --- only the state of sequences and the
+outbox that guarantees an event is not lost between a commit and a publish. Its
+two closed vocabularies grow only by migration, which is the friction that keeps
+an event from being published to a consumer that does not exist.
