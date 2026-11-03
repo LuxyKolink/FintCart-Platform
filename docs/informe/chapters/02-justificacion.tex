@@ -5,9 +5,217 @@
 %  is written in ENGLISH and translated to Spanish later.
 % ===========================================================================
 
+% DONE: justification written in English, four strands plus an explicit section
+% of disclaimers. Sources: banrep2024financial (abstract only, figure and date
+% read on the institution's page) and lusardi2019financial (the tailoring
+% conclusion only, already reviewed in chapter 04). No claim rests on a source
+% whose body was not read.
+%
+% CLAIMS INVENTORY — every prose claim below with its evidence.
+% EVIDENCE: 16.4 % answer the Big Three correctly → banrep2024financial abstract,
+%   page read 2026-10-27; figure and publication date (2024-02-29) visible on the
+%   page; body of the working paper NOT retrievable (refs/fuentes-acceso.md:85).
+% EVIDENCE: ten seed definitions, four Colombian → services/simulator/src/domain/
+%   seeds/mod.rs:145-155 (drafts()); colombia.rs:1-3,212,302.
+% EVIDENCE: 24 % EA equals 1.809 % monthly, not 2 % → seeds/colombia.rs:17-19.
+% EVIDENCE: GMF exemption 350 UVT read from @UVT; rate 0.004 as a literal of the
+%   law (Estatuto Tributario art. 872) → seeds/colombia.rs:44-56,212-230.
+% EVIDENCE: CDT agreed in days, quoted in EA, simple interest overstates the
+%   return → seeds/colombia.rs:23-25,57-62,280-283.
+% EVIDENCE: native code took the UVT as a per-call parameter, so the calculator
+%   was silently wrong every January 1st → seeds/colombia.rs:31-38.
+% EVIDENCE: financial_indicators: NUMERIC(20,6), DATERANGE, EXCLUDE USING gist
+%   → services/simulator/migrations/20260902121500_financial_indicators.up.sql:1-44.
+% EVIDENCE: calculators are data; version published separately → migrations
+%   20260902120000_calculators.up.sql, 20260902130000_calculator_published_version.up.sql.
+% EVIDENCE: builder RPCs (Upsert/Validate/Submit/Approve/Reject) →
+%   contracts/proto/fintcart/simulator/v1/simulator.proto:32-54.
+% EVIDENCE: categories catalog and versioned body_doc → services/learning/
+%   migrations/20260902100000_add_categories.up.sql:13-34.
+% EVIDENCE: saga compensations exist and are tested → services/orchestrator/
+%   internal/server/saga.go, saga_anonymization_test.go, saga_grading_test.go,
+%   saga_registration_test.go.
+% EVIDENCE: f32/f64 prohibited as a hard error in CI → .github/workflows/ci.yml
+%   (clippy), reported in chapter 11.
+% EVIDENCE: seed regression pins seeds to the native oracle → tests/seed_regression.rs.
+% EVIDENCE: four developer verbs, zero manual steps → dev/build:20-26, dev/up:15-38,
+%   dev/migrate, dev/down; CI verifies the three verbs still run untouched.
+% EVIDENCE: eight services, none of which bills → dev/docker-compose.yaml; services/.
+% EVIDENCE: layout tested down to 360 px → frontend/e2e/visual/*.spec.ts WIDTHS.
+
 \section{Justificación}
 
-% TODO: Justification (English source text).
-Explain why this project matters: the importance of financial education for
-social and individual economic well-being, and why a digital platform is an
-appropriate vehicle for it.
+This chapter states why the platform is worth building, for whom, and on what
+evidence. Chapter~04 establishes that financial literacy is low where measured, that
+education moves knowledge more reliably than behavior, and that digital delivery
+has firmer support than gamification, so none of that is reargued here. What
+remains is narrower: that this artefact, built here and now, lets a reader or an
+institution do something they could not otherwise do. The proposal set out four
+strands---social relevance, practical implications, theoretical value, and
+convenience---and they are taken in that order. Each claim is tied to something
+that exists in the repository rather than to something planned, and the chapter
+closes by listing what the work does not claim, because the boundary is part of
+the argument.
+
+\subsection{Social relevance}
+
+The Banco de la República published in February 2024 a working paper on
+financial literacy and financial wellbeing in Colombia under high inflation. Its
+abstract reports that 16.4~\% of Colombians answer the three questions known as
+the Big Three---compound interest, inflation, and risk diversification---all
+correctly \parencite{banrep2024financial}. The figure and the date are on the
+institution's page; the paper's body is not, because its PDF is served through a
+script the archive did not retrieve. This chapter therefore cites the number
+and not the study's sampling design, and says so rather than implying a reading
+it did not do. Sixteen in a hundred is not a marginal deficit: for five of every
+six people the arithmetic behind a loan's cost or a deposit's return is
+unavailable, so the decision is made on the price tag instead of the rate.
+
+That deficit is where the project's first design choice comes from. A foreign
+personal-finance application is built around its own country's instruments: a
+tax-deferred retirement account, an escrowed-property-tax mortgage, a national
+credit score. A Colombian reader holds none of those. What they hold is a
+consumer loan whose rate the Superintendencia Financiera requires the lender to
+publish as an \emph{efectiva anual} while the instalment is settled on a nominal
+periodic rate; an account charged four pesos per thousand on every withdrawal,
+with a monthly exemption measured in UVT; a UVT that changes every January; and
+a CDT agreed in days but quoted in effective annual terms. The simulator ships
+ten seed definitions, four of them Colombian
+(\code{services/simulator/src/domain/seeds/colombia.rs});
+Table~\ref{tab:semillas-co} states what each computes and which misreading it
+prevents.
+
+\begin{table}[htbp]
+  \centering
+  \caption{The four Colombian seed definitions and the misreading each one prevents.}
+  \label{tab:semillas-co}
+  \begin{tabular}{@{}p{2.5cm}p{5.4cm}p{8.5cm}@{}}
+    \hline
+    Seed & What it computes & The error it prevents \\
+    \hline
+    \code{ea_a_mv} & The nominal periodic rate implied by an effective annual
+    rate. & Dividing a 24~\% E.A. by twelve and quoting 2~\% monthly, when
+    the equivalent monthly rate is 1.809~\%. \\
+    \code{mv_a_ea} & The effective annual rate implied by a nominal periodic
+    rate, so two offers can be compared. & Treating a monthly quote and an
+    annual one as the same unit. \\
+    \code{gmf} & The four-per-thousand levy on a movement, net of the 350 UVT
+    monthly exemption, with the UVT read from the \code{@UVT} indicator. & A
+    balance projected as if withdrawals were free, and an exemption computed
+    with last year's UVT. \\
+    \code{cdt_dias} & The return on a CDT agreed for a term in days, at an
+    effective annual rate, with withholding at source. & \code{capital * tasa *
+    dias / 365}, which is simple interest and overstates the yield of a long
+    term. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Read as a whole, the table makes the argument that translation cannot: a
+localized interface translates labels, not arithmetic. No foreign tool computes
+the four-per-thousand levy, because no foreign tax authority imposes it, and
+none measures an exemption in a unit republished annually. The rate-convention
+pair is the sharper case: one institution describes the same loan in two units,
+and the conversion is the concept the student is missing. This is the design
+lesson that programs must be tailored to an identified audience
+\parencite{lusardi2019financial}, applied to the instrument rather than to the
+message. The platform also charges nothing, and the topology is the evidence:
+eight services, none of which bills or advertises. Access is a browser and a
+Spanish interface, and the layout is tested down to 360~px, so it fits the phone
+a student carries. That is a claim about reach, not outcomes.
+
+\subsection{Practical implications}
+
+The second strand is what an institution can do with the artefact; each
+capability replaces a different bottleneck. First, publish curated content
+without a release. Feature 002 replaced the free-text category and the plain-text
+body with a managed category catalog and a versioned block document
+(\code{services/learning/migrations/20260902100000_add_categories.up.sql}), with
+editors drafting and an editorial coordinator publishing, so an article is
+reviewed and published by the people responsible for it and no release is needed
+to correct a paragraph.
+
+Second, add a calculator without a deploy. A calculator is data: an identity row
+plus an immutable definition version, created on the builder surface, validated
+before it is stored, submitted for review, and approved by the editorial
+coordinator (\code{simulator.proto:32-54}). A new formula enters the catalogue as
+a row that passed the same validation as every other row, not as a release that
+passed a code review. The seed definitions are written in that language and
+parsed by that validator, so the built-in calculators are not exempt from the
+checks they impose on users.
+
+Third, keep annual indicators current with validity ranges. The UVT and the
+minimum wage are republished every year, and the earlier implementation took the
+UVT as a parameter supplied by the caller, which left the calculator silently
+wrong from January 1st onward when the caller had not updated it. Indicators now
+live in \code{financial_indicators} with \code{NUMERIC(20,6)} values and a
+\code{DATERANGE} validity, and a database exclusion constraint forbids
+overlapping periods for the same indicator
+(\code{20260902121500_financial_indicators.up.sql:44}). Because each stored
+simulation keeps the indicator values it used, a run from 2026 can still be
+explained in 2029: definition version and values are recoverable. For an
+institution, that is the difference between a number it published and a number
+it can defend.
+
+\subsection{Theoretical value}
+
+The theoretical contribution is small, and inflating it would be the easiest
+dishonesty available here. The project proposes no learning theory, does not
+claim that microservices teach better, and adds nothing to the evidence that
+gamification motivates. What it demonstrates is narrower: that the constraints
+normally justified by banking regulation---exact decimal arithmetic, a database
+per service, compensation instead of distributed transactions---carry into an
+educational product without the product becoming a bank, and that those
+constraints are what make its numbers trustworthy rather than what they cost.
+
+Monetary values are \code{rust_decimal} at every layer, and the continuous
+integration job that runs \code{clippy} turns the use of \code{f32} or
+\code{f64} into a hard error rather than a review comment. Data ownership is a
+schema boundary, not a convention: the simulator knows nothing about articles and
+the learning service knows nothing about rates. Operations
+that span services are compensated rather than assumed atomic, and the
+compensations have their own tests for registration, grading, and anonymization
+(\code{services/orchestrator/internal/server/}). The payoff is not decorative: a
+student who sees a rounded figure learns a rule that will be wrong at the
+counter, and a seed regression suite exists so that no future edit can move a
+published result silently (\code{services/simulator/tests/seed_regression.rs}).
+Engineering rigor here is ordinary discipline applied where the audience cannot
+check the arithmetic themselves.
+
+\subsection{Convenience and practicality}
+
+The platform is reproducible from four verbs and a container runtime.
+\code{dev/build} builds the images and prints the next command, \code{dev/up}
+raises the topology and waits on health checks, \code{dev/migrate} applies every
+migration, and \code{dev/down} removes it. No manual step separates them, and
+that claim is itself tested: a continuous integration job runs the verbs to
+confirm the documented workflow has not drifted from the scripts. A reader who
+wants to check a figure in this report can raise the same stack, run the suite
+that produced it, and disagree with the result.
+
+The software is also measurable from outside. The verification suites, the load
+profile, the visual probes at five widths, and the accessibility assertions are
+described in chapter~11 with enough detail to be re-run; the human-subject
+instruments---consent, a perception survey, a moderated session with the System
+Usability Scale---exist as a closed package rather than a promise. A reader
+therefore does not have to trust the author's impression of a screen, and the
+author does not have to defend an impression a tool could have settled.
+
+\subsection{What this work does not claim}
+
+The last movement is subtraction. This platform does not replace formal
+financial education, and nothing in the previous chapters suggests a browser
+application can do what a curriculum, a teacher, and time do. It does not advise
+anyone on their money: it recommends no product, ranks no option, and tells no
+student what to do with their salary. A platform that simulates is not a
+platform that recommends. It computes the consequences of assumptions the
+student supplies, shows the arithmetic, and stops, because the assumptions
+belong to the person and responsibility for the decision is not transferred
+with the result. Nor does it claim to move behavior: chapter~04 reported that
+financial education improves knowledge more reliably than behavior, and this
+chapter does not upgrade that finding into a promise about habits. It makes no
+claim on national literacy rates, and none that a student who uses it will be
+better off than one who does not. It offers ten calculators, four of them
+locally calibrated, a way to publish and update them without a release, and a
+stack a reader can rebuild and re-measure. That is a modest thing to defend, and
+it is what the evidence supports.
