@@ -8,7 +8,8 @@
     -->
     <p class="fc-rev__lead">
       Solo un coordinador distinto del autor puede publicar una versión. Publicar saca la
-      versión de esta cola; archivar la retira sin publicarla.
+      versión de esta cola. Archivar solo se aplica a versiones ya publicadas, así que una
+      versión en revisión se publica o se queda en cola.
     </p>
   </header>
 
@@ -47,7 +48,7 @@
         <fc-empty-state
           icon="check-circle"
           title="No hay nada pendiente de revisión"
-          message="Cuando un editor envíe una versión, aparecerá aquí con su vista previa y la decisión de publicarla o archivarla."
+          message="Cuando un editor envíe una versión, aparecerá aquí con su vista previa y la decisión de publicarla."
         />
       } @else {
         <ul class="fc-rev__list">

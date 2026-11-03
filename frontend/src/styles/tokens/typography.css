@@ -8,9 +8,9 @@
 
    Noto Sans JP sale del estrado de titulares: el brief §3 enumera solo
    Roboto + Plex Mono, y el "carácter JP de portal" era parte de lo que había
-   que retirar. Su `@font-face` sigue en `fonts.css` — borrarlo es un cambio
-   de assets, no de tokens — pero ninguna regla lo pide, así que el navegador
-   nunca lo descarga.
+   que retirar. Ninguna regla lo pedía, así que el navegador nunca lo descargó:
+   su `@font-face` y su TTF (9,1 MB) se retiraron de `fonts.css` y
+   `assets/fonts/`; solo engordaban la imagen de producción.
 
    ESCALA DE ROLES. Cada rol es un cuarteto tamaño / altura / peso / tracking,
    copiado del brief §3 sin reinterpretarlo. Las plantillas citan el rol
