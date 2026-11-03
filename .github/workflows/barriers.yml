@@ -1,0 +1,57 @@
+name: Barreras
+
+# Las dos comprobaciones que dependen de que alguien se acuerde de ejecutarlas
+# dejaron de depender de la memoria: corren en cada push, en cualquier rama, y en
+# cada pull request. Es deliberadamente un workflow aparte del CI completo y no un
+# job dentro de él: aquí solo hay Node y ficheros, tarda segundos, y no tiene por
+# qué arrastrar `cargo test` ni testcontainers a cada push de documentación.
+#
+# El capítulo 12 del informe encontró estas dos barreras ausentes del build; esa
+# ausencia es la razón de que este fichero exista.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  estilo:
+    name: Prosa y deuda de diseño
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Glosario, ortografía y términos del informe
+        # Falla con cualquier ERROR: variante en-US, comillas rectas, términos que el
+        # glosario prohíbe. Los avisos no rompen el build a propósito.
+        run: node docs/informe/scripts/prose-barrier.mjs
+
+      - name: Qué se cita coincide con qué se ha leído
+        # Falla si una clave citada no existe en el .bib (se imprimiría "[?]").
+        # Avisa, sin fallar, cuando la obra no se leyó completa: eso no es un error
+        # de construcción, es una deuda declarada.
+        run: node docs/informe/scripts/verify-citations.mjs
+
+      - name: Sin deuda de estilo en la interfaz
+        # `design-debt.mjs` solo importa `node:fs`, `node:path` y `node:url`: no
+        # necesita `npm ci`, y pedirlo sería instalar 300 dependencias para leer ficheros.
+        run: node scripts/design-debt.mjs --check
+        working-directory: frontend
+
+      - name: La barrera de prosa se prueba a sí misma
+        # Un verificador que nunca ha fallado no ha demostrado que sepa fallar. Se le
+        # da un fichero con defectos conocidos y se exige que salga con código 1.
+        run: |
+          mkdir -p /tmp/probe-barrera
+          printf '\\section{X}\nThe behaviour of the model is analysed.\n' > /tmp/probe-barrera/probe.tex
+          if node docs/informe/scripts/prose-barrier.mjs /tmp/probe-barrera/probe.tex; then
+            echo "::error::la barrera aceptó 'behaviour' y 'analysed' — no está mirando"
+            exit 1
+          fi
+          echo "La barrera rechaza la variante en-GB: se ha probado que sabe fallar."
