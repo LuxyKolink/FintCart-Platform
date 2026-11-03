@@ -48,7 +48,10 @@ nuevos. Requisitos FR-032…FR-082, criterios SC-013…SC-025, decisiones D-13�
 
 - **Motor de fórmulas (Simulador)**: las calculadoras pasan a ser definiciones
   parametrizadas — analizador → AST persistido en `JSONB` → evaluador acotado, todo en
-  `rust_decimal`. Las cinco de FR-019 se resiembran como **siete** definiciones semilla.
+  `rust_decimal`. Las cinco de FR-019 se resiembran como **diez** definiciones semilla — cuatro
+  colombianas (`ea_a_mv`, `mv_a_ea`, `gmf`, `cdt_dias`) y seis generales (`ahorro`, `credito`,
+  `presupuesto`, `inversion`, `fondo_emergencia`, `meta_ahorro`): `seeds/mod.rs:144-155` es la
+  autoridad y los `specs` de 002 dicen «siete» porque se quedaron una cuenta atrás.
   `pot` (exponente entero, exacta) y `potd` (decimal, aproximada) son funciones
   **separadas**: fundirlas perdería en silencio la exactitud del Principio VIII.
   `tests/seed_regression.rs` sostiene FR-049 — el código nativo de `src/calculators/` no
