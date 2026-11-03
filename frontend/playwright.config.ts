@@ -26,6 +26,14 @@ const slowMo = Number(process.env['E2E_LENTO'] ?? 0) || undefined;
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
+  /*
+   * Asserción con 10 s en vez de los 5 s por defecto. No es tolerancia al fallo: es la misma
+   * espera que ya tiene la prueba aislada, porque la suite corre 59 pantallas contra la pila
+   * completa y el cuestionario de `us1-aprendizaje` enviaba el intento cuando el resto competía
+   * por el gateway. Con 5 s fallaba una de cada tres corridas y pasaba a la primera en solitario;
+   * una aserción que falla por carga no mide lo que dice medir. Las aserciones no cambian.
+   */
+  expect: { timeout: 10_000 },
   fullyParallel: false,
   retries: 0,
   reporter: 'list',
