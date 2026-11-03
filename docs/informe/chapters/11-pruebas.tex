@@ -5,9 +5,318 @@
 %  is written in ENGLISH and translated to Spanish later.
 % ===========================================================================
 
+% EVIDENCE INVENTORY (every number below maps to a real artifact):
+% EVIDENCE: 311/311 unit tests passing → frontend `npm test` (Karma/ChromeHeadless); CI job "TS — frontend" runs `npm test` (.github/workflows/ci.yml).
+% EVIDENCE: coverage 80.3 % statements (1,488/1,853), 64.34 % branches (471/732), 74.42 % functions (422/567), 80.25 % lines (1,427/1,778) → Karma coverage report, frontend, measured 2026-11-03 on the development branch.
+% EVIDENCE: 59/59 Playwright specs, 0 skipped → frontend/e2e/** run against the full stack (frontend/playwright.config.ts, testDir ./e2e).
+% EVIDENCE: five widths 360/480/768/1024/1280 → WIDTHS array in frontend/e2e/visual/*.spec.ts; breakpoint tokens in frontend/src/styles/tokens/breakpoints.css.
+% EVIDENCE: 110 of 112 assertions select by role and accessible name → getByRole/getByLabel count across frontend/e2e, measured 2026-11-03.
+% EVIDENCE: pre-redesign baseline 58 passed / 1 conditionally skipped → development-branch e2e run before the redesign.
+% EVIDENCE: load profile 200 VUs, 1 min ramp, 3 min hold, 30 s down, 200 pre-seeded accounts → deploy/loadtest/k6-scenarios.js + deploy/loadtest/README.md (VUS=200 RAMP=1m HOLD=3m DOWN=30s).
+% EVIDENCE: 64,268 requests at ~259 req/s over 4 m 08 s, 0.00 % HTTP failures (0 of 64,268), 10,478 iterations, read p95 115 ms, action p95 763 ms, zero 4xx/5xx → k6 --summary-export of the attributed run, 2026-11-03.
+% EVIDENCE: thresholds read < 1,000 ms / action < 2,000 ms / failures < 1 % → thresholds block in deploy/loadtest/k6-scenarios.js.
+% EVIDENCE: Lighthouse 360 px catalog performance 62, LCP 7.4 s; CLS 1280 px 0.383→0.011; JS 77,328→23,022 B gz; font 488,026 B TTF→66,544 B woff2; icon 314,600→240,100 B → Lighthouse runs before/after the fixes, 2026-11-03.
+% EVIDENCE: design debt 0 artisanal-class screens, 0 inline styles → node frontend/scripts/design-debt.mjs --check.
+% EVIDENCE: prose barrier 0 errors → node docs/informe/scripts/prose-barrier.mjs --check.
+% EVIDENCE: 4 px overflow at 360 px on /simuladores/colombia_especifica, 344 px label in a 320 px column → overflow probe in frontend/e2e/zoom-200.spec.ts (expectNothingIsLost) + visual capture.
+% EVIDENCE: --text-muted on inset 3.77:1; --fc-ink-3 on accent tint 4.38:1 vs claimed 4.76:1 → surface table in frontend/src/styles/tokens/colors.css.
+% EVIDENCE: quiz spec failed on 5 s timeout under parallel load, passed in isolation at 8.4 s/9.4 s; fix was 10 s budget → expect.timeout comment in frontend/playwright.config.ts.
+% EVIDENCE: 0.21 % of requests 429 during setup(), one IP vs 600 rpm per-IP limiter → "De dónde salieron los 160 fallos" in deploy/loadtest/README.md.
+% EVIDENCE: money-truncation probe reported 0 truncations before/after because clipping was container overflow-x, not text-overflow → expectMoneyIsNeverTruncated in frontend/e2e/visual/simulators.spec.ts.
+% EVIDENCE: seed_regression guards FR-049 (engine vs native code oracle) → services/simulator/tests/seed_regression.rs.
+
 \section{Pruebas}
 
-% TODO: Tests (English source text).
-Document the test suites: unit, integration, end-to-end (Playwright) and the
-seed\_regression suite that guards the formula engine before deleting the
-legacy native calculators.
+% DONE: verification strategy and measured results, with the defects that only
+% an instrument — not human review — could catch, and the rule that a measurement
+% artifact must be attributed before it is quoted.
+
+\subsection{Verification strategy}
+
+This chapter reports the verification and technical measurement of FintCart: the instruments that
+run against the real stack, the results each of them produced, and the defects that only an
+instrument could catch. It is deliberately not the chapter about usability validation. Evaluating
+the interface with human participants — task success, the System Usability Scale, and perceived
+satisfaction — uses the instruments described in the companion validation package, and its results
+belong to chapter~13. The boundary is anchored in the definition of usability itself: ISO~9241-11
+decomposes usability into effectiveness, efficiency, and satisfaction
+\parencite{iso2018usability}\todo{verify the wording against ISO 9241-11:2018 clause 3.1; the
+standard is not in the corpus and this definition is quoted from secondary sources},
+and none of those three is measured here, because this chapter does not put a person in front of the
+product. What follows is reproducible by a machine: suites, thresholds, and gates.
+
+The verification surface mirrors the architecture, one suite per service plus the cross-cutting
+gates. The continuous integration workflow runs, in order: contract validation with \texttt{buf}
+(lint plus breaking-change detection); for the Go services, formatting, lint with the prohibition
+on floating-point money enforced as a lint rule, and unit tests under the race detector, with the
+audit service additionally exercising its immutable, partitioned log against a real PostgreSQL via
+testcontainers; for the simulator, formatting, \texttt{clippy} with the \texttt{f32}/\texttt{f64}
+prohibition promoted to a hard error, and the full Rust suite, which includes the numeric edge cases
+and the seed regression described below; for the TypeScript services and the frontend, lint with the
+\texttt{number}-for-money prohibition, the build, and the test suite. Two further jobs verify that
+\texttt{dev/build}, \texttt{dev/up}, and \texttt{dev/migrate} still work with zero manual steps, and
+that the documented commands and the scripts that implement them have not drifted apart.
+
+One suite deserves its own mention because it guards a decision, not a feature. The simulator's seed
+regression suite (\verb|services/simulator/tests/seed_regression.rs|) holds FR-049: the five
+calculators of the original requirement are re-seeded on the formula engine while reproducing their
+result, so the suite executes the engine and the legacy native code with the same inputs and demands
+the same output map. The native modules were not deleted until that suite passed, and it now keeps
+them as a living oracle rather than a frozen table. It also defends against its own false green: it
+counts how many cases actually reached a computation, because a suite that passes by rejecting every
+input is a silent failure wearing a green badge.
+
+\subsection{Unit tests and coverage}
+
+The frontend unit suite runs on Karma in headless Chrome: 311 of 311 tests pass. Coverage is
+measured at the same time and reported without a gate, for a reason that has to be stated plainly.
+The numbers are recorded in Table~\ref{tab:unit-coverage}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{lrr}
+    \hline
+    Measure & Covered & Rate \\
+    \hline
+    Statements & 1,488 / 1,853 & 80.3~\% \\
+    Branches    & 471 / 732      & 64.34~\% \\
+    Functions   & 422 / 567      & 74.42~\% \\
+    Lines       & 1,427 / 1,778  & 80.25~\% \\
+    \hline
+  \end{tabular}
+  \caption{Frontend unit coverage (Karma, ChromeHeadless), development branch, 2026-11-03.}
+  \label{tab:unit-coverage}
+\end{table}
+
+No coverage threshold is enforced, and the chapter must say why rather than let the gap be
+discovered by a reviewer. A build-breaking percentage on this suite would only teach the people
+writing it to write filler tests — assertions that touch lines without asserting anything about
+them — because that is the cheapest way to move a coverage number. Coverage is therefore read as a
+diagnostic, not a contract: the branch figure of 64.34~\% says where behavior is least exercised and
+points the next suite at those paths, while the gate that actually fails the build is the set of
+behaviors the tests assert. This is a deliberate asymmetry, and it is a limitation, reported as such
+in the final section.
+
+\subsection{End-to-end tests}
+
+The end-to-end suite is Playwright driving Chromium against the complete stack raised by
+\texttt{dev/up} — gateway, services, and MailHog — not against a frontend-only server, because a
+spec that cannot reach a real endpoint fails in a way that looks like a product defect. Fifty-nine
+specs pass, zero are skipped. Each visual spec runs its screen at five widths (360, 480, 768, 1024,
+and 1280 px), the four breakpoint tokens plus the declared 360 px floor. The numbers are in
+Table~\ref{tab:e2e}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{ll}
+    \hline
+    Aspect & Value \\
+    \hline
+    Specs & 59 passed, 0 skipped \\
+    Widths exercised & 360, 480, 768, 1024, 1280 px \\
+    Locator style & role and accessible name (110 of 112 assertions) \\
+    Pre-redesign baseline & 58 passed, 1 conditionally skipped \\
+    Assertion budget & 10 s (raised from 5 s; see Section on artifacts) \\
+    \hline
+  \end{tabular}
+  \caption{End-to-end suite (Playwright, Chromium) against the full stack.}
+  \label{tab:e2e}
+\end{table}
+
+The locator style is the point of the suite, not an incidental detail. One hundred and ten of the
+112 locator assertions select by role and by accessible name — \verb|getByRole| and
+\verb|getByLabel| — rather than by CSS class or DOM position. That is what lets the same assertions
+survive a wholesale redesign of the presentation layer, and it is what would make a failure loud:
+a test that no longer finds a button by its announced name is reporting an accessibility break, not
+a styling change. The two assertions that do not follow the convention are the geometry checks that
+only make sense against computed layout, such as the horizontal-overflow probe.
+
+\subsection{Load testing}
+
+The load instrument is a k6 scenario that drives the platform through its real public edge: catalog,
+progress, and history reads, and the account-scoped actions, over the OAuth2 authorization-code
+flow with PKCE. It runs against 200 pre-seeded accounts — one per virtual user, because the edge
+rate-limits per IP and per authenticated user at 600 requests per minute each, and sharing accounts
+would measure the limiter instead of the system. The reported run used 200 virtual users, a
+one-minute ramp, a three-minute hold, and a thirty-second ramp-down. Its summary is in
+Table~\ref{tab:load}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{ll}
+    \hline
+    Metric & Value \\
+    \hline
+    Profile & 200 VUs, 1 min ramp, 3 min hold, 30 s down \\
+    Accounts & 200 pre-seeded (one per VU) \\
+    Duration & 4 m 08 s \\
+    Requests & 64,268 (about 259 req/s) \\
+    HTTP failures & 0.00~\% (0 of 64,268) \\
+    Iterations & 10,478 \\
+    Read p95 & 115 ms (threshold: under 1,000 ms) \\
+    Action p95 & 763 ms (threshold: under 2,000 ms) \\
+    Unexpected responses (any 4xx/5xx) & 0 \\
+    \hline
+  \end{tabular}
+  \caption{Load run (k6) against the development host, 2026-11-03.}
+  \label{tab:load}
+\end{table}
+
+The thresholds come from the success criteria: reads under 1,000 ms and perceived action response
+under 2,000 ms, both at the 95th percentile. The run reports 115 ms and 763 ms respectively, with
+zero HTTP failures and zero unexpected responses of any status class. The two caveats that keep this
+table honest are stated once here and repeated in the limitations: this is a development host, not
+the deployment, so it is not a production capacity figure; and the suite asserts only what its
+thresholds assert, never a statistical claim about a population of users.
+
+\subsection{Accessibility, performance, and style gates}
+
+Four gates operate on what a test of behavior cannot see: computed contrast, rendering performance,
+and the two forms of debt the redesign exists to retire.
+
+\textbf{Accessibility.} The accessibility suite does not use an external audit library; it measures
+in the browser, because contrast is a property of the computed color, not of the token a developer
+wrote. It walks each screen with the keyboard, checks that every form control has an associated,
+announceable name, and computes WCAG AA contrast on the resolved colors. This is the gate that
+caught the token-layer regression described below, and it is intentionally scoped: it is not a
+complete WCAG audit, and it does not claim to be one.
+
+\textbf{Performance.} Lighthouse runs against the catalog at 360 px and against the widest layout.
+Before the payload fixes, the mobile catalog scored 62 with a largest-contentful-paint of 7.4 s.
+The four deltas that follow that score are in Table~\ref{tab:lighthouse}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{lrr}
+    \hline
+    Metric & Before & After \\
+    \hline
+    Cumulative layout shift (1280 px) & 0.383 & 0.011 \\
+    JavaScript payload (gzipped) & 77,328 B & 23,022 B \\
+    Font download & 488,026 B (TTF) & 66,544 B (woff2) \\
+    Icon chunk & 314,600 B & 240,100 B \\
+    \hline
+  \end{tabular}
+  \caption{Lighthouse measurements before and after the payload fixes.}
+  \label{tab:lighthouse}
+\end{table}
+
+The largest single win is the font: serving the same face as woff2 instead of a raw TTF cuts the
+download from 488,026 B to 66,544 B, which is the mechanism behind the layout-shift and
+largest-contentful-paint improvements, not a coincidence.
+
+\textbf{Style debt.} The design-debt gate (\verb|frontend/scripts/design-debt.mjs|) counts what the
+redesign promised to remove rather than what it added: inline styles and screens still referencing
+the artisanal CSS classes the old \verb|styles.scss| defined. It reports zero artisanal-class
+screens and zero inline styles, and its check mode fails the build on any non-zero value. It
+measures exactly one layer of debt — the layer that duplicated the design system's primitives — and
+says nothing about the visual quality of what replaced it, which is why visual capture exists as a
+separate step.
+
+\textbf{Prose barrier.} One gate does not measure the product at all: the prose barrier
+(\verb|docs/informe/scripts/prose-barrier.mjs|) measures this report. It enforces the glossary's
+terminology, American spelling, and citation discipline across the chapters, so that three authors
+writing in parallel cannot quietly call the simulator a \enquote{calculation engine} or a student a
+\enquote{learner}. It reports zero errors on the corpus. Including it here is not vanity: it is the
+same idea as the design-debt gate, applied to the document the reader is holding — the quality of
+the verification is bounded by the precision of the prose that reports it.
+
+\subsection{What each gate proves, and what it cannot}
+
+Each number above proves one narrow thing and, by construction, nothing else. A green unit suite
+proves that 311 tests pass; it does not prove that any page renders. The project has a concrete
+witness for that distinction: a logo mask once passed the build and broke the development server,
+because the build compiled the template and never painted it. The build is a necessary gate and a
+false comfort, and visual capture — actually reading a rendered screen — is the only gate that
+closes that particular hole. Likewise, coverage is a diagnostic without a threshold for the reason
+already given, and the load figures are a measurement of this development host on this day, not a
+capacity statement about the deployment.
+
+The accessibility gate proves contrast on the surfaces it visits. The performance gate proves the
+payload shrank. The style and prose gates prove that a specific kind of debt is zero. None of them
+proves that the interface is good, or that anyone learned anything; those claims belong to the
+instruments of chapter~13, and this chapter declines them on purpose.
+
+\subsection{Defects that human review missed}
+
+The strongest result in this chapter is negative evidence: two defects shipped past human
+inspection and past the ad hoc screenshot sweep, and were caught only by an instrument that asserts
+what nobody was looking at. They are the intellectual contribution of the chapter, so they are
+reported in the same detail as the green numbers.
+
+\textbf{A four-pixel overflow.} At 360 px, the calculator screen
+\verb|/simuladores/colombia_especifica| overflowed horizontally by 4 px: a sentence-length button
+label with \verb|white-space: nowrap| measured 344 px inside a 320 px column. The ad hoc capture
+never visited that route — the sweep photographed the routes it thought representative, and this one
+was not among them — and a 4 px overflow is exactly the defect a person scrolling a screenshot does
+not notice. The overflow probe, which compares the document's scroll width against its client width
+and fails on a one-pixel difference, noticed immediately.
+
+\textbf{A contrast regression in the token layer.} The accessibility gate measured
+\verb|--text-muted| on the inset surface at 3.77:1 — below the WCAG AA minimum of 4.5:1 — and,
+later, \verb|--fc-ink-3| on the accent tint at 4.38:1, while the token file claimed 4.76:1. The
+claim was not a lie and not an error of arithmetic: it had been measured against white, and the
+token is used on a tinted surface. The comment in the token file now records the four surfaces and
+their ratios, and the fix darkened the ink rather than lightening the tint, because lightening the
+tint would have broken the token on every surface darker than paper. What matters for this chapter
+is the failure mode: a number in a source file that was true in one context and false in the one
+that shipped, and that only computed-color measurement — not reading the token, not reviewing the
+diff — could contradict.
+
+Table~\ref{tab:defects} summarizes both, plus the two near-misses of the next subsection, which are
+a different class of finding.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{p{3.6cm}p{4.6cm}p{5.6cm}}
+    \hline
+    Finding & What review saw & What the instrument measured \\
+    \hline
+    4 px overflow at 360 px & Nothing: the route was not in the ad hoc sweep & A 344 px label inside a 320 px column on \verb|/simuladores/colombia_especifica| \\
+    Contrast regression & A token file claiming 4.76:1 & 3.77:1 on the inset surface; 4.38:1 on the accent tint — measured against the surface in use, not against white \\
+    Quiz timeout & A product failure & A 5 s assertion timeout under parallel load; passed in isolation at 8.4 s and 9.4 s \\
+    429s under load & A rate-limiting failure of the platform & 0.21 \% of requests returning 429 during \verb|setup()|, before the measured window, from one shared IP against the 600 rpm per-IP limiter \\
+    \hline
+  \end{tabular}
+  \caption{Defects and near-misses, and the difference between them.}
+  \label{tab:defects}
+\end{table}
+
+\subsection{Measurement artifacts are part of the result}
+
+The third class is methodological, and it produces the rule this chapter wants the reader to keep.
+Two failures were not product defects at all.
+
+A quiz spec failed on a 5 s assertion timeout under parallel load and passed twice in isolation, at
+8.4 s and 9.4 s. The fix was ten seconds of assertion budget, not a line of product code, because
+an assertion that fails under load does not measure what it claims to measure: it measures how
+quickly the machine answered that day, and a 5 s window was simply too tight for a full-stack spec
+competing for the gateway. And 0.21 \% of the requests in one load run returned 429 — every one of
+them during \verb|setup()|, before the measured window, because the harness shared a single IP
+against a 600 requests-per-minute per-IP limiter. That was a harness bug that would have been
+published as a product failure: the number existed, had decimals, and pointed at the wrong thing.
+
+The rule, stated once: \emph{a measurement artifact is part of the result, and must be attributed
+before it is quoted.} The load instrument now tags every unexpected response with its phase —
+\verb|vu| for the measured window, \verb|setup| for preparation — precisely so that a setup
+collision can never again be summed into a headline failure rate. The lesson generalizes: a gate
+that cannot tell the difference between a defect in the product and a defect in the instrument that
+measures it will eventually report the instrument's defect as the product's.
+
+\subsection{Limitations}
+
+The honest boundaries, in one place. Coverage has no enforced threshold, by design, and therefore
+cannot be cited as a guarantee of exercised behavior. The money-truncation probe reported zero
+truncations both before and after the clipping was fixed, because the clipping was a container's
+\verb|overflow-x|, not \verb|text-overflow| — the probe measured the wrong layer, and only reading
+the screenshot found the real defect; a monetary figure rendered as \verb|$1.234.567,89| must be
+read whole, because a truncated figure is a false datum, and the probe as written could not see that
+violation. The load run happened on a single development host, not on the deployment, so it is not a
+production capacity figure and no statistical validity is claimed for it. And no green build in
+this chapter proves that a page renders; the logo mask is the standing counterexample.
+
+Taken together, the chapter's claim is modest and specific: the platform carries a verification
+surface broad enough that a four-pixel overflow and a false contrast claim could not survive it,
+and the same surface, when it failed, failed informatively enough to distinguish a product defect
+from a measurement artifact. That is what testing is for, and that is all this chapter claims it
+achieved.

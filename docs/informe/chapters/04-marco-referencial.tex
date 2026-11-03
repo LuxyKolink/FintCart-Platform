@@ -7,8 +7,284 @@
 
 \section{Marco referencial}
 
-% TODO: Referential/theoretical framework (English source text), citing from
-% refs/referencias.bib with \parencite{} / \textcite{}.
-Cover the theoretical background: financial education, financial mathematics
-regimes (nominal vs. effective rates, French amortization, simple vs. compound
-interest) and their Colombian regulatory anchors (UVT, GMF, usury rate, IPC).
+% DONE: Theoretical frame written in English. Sources read and cited: Lusardi
+% (2019), Amagir et al. (2017), FINRA Foundation (2022), Dare et al. (2020),
+% Cannistrà et al. (2024); Mancone et al. (2024), Mishra et al. (2024),
+% Al-Afeef & Alsmadi (2025), Kovács & Terták (2024), Menberu (2024),
+% Koskelainen et al. (2023), Gumilar et al. (2024), Lotter & Okoro (2024);
+% Ren et al. (2023), Miao et al. (2020), Dhandapani (2025), Lange et al. (2019),
+% Richardson (n.d.). No source was cited whose body was not read.
+
+% ---------------------------------------------------------------------------
+% CLAIMS INVENTORY — every prose claim is listed here with its evidence.
+% The prose below makes only these claims.
+% ---------------------------------------------------------------------------
+% EVIDENCE: Big Three = interest compounding, inflation, risk diversification →
+%   /tmp/fuentes/lusardi2019financial.md §2.1.
+% EVIDENCE: ~30 % answer all Big Three; ~50 % answer interest+inflation →
+%   /tmp/fuentes/lusardi2019financial.md §2.2.
+% EVIDENCE: one extra correct answer → 3–4 pp higher planning probability
+%   (10 pp in the Netherlands) → /tmp/fuentes/lusardi2019financial.md §3.
+% EVIDENCE: "one size does not fit all"; tailored, targeted, evaluated programs →
+%   /tmp/fuentes/lusardi2019financial.md §4.
+% EVIDENCE: PISA 10 % max proficiency; ~1 in 5 lack basic skills →
+%   /tmp/fuentes/lusardi2019financial.md §4.
+% EVIDENCE: school programs improve knowledge/attitudes; actual behavior
+%   scarcely known; short-term; longitudinal needed → /tmp/fuentes/amagir2017review.pdf p.75.
+% EVIDENCE: experiential learning / learning by doing is the promising pedagogy →
+%   /tmp/fuentes/amagir2017review.pdf p.76.
+% EVIDENCE: 76 RCTs, 33 countries, 160,000+ individuals; knowledge "large",
+%   behavior "medium", low cost → /tmp/fuentes/finrafoundation2022financial.pdf p.1.
+% EVIDENCE: not all programs effective; no evidence on decay of effects →
+%   /tmp/fuentes/finrafoundation2022financial.pdf p.5–6.
+% EVIDENCE: Solomon four-group, N=2,650 Dutch fifth grade; improved
+%   "performing transactions" but not "responsible spending" →
+%   /tmp/fuentes/dare2020effect.pdf p.93, p.100.
+% EVIDENCE: game-based escape room RCT, 2,220 students, 4 countries,
+%   +0.313 SD (0.182–0.618 by country) → /tmp/fuentes/cannistra2024impact.pdf p.825.
+% EVIDENCE: only two studies compare game vs. traditional teaching; no
+%   significant differences → /tmp/fuentes/cannistra2024impact.pdf p.827.
+% EVIDENCE: effective programs integrate experiential learning, digital tools,
+%   parental involvement; longitudinal studies needed →
+%   /tmp/fuentes/mancone2024youth.pdf p.1, p.11.
+% EVIDENCE: gamification mechanics motivate participation/retention; programs
+%   without behavioral focus may not change habits → /tmp/fuentes/mancone2024youth.pdf p.9–11.
+% EVIDENCE: five predictors explain ~71 % of variance in women's financial
+%   decision-making (SEM, N=385) → /tmp/fuentes/mishra2024digital.pdf p.1.
+% EVIDENCE: digital literacy → financial behavior/inclusion/well-being,
+%   N=232, all four hypotheses supported → /tmp/fuentes/alafeef2025digital.md §Abstract.
+% EVIDENCE: digital divide within generations; social media as channel;
+%   education must teach information assessment → /tmp/fuentes/kovacs2024thematic.pdf p.491.
+% EVIDENCE: technology-mediated education is scalable/cost-effective/reaches
+%   underserved but faces infrastructure, access, language, exclusion barriers →
+%   /tmp/fuentes/menberu2024technology.md §Abstract.
+% EVIDENCE: three themes (fintech, digital financial behavior, behavioral
+%   interventions); little known about digitalization's effect on behavior →
+%   /tmp/fuentes/koskelainen2023financial.pdf p.507 (abstract).
+% EVIDENCE: digital financial literacy is a precondition for digital financial
+%   inclusion; coverage grows but usage barriers remain →
+%   /tmp/fuentes/gumilar2024digital.pdf p.1563.
+% EVIDENCE: higher-education initiatives vary in design and success; ongoing
+%   evaluation needed → /tmp/fuentes/lotter2024review.pdf p.431.
+% EVIDENCE: microservice architecture = independently deployable, loosely
+%   coupled services around business capability; database per service; saga;
+%   API gateway; trade-offs → /tmp/fuentes/richardsonndpattern.txt.
+% EVIDENCE: educational big-data platform on microservices; Docker isolates
+%   environments; components update independently → /tmp/fuentes/miao2020microservice.pdf p.1, p.11.
+% EVIDENCE: microservices online learning platform; decentralization improves
+%   stability/availability and lowers maintenance → /tmp/fuentes/ren2023design.pdf p.455–457.
+% EVIDENCE: financial services monolith→microservices for real-time processing,
+%   scalability, resilience; DDD for decomposition →
+%   /tmp/fuentes/dhandapani2025microservices.pdf p.145.
+% EVIDENCE: legacy insurance core monolith lacked flexibility/scalability/fault
+%   tolerance; microservices with database-per-service + API gateway + Docker
+%   guarantee them → /tmp/fuentes/lange2019microservices.pdf §5–6.
+
+Financial literacy is low everywhere it has been measured, and the deficit is
+not a curiosity of one country but a stable, cross-national finding. This
+chapter assembles the evidence that justifies the two decisions that define
+this project: to teach financial concepts through a digital platform, and to
+build that platform as a set of microservices. The argument proceeds in three
+strands---the evidence on financial literacy and what education can claim, the
+evidence on digital and gamified delivery, and the architectural
+literature---and closes at the point where the three converge on the platform
+described in the remaining chapters.
+
+\subsection{Financial literacy and what education can claim}
+
+The most widely replicated measure of financial literacy is the set of three
+questions that \textcite{lusardi2019financial} calls the \enquote{Big Three},
+which test the capacity to calculate compound interest, the understanding of
+inflation, and the understanding of risk diversification. Across the fifteen
+countries of the FLat World comparison, the share of respondents who answer
+all three correctly is around 30 \%, and only around 50 \% answer the two
+questions on interest rates and inflation correctly; knowledge of risk
+diversification is consistently the weakest of the three. The deficit is also
+concentrated where it hurts most: fewer than 30 \% of Americans answer all
+three questions correctly before age 40, and across countries women are less
+likely than men to answer correctly and more likely to answer \enquote{do not
+know}, a pattern Lusardi reads as awareness of a knowledge gap rather than
+mere modesty. The deficit is not merely descriptive. Answering one additional question correctly is associated
+with a 3--4 percentage point greater probability of planning for retirement,
+and 10 percentage points in the Netherlands, where the association is
+strongest \parencite{lusardi2019financial}. The stakes are not small: in a
+life-cycle model, differences in financial knowledge account for 30 to 40 \%
+of retirement wealth inequality in the United States
+\parencite{lusardi2019financial}. Low literacy also correlates with
+more expensive borrowing, weaker debt management, and less planning, which is
+why Lusardi treats the \enquote{one size does not fit all} conclusion as the
+design lesson: programs should be tailored to an identified audience, carry
+clear objectives, and be evaluated rigorously. School-based exposure matters
+because it reaches people before consequential decisions; in the PISA
+assessments of 2012 and 2015 only 10 \% of 15-year-olds reached maximum
+proficiency, and about one in five lacked even basic skills
+\parencite{lusardi2019financial}.
+
+What can education actually claim? \textcite{amagir2017review} reviews
+school-based programs and finds that they reliably improve financial
+knowledge and attitudes, while the evidence on actual behavior is scarce:
+the studies measure mainly short-term effects, retention is small, and little
+is known about what children and adolescents do with the knowledge afterward,
+so the authors call for longitudinal experimental research. The same review adds
+two cautions that matter for design: school programs can narrow the gender
+gap, and self-reported knowledge and behavior may measure confidence and
+intention rather than knowledge and action, so assessments of actual behavior
+remain the weak point of the field. It identifies experiential learning---\enquote{learning by doing}, simulations,
+and tasks tied to students' own life events---as the pedagogy most strongly
+associated with knowledge gains. At the aggregate level, a meta-analysis
+published by the \textcite{finrafoundation2022financial} synthesizes 76
+randomized experiments across 33 countries and more than 160,000 individuals.
+It finds positive effects on both knowledge and behavior, but the two effects
+are not equal: the knowledge effect is judged \enquote{large} and the
+behavioral effect \enquote{medium} under education benchmarks, at low average
+cost. The same brief cautions that the vast variability across program designs
+means that not all programs work, and that there is no evidence either way on
+whether effects decay over time.
+
+Two single-program evaluations make the limits of the \enquote{financial
+education works} claim concrete. \textcite{dare2020effect} used a
+quasi-experimental Solomon four-group design---a design chosen precisely so
+that gains from repeated testing can be separated from gains from the
+intervention---on a representative sample of 2,650 Dutch fifth-grade pupils.
+The program improved knowledge and skills in performing transactions
+effectively, but did not improve them in responsible spending. A program, in
+other words, moves specific competencies, not literacy in general.
+\textcite{cannistra2024impact} ran a randomized controlled trial of an online
+game-based \enquote{Financial Escape Room} course with 2,220 students in four
+countries, and found an average improvement of 0.313 standard deviations---but
+the effect ranged from 0.182 in Estonia to 0.618 in Belgium; within countries, boys, native
+speakers, and students on academic tracks benefited most, which the authors
+attribute to differences in baseline literacy. The game required no teacher
+mediation, which the authors read as evidence that a brief, low-cost,
+fully digital game can move financial literacy at scale. Together these
+strands support a measured conclusion: financial education is real but
+modest and heterogeneous, it improves knowledge more reliably than behavior,
+and its effectiveness depends on design---applied, experiential, and specific.
+
+\subsection{Digital tools and gamification in financial education}
+
+Digitalization changes not only how education is delivered but what literacy
+itself must mean. \textcite{koskelainen2023financial} map the intersection of
+finance and digitalization into three themes---fintech, financial behavior in
+digital environments, and behavioral interventions---and propose a framework
+for digital financial literacy, while conceding that very little is known
+about how digitalization actually influences financial behavior. The stakes are
+concrete: the same review observes that digital payment and online shopping
+lower the barriers to consumption and can increase spending, so digital
+financial literacy is as much about self-protection as about convenience.
+\textcite{kovacs2024thematic} add a practical warning: there is a digital
+divide even within a single generation, social media has become a dominant
+transmission channel, and financial education must now prepare people to
+assess whether information received online is true or biased. Kovács and Terták also
+note a generational consequence: as the digitalization of finance accelerates,
+the transmission of financial practice from parents loses relevance and social
+media and formal education take its place, which raises the bar for what a
+curriculum must teach. \textcite{gumilar2024digital}, reviewing 2020--2024 studies, frame digital
+financial literacy as a precondition for digital financial inclusion, and note
+that expanding coverage does not remove barriers on the usage side. The
+delivery evidence points the same way. \textcite{menberu2024technology}
+reviews technology-mediated financial education in developing countries and
+finds it scalable, cost-effective, and able to reach underserved populations,
+but bounded by infrastructure, unequal access, language and cultural
+barriers, and the exclusion of marginalized communities. Menberu closes with three gaps
+the field has not yet filled: evaluation of long-term effects, comparative
+analysis of delivery approaches, and inclusive methodologies for the
+populations the digital divide leaves out. \textcite{lotter2024review} finds, for higher education, a diverse landscape
+of initiatives with varying degrees of success, and urges ongoing evaluation
+rather than a single verdict.
+
+The survey evidence for digital literacy is correlational, not causal, and it
+should be read as such. \textcite{mishra2024digital} model the financial
+decision-making of 385 Indian women with structural equation modeling and
+report that five predictors---including digital financial literacy and
+financial accessibility---explain around 71 \% of the variance in the
+outcome. The same model finds that financial resilience moderates how
+strongly decision-making translates into investment intentions, a reminder
+that skills operate inside a context of resources and shocks.
+\textcite{alafeef2025digital} reach a similar conclusion from a
+social-media sample of 232 respondents, with all four hypotheses linking
+digital literacy to financial behavior, inclusion, and well-being supported.
+Both designs establish association in self-reported samples; neither
+establishes that teaching digital skills causes better financial outcomes.
+
+Gamification, the most visible claim in this literature, is the least
+supported by hard evidence. \textcite{mancone2024youth} list gamification
+mechanics---leaderboards, badges, and virtual rewards---among the components
+that motivate participation and retention, but their review is narrative, it
+recommends longitudinal studies precisely because long-term effects are
+unmeasured, and it warns that programs focused on knowledge dissemination
+without behavioral change may not produce lasting habits. The stronger
+caution comes from \textcite{cannistra2024impact}, who note that only two
+studies have directly compared game-based with traditional instruction and
+that both found no significant difference in learning. The honest reading is
+therefore not that games teach more, but that they engage and scale at low
+cost---an argument about reach and participation, not about superior
+pedagogy. This literature is thin and partly contradictory, and the chapter
+does not smooth that over: digital delivery has firmer support than
+gamification itself.
+
+\subsection{Microservices as an architectural response}
+
+The architectural justification for this project rests on a definition and on
+two bodies of applied precedent. \textcite{richardsonndpattern} defines the
+microservice architecture as a set of independently deployable, loosely
+coupled services organized around business capability, each owning its own
+database, fronted by an API gateway, and coordinated across services through
+patterns such as the saga; the same catalogue is explicit about the trade-offs,
+chiefly distributed complexity and eventual consistency. The pattern is
+defined as a set of forces in tension: small, simple, independently deployable
+services on one side, and the cost of distributed operations---complex
+interactions, eventual consistency, and runtime coupling---on the other, which
+is why the catalogue pairs the architecture with its mitigations rather than
+presenting it as free of cost. That definition is the anchor, because it names exactly the properties this project needs: the
+content that teaches and the computation that calculates evolve at different
+rates and under different load, and only independent deployment lets each
+change without disturbing the other.
+
+The educational precedent is real. \textcite{miao2020microservice} describe
+Qunxian, a microservice-based big-data platform for online educational
+applications, and justify the choice by the need to update components
+independently as the underlying data-science stack changes, using Docker to
+isolate incompatible runtime environments. The platform shares data,
+computing power, and infrastructure across a multiuser JupyterHub
+environment, which is precisely the kind of shared yet partitioned workload
+that a single monolith would struggle to serve. \textcite{ren2023design} build an
+online learning platform on microservices and report that the decentralized
+structure improves stability and availability while lowering maintenance
+cost. The financial precedent matters equally, because this platform handles
+money. \textcite{dhandapani2025microservices}, an argumentative
+industry-oriented paper, holds that moving banking and payment systems from
+monoliths to microservices delivers real-time processing, scalability, and
+resilience, with domain-driven design as the decomposition discipline, and reports that leading adopters update 8 to
+10 times more frequently than organizations on monolithic architectures---the
+concrete form of the independent-deployment claim.
+\textcite{lange2019microservices} provide the concrete case: a legacy
+insurance core whose monolith suffered poor flexibility, scalability, and
+fault tolerance was migrated to four independent services, each with its own
+database and a common API gateway, and the authors conclude that the
+resulting architecture guarantees the scalability and fault tolerance the
+monolith could not. None of this is a survey of the catalogue; it is the
+specific evidence that the pattern, applied to education and to finance,
+answers the requirements this project sets for itself.
+
+\subsection{Where the three strands converge}
+
+The three strands point at the same artifact. Financial literacy is low and
+its consequences are costly, so the platform must teach; education improves
+knowledge reliably but behavior only modestly, so the platform must teach by
+doing---calculators that compute and quizzes that exercise, rather than text
+alone. Digitalization redefines what a student must know, so the platform must
+train digital financial skills, not only analog ones. And the microservices
+pattern is what lets the two halves of that mission---content and
+computation---be built, deployed, and corrected independently. The project is
+the intersection: a financial-education platform whose calculators are data,
+whose quizzes are practice, and whose services are independently deployable.
+Read as a whole, the framework commits the project to three positions rather
+than three slogans: to teach by application because that is where the
+behavioral evidence points, to treat digital skill as part of the subject
+matter rather than only as its delivery channel, and to accept the costs of
+the microservices pattern---distributed operations and eventual
+consistency---because independent deployment is the property that lets
+teaching and calculation evolve at different speeds. Those commitments are
+the criteria against which the architecture and the interface described in
+the remaining chapters can be judged.

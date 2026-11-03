@@ -12,7 +12,22 @@
 % --- Monospace for figures / money / code -----------------------------------
 % N-15: a monetary figure must never be truncated — mono keeps digits stable.
 \newcommand{\fcnum}[1]{\texttt{#1}}   % money / numeric literals (may switch to siunitx later)
-\newcommand{\code}[1]{\texttt{#1}}    % inline code / identifiers
+%
+% `\code` es \detokenize y no \texttt a secas porque los identificadores de este proyecto
+% llevan guion bajo —`usuario_final`, `article_versions.body_doc`, `rust_decimal`— y en modo
+% texto el `_` es el subíndice matemático: `\texttt{usuario_final}` aborta con
+% «Missing $ inserted». Escapar cada guion bajo a mano en dieciséis capítulos es una trampa
+% que nadie mantiene; \detokenize convierte el argumento en caracteres literales, así que el
+% autor escribe el nombre tal como aparece en el código y el PDF lo imprime igual.
+% El argumento NO puede ir en un `\caption` ni en un título de sección (van a un fichero
+% auxiliar y \detokenize no es expandible ahí): para eso, `\texttt{}` con `\_`.
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}    % inline code / identifiers
+%
+% `\todo` — deuda declarada, impresa y visible. Un capítulo de tesis que dice «pendiente» en
+% un comentario `%` que nadie lee es una promesa que se olvida; esto sale en el PDF, en rojo,
+% y por tanto se ve al revisar la maqueta. `\todo{}` vacío no imprime nada.
+\usepackage{xcolor}
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO:}~#1\textbf{]}}}
 
 % --- Page style: page number top-right on every page -------------------------
 \pagestyle{fancy}
