@@ -84,6 +84,9 @@ const BRITISH_SPELLINGS = [
   { re: /\bmodelling\b/gi, fix: (w) => w.replace(/modelling/i, 'modeling') },
   { re: /\bfavour(s|ed|ing|able|ite|ites)?\b/gi, fix: (w) => w.replace(/favour/i, 'favor') },
   { re: /\bdefence(s)?\b/gi, fix: (w) => w.replace(/defence/i, 'defense') },
+  { re: /\bartefact(s)?\b/gi, fix: (w) => w.replace(/artefact/i, 'artifact') },
+  { re: /\bcatalogue(s)?\b/gi, fix: (w) => w.replace(/catalogue/i, 'catalog') },
+  { re: /\btravell?ed\b/gi, fix: (w) => w.replace(/travell/i, 'travel') },
 ];
 
 /** «design-system» como sustantivo: seguido de puntuación o de un verbo/preposición. */

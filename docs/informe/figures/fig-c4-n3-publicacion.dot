@@ -1,0 +1,27 @@
+digraph publicacion {
+  rankdir=TB; bgcolor="white"; nodesep=0.42; ranksep=0.32;
+  node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", color="#14477A",
+        fillcolor="#F5F2EC", penwidth=1.0, margin="0.18,0.10"];
+  edge [color="#5D636A", arrowsize=0.65, penwidth=0.9, fontname="Helvetica", fontsize=8.5, fontcolor="#5D636A"];
+
+  editor [label=<<B>Editor</B><BR/><FONT POINT-SIZE="8.5">redacta en el editor de bloques del SPA</FONT>>, fillcolor="#FFFFFF"];
+  doc [label=<<B>body_doc</B><BR/><FONT POINT-SIZE="8.5">documento de bloques en JSONB</FONT><BR/><FONT POINT-SIZE="8.5">8 nodos: doc, parrafo, encabezado, lista, item_lista, texto, imagen, calculadora</FONT><BR/><FONT POINT-SIZE="8.5">3 marcas: negrita, cursiva, enlace</FONT>>, fillcolor="#FFFFFF"];
+  val [label=<<B>body-doc.validator.ts</B><BR/><FONT POINT-SIZE="8.5">valida al revés: enumera lo admitido y rechaza el resto</FONT><BR/><FONT POINT-SIZE="8.5">no corrige, no limpia, no inventa alt: falla y dice en qué ruta</FONT><BR/><FONT POINT-SIZE="8.5">5.000 nodos · profundidad 16 · encabezados h2-h4 · enlaces http, https, mailto</FONT>>];
+  ver [label=<<B>versionado</B><BR/><FONT POINT-SIZE="8.5">cada guardado es una versión nueva, no una escritura encima</FONT>>];
+  rev [label=<<B>Coordinador editorial</B><BR/><FONT POINT-SIZE="8.5">revisa y publica; el editor no publica lo suyo</FONT>>, fillcolor="#FFFFFF"];
+  pub [label=<<B>versión publicada</B><BR/><FONT POINT-SIZE="8.5">el artículo y la calculadora apuntan a una versión, no a un borrador</FONT>>, fillcolor="#E7ECF1", shape=cylinder];
+  spa [label=<<B>SPA</B><BR/><FONT POINT-SIZE="8.5">renderiza por componente, uno por tipo de nodo</FONT><BR/><FONT POINT-SIZE="8.5">prohibido innerHTML y bypassSecurityTrust*</FONT>>, fillcolor="#14477A", fontcolor="white"];
+
+  img [label=<<B>article_images</B><BR/><FONT POINT-SIZE="8.5">BYTEA · tope 2 MB</FONT><BR/><FONT POINT-SIZE="8.5">identificador = SHA-256 del contenido</FONT>>, shape=cylinder, fillcolor="#E7ECF1"];
+  sim [label=<<B>Simulator</B><BR/><FONT POINT-SIZE="8.5">por gRPC: el bloque calculadora<br/>solo referencia, no copia la fórmula</FONT>>];
+
+  editor -> doc [label="compone"];
+  doc -> val [label="envía"];
+  val -> ver [label="si pasa entero"];
+  ver -> rev;
+  rev -> pub [label="publica"];
+  pub -> spa [label="sirve"];
+  img -> val [label="se comprueba\nque exista", style=dashed, constraint=false];
+  sim -> val [style=dashed, constraint=false];
+  { rank=same; img; val; sim; }
+}

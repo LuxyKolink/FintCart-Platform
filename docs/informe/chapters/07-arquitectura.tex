@@ -74,9 +74,21 @@ Table~\ref{tab:actores} lists the actors and what crosses the boundary.
   \end{tabular}
 \end{table}
 
-% C4 Level 1 diagram is reserved but not yet rendered; it is declared here rather
-% than pointing \includegraphics at an invented file.
-% \todo{diagram pending} — C4 Level 1 system context (SPA, Gateway, auth, M2M, SMTP, RabbitMQ consumers).
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig-c4-n1-contexto.png}
+  \caption[C4 level 1: system context]{C4 level 1. The platform is one box to the people
+  who use it. Everything the reader will later see as a service boundary is invisible here,
+  which is the point: the four human roles differ in what they may do, not in what they connect
+  to. The relief ``plataforma'' is drawn with the source \code{fig-c4-n1-contexto.dot}.}
+  \label{fig:c4-n1}
+\end{figure}
+
+Figure~\ref{fig:c4-n1} states the first boundary. A single SPA is the only client;
+the Gateway is the only surface that speaks REST; and the two external systems are
+a mail relay and the browser itself. The absence of an arrow from person to service
+is the architectural claim: no client ever reaches a service directly, so the
+Gateway is not a convenience in front of the system but the system's edge.
 
 The table deserves one observation: the four human roles are authorization roles,
 not separate client applications. A single SPA serves all of them, and the
@@ -114,8 +126,23 @@ data store and responsibility.
   \end{tabular}
 \end{table}
 
-% C4 Level 2 diagram reserved.
-% \todo{diagram pending} — C4 Level 2 containers (SPA, Gateway, six gRPC services, two AMQP consumers, PostgreSQL, Redis, RabbitMQ).
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig-c4-n2-contenedores.png}
+  \caption[C4 level 2: containers]{C4 level 2. The SPA and eight services, seven PostgreSQL
+  databases and two pieces of shared infrastructure. The two dashed containers on the right are
+  consumers with no gRPC surface: they are degenerate layers under Principle IX, not services that
+  forgot to expose an API. Source: \code{fig-c4-n2-contenedores.dot}.}
+  \label{fig:c4-n2}
+\end{figure}
+
+Figure~\ref{fig:c4-n2} is the diagram that costs the most to defend, because a reader
+can count. There are seven databases and no line between them; the two containers on
+the right consume events and answer to nobody; and the arrows that carry counts from
+\code{Users} to Learning and Simulator are gRPC calls, not joins. The column in the
+simulator store that holds a user identifier is deliberately \emph{not} a foreign key:
+nothing in this system can enforce a cross-service constraint, so the schema must not
+pretend it does.
 
 The language assignment is deliberate, not decorative. Go covers the four
 services whose work is transport, coordination and records: the Gateway, the
@@ -205,8 +232,32 @@ sanitize. The publishing flow (\code{src/publishing/}) sits in the application
 layer, and the gRPC controller plus its mapping module in the transport layer
 (\code{src/grpc/}); the repository is the only layer that emits SQL.
 
-% C4 Level 3 diagrams reserved.
-% \todo{diagram pending} — C4 Level 3: formula engine pipeline and learning publishing flow.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.92\linewidth]{fig-c4-n3-motor-formulas.png}
+  \caption[C4 level 3: the formula engine]{C4 level 3, first flow. A calculator is a row, not
+  a build artifact: the source text becomes a tree once, and every simulation then evaluates
+  that tree. \code{pot} and \code{potd} are separate because merging them would silently trade
+  exactness for convenience. Source: \code{fig-c4-n3-motor-formulas.dot}.}
+  \label{fig:c4-n3-motor}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.92\linewidth]{fig-c4-n3-publicacion.png}
+  \caption[C4 level 3: publishing]{C4 level 3, second flow. The validator is negative by design:
+  it enumerates what is admitted and rejects the rest, reporting the path to the offending node
+  instead of repairing it. The SPA renders one component per node type and never interprets HTML.
+  Source: \code{fig-c4-n3-publicacion.dot}.}
+  \label{fig:c4-n3-publicacion}
+\end{figure}
+
+Figures~\ref{fig:c4-n3-motor} and~\ref{fig:c4-n3-publicacion} open the two components
+whose internals decide whether the rest of the design holds. Both are pipelines with a
+narrow waist: in the first the waist is the persisted AST, in the second it is the block
+vocabulary. In each case the expensive guarantee -- exact decimal arithmetic in one,
+no injection surface in the other -- is obtained by making the input smaller and
+rejecting it early, not by checking the output afterwards.
 
 \subsection{Architecture decisions}
 

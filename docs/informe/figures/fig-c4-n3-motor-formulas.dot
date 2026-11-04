@@ -1,0 +1,31 @@
+digraph motor {
+  rankdir=TB; bgcolor="white"; nodesep=0.45; ranksep=0.34;
+  node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", color="#14477A",
+        fillcolor="#F5F2EC", penwidth=1.0, margin="0.18,0.10"];
+  edge [color="#5D636A", arrowsize=0.65, penwidth=0.9, fontname="Helvetica", fontsize=8.5, fontcolor="#5D636A"];
+
+  autor [label=<<B>Coordinador editorial</B><BR/><FONT POINT-SIZE="8.5">escribe la definición de la calculadora</FONT>>, fillcolor="#FFFFFF"];
+  texto [label=<<B>texto fuente</B><BR/><FONT POINT-SIZE="9">saldo * pot(1 + tasa, meses)</FONT><BR/><FONT POINT-SIZE="8.5">una cadena, escrita por una persona</FONT>>, fillcolor="#FFFFFF"];
+  lexer [label=<<B>lexer.rs</B><BR/><FONT POINT-SIZE="8.5">tokeniza: números, operadores, funciones, variables</FONT><BR/><FONT POINT-SIZE="8.5">lo que no encaja no pasa de aquí</FONT>>];
+  parser [label=<<B>parser.rs</B><BR/><FONT POINT-SIZE="8.5">analiza y construye un árbol, no una cadena</FONT><BR/><FONT POINT-SIZE="8.5">cota: 64 nodos, profundidad 16</FONT>>];
+  ast [label=<<B>AST persistido en JSONB</B><BR/><FONT POINT-SIZE="8.5">postgres/simulator · la calculadora es un dato, no código</FONT>>, shape=cylinder, fillcolor="#E7ECF1"];
+  eval [label=<<B>eval.rs</B><BR/><FONT POINT-SIZE="8.5">evalúa el árbol acotado: sin bucles, sin recursión, sin texto</FONT><BR/><FONT POINT-SIZE="8.5">rust_decimal · escala 28 · 20 entradas, 10 salidas</FONT>>];
+  res [label=<<B>resultado</B><BR/><FONT POINT-SIZE="8.5">decimal exacto, y el snapshot de los indicadores que se usaron</FONT>>,
+       fillcolor="#14477A", fontcolor="white", fontname="Helvetica"];
+
+  pot [label=<<B>pot</B> — exponente entero, exacta<BR/><B>potd</B> — exponente decimal, aproximada y declarada así>,
+       fillcolor="#FFFFFF", style="rounded,filled,dashed"];
+  ind [label=<<B>financial_indicators</B><BR/><FONT POINT-SIZE="8.5">se referencian como @NOMBRE</FONT><BR/><FONT POINT-SIZE="8.5">vigencia en DATERANGE · sin solapes por EXCLUDE USING gist</FONT>>,
+       shape=cylinder, fillcolor="#E7ECF1"];
+
+  autor -> texto [label="define"];
+  texto -> lexer;
+  lexer -> parser;
+  parser -> ast [label="guarda una vez"];
+  ast -> eval [label="lee en cada simulación"];
+  pot -> eval [label="dos funciones,\nnunca una que finja exactitud", style=dashed];
+  ind -> eval [label="resuelve @NOMBRE\npara la fecha del cálculo", constraint=false];
+  eval -> res [label="devuelve"];
+  { rank=same; pot; eval; }
+  { rank=same; ind; res; }
+}

@@ -1,0 +1,31 @@
+digraph c4_l1 {
+  rankdir=LR; bgcolor="white"; nodesep=0.34; ranksep=1.05; splines=spline;
+  node [fontname="Helvetica", fontsize=11, style="rounded,filled", color="#14477A",
+        fillcolor="#F5F2EC", penwidth=1.1, margin="0.18,0.11"];
+  edge [color="#5D636A", arrowsize=0.7, fontname="Helvetica", fontsize=9, fontcolor="#5D636A"];
+
+  subgraph cluster_personas {
+    label="Personas"; fontname="Helvetica-Bold"; fontsize=13; color="#C9CFD6"; style="rounded"; margin=14;
+    p1 [label="Estudiante\n(usuario_final)", shape=box, style="rounded,filled"];
+    p2 [label="Editor", shape=box, style="rounded,filled"];
+    p3 [label="Coordinador\neditorial", shape=box, style="rounded,filled"];
+    p4 [label="Administrador", shape=box, style="rounded,filled"];
+  }
+
+  sistema [label=<<B>Plataforma FintCart</B><BR/><FONT POINT-SIZE="10">SPA Angular · API Gateway REST · ocho servicios gRPC</FONT><BR/><FONT POINT-SIZE="10">OAuth2 Authorization Code + PKCE</FONT>>,
+            fillcolor="#14477A", fontcolor="white", fontname="Helvetica", fontsize=15,
+            shape=box, style="rounded,filled", penwidth=0, margin="0.4,0.30"];
+
+  subgraph cluster_externos {
+    label="Sistemas externos"; fontname="Helvetica-Bold"; fontsize=13; color="#C9CFD6"; style="rounded"; margin=14;
+    e1 [label="Relay SMTP\n(entrega de correo)", shape=box, style="rounded,dashed,filled", fillcolor="#FFFFFF"];
+    e2 [label="Navegador del usuario\n(único cliente)", shape=box, style="rounded,dashed,filled", fillcolor="#FFFFFF"];
+  }
+
+  p1 -> sistema [label="lee, resuelve\ncuestionarios, simula"];
+  p2 -> sistema [label="redacta y\nenvía a revisión"];
+  p3 -> sistema [label="revisa y\npublica"];
+  p4 -> sistema [label="categorías,\nindicadores, purga"];
+  sistema -> e1 [label="verificación y\nrecuperación"];
+  sistema -> e2 [label="HTML, CSS, JS\nsin sesión en servidor", style=dashed];
+}
