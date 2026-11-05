@@ -442,8 +442,12 @@ different problem: the criterion's universal quantifier over \enquote{every data
 has no enumerated extension, so no test can ever report it green or red. The performance criteria
 \code{SC-003} and \code{SC-005} sit in the same spirit: the load scripts exist and a smoke run
 passed, but the criteria name the deployed topology, and the full run there has not been completed,
-so they are measured by instrument but not yet by result \todo{run the k6 scenarios against the
-deployed topology and record the SC-003 and SC-005 verdicts}. The human criteria, \code{SC-016},
+so they are measured by instrument but not yet by result. That is the status this
+report claims and no other: the instrument exists, a run at 200 virtual users
+passed against a development host, and no run has been performed against the
+deployed topology, because doing so would mean driving two hundred concurrent
+clients into an institutional server this work does not administer. The
+criterion is therefore reported as \emph{measured by instrument}, never as met. The human criteria, \code{SC-016},
 \code{SC-028}, and \code{SC-029}, plus the retention criterion \code{SC-010}, require the
 moderated sessions and perception instruments to be administered
 \todo{administer the SUS and perception instruments; record SC-016, SC-028, SC-029, and SC-010}.
